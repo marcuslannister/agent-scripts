@@ -15,8 +15,6 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
   - “IMPORTANT! ALL git commands are forbidden ... the only git CLI commands you may run are `git status`, `git diff`, and `git log`; run `git push` only when I explicitly ask for it.” (AGENTS.md:181-184)  
   - “When I type ‘rebase,’ treat it as consent ... Keep using `./runner git …` (or `./git …` if you absolutely must) so the guardrails stay active.” (AGENTS.md:189)
 
-> Heads-up: the shim still imports `@/lib/utils/to-array`. In repos without that alias, replace the import with a local helper.
-
 ## Committer Helper (`scripts/committer`)
 - **What it is:** Bash helper that stages exactly the files you list, enforces non-empty commit messages, and creates the commit (used because direct `git add`/`git commit` is blocked).
 - **AGENTS.md rules:**  
