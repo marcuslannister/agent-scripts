@@ -2,6 +2,10 @@
 
 This folder collects the Sweetistics guardrail helpers so they are easy to reuse in other repos or share during onboarding. Everything here is copied verbatim from `/Users/steipete/Projects/sweetistics` on 2025-11-08 unless otherwise noted.
 
+## Syncing With Other Repos
+- Treat this repo as the canonical mirror for the shared guardrail helpers. Whenever you edit `runner`, `scripts/runner.ts`, `bin/git`, `scripts/git-policy.ts`, `scripts/committer`, or `scripts/docs-list.ts` in any repo, copy the change here and then back out to every other repo that carries the same helpers so they stay byte-identical.
+- When someone says “sync agent scripts,” pull the latest changes here, diff against each repo that consumes these helpers (including `~/Projects/sweetistics`), and reconcile both directions before moving on.
+
 ## Runner Shim (`runner`, `scripts/runner.ts`)
 - **What it is:** `runner` is the Bash entry point that forces commands through Bun and `scripts/runner.ts`. The Bun runner enforces timeout tiers, intercepts risky commands (git/rm/find), auto-prompts for tmux handoffs, and ensures cleanup logs stay consistent across repos.
 - **Execution & timeout tiers:** Default timeout is 5 minutes, but the wrapper auto-detects lint/test/build keywords to grant 20 minute “extended,” 25 minute “long,” or 30 minute “lint” headroom. Integration specs and single-test flags are parsed so focused runs stay fast while full suites get extra time (`scripts/runner.ts`:40-214).
@@ -30,3 +34,7 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
   - “Non-negotiable: run `pnpm run docs:list`, read the summaries, and open the referenced rule files before you write a single line of code.” (AGENTS.md:72)  
   - “Start every session with `pnpm run docs:list` ... keep the relevant docs open while you implement.” (AGENTS.md:77)  
   - “Add `read_when` hints to key docs so `pnpm docs:list` surfaces them when the topic is relevant.” (AGENTS.md:81)
+
+## Sync Expectations
+- This repository is the canonical mirror for the guardrail helpers used in mcporter and other Sweetistics projects. Whenever you edit `runner`, `scripts/runner.ts`, `scripts/committer`, `bin/git`, `scripts/git-policy.ts`, `scripts/docs-list.ts`, or related guardrail files in another repo, copy the changes back here immediately (and vice versa) so the code stays byte-identical.
+- When someone asks to “sync agent scripts,” update this repo, compare it against the active project, and reconcile differences in both directions before continuing.
