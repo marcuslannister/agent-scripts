@@ -5,6 +5,7 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 ## Syncing With Other Repos
 - Treat this repo as the canonical mirror for the shared guardrail helpers. Whenever you edit `runner`, `scripts/runner.ts`, `bin/git`, `scripts/git-policy.ts`, `scripts/committer`, or `scripts/docs-list.ts` in any repo, copy the change here and then back out to every other repo that carries the same helpers so they stay byte-identical.
 - When someone says “sync agent scripts,” pull the latest changes here, diff against each repo that consumes these helpers (including `~/Projects/sweetistics`), and reconcile both directions before moving on.
+- Keep every file dependency-free and portable: the scripts must run in isolation across repos. Do not add `tsconfig` path aliases, shared source folders, or any other Sweetistics-specific imports—inline tiny helpers or duplicate the minimum code needed so the mirror stays self-contained.
 
 ## Runner Shim (`runner`, `scripts/runner.ts`)
 - **What it is:** `runner` is the Bash entry point that forces commands through Bun and `scripts/runner.ts`. The Bun runner enforces timeout tiers, intercepts risky commands (git/rm/find), auto-prompts for tmux handoffs, and ensures cleanup logs stay consistent across repos.
