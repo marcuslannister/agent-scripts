@@ -1,18 +1,46 @@
 # Agent Scripts
 
-This folder collects the Sweetistics guardrail helpers so they are easy to reuse in other repos or share during onboarding. Everything here is copied verbatim from `/Users/steipete/Projects/sweetistics` on 2025-11-08.
+This folder collects the Sweetistics guardrail helpers so they are easy to reuse in other repos or share during onboarding. Everything here is copied verbatim from `/Users/steipete/Projects/sweetistics` on 2025-11-08 unless otherwise noted.
 
-## What's Included
-- `runner`: Bash shim that funnels every command through Bun + `scripts/runner.ts`.
-- `scripts/runner.ts`: The Bun runner implementation (timeouts, git policy enforcement, trash safety, tmux escalation hints).
-- `scripts/committer`: Helper that stages an explicit file list and creates a commit under restricted workflows.
-- `git`, `bin/git`, `scripts/git-policy.ts`: The git blocker shim that refuses unsafe commands and forces the committer helper unless the user explicitly opted in. (These files still import `@/lib/utils/to-array`; in other repos you'll need to replace that alias with a local helper.)
+## Runner Shim (`runner`, `scripts/runner.ts`)
+- **What it is:** `runner` is the Bash entry point that forces commands through Bun and `scripts/runner.ts`. The Bun runner enforces timeout tiers, intercepts risky commands (git/rm/find), auto-prompts for tmux handoffs, and ensures cleanup logs stay consistent across repos.
+- **AGENTS.md rules:**  
+  - “Run all commands through `./runner <command>` ... skip only for read-only inspection tools.” (AGENTS.md:50)  
+  - “After editing code, run `./runner pnpm run check:file <edited-paths>` before you hand off changes.” (AGENTS.md:55)  
+  - “Launch the stack with `./runner pnpm run dev` ... Playwright server via `./runner pnpm playwright:server`.” (AGENTS.md:128-129)  
+  - “When running allowed git commands, invoke them through the wrapper (e.g., `./runner git status -sb`).” (AGENTS.md:190)
 
-## AGENTS.md Expectations
-Whenever you change any of these guardrails inside Sweetistics (or another repo using the same protocol), make sure the tweak is documented for fellow agents. The canonical workflow is:
+Whenever you change runner behavior, document it via:
 
 ```
 ./scripts/committer "docs: update AGENTS for runner" "AGENTS.md"
 ```
 
-Drop a concise note explaining what changed and why. If you clone these guardrails into another project, keep a similar playbook so contributors understand how to use the runner, committer, and git blocker.
+## Git Shim (`git`, `bin/git`, `scripts/git-policy.ts`)
+- **What it is:** Bun-based drop-in replacement for git that analyzes the invocation, blocks destructive subcommands, and requires either the committer helper or explicit consent environment variables. `scripts/git-policy.ts` houses the heuristics.
+- **AGENTS.md rules:**  
+  - “IMPORTANT! ALL git commands are forbidden ... the only git CLI commands you may run are `git status`, `git diff`, and `git log`; run `git push` only when I explicitly ask for it.” (AGENTS.md:181-184)  
+  - “When I type ‘rebase,’ treat it as consent ... Keep using `./runner git …` (or `./git …` if you absolutely must) so the guardrails stay active.” (AGENTS.md:189)
+
+> Heads-up: the shim still imports `@/lib/utils/to-array`. In repos without that alias, replace the import with a local helper.
+
+## Committer Helper (`scripts/committer`)
+- **What it is:** Bash helper that stages exactly the files you list, enforces non-empty commit messages, and creates the commit (used because direct `git add`/`git commit` is blocked).
+- **AGENTS.md rules:**  
+  - “IMPORTANT! To create a commit, use `./scripts/committer "your commit message" "path/to/file1" "path/to/file2"` ... never run `git add` yourself.” (AGENTS.md:192)
+
+## Docs Lister (`scripts/docs-list.ts`)
+- **What it is:** tsx script that walks `docs/`, enforces front-matter (`summary`, `read_when`), and prints the summaries surfaced by `pnpm run docs:list`. Other repos can wire the same command into their onboarding flow.
+- **AGENTS.md rules:**  
+  - “Non-negotiable: run `pnpm run docs:list`, read the summaries, and open the referenced rule files before you write a single line of code.” (AGENTS.md:72)  
+  - “Start every session with `pnpm run docs:list` ... keep the relevant docs open while you implement.” (AGENTS.md:77)  
+  - “Add `read_when` hints to key docs so `pnpm docs:list` surfaces them when the topic is relevant.” (AGENTS.md:81)
+
+## Guardrail Expectations
+For any change to these helpers—runner, git shim, committer, docs lister—log the update for fellow agents:
+
+```
+./scripts/committer "docs: update AGENTS for runner" "AGENTS.md"
+```
+
+Use a different commit message (“docs: update AGENTS for git shim”, etc.) when appropriate, but always note the behavior change in `AGENTS.md`.
