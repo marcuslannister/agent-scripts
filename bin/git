@@ -1,56 +1,31 @@
 #!/usr/bin/env bun
 
-import { accessSync, constants, existsSync, realpathSync } from 'node:fs';
-import { dirname, join, normalize, resolve, sep } from 'node:path';
+import { accessSync, constants } from 'node:fs';
+import { dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
-import { analyzeGitExecution, evaluateGitPolicies } from '../scripts/git-policy';
 
-const commandArgs = ['git', ...process.argv.slice(2)];
-const context = analyzeGitExecution(commandArgs, process.cwd());
+const scriptDir = normalize(dirname(fileURLToPath(import.meta.url)));
+const repoRoot = normalize(resolve(scriptDir, '..'));
+const runnerPath = join(repoRoot, 'runner');
 const gitBinary = findRealGitBinary();
+
 if (!gitBinary) {
   console.error('Unable to locate the system git binary outside the Sweetistics git shim.');
   process.exit(1);
 }
 
-if (!shouldEnforcePolicies(context)) {
-  process.exit(await runGitPassthrough(gitBinary));
-}
+const proc = Bun.spawn([runnerPath, gitBinary, ...process.argv.slice(2)], {
+  stdin: 'inherit',
+  stdout: 'inherit',
+  stderr: 'inherit',
+  env: process.env,
+});
 
-const evaluation = evaluateGitPolicies(context);
-
-if (evaluation.requiresCommitHelper) {
-  console.error(
-    'Direct git add/commit is disabled. Use ./scripts/committer "chore(runner): describe change" "scripts/runner.ts" instead—see AGENTS.md and ./scripts/committer for details. The helper auto-stashes unrelated files before committing.'
-  );
-  process.exit(1);
-}
-
-if (evaluation.requiresExplicitConsent) {
-  if (process.env.RUNNER_THE_USER_GAVE_ME_CONSENT === '1') {
-    if (process.env.RUNNER_DEBUG === '1') {
-      console.error('[git-shim] Proceeding with guarded git command because RUNNER_THE_USER_GAVE_ME_CONSENT=1.');
-    }
-  } else {
-    console.error(
-      `Using git ${context.subcommand ?? ''} requires consent. Set RUNNER_THE_USER_GAVE_ME_CONSENT=1 after verifying with the user, or ask them explicitly before proceeding.`
-    );
-    process.exit(1);
-  }
-}
-
-if (evaluation.isDestructive) {
-  console.error(
-    'Destructive git commands require explicit user consent. If you are trying to revert an individual file, carefully undo your changes from memory. Other agents work in this repository and a blanket reset would risk overriding their non-committed work.'
-  );
-  process.exit(1);
-}
-
-process.exit(await runGitPassthrough(gitBinary));
+process.exit(await proc.exited);
 
 function findRealGitBinary(): string | null {
-  const scriptDir = normalize(dirname(fileURLToPath(import.meta.url)));
+  const skipDirs = new Set([scriptDir, repoRoot]);
 
   const pathCandidates = (process.env.PATH ?? '')
     .split(':')
@@ -59,7 +34,7 @@ function findRealGitBinary(): string | null {
 
   for (const segment of pathCandidates) {
     const normalized = normalize(resolve(segment));
-    if (normalized === scriptDir) {
+    if (skipDirs.has(normalized)) {
       continue;
     }
     const candidate = join(normalized, 'git');
@@ -78,9 +53,6 @@ function findRealGitBinary(): string | null {
 }
 
 function isExecutable(candidate: string): boolean {
-  if (!existsSync(candidate)) {
-    return false;
-  }
   try {
     accessSync(candidate, constants.X_OK);
     return true;
@@ -89,92 +61,3 @@ function isExecutable(candidate: string): boolean {
   }
 }
 
-async function runGitPassthrough(binary: string): Promise<number> {
-  const proc = Bun.spawn([binary, ...process.argv.slice(2)], {
-    stdin: 'inherit',
-    stdout: 'inherit',
-    stderr: 'inherit',
-    env: process.env,
-  });
-  return proc.exited;
-}
-
-function shouldEnforcePolicies(context: ReturnType<typeof analyzeGitExecution>): boolean {
-  const scriptDir = dirname(fileURLToPath(import.meta.url));
-  let repoRoot: string | null = null;
-  try {
-    repoRoot = realpathSync(resolve(scriptDir, '..'));
-  } catch {
-    return false;
-  }
-
-  const candidatePaths = collectCandidatePaths(context);
-
-  for (const path of candidatePaths) {
-    if (path && isPathInsideRepo(path, repoRoot)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function collectCandidatePaths(context: ReturnType<typeof analyzeGitExecution>): Set<string> {
-  const candidates = new Set<string>();
-
-  if (context.workDir) {
-    candidates.add(context.workDir);
-  }
-
-  const argv = toArray(context.invocation?.argv);
-  for (let index = 1; index < argv.length; index += 1) {
-    const token = argv[index];
-
-    if (token === '-C' || token === '--git-dir' || token === '--work-tree') {
-      const value = argv[index + 1];
-      if (value) {
-        candidates.add(resolve(context.workDir, value));
-      }
-      index += 1;
-      continue;
-    }
-
-    if (token.startsWith('-C') && token.length > 2) {
-      candidates.add(resolve(context.workDir, token.slice(2)));
-      continue;
-    }
-
-    if (token.startsWith('--git-dir=')) {
-      candidates.add(resolve(context.workDir, token.slice('--git-dir='.length)));
-      continue;
-    }
-
-    if (token.startsWith('--work-tree=')) {
-      candidates.add(resolve(context.workDir, token.slice('--work-tree='.length)));
-    }
-  }
-
-  return candidates;
-}
-
-function isPathInsideRepo(candidate: string, repoRoot: string): boolean {
-  try {
-    const realCandidate = realpathSync(candidate);
-    if (realCandidate === repoRoot) {
-      return true;
-    }
-    return realCandidate.startsWith(repoRoot.endsWith(sep) ? repoRoot : `${repoRoot}${sep}`);
-  } catch {
-    return false;
-  }
-}
-
-function toArray<T>(value: T | T[] | null | undefined): T[] {
-  if (value == null) {
-    return [];
-  }
-  if (Array.isArray(value)) {
-    return value;
-  }
-  return [value];
-}

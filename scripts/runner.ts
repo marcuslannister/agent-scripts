@@ -24,6 +24,7 @@ const LONG_TIMEOUT_MS = 25 * 60 * 1000; // Build + full-suite commands (Next.js 
 const LINT_TIMEOUT_MS = 30 * 60 * 1000;
 const LONG_RUN_REPORT_THRESHOLD_MS = 60 * 1000;
 const ENABLE_DEBUG_LOGS = process.env.RUNNER_DEBUG === '1';
+const MAX_SLEEP_SECONDS = 30;
 
 const WRAPPER_COMMANDS = new Set([
   'sudo',
@@ -618,6 +619,7 @@ async function resolveCommandInterception(context: RunnerExecutionContext): Prom
   const interceptors: Array<(ctx: RunnerExecutionContext) => Promise<boolean>> = [
     maybeHandleFindInvocation,
     maybeHandleRmInvocation,
+    maybeHandleSleepInvocation,
   ];
 
   for (const interceptor of interceptors) {
@@ -767,6 +769,52 @@ async function maybeHandleGitRm(gitContext: GitExecutionContext): Promise<boolea
     process.exit(1);
   }
   return true;
+}
+
+// Blocks `sleep` calls longer than the AGENTS.md ceiling so scripts cannot stall the runner.
+async function maybeHandleSleepInvocation(context: RunnerExecutionContext): Promise<boolean> {
+  const tokens = stripWrappersAndAssignments(context.commandArgs);
+  if (tokens.length === 0) {
+    return false;
+  }
+  const [first, ...rest] = tokens;
+  if (!first || !isSleepBinary(first) || rest.length === 0) {
+    return false;
+  }
+
+  for (const token of rest) {
+    const durationSeconds = parseSleepDurationSeconds(token);
+    if (durationSeconds == null) {
+      continue;
+    }
+    if (durationSeconds > MAX_SLEEP_SECONDS) {
+      console.error(
+        `[runner] sleep ${token} exceeds the ${MAX_SLEEP_SECONDS}s limit from AGENTS.md—split the wait or lower the value.`
+      );
+      process.exit(1);
+    }
+  }
+
+  return false;
+}
+
+function parseSleepDurationSeconds(token: string): number | null {
+  const match = /^(\d+(?:\.\d+)?)([smhdSMHD]?)$/.exec(token);
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  const unit = match[2]?.toLowerCase() ?? '';
+  const multiplier =
+    unit === 'm' ? 60 : unit === 'h' ? 60 * 60 : unit === 'd' ? 60 * 60 * 24 : 1;
+  return value * multiplier;
+}
+
+function isSleepBinary(token: string): boolean {
+  return token === 'sleep' || token.endsWith('/sleep');
 }
 
 // Detects `git find` invocations that need policy enforcement.
