@@ -6,9 +6,8 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - **What it is:** `runner` is the Bash entry point that forces commands through Bun and `scripts/runner.ts`. The Bun runner enforces timeout tiers, intercepts risky commands (git/rm/find), auto-prompts for tmux handoffs, and ensures cleanup logs stay consistent across repos.
 - **AGENTS.md rules:**  
   - “Run all commands through `./runner <command>` ... skip only for read-only inspection tools.” (AGENTS.md:50)  
-  - “After editing code, run `./runner pnpm run check:file <edited-paths>` before you hand off changes.” (AGENTS.md:55)  
-  - “Launch the stack with `./runner pnpm run dev` ... Playwright server via `./runner pnpm playwright:server`.” (AGENTS.md:128-129)  
-  - “When running allowed git commands, invoke them through the wrapper (e.g., `./runner git status -sb`).” (AGENTS.md:190)
+  - “When I type ‘rebase,’ … keep using `./runner git …` (or `./git …`) so the guardrails stay active.” (AGENTS.md:189)  
+  - “When you run the allowed git commands, invoke them through the wrapper (e.g., `./runner git status -sb`).” (AGENTS.md:190)
 
 Whenever you change runner behavior, document it via:
 
