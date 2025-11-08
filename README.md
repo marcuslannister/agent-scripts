@@ -9,12 +9,6 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
   - “When I type ‘rebase,’ … keep using `./runner git …` (or `./git …`) so the guardrails stay active.” (AGENTS.md:189)  
   - “When you run the allowed git commands, invoke them through the wrapper (e.g., `./runner git status -sb`).” (AGENTS.md:190)
 
-Whenever you change runner behavior, document it via:
-
-```
-./scripts/committer "docs: update AGENTS for runner" "AGENTS.md"
-```
-
 ## Git Shim (`git`, `bin/git`, `scripts/git-policy.ts`)
 - **What it is:** Bun-based drop-in replacement for git that analyzes the invocation, blocks destructive subcommands, and requires either the committer helper or explicit consent environment variables. `scripts/git-policy.ts` houses the heuristics.
 - **AGENTS.md rules:**  
