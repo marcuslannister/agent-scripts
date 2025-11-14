@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2025-11-14 — Compact Runner Summaries
+- The runner's completion log now defaults to a compact `exit <code> in <time>` format so long commands don't repeat the entire input line.
+- Added the `RUNNER_SUMMARY_STYLE` env var with `compact` (default), `minimal`, and `verbose` options so agents can pick how much detail they want without editing the script.
+
 ## 2025-11-08 — Sleep Guardrail & Git Shim Refresh
 - Runner now rejects any `sleep` argument longer than 30 seconds, mirroring the AGENTS rule and preventing long blocking waits.
 - Added `bin/sleep` so plain `sleep` calls automatically route through the runner and inherit the enforcement without extra flags.

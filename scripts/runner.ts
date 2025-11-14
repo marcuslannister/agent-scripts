@@ -37,6 +37,9 @@ const WRAPPER_COMMANDS = new Set([
   '/usr/bin/nohup',
 ]);
 
+type SummaryStyle = 'compact' | 'minimal' | 'verbose';
+const SUMMARY_STYLE = resolveSummaryStyle(process.env.RUNNER_SUMMARY_STYLE);
+
 // biome-ignore format: keep each keyword on its own line for grep-friendly diffs.
 const LONG_SCRIPT_KEYWORDS = ['build', 'test:all', 'test:browser', 'vitest.browser', 'vitest.browser.config.ts'];
 const EXTENDED_SCRIPT_KEYWORDS = ['lint', 'test', 'playwright', 'check', 'docker'];
@@ -533,7 +536,7 @@ async function runCommand(context: RunnerExecutionContext): Promise<void> {
         `[runner] Command terminated after ${formatDuration(context.timeoutMs)}. Re-run inside tmux for long-lived work.`
       );
       console.error(
-        `[runner] Finished ${commandLabel} (exit ${exitCode}, elapsed ${formatDuration(elapsedMs)}; timed out).`
+        formatCompletionSummary({ exitCode, elapsedMs, timedOut: true, commandLabel })
       );
       process.exit(124);
     }
@@ -544,12 +547,45 @@ async function runCommand(context: RunnerExecutionContext): Promise<void> {
       );
     }
 
-    console.error(`[runner] Finished ${commandLabel} (exit ${exitCode}, elapsed ${formatDuration(elapsedMs)}).`);
+    console.error(formatCompletionSummary({ exitCode, elapsedMs, commandLabel }));
     process.exit(exitCode);
   } catch (error) {
     console.error('[runner] Failed to launch command:', error instanceof Error ? error.message : String(error));
     process.exit(1);
     return;
+  }
+}
+
+async function runCommandWithoutTimeout(context: RunnerExecutionContext): Promise<void> {
+  const { command, args, env } = buildExecutionParams(context.commandArgs);
+  const commandLabel = formatDisplayCommand(context.commandArgs);
+  const startTime = Date.now();
+
+  const child = spawn(command, args, {
+    cwd: context.workspaceDir,
+    env,
+    stdio: 'inherit',
+  });
+
+  const removeSignalHandlers = registerSignalForwarding(child);
+
+  try {
+    const exitCode = await new Promise<number>((resolve, reject) => {
+      child.once('error', (error) => {
+        removeSignalHandlers();
+        reject(error);
+      });
+      child.once('exit', (code, signal) => {
+        removeSignalHandlers();
+        resolve(code ?? exitCodeFromSignal(signal));
+      });
+    });
+    const elapsedMs = Date.now() - startTime;
+    console.error(formatCompletionSummary({ exitCode, elapsedMs, commandLabel }));
+    process.exit(exitCode);
+  } catch (error) {
+    console.error('[runner] Failed to launch command:', error instanceof Error ? error.message : String(error));
+    process.exit(1);
   }
 }
 
@@ -617,6 +653,7 @@ function exitCodeFromSignal(signal: NodeJS.Signals | null): number {
 // Gives policy interceptors a chance to fully handle a command before exec.
 async function resolveCommandInterception(context: RunnerExecutionContext): Promise<CommandInterceptionResult> {
   const interceptors: Array<(ctx: RunnerExecutionContext) => Promise<boolean>> = [
+    maybeHandleTmuxInvocation,
     maybeHandleFindInvocation,
     maybeHandleRmInvocation,
     maybeHandleSleepInvocation,
@@ -798,6 +835,23 @@ async function maybeHandleSleepInvocation(context: RunnerExecutionContext): Prom
   return false;
 }
 
+async function maybeHandleTmuxInvocation(context: RunnerExecutionContext): Promise<boolean> {
+  const tokens = stripWrappersAndAssignments(context.commandArgs);
+  if (tokens.length === 0) {
+    return false;
+  }
+  const candidate = tokens[0];
+  if (!candidate) {
+    return false;
+  }
+  if (basename(candidate) !== 'tmux') {
+    return false;
+  }
+  console.error('[runner] Detected tmux invocation; executing command without runner timeout guardrails.');
+  await runCommandWithoutTimeout(context);
+  return true;
+}
+
 function parseSleepDurationSeconds(token: string): number | null {
   const match = /^(\d+(?:\.\d+)?)([smhdSMHD]?)$/.exec(token);
   if (!match) {
@@ -808,8 +862,7 @@ function parseSleepDurationSeconds(token: string): number | null {
     return null;
   }
   const unit = match[2]?.toLowerCase() ?? '';
-  const multiplier =
-    unit === 'm' ? 60 : unit === 'h' ? 60 * 60 : unit === 'd' ? 60 * 60 * 24 : 1;
+  const multiplier = unit === 'm' ? 60 : unit === 'h' ? 60 * 60 : unit === 'd' ? 60 * 60 * 24 : 1;
   return value * multiplier;
 }
 
@@ -1337,6 +1390,56 @@ function formatDuration(durationMs: number): string {
     return `${hours}h`;
   }
   return `${hours}h ${remainingMinutes}m`;
+}
+
+function resolveSummaryStyle(rawValue: string | undefined | null): SummaryStyle {
+  if (!rawValue) {
+    return 'compact';
+  }
+  const normalized = rawValue.trim().toLowerCase();
+  switch (normalized) {
+    case 'minimal':
+      return 'minimal';
+    case 'verbose':
+      return 'verbose';
+    case 'compact':
+    case 'short':
+    default:
+      return 'compact';
+  }
+}
+
+function formatCompletionSummary(options: {
+  exitCode: number;
+  elapsedMs?: number;
+  timedOut?: boolean;
+  commandLabel: string;
+}): string {
+  const { exitCode, elapsedMs, timedOut, commandLabel } = options;
+  const durationText = typeof elapsedMs === 'number' ? formatDuration(elapsedMs) : null;
+  switch (SUMMARY_STYLE) {
+    case 'minimal': {
+      const parts = [`${exitCode}`];
+      if (durationText) {
+        parts.push(durationText);
+      }
+      if (timedOut) {
+        parts.push('timeout');
+      }
+      return `[runner] ${parts.join(' · ')}`;
+    }
+    case 'verbose': {
+      const elapsedPart = durationText ? `, elapsed ${durationText}` : '';
+      const timeoutPart = timedOut ? '; timed out' : '';
+      return `[runner] Finished ${commandLabel} (exit ${exitCode}${elapsedPart}${timeoutPart}).`;
+    }
+    case 'compact':
+    default: {
+      const elapsedPart = durationText ? ` in ${durationText}` : '';
+      const timeoutPart = timedOut ? ' (timeout)' : '';
+      return `[runner] exit ${exitCode}${elapsedPart}${timeoutPart}`;
+    }
+  }
 }
 
 // Joins the command args in a shell-friendly way for log display.
