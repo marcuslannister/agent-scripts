@@ -41,10 +41,18 @@ type SummaryStyle = 'compact' | 'minimal' | 'verbose';
 const SUMMARY_STYLE = resolveSummaryStyle(process.env.RUNNER_SUMMARY_STYLE);
 
 // biome-ignore format: keep each keyword on its own line for grep-friendly diffs.
-const LONG_SCRIPT_KEYWORDS = ['build', 'test:all', 'test:browser', 'vitest.browser', 'vitest.browser.config.ts'];
+const LONG_SCRIPT_KEYWORDS = [
+  'build',
+  'test:all',
+  'test:browser',
+  'test:e2e',
+  'test:e2e:headed',
+  'vitest.browser',
+  'vitest.browser.config.ts',
+];
 const EXTENDED_SCRIPT_KEYWORDS = ['lint', 'test', 'playwright', 'check', 'docker'];
 const SINGLE_TEST_SCRIPTS = new Set(['test:file']);
-const SINGLE_TEST_FLAGS = new Set(['--run']);
+const SINGLE_TEST_FLAGS = new Set(['--run', '--filter']);
 const TEST_BINARIES = new Set(['vitest', 'playwright', 'jest']);
 const LINT_BINARIES = new Set(['eslint', 'biome', 'oxlint', 'knip']);
 
@@ -160,61 +168,69 @@ function shouldExtendTimeout(commandArgs: string[]): boolean {
     return false;
   }
 
-  const first = tokens[0];
+  const [first, ...rest] = tokens;
   if (!first) {
     return false;
   }
-  const rest = tokens.slice(1);
 
   if (first === 'pnpm') {
-    if (rest.length === 0) {
-      return false;
-    }
-    const subcommand = rest[0];
-    if (!subcommand) {
-      return false;
-    }
-    if (!subcommand) {
-      return false;
-    }
-    if (subcommand === 'run') {
-      const script = rest[1];
-      if (!script) {
-        return false;
-      }
-      return shouldExtendForScript(script);
-    }
-    if (subcommand === 'exec') {
-      const execTarget = rest[1];
-      if (!execTarget) {
-        return false;
-      }
-      if (shouldExtendForScript(execTarget) || TEST_BINARIES.has(execTarget.toLowerCase())) {
-        return true;
-      }
-      for (const token of rest.slice(1)) {
-        if (shouldExtendForScript(token) || TEST_BINARIES.has(token.toLowerCase())) {
-          return true;
-        }
-      }
-      return false;
-    }
-    if (shouldExtendForScript(subcommand)) {
-      return true;
-    }
+    return shouldExtendViaPnpm(rest);
+  }
+  if (first === 'bun') {
+    return shouldExtendViaBun(rest);
   }
 
   if (shouldExtendForScript(first) || TEST_BINARIES.has(first.toLowerCase())) {
     return true;
   }
 
-  for (const token of rest) {
-    if (shouldExtendForScript(token) || TEST_BINARIES.has(token.toLowerCase())) {
+  return rest.some((token) => shouldExtendForScript(token) || TEST_BINARIES.has(token.toLowerCase()));
+}
+
+function shouldExtendViaPnpm(rest: string[]): boolean {
+  if (rest.length === 0) {
+    return false;
+  }
+  const subcommand = rest[0];
+  if (!subcommand) {
+    return false;
+  }
+  if (subcommand === 'run') {
+    const script = rest[1];
+    return typeof script === 'string' && shouldExtendForScript(script);
+  }
+  if (subcommand === 'exec') {
+    const execTarget = rest[1];
+    if (execTarget && (shouldExtendForScript(execTarget) || TEST_BINARIES.has(execTarget.toLowerCase()))) {
+      return true;
+    }
+    return rest.slice(1).some((token) => shouldExtendForScript(token) || TEST_BINARIES.has(token.toLowerCase()));
+  }
+  return shouldExtendForScript(subcommand);
+}
+
+function shouldExtendViaBun(rest: string[]): boolean {
+  if (rest.length === 0) {
+    return false;
+  }
+  const subcommand = rest[0];
+  if (!subcommand) {
+    return false;
+  }
+  if (subcommand === 'run') {
+    const script = rest[1];
+    return typeof script === 'string' && shouldExtendForScript(script);
+  }
+  if (subcommand === 'test') {
+    return true;
+  }
+  if (subcommand === 'x' || subcommand === 'bunx') {
+    const execTarget = rest[1];
+    if (execTarget && TEST_BINARIES.has(execTarget.toLowerCase())) {
       return true;
     }
   }
-
-  return false;
+  return shouldExtendForScript(subcommand);
 }
 
 // Checks script names for long-running markers (lint/test/build/etc.).
@@ -232,37 +248,59 @@ function shouldUseLintTimeout(commandArgs: string[]): boolean {
     return false;
   }
 
-  const first = tokens[0];
+  const [first, ...rest] = tokens;
   if (!first) {
     return false;
   }
-  const rest = tokens.slice(1);
 
   if (first === 'pnpm') {
-    if (rest.length === 0) {
-      return false;
-    }
-    const subcommand = rest[0];
-    if (!subcommand) {
-      return false;
-    }
-    if (subcommand === 'run') {
-      const script = rest[1];
-      return typeof script === 'string' && script.startsWith('lint');
-    }
-    if (subcommand === 'exec') {
-      const execTarget = rest[1];
-      if (execTarget && LINT_BINARIES.has(execTarget.toLowerCase())) {
-        return true;
-      }
-    }
+    return shouldUseLintTimeoutViaPnpm(rest);
+  }
+  if (first === 'bun') {
+    return shouldUseLintTimeoutViaBun(rest);
   }
 
-  if (LINT_BINARIES.has(first.toLowerCase())) {
-    return true;
-  }
+  return LINT_BINARIES.has(first.toLowerCase());
+}
 
-  return false;
+function shouldUseLintTimeoutViaPnpm(rest: string[]): boolean {
+  if (rest.length === 0) {
+    return false;
+  }
+  const subcommand = rest[0];
+  if (!subcommand) {
+    return false;
+  }
+  if (subcommand === 'run') {
+    const script = rest[1];
+    return typeof script === 'string' && script.startsWith('lint');
+  }
+  if (subcommand === 'exec') {
+    const execTarget = rest[1];
+    if (execTarget && LINT_BINARIES.has(execTarget.toLowerCase())) {
+      return true;
+    }
+    return rest.slice(1).some((token) => LINT_BINARIES.has(token.toLowerCase()));
+  }
+  return LINT_BINARIES.has(subcommand.toLowerCase());
+}
+
+function shouldUseLintTimeoutViaBun(rest: string[]): boolean {
+  if (rest.length === 0) {
+    return false;
+  }
+  const subcommand = rest[0];
+  if (!subcommand) {
+    return false;
+  }
+  if (subcommand === 'run') {
+    const script = rest[1];
+    return typeof script === 'string' && script.startsWith('lint');
+  }
+  if (subcommand === 'x' || subcommand === 'bunx') {
+    return rest.slice(1).some((token) => LINT_BINARIES.has(token.toLowerCase()));
+  }
+  return LINT_BINARIES.has(subcommand.toLowerCase());
 }
 
 // Detects when a user is running a single spec so we can keep the shorter timeout.
@@ -272,27 +310,64 @@ function isSingleTestInvocation(commandArgs: string[]): boolean {
     return false;
   }
 
-  for (const token of tokens) {
-    if (SINGLE_TEST_FLAGS.has(token)) {
-      return true;
-    }
+  if (tokens.some((token) => SINGLE_TEST_FLAGS.has(token))) {
+    return true;
   }
 
-  const first = tokens[0];
+  const [first, ...rest] = tokens;
   if (!first) {
     return false;
   }
-  const rest = tokens.slice(1);
+
   if (first === 'pnpm') {
-    if (rest[0] === 'test:file') {
-      return true;
-    }
-  } else if (first === 'vitest') {
-    if (rest.some((token) => SINGLE_TEST_FLAGS.has(token))) {
-      return true;
-    }
+    return isSingleTestViaPnpm(rest);
+  }
+  if (first === 'bun') {
+    return isSingleTestViaBun(rest);
+  }
+  if (first === 'vitest') {
+    return rest.some((token) => SINGLE_TEST_FLAGS.has(token));
   }
 
+  return SINGLE_TEST_SCRIPTS.has(first);
+}
+
+function isSingleTestViaPnpm(rest: string[]): boolean {
+  if (rest.length === 0) {
+    return false;
+  }
+  const subcommand = rest[0];
+  if (!subcommand) {
+    return false;
+  }
+  if (subcommand === 'run') {
+    const script = rest[1];
+    return typeof script === 'string' && SINGLE_TEST_SCRIPTS.has(script);
+  }
+  if (subcommand === 'exec') {
+    return rest.slice(1).some((token) => SINGLE_TEST_FLAGS.has(token));
+  }
+  return SINGLE_TEST_SCRIPTS.has(subcommand);
+}
+
+function isSingleTestViaBun(rest: string[]): boolean {
+  if (rest.length === 0) {
+    return false;
+  }
+  const subcommand = rest[0];
+  if (!subcommand) {
+    return false;
+  }
+  if (subcommand === 'run') {
+    const script = rest[1];
+    return typeof script === 'string' && SINGLE_TEST_SCRIPTS.has(script);
+  }
+  if (subcommand === 'test') {
+    return true;
+  }
+  if (subcommand === 'x' || subcommand === 'bunx') {
+    return rest.slice(1).some((token) => SINGLE_TEST_FLAGS.has(token));
+  }
   return false;
 }
 
@@ -819,19 +894,32 @@ async function maybeHandleSleepInvocation(context: RunnerExecutionContext): Prom
     return false;
   }
 
-  for (const token of rest) {
-    const durationSeconds = parseSleepDurationSeconds(token);
-    if (durationSeconds == null) {
-      continue;
-    }
-    if (durationSeconds > MAX_SLEEP_SECONDS) {
-      console.error(
-        `[runner] sleep ${token} exceeds the ${MAX_SLEEP_SECONDS}s limit from AGENTS.md—split the wait or lower the value.`
-      );
-      process.exit(1);
-    }
+  const commandIndex = context.commandArgs.length - tokens.length;
+  if (commandIndex < 0) {
+    return false;
   }
 
+  const adjustedArgs = [...context.commandArgs];
+  const adjustments: string[] = [];
+
+  for (let offset = 0; offset < rest.length; offset += 1) {
+    const token = rest[offset];
+    const durationSeconds = parseSleepDurationSeconds(token);
+    if (durationSeconds == null || durationSeconds <= MAX_SLEEP_SECONDS) {
+      continue;
+    }
+    adjustments.push(`${token}→${formatSleepDuration(MAX_SLEEP_SECONDS)}`);
+    adjustedArgs[commandIndex + 1 + offset] = formatSleepArgument(MAX_SLEEP_SECONDS);
+  }
+
+  if (adjustments.length === 0) {
+    return false;
+  }
+
+  console.error(
+    `[runner] sleep arguments exceed ${MAX_SLEEP_SECONDS}s; clamping (${adjustments.join(', ')}).`
+  );
+  context.commandArgs = adjustedArgs;
   return false;
 }
 
@@ -864,6 +952,17 @@ function parseSleepDurationSeconds(token: string): number | null {
   const unit = match[2]?.toLowerCase() ?? '';
   const multiplier = unit === 'm' ? 60 : unit === 'h' ? 60 * 60 : unit === 'd' ? 60 * 60 * 24 : 1;
   return value * multiplier;
+}
+
+function formatSleepArgument(seconds: number): string {
+  return Number.isInteger(seconds) ? `${seconds}` : seconds.toString();
+}
+
+function formatSleepDuration(seconds: number): string {
+  if (Number.isInteger(seconds)) {
+    return `${seconds}s`;
+  }
+  return `${seconds.toFixed(2)}s`;
 }
 
 function isSleepBinary(token: string): boolean {
