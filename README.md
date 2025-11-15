@@ -36,6 +36,11 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
   - “Start every session with `pnpm run docs:list` ... keep the relevant docs open while you implement.” (AGENTS.md:77)  
   - “Add `read_when` hints to key docs so `pnpm docs:list` surfaces them when the topic is relevant.” (AGENTS.md:81)
 
+## Browser Tools (`scripts/browser-tools.ts`)
+- **What it is:** A standalone Chrome helper inspired by Mario Zechner’s [“What if you don’t need MCP?”](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/) article. It launches/inspects DevTools-enabled Chrome profiles, pastes prompts, captures screenshots, and kills stray helper processes without needing the full Oracle CLI.
+- **Usage:** Run `pnpm tsx scripts/browser-tools.ts --help` for available commands. Common ones include `start --profile`, `nav <url>`, `eval '<js>'`, `screenshot`, `inspect`, and `kill --all --force`.
+- **Portability:** The script has zero repo-specific imports, so you can copy it into other automation projects or run it directly from this repo (e.g., symlink into `~/Projects/agent-scripts` and invoke from there). Keep this copy in sync with any downstream forks so troubleshooting commands stay identical.
+
 ## Sync Expectations
 - This repository is the canonical mirror for the guardrail helpers used in mcporter and other Sweetistics projects. Whenever you edit `runner`, `scripts/runner.ts`, `scripts/committer`, `bin/git`, `scripts/git-policy.ts`, `scripts/docs-list.ts`, or related guardrail files in another repo, copy the changes back here immediately (and vice versa) so the code stays byte-identical.
 - When someone asks to “sync agent scripts,” update this repo, compare it against the active project, and reconcile differences in both directions before continuing.
