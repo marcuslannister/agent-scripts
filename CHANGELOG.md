@@ -8,6 +8,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Added `scripts/browser-tools.ts`, a DevTools-ready Chrome helper copied from the Oracle repo so agents can inspect, screenshot, and terminate sessions without dragging in the full CLI. The workflow is inspired by Mario Zechner’s [“What if you don’t need MCP?”](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/).
 - Documented the new helper in the README so downstream repos know how to run `pnpm tsx scripts/browser-tools.ts --help`.
 
+## 2025-11-16 — Browser Tools Pipe Detection
+- Updated `scripts/browser-tools.ts` to enumerate and kill Chrome instances started with `--remote-debugging-pipe` (the default for Peekaboo/Tachikoma) in addition to the classic `--remote-debugging-port`. List/kill now show “debugging pipe” when no port exists and still fetch tab metadata when it does.
+- README now notes the optional `NODE_PATH=$(npm root -g)` trick so the helper can run from bare copies of the repo without a local `package.json`.
+
 ## 2025-11-14 — Compact Runner Summaries
 - The runner's completion log now defaults to a compact `exit <code> in <time>` format so long commands don't repeat the entire input line.
 - Added the `RUNNER_SUMMARY_STYLE` env var with `compact` (default), `minimal`, and `verbose` options so agents can pick how much detail they want without editing the script.

@@ -365,7 +365,8 @@ program
       if (index > 0) {
         console.log('');
       }
-      const header = [`Chrome PID ${session.pid}`, `(port ${session.port})`];
+      const transport = session.port !== undefined ? `port ${session.port}` : session.usesPipe ? 'debugging pipe' : 'unknown transport';
+      const header = [`Chrome PID ${session.pid}`, `(${transport})`];
       if (session.version?.Browser) {
         header.push(`- ${session.version.Browser}`);
       }
@@ -406,7 +407,8 @@ program
     if (!options.force) {
       console.log('About to terminate the following Chrome sessions:');
       sessions.forEach((session) => {
-        console.log(`  PID ${session.pid} (port ${session.port})`);
+        const transport = session.port !== undefined ? `port ${session.port}` : session.usesPipe ? 'debugging pipe' : 'unknown transport';
+        console.log(`  PID ${session.pid} (${transport})`);
       });
       const rl = readline.createInterface({ input, output });
       const answer = (await rl.question('Proceed? [y/N] ')).trim().toLowerCase();
@@ -420,7 +422,8 @@ program
     sessions.forEach((session) => {
       try {
         process.kill(session.pid);
-        console.log(`✓ Killed Chrome PID ${session.pid} (port ${session.port})`);
+        const transport = session.port !== undefined ? `port ${session.port}` : session.usesPipe ? 'debugging pipe' : 'unknown transport';
+        console.log(`✓ Killed Chrome PID ${session.pid} (${transport})`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`✗ Failed to kill PID ${session.pid}: ${message}`);
@@ -434,7 +437,8 @@ program
 
 interface ChromeProcessInfo {
   pid: number;
-  port: number;
+  port?: number;
+  usesPipe: boolean;
   command: string;
 }
 
@@ -478,7 +482,7 @@ async function describeChromeSessions(options: {
     if (includeAll) {
       return true;
     }
-    if (portSet.size > 0 && portSet.has(proc.port)) {
+    if (portSet.size > 0 && proc.port !== undefined && portSet.has(proc.port)) {
       return true;
     }
     if (pidSet.size > 0 && pidSet.has(proc.pid)) {
@@ -488,27 +492,32 @@ async function describeChromeSessions(options: {
   });
   const results: ChromeSessionDescription[] = [];
   for (const proc of candidates) {
-    const [version, tabs] = await Promise.all([
-      fetchJson(`http://localhost:${proc.port}/json/version`).catch(() => undefined),
-      fetchJson(`http://localhost:${proc.port}/json/list`).catch(() => []),
-    ]);
-    const filteredTabs = Array.isArray(tabs)
-      ? (tabs as ChromeTabInfo[]).filter((tab) => {
-          const type = tab.type?.toLowerCase() ?? '';
-          if (type && type !== 'page' && type !== 'app') {
-            if (!tab.url || tab.url.startsWith('devtools://') || tab.url.startsWith('chrome-extension://')) {
+    let version: Record<string, string> | undefined;
+    let filteredTabs: ChromeTabInfo[] = [];
+    if (proc.port !== undefined) {
+      const [versionResp, tabs] = await Promise.all([
+        fetchJson(`http://localhost:${proc.port}/json/version`).catch(() => undefined),
+        fetchJson(`http://localhost:${proc.port}/json/list`).catch(() => []),
+      ]);
+      version = versionResp as Record<string, string> | undefined;
+      filteredTabs = Array.isArray(tabs)
+        ? (tabs as ChromeTabInfo[]).filter((tab) => {
+            const type = tab.type?.toLowerCase() ?? '';
+            if (type && type !== 'page' && type !== 'app') {
+              if (!tab.url || tab.url.startsWith('devtools://') || tab.url.startsWith('chrome-extension://')) {
+                return false;
+              }
+            }
+            if (!tab.url || tab.url.trim().length === 0) {
               return false;
             }
-          }
-          if (!tab.url || tab.url.trim().length === 0) {
-            return false;
-          }
-          return true;
-        })
-      : [];
+            return true;
+          })
+        : [];
+    }
     results.push({
       ...proc,
-      version: (version as Record<string, string>) ?? undefined,
+      version,
       tabs: filteredTabs,
     });
   }
@@ -542,18 +551,21 @@ async function listDevtoolsChromes(): Promise<ChromeProcessInfo[]> {
       if (!Number.isFinite(pid) || pid <= 0) {
         return;
       }
-      if (!/chrome/i.test(command) || !/--remote-debugging-port/.test(command)) {
+      if (!/chrome/i.test(command) || (!/--remote-debugging-port/.test(command) && !/--remote-debugging-pipe/.test(command))) {
         return;
       }
       const portMatch = command.match(/--remote-debugging-port(?:=|\s+)(\d+)/);
-      if (!portMatch) {
+      if (portMatch) {
+        const port = Number.parseInt(portMatch[1], 10);
+        if (!Number.isFinite(port)) {
+          return;
+        }
+        processes.push({ pid, port, usesPipe: false, command });
         return;
       }
-      const port = Number.parseInt(portMatch[1], 10);
-      if (!Number.isFinite(port)) {
-        return;
+      if (/--remote-debugging-pipe/.test(command)) {
+        processes.push({ pid, usesPipe: true, command });
       }
-      processes.push({ pid, port, command });
     });
   return processes;
 }
