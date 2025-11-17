@@ -109,7 +109,6 @@ Commits all current changes in sensible groups, then pushes:
 
 **Safeguards:**
 - No destructive git (no reset/checkout --)
-- Respects teammate-unrelated work; leaves their files untouched and reports them
 - Aborts if tests are failing unless user explicitly overrules
 
 ---
