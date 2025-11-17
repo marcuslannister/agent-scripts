@@ -1,10 +1,5 @@
 # AGENTS.md
 
-Shared guardrails distilled from the various `~/Projects/*/AGENTS.md` files (state as of **November 15, 2025**). This document highlights the rules that show up again and again; still read the repo-local instructions before making changes.
-
-## Codex Global Instructions
-- Keep the system-wide Codex guidance at `~/.codex/AGENTS.md` (the Codex home; override via `CODEX_HOME` if needed) so every task inherits these rules by default.
-
 ## General Guardrails
 
 ### Intake & Scoping
@@ -33,6 +28,7 @@ Shared guardrails distilled from the various `~/Projects/*/AGENTS.md` files (sta
 - Refactor in place. Never create duplicate files with suffixes such as “V2”, “New”, or “Fixed”; update the canonical file and remove obsolete paths entirely.
 - Favor strict typing: avoid `any`, untyped dictionaries, or generic type erasure unless absolutely required. Prefer concrete structs/enums and mark public concurrency surfaces appropriately.
 - Keep files at a manageable size. When a file grows unwieldy, extract helpers or new modules instead of letting it bloat.
+- Keep every file under 500 lines of code; split into helpers/modules well before hitting the limit.
 - Match the repo’s established style (commit conventions, formatting tools, component patterns, etc.) by studying existing code before introducing new patterns.
 
 ### Git, Commits & Releases
