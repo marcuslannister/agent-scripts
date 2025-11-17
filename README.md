@@ -44,3 +44,9 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 ## Sync Expectations
 - This repository is the canonical mirror for the guardrail helpers used in mcporter and other Sweetistics projects. Whenever you edit `runner`, `scripts/runner.ts`, `scripts/committer`, `bin/git`, `scripts/git-policy.ts`, `scripts/docs-list.ts`, or related guardrail files in another repo, copy the changes back here immediately (and vice versa) so the code stays byte-identical.
 - When someone asks to “sync agent scripts,” update this repo, compare it against the active project, and reconcile differences in both directions before continuing.
+
+## @steipete Agent Instructions (syncing shared/tool blocks)
+- When syncing guardrails across repos, treat the `<shared></shared>` block in each repo’s `AGENTS.md` as a verbatim copy of this repo’s `AGENTS.md`, and the `<tools></tools>` block as a verbatim copy of `TOOLS.md`.
+- Limit the sweep to repos with Peter’s commits in the last two weeks and skip `agent-scripts` itself; don’t create new `AGENTS.md` files unless explicitly requested.
+- Order of operations: refresh `agent-scripts`, replace `<shared>` and `<tools>` blocks in the target repo, keep any repo-local content that sits outside the blocks, then commit/push using that repo’s wrappers (rebase only if clean/easy).
+- If a repo is already dirty with unrelated changes, stage only `AGENTS.md` for the sync commit and leave the other work untouched.

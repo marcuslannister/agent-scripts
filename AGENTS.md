@@ -2,6 +2,9 @@
 
 Shared guardrails distilled from the various `~/Projects/*/AGENTS.md` files (state as of **November 15, 2025**). This document highlights the rules that show up again and again; still read the repo-local instructions before making changes.
 
+## Codex Global Instructions
+- Keep the system-wide Codex guidance at `~/.codex/AGENTS.md` (the Codex home; override via `CODEX_HOME` if needed) so every task inherits these rules by default.
+
 ## General Guardrails
 
 ### Intake & Scoping
@@ -13,6 +16,7 @@ Shared guardrails distilled from the various `~/Projects/*/AGENTS.md` files (sta
 - Stick to the package manager and runtime mandated by the repo (pnpm-only, bun-only, swift-only, go-only, etc.). Never swap in alternatives without approval.
 - When editing shared guardrail scripts (runners, committer helpers, browser tools, etc.), mirror the same change back into the `agent-scripts` folder so the canonical copy stays current.
 - Ask the user before adding dependencies, changing build tooling, or altering project-wide configuration.
+- Keep the project’s `AGENTS.md` `<tools></tools>` block in sync with the full tool list from `TOOLS.md` so downstream repos get the latest tool descriptions.
 
 ### tmux & Long Tasks
 - Run any command that could hang (tests, servers, log streams, browser automation) inside tmux using the repository’s preferred entry point.
