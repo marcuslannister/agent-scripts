@@ -51,3 +51,5 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - Order of operations: refresh `agent-scripts`, replace `<shared>` and `<tools>` blocks in the target repo, keep any repo-local content that sits outside the blocks, then commit/push using that repo’s wrappers (rebase only if clean/easy).
 - If a repo is already dirty with unrelated changes, stage only `AGENTS.md` for the sync commit and leave the other work untouched.
 - If the target repo has submodules (e.g., Peekaboo → Commander/TauTUI/Tachikoma/AXorcist), run the same `<shared>/<tools>` sync inside those subrepos, push them, then bump the submodule pointers in the parent repo with a follow-up commit.
+- Treat `agent-scripts` as the manager/canonical repo: never include it in the sync sweep itself—only use it as the source of truth for `<shared>`/`<tools>` content.
+- Skip experimental repos such as `poltergeist-pitui` unless explicitly asked to include them.
