@@ -1,0 +1,14 @@
+# TOOLS
+- `runner`: Bash shim that routes every command through the Bun guardrails (timeouts, git policy, trash-safe deletes); first call: `./runner -- echo usage` to see the usage banner.
+- `git` / `bin/git`: Git shim that forces all git invocations through the runner and blocks destructive subcommands; first call: `./git --help` to confirm the wrapper and read git help.
+- `scripts/committer`: Commit helper that stages only the paths you list and creates the commit safely; first call: `./runner scripts/committer` to print its usage prompt.
+- `scripts/docs-list.ts`: Docs indexer that walks `docs/` and enforces required front-matter before printing summaries; first call: `./runner tsx scripts/docs-list.ts --help` (or run without flags to list docs).
+- `scripts/browser-tools.ts`: Chrome DevTools/Debugger helper to remote-control Chrome (start profiles, navigate, eval JS, screenshots); first call: `./runner ts-node scripts/browser-tools.ts --help`.
+- `scripts/runner.ts`: Bun implementation that powers the runner’s guardrails (timeouts, tmux nudges, git policy, safe deletes); first call: `./runner bun scripts/runner.ts --help` to show its usage banner.
+- `bin/sleep`: Sleep shim that enforces the 30-second ceiling by dispatching through the runner; first call: `./bin/sleep --help` to view the underlying `sleep` usage.
+- `xcp`: Command-line helper for managing Xcode projects and workspaces; first call: `./runner xcp --help` to see available subcommands.
+- `oracle`: CLI that bundles a prompt plus selected files to hand off to another AI; first call: `npx -y @steipete/oracle --help` (run via `./runner npx -y @steipete/oracle --help` if keeping guardrails).
+- `mcporter`: MCP launcher that runs any registered MCP server with one command; first call: `./runner npx mcporter --help` to see server discovery and flags.
+- `iterm`: Full TTY-capable terminal launched via MCP for unrestricted shell access; first call: `./runner npx mcporter iterm --help` to view options and requirements.
+- `firecrawl`: MCP-powered site fetcher that exports webpages to Markdown, even handling 404/500 responses; first call: `./runner npx mcporter firecrawl --help` to see fetch options.
+- `gh`: GitHub CLI for PRs, CI logs, releases, and repo queries; first call: `./runner gh help` (or `./runner gh --help`) to list top-level commands.
