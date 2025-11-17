@@ -11,4 +11,5 @@
 - `mcporter`: MCP launcher that runs any registered MCP server with one command; first call: `./runner npx mcporter --help` to see server discovery and flags.
 - `iterm`: Full TTY-capable terminal launched via MCP for unrestricted shell access; first call: `./runner npx mcporter iterm --help` to view options and requirements.
 - `firecrawl`: MCP-powered site fetcher that exports webpages to Markdown, even handling 404/500 responses; first call: `./runner npx mcporter firecrawl --help` to see fetch options.
+- `XcodeBuildMCP`: MCP wrapper around Xcode build/test/simulator tooling; first call: `./runner npx mcporter XcodeBuildMCP --help` to see available tools and auth needs.
 - `gh`: GitHub CLI for PRs, CI logs, releases, and repo queries; first call: `./runner gh help` (or `./runner gh --help`) to list top-level commands.
