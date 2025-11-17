@@ -185,6 +185,17 @@ Plain prompt to reflect after reading the code:
 
 ---
 
+### `/doit` - Autonomous Coding Mode
+**File:** `~/.codex/prompts/doit.md`
+
+You are now approved to switch into autonomous coding mode where you can work without restrictions.
+
+Implement each step of the plan until completion.
+
+**Usage:** `/doit`
+
+---
+
 ## How to Create Slash Commands
 
 1. **Create a markdown file** in `~/.codex/prompts/`:
@@ -238,6 +249,7 @@ This repository includes the following commands in both `.claude/commands/` and 
 - `/commitgroup` - Group multiple commits logically
 - `/cppp` - Commit all changes in grouped commits and push
 - `/different` - Post-review reflection: what would you change?
+- `/doit` - Enter autonomous coding mode and execute the plan
 - `/improve` - Post-ship retro helper
 - `/fix` - Run quality checks & fix all failures
 - `/massageprs` - Continuous PR maintenance loop
