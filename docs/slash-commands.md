@@ -175,22 +175,13 @@ Cycles through all open PRs until simultaneously green:
 
 ---
 
-### `/different` - Reflection: What Would You Do Differently?
+### `/different` - Now that you've seen the code, what would you done different?
 **File:** `~/.codex/prompts/different.md`
 
-After reviewing or shipping code, surfaces alternative approaches and improvements:
-- Summarizes the implemented solution in one breath
-- Lists 3–5 concrete things to change if redoing the work (architecture, DX, tests, perf, naming)
-- Highlights the single highest-impact change and why
-- Notes missing tests/coverage and quick wins
-- Provides a tiny next-action checklist (≤5 items)
+Plain prompt to reflect after reading the code:
+- "Now that you've seen the code, what would you done different?"
 
 **Usage:** `/different`
-
-**Guardrails:**
-- Keep feedback actionable and scoped; no rambling
-- Avoid rework that conflicts with owner constraints you know about
-- Call out unknowns/assumptions explicitly
 
 ---
 
