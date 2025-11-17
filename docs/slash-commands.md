@@ -176,6 +176,25 @@ Cycles through all open PRs until simultaneously green:
 
 ---
 
+### `/different` - Reflection: What Would You Do Differently?
+**File:** `~/.codex/prompts/different.md`
+
+After reviewing or shipping code, surfaces alternative approaches and improvements:
+- Summarizes the implemented solution in one breath
+- Lists 3–5 concrete things to change if redoing the work (architecture, DX, tests, perf, naming)
+- Highlights the single highest-impact change and why
+- Notes missing tests/coverage and quick wins
+- Provides a tiny next-action checklist (≤5 items)
+
+**Usage:** `/different`
+
+**Guardrails:**
+- Keep feedback actionable and scoped; no rambling
+- Avoid rework that conflicts with owner constraints you know about
+- Call out unknowns/assumptions explicitly
+
+---
+
 ## How to Create Slash Commands
 
 1. **Create a markdown file** in `~/.codex/prompts/`:
@@ -228,6 +247,7 @@ This repository includes the following commands in both `.claude/commands/` and 
 - `/commit` - Selective commit helper
 - `/commitgroup` - Group multiple commits logically
 - `/cppp` - Commit all changes in grouped commits and push
+- `/different` - Post-review reflection: what would you change?
 - `/improve` - Post-ship retro helper
 - `/fix` - Run quality checks & fix all failures
 - `/massageprs` - Continuous PR maintenance loop
