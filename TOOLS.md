@@ -1,4 +1,8 @@
 # TOOLS
+
+Edit guidance: keep the actual tool list inside the `<tools></tools>` block below so downstream AGENTS syncs can copy the block contents verbatim (without wrapping twice).
+
+<tools>
 - `runner`: Bash shim that routes every command through the Bun guardrails (timeouts, git policy, trash-safe deletes).
 - `git` / `bin/git`: Git shim that forces all git invocations through the runner and blocks destructive subcommands; first call: `./git --help` to confirm the wrapper and read git help.
 - `scripts/committer`: Commit helper that stages only the paths you list and creates the commit safely.
@@ -13,3 +17,4 @@
 - `firecrawl`: MCP-powered site fetcher that exports webpages to Markdown, even handling 404/500 responses; first call: `./runner npx mcporter firecrawl` to see fetch options.
 - `XcodeBuildMCP`: MCP wrapper around Xcode build/test/simulator tooling; first call: `./runner npx mcporter XcodeBuildMCP` to see available tools and auth needs.
 - `gh`: GitHub CLI for PRs, CI logs, releases, and repo queries; first call: `./runner gh help` (or `./runner gh --help`) to list top-level commands.
+</tools>

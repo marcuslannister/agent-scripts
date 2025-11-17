@@ -53,3 +53,4 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - If the target repo has submodules (e.g., Peekaboo → Commander/TauTUI/Tachikoma/AXorcist), run the same `<shared>/<tools>` sync inside those subrepos, push them, then bump the submodule pointers in the parent repo with a follow-up commit.
 - Treat `agent-scripts` as the manager/canonical repo: never include it in the sync sweep itself—only use it as the source of truth for `<shared>`/`<tools>` content.
 - Skip experimental repos such as `poltergeist-pitui` unless explicitly asked to include them.
+- In `TOOLS.md`, the authoritative tool list lives inside a `<tools>` block; when syncing AGENTS, copy only the block contents (not the outer tags) into target `<tools></tools>` sections.
