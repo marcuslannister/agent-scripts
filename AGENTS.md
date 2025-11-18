@@ -40,6 +40,7 @@
 
 ### Documentation & Knowledge Capture
 - Update existing docs whenever your change affects them, including front-matter metadata if the repo’s `docs:list` tooling depends on it.
+- Whenever doing a large refactor, track work in `docs/refactor/<title><date>.md`, update it as you go, and delete it when the work is finished.
 - Only create new documentation when the user or local instructions explicitly request it; otherwise, edit the canonical file in place.
 - When you uncover a reproducible tooling or CI issue, record the repro steps and workaround in the designated troubleshooting doc for that repo.
 
