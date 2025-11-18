@@ -7,7 +7,7 @@ Edit guidance: keep the actual tool list inside the `<tools></tools>` block belo
 - `git` / `bin/git`: Git shim that forces git through the guardrails; use `./git --help` to inspect.
 - `scripts/committer`: Stages the files you list and creates the commit safely.
 - `scripts/docs-list.ts`: Walks `docs/`, enforces front-matter, prints summaries; run `tsx scripts/docs-list.ts`.
-- `bin/browser-tools`: Compiled Chrome helper for remote control/screenshot/eval; run `bin/browser-tools --help`.
+- `bin/browser-tools`: Compiled Chrome helper for remote control/screenshot/eval—use the binary (`bin/browser-tools --help`). Source lives in `scripts/browser-tools.ts`; edit there before rebuilding.
 - `scripts/runner.ts`: Bun implementation backing `runner`; run `bun scripts/runner.ts --help`.
 - `bin/sleep`: Sleep shim that enforces the 30s ceiling; run `bin/sleep --help`.
 - `xcp`: Xcode project/workspace helper; run `xcp --help`.
