@@ -34,6 +34,7 @@
 
 ### Git, Commits & Releases
 - Invoke git through the provided wrappers, especially for status, diffs, and commits. Only commit or push when the user asks you to do so.
+- To resolve a rebase, `git add`/`git commit` is allowed.
 - Follow the documented release or deployment checklists instead of inventing new steps.
 - Do not delete or rename unfamiliar files without double-checking with the user or the repo instructions.
 
