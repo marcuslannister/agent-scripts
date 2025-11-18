@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Repo copies of this file wrap the shared content in `<shared>…</shared>` and the tool list in `<tools>…</tools>`. Those tagged blocks must stay in sync across repos; anything outside them is repo-local—feel free to add project-specific notes there.
+
 ## General Guardrails
 
 ### Intake & Scoping
