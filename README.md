@@ -36,10 +36,11 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
   - “Start every session with `pnpm run docs:list` ... keep the relevant docs open while you implement.” (AGENTS.md:77)  
   - “Add `read_when` hints to key docs so `pnpm docs:list` surfaces them when the topic is relevant.” (AGENTS.md:81)
 
-## Browser Tools (`scripts/browser-tools.ts`)
+## Browser Tools (`bin/browser-tools`)
 - **What it is:** A standalone Chrome helper inspired by Mario Zechner’s [“What if you don’t need MCP?”](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/) article. It launches/inspects DevTools-enabled Chrome profiles, pastes prompts, captures screenshots, and kills stray helper processes without needing the full Oracle CLI.
-- **Usage:** Run `pnpm tsx scripts/browser-tools.ts --help` for available commands. Common ones include `start --profile`, `nav <url>`, `eval '<js>'`, `screenshot`, `inspect`, and `kill --all --force`. If you run it outside of a repo with Node deps installed, set `NODE_PATH=$(npm root -g)` (or install the dependencies globally) so `commander`, `puppeteer-core`, and `tsx` resolve correctly.
-- **Portability:** The script has zero repo-specific imports, so you can copy it into other automation projects or run it directly from this repo (e.g., symlink into `~/Projects/agent-scripts` and invoke from there). Keep this copy in sync with any downstream forks so troubleshooting commands stay identical. It now detects Chrome sessions launched via `--remote-debugging-port` **and** `--remote-debugging-pipe`, so kill/list work for both styles.
+- **Usage:** Prefer the compiled binary: `bin/browser-tools --help`. Common commands include `start --profile`, `nav <url>`, `eval '<js>'`, `screenshot`, `inspect`, and `kill --all --force`.
+- **Rebuilding:** The binary is not tracked in git. Re-generate it with `./runner bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools` (requires Bun) and leave transient `node_modules`/`package.json` out of the repo.
+- **Portability:** The tool has zero repo-specific imports. Copy the script or the binary into other automation projects as needed and keep this copy in sync with downstream forks. It detects Chrome sessions launched via `--remote-debugging-port` **and** `--remote-debugging-pipe`, so list/kill works for both styles.
 
 ## Sync Expectations
 - This repository is the canonical mirror for the guardrail helpers used in mcporter and other Sweetistics projects. Whenever you edit `runner`, `scripts/runner.ts`, `scripts/committer`, `bin/git`, `scripts/git-policy.ts`, `scripts/docs-list.ts`, or related guardrail files in another repo, copy the changes back here immediately (and vice versa) so the code stays byte-identical.
