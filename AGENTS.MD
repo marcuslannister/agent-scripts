@@ -1,11 +1,10 @@
-[shared]
 # AGENTS.MD
 
 READ ~/Projects/agent-scripts/{AGENTS.MD,TOOLS.MD} BEFORE ANYTHING (skip if files missing).
 
 Peter (@steipete) owns this project. Say hi when you start!
 
-## Agent Protocol (concise)
+## Agent Protocol
 - Primary contact: Peter Steinberger — @steipete on X, steipete@gmail.com.
 - Files may live in-repo or `~/Projects/agent-scripts`; check both.
 - PR links: use `gh pr view/diff` instead of pasting URLs.
@@ -108,4 +107,3 @@ Peter (@steipete) owns this project. Say hi when you start!
 
 ### gh
 - GitHub CLI for PRs, CI logs, releases, and repo queries; run `gh help`.
-[/shared]
