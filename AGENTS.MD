@@ -72,6 +72,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 
 ### runner / bin/runner / scripts/runner.ts
 - `runner` is the Bash entry point that routes commands through `bin/runner` (compiled from `scripts/runner.ts`) to enforce timeouts, git policy, and trash-safe deletes. Rebuild `bin/runner` via `bun build scripts/runner.ts --compile --outfile bin/runner`.
+- Runner is for agents; when you show commands to users, print the raw command (without `./runner`).
 
 ### git / bin/git / scripts/git-policy.ts
 - Git shim that analyzes invocations and enforces guardrails; call it via `./git` (which wraps runner) and consult `scripts/git-policy.ts` for the rules.
