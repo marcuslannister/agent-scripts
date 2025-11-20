@@ -1,6 +1,11 @@
-# AGENTS.md
+[shared]
+# AGENTS.MD
 
-Repo copies of this file wrap the shared content in `<shared>…</shared>` and the tool list in `<tools>…</tools>`. Those tagged blocks must stay in sync across repos; anything outside them is repo-local—feel free to add project-specific notes there.
+Repo copies of this file wrap the shared content in `[shared]…[/shared]` and the tool list in `<tools>…</tools>`. Those tagged blocks must stay in sync across repos; anything outside them is repo-local—feel free to add project-specific notes there.
+
+READ ~/Projects/agent-scripts/{AGENTS.MD,TOOLS.MD} BEFORE ANYTHING (skip if files missing).
+
+Peter (@steipete) owns this project. Say hi when you start!
 
 ## General Guardrails
 
@@ -10,14 +15,17 @@ Repo copies of this file wrap the shared content in `<shared>…</shared>` and t
 
 ### Tooling & Command Wrappers
 - Use the command wrappers provided by the workspace (`./runner …`, `scripts/committer`, `pnpm mcp:*`, etc.). Skip them only for trivial read-only shell commands if that’s explicitly allowed.
+- Run all commands through `./runner <command>` to keep timeout guardrails active; skip the wrapper only for non-destructive file inspection (`rg`, `sed`, `ls`, `find`, `cat`, `tmux`, etc.). This includes tests, dev servers, package scripts, and the allowed git commands (`git status`, `git diff`, `git push`). Runner will nudge you into tmux if a job runs long. Whenever you issue a direct CLI call through the harness (any `shell` invocation that bypasses `./runner`), set `timeout_ms` ≥ 60000 so it matches runner’s breathing room—the default 10 s timeout will kill real work before guardrails intervene.
 - Stick to the package manager and runtime mandated by the repo (pnpm-only, bun-only, swift-only, go-only, etc.). Never swap in alternatives without approval.
 - When editing shared guardrail scripts (runners, committer helpers, browser tools, etc.), mirror the same change back into the `agent-scripts` folder so the canonical copy stays current.
 - Ask the user before adding dependencies, changing build tooling, or altering project-wide configuration.
 - When discussing dependencies, always provide a GitHub URL.
-- Keep the project’s `AGENTS.md` `<tools></tools>` block in sync with the full tool list from `TOOLS.md` so downstream repos get the latest tool descriptions.
+- Keep the project’s `AGENTS.MD` `<tools></tools>` block in sync with the full tool list from `TOOLS.MD` so downstream repos get the latest tool descriptions.
 
 ### tmux & Long Tasks
 - Run any command that could hang (tests, servers, log streams, browser automation) inside tmux using the repository’s preferred entry point.
+- Even inside tmux, no single command should run longer than 10 minutes—treat anything past that as a hang and investigate a faster path.
+- `while tmux …` loops are forbidden; no `tmux has-session` polling. Fire the job, use `sleep` sparingly if you must wait, and call tmux directly (attach/logs/kill) for follow-ups. Skip `tmux wait-for`; let sessions exit so hangs stay visible.
 - Do not wrap tmux commands in infinite polling loops. Run the job, sleep briefly (≤30 s), capture output, and surface status at least once per minute.
 - Document which sessions you create and clean them up when they are no longer needed unless the workflow explicitly calls for persistent watchers.
 
@@ -71,3 +79,50 @@ Repo copies of this file wrap the shared content in `<shared>…</shared>` and t
 - When editing UI code, follow the established component patterns (Tailwind via helper utilities, TanStack Query for data flow, etc.) and keep files under the preferred size limit by extracting helpers proactively.
 
 Keep this master file up to date as you notice new rules that recur across repositories, and reflect those updates back into every workspace’s local guardrail documents.
+
+## Tools
+
+### runner / bin/runner / scripts/runner.ts
+- `runner` is the Bash entry point that routes commands through `bin/runner` (compiled from `scripts/runner.ts`) to enforce timeouts, git policy, and trash-safe deletes. Rebuild `bin/runner` via `bun build scripts/runner.ts --compile --outfile bin/runner`.
+
+### git / bin/git / scripts/git-policy.ts
+- Git shim that analyzes invocations and enforces guardrails; call it via `./git` (which wraps runner) and consult `scripts/git-policy.ts` for the rules.
+
+### scripts/committer
+- Commit helper that stages exactly the files you list and creates the commit; required instead of direct `git add`/`git commit`.
+
+### bin/docs-list / scripts/docs-list.ts
+- `bin/docs-list` walks `docs/`, enforces front-matter, and prints summaries; rebuild via `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`. Edit `scripts/docs-list.ts` before rebuilding.
+
+### bin/browser-tools / scripts/browser-tools.ts
+- Compiled Chrome helper for remote control/screenshot/eval; use `bin/browser-tools --help`. Edit `scripts/browser-tools.ts` before rebuilding.
+
+### bin/sleep
+- Sleep shim capped at 30 seconds; run `bin/sleep --help`.
+
+### xcp
+- Xcode project/workspace helper for managing targets, groups, files, build settings, and assets; run `xcp --help`.
+
+### xcodegen
+- Generates Xcode projects from YAML specs; run `xcodegen --help`.
+
+### lldb
+- Use `lldb` inside tmux to debug native apps; attach to the running app to inspect state.
+
+### axe
+- Simulator automation CLI for describing UI (`axe describe-ui --udid …`), tapping (`axe tap --udid … -x … -y …`), typing, and hardware buttons. Use `axe list-simulators` to enumerate devices.
+
+### oracle
+- AI reviewer CLI; run `npx -y @steipete/oracle --help` before invoking.
+
+### mcporter / iterm / firecrawl / XcodeBuildMCP
+- MCP launcher (`npx mcporter`) plus specific endpoints: `iterm` for TTY control, `firecrawl` for site-to-Markdown fetching, `XcodeBuildMCP` for Xcode tooling. Each is invoked via `npx mcporter <tool>`.
+
+### gh
+- GitHub CLI for PRs, CI logs, releases, and repo queries; run `gh help`.
+
+### AXe (Simulator automation)
+- - Whenever you need to interact with the iOS Simulator (taps, typing, hardware buttons), use AXe instead of AppleScript or UI scripting.
+- - Describe the current screen: `axe describe-ui --udid <sim-udid>` (find UDID via `xcrun simctl list`).
+- - Drive interactions with that UDID: tap via `axe tap --udid <udid> -x <x> -y <y>`, type via `axe type --udid <udid> "Some text"`, lock via `axe button --udid <udid> lock`.
+- - `axe list-simulators` shows available devices if you’re not already targeting a booted simulator.
