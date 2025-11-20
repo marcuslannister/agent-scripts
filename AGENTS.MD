@@ -103,7 +103,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - AI reviewer CLI for heavy-context questions (GPT‑5.1 Pro/Codex). Run `npx -y @steipete/oracle --help` for full flags. Attach code with `--file`, pick the model with `--model` (default gpt-5.1-pro), and set a slug via `--slug "<words>"` to reattach later (`oracle session <slug>`). Use `--files-report` to see token spend before sending. If you lack an API key, `--engine browser` drives ChatGPT via Chrome.
 
 ### mcporter / iterm / firecrawl / XcodeBuildMCP
-- MCP launcher (`npx mcporter`) plus specific endpoints: `iterm` for TTY control, `firecrawl` for site-to-Markdown fetching, `XcodeBuildMCP` for Xcode tooling. Each is invoked via `npx mcporter <tool>`.
+- MCP launcher (`npx mcporter`) that can run any registered MCP server; pass the server name as the final arg (`npx mcporter <server>`). Common endpoints: `iterm` for TTY control, `firecrawl` for site-to-Markdown fetching, `XcodeBuildMCP` for Xcode tooling. use `npx mcporter --help` to list available servers.
 
 ### gh
 - GitHub CLI for PRs, CI logs, releases, and repo queries; run `gh help`.
