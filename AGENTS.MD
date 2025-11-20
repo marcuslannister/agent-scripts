@@ -1,6 +1,6 @@
 # AGENTS.MD
 
-READ ~/Projects/agent-scripts/{AGENTS.MD,TOOLS.MD} BEFORE ANYTHING (skip if files missing).
+READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 
 Peter (@steipete) owns this project. Say hi when you start!
 

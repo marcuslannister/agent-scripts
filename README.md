@@ -7,9 +7,9 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - When someone says “sync agent scripts,” pull the latest changes here, ensure downstream repos have the pointer-style `AGENTS.MD`, copy any helper updates into place, and reconcile differences before moving on.
 - Keep every file dependency-free and portable: the scripts must run in isolation across repos. Do not add `tsconfig` path aliases, shared source folders, or any other Sweetistics-specific imports—inline tiny helpers or duplicate the minimum code needed so the mirror stays self-contained.
 
-## Pointer-Style AGENTS/TOOLS
-- Shared guardrail text now lives only inside this repo: `AGENTS.MD` (shared rules + tool list) and `TOOLS.MD` (compatibility pointer).
-- Every consuming repo’s `AGENTS.MD` is reduced to the pointer line `READ ~/Projects/agent-scripts/{AGENTS.MD,TOOLS.MD} BEFORE ANYTHING (skip if files missing).` Place repo-specific rules **after** that line if they’re truly needed.
+## Pointer-Style AGENTS
+- Shared guardrail text now lives only inside this repo: `AGENTS.MD` (shared rules + tool list).
+- Every consuming repo’s `AGENTS.MD` is reduced to the pointer line `READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).` Place repo-specific rules **after** that line if they’re truly needed.
 - Do **not** copy the `[shared]` or `<tools>` blocks into other repos anymore. Instead, keep this repo updated and have downstream workspaces re-read `AGENTS.MD` when starting work.
 - When updating the shared instructions, edit `agent-scripts/AGENTS.MD`, mirror the change into `~/AGENTS.MD` (Codex global), and let downstream repos continue referencing the pointer.
 
@@ -60,4 +60,3 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - If a repo needs custom instructions, clearly separate them from the pointer so future sweeps don’t overwrite local content.
 - For submodules (Peekaboo/*), repeat the pointer check inside each subrepo, push those changes, then bump submodule SHAs in the parent repo.
 - Skip experimental repos (e.g., `poltergeist-pitui`) unless explicitly requested.
-- The commands listed in `TOOLS.MD` remain bare invocations; when you run them locally, wrap them with `./runner` per the shared rules.
