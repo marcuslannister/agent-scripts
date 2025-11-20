@@ -44,6 +44,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - Run the repo’s full gate (lint/typecheck/tests/docs) before handoff; keep watchers you started healthy.
 - If CI is red, drive it with `gh run list/view`, rerun, fix, and push until green.
 - Keep workflows observable (tmux panes, CI logs, log tails, MCP/browser helpers).
+- Releases: before cutting one, read `docs/RELEASING.md`. If it’s missing, search for the best-fit release checklist and alert the user.
 
 ## Git
 - Default allowed: `git status`, `git diff`, `git log`; `git push` only when the user asks.
