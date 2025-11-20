@@ -83,7 +83,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - `bin/docs-list` walks `docs/`, enforces front-matter, and prints summaries; rebuild via `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`. Edit `scripts/docs-list.ts` before rebuilding.
 
 ### bin/browser-tools / scripts/browser-tools.ts
-- Compiled Chrome helper for remote control/screenshot/eval; use `bin/browser-tools --help`. Edit `scripts/browser-tools.ts` before rebuilding.
+- Chrome DevTools helper without running an MCP server. Key commands: `start` (launch Chrome with remote debugging), `nav <url>` (navigate), `eval <js>` (run JS in the active tab), `screenshot` (viewport PNG to /tmp), `pick <msg>` (interactive element picker), `cookies`, `inspect`, `kill`. Launch via `bin/browser-tools --help`. Edit `scripts/browser-tools.ts`, rebuild with `./runner bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools`.
 
 ### bin/sleep
 - Sleep shim capped at 30 seconds; run `bin/sleep --help`.
