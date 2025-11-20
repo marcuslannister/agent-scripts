@@ -56,20 +56,24 @@ program
   .option('--profile', 'Copy your default Chrome profile before launch.', false)
   .option('--profile-dir <path>', 'Directory for the temporary Chrome profile.', DEFAULT_PROFILE_DIR)
   .option('--chrome-path <path>', 'Path to the Chrome binary.', DEFAULT_CHROME_BIN)
+  .option('--kill-existing', 'Stop any running Google Chrome before launch (default: false).', false)
   .action(async (options) => {
-    const { port, profile, profileDir, chromePath } = options as {
+    const { port, profile, profileDir, chromePath, killExisting } = options as {
       port: number;
       profile: boolean;
       profileDir: string;
       chromePath: string;
+      killExisting: boolean;
     };
 
-    try {
-      execSync("killall 'Google Chrome'", { stdio: 'ignore' });
-    } catch {
-      // ignore missing processes
+    if (killExisting) {
+      try {
+        execSync("killall 'Google Chrome'", { stdio: 'ignore' });
+      } catch {
+        // ignore missing processes
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
     execSync(`mkdir -p "${profileDir}"`);
     if (profile) {
       const source = `${path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome')}/`;

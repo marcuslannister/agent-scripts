@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Sweetistics runner wrapper: enforces timeouts, git policy, and trash-safe deletes before dispatching any repo command.
- * When you tweak its behavior, add a short note to AGENTS.md via `./scripts/committer "docs: update AGENTS for runner" "AGENTS.md"` so other agents know the new expectations.
+ * When you tweak its behavior, add a short note to AGENTS.MD via `./scripts/committer "docs: update AGENTS for runner" "AGENTS.MD"` so other agents know the new expectations.
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';
@@ -536,7 +536,7 @@ function shouldUseLongTimeout(commandArgs: string[]): boolean {
 
 // Kicks off the requested command with logging, timeouts, and monitoring.
 async function runCommand(context: RunnerExecutionContext): Promise<void> {
-  const { command, args, env } = buildExecutionParams(context.commandArgs);
+  const { command, args, env } = buildExecutionParams(context.commandArgs, context.workspaceDir);
   const commandLabel = formatDisplayCommand(context.commandArgs);
 
   const startTime = Date.now();
@@ -632,7 +632,7 @@ async function runCommand(context: RunnerExecutionContext): Promise<void> {
 }
 
 async function runCommandWithoutTimeout(context: RunnerExecutionContext): Promise<void> {
-  const { command, args, env } = buildExecutionParams(context.commandArgs);
+  const { command, args, env } = buildExecutionParams(context.commandArgs, context.workspaceDir);
   const commandLabel = formatDisplayCommand(context.commandArgs);
   const startTime = Date.now();
 
@@ -665,8 +665,12 @@ async function runCommandWithoutTimeout(context: RunnerExecutionContext): Promis
 }
 
 // Prepares the executable, args, and sanitized env for the child process.
-function buildExecutionParams(commandArgs: string[]): { command: string; args: string[]; env: NodeJS.ProcessEnv } {
+function buildExecutionParams(
+  commandArgs: string[],
+  workspaceDir: string,
+): { command: string; args: string[]; env: NodeJS.ProcessEnv } {
   const env = { ...process.env };
+  injectWorkspaceBinDirs(env, workspaceDir);
   const args: string[] = [];
   let commandStarted = false;
 
@@ -689,6 +693,43 @@ function buildExecutionParams(commandArgs: string[]): { command: string; args: s
 
   const [command, ...restArgs] = args;
   return { command, args: restArgs, env };
+}
+
+function injectWorkspaceBinDirs(env: NodeJS.ProcessEnv, workspaceDir: string): void {
+  if (ENABLE_DEBUG_LOGS) {
+    console.error(`[runner] Checking workspace bin dirs under ${workspaceDir}`);
+  }
+  const binCandidates = [
+    join(workspaceDir, 'node_modules', '.bin'),
+    join(workspaceDir, 'bin'),
+  ];
+  const existingPath = env.PATH ?? process.env.PATH ?? '';
+  const existingSegments = existingPath
+    .split(':')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  const additions: string[] = [];
+  for (const dir of binCandidates) {
+    if (!dir || !existsSync(dir)) {
+      continue;
+    }
+    if (existingSegments.includes(dir) || additions.includes(dir)) {
+      continue;
+    }
+    additions.push(dir);
+  }
+
+  if (additions.length === 0) {
+    return;
+  }
+
+  if (ENABLE_DEBUG_LOGS) {
+    console.error(`[runner] Prepending workspace PATH entries: ${additions.join(', ')}`);
+  }
+
+  const merged = [...additions, ...existingSegments];
+  env.PATH = merged.join(':');
 }
 
 // Forwards termination signals to the child and returns an unregister hook.
@@ -763,7 +804,7 @@ function enforceGitPolicies(gitContext: GitExecutionContext) {
 
   if (evaluation.requiresCommitHelper) {
     console.error(
-      'Direct git add/commit is disabled. Use ./scripts/committer "chore(runner): describe change" "scripts/runner.ts" instead—see AGENTS.md and ./scripts/committer for details. The helper auto-stashes unrelated files before committing.'
+      'Direct git add/commit is disabled. Use ./scripts/committer "chore(runner): describe change" "scripts/runner.ts" instead—see AGENTS.MD and ./scripts/committer for details. The helper auto-stashes unrelated files before committing.'
     );
     process.exit(1);
   }
@@ -883,7 +924,7 @@ async function maybeHandleGitRm(gitContext: GitExecutionContext): Promise<boolea
   return true;
 }
 
-// Blocks `sleep` calls longer than the AGENTS.md ceiling so scripts cannot stall the runner.
+// Blocks `sleep` calls longer than the AGENTS.MD ceiling so scripts cannot stall the runner.
 async function maybeHandleSleepInvocation(context: RunnerExecutionContext): Promise<boolean> {
   const tokens = stripWrappersAndAssignments(context.commandArgs);
   if (tokens.length === 0) {
@@ -1501,8 +1542,8 @@ function resolveSummaryStyle(rawValue: string | undefined | null): SummaryStyle 
       return 'minimal';
     case 'verbose':
       return 'verbose';
-    case 'compact':
     case 'short':
+      return 'compact';
     default:
       return 'compact';
   }
@@ -1516,6 +1557,7 @@ function formatCompletionSummary(options: {
 }): string {
   const { exitCode, elapsedMs, timedOut, commandLabel } = options;
   const durationText = typeof elapsedMs === 'number' ? formatDuration(elapsedMs) : null;
+  // biome-ignore lint/nursery/noUnnecessaryConditions: switch makes the formatter easier to scan.
   switch (SUMMARY_STYLE) {
     case 'minimal': {
       const parts = [`${exitCode}`];
@@ -1532,7 +1574,6 @@ function formatCompletionSummary(options: {
       const timeoutPart = timedOut ? '; timed out' : '';
       return `[runner] Finished ${commandLabel} (exit ${exitCode}${elapsedPart}${timeoutPart}).`;
     }
-    case 'compact':
     default: {
       const elapsedPart = durationText ? ` in ${durationText}` : '';
       const timeoutPart = timedOut ? ' (timeout)' : '';

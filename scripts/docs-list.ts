@@ -5,9 +5,9 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compact } from 'es-toolkit';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const DOCS_DIR = join(__dirname, '..', 'docs');
+const docsListFile = fileURLToPath(import.meta.url);
+const docsListDir = dirname(docsListFile);
+const DOCS_DIR = join(docsListDir, '..', 'docs');
 
 const EXCLUDED_DIRS = new Set(['archive', 'research']);
 
