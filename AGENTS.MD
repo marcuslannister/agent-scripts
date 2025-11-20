@@ -22,6 +22,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - New dependency: audit health (recent commits, releases, adoption) and note it.
 - Slash commands (`/fix`, `/commit`, etc.) live in `~/.codex/prompts/`.
 - Internet: search early/often, quote exact errors, prefer 2024–2025 sources; if blocked, use Firecrawl via `pnpm mcp:*` or `mcporter`.
+- Oracle hygiene: run `npx -y @steipete/oracle --help` once per session before first use.
 
 ## Docs
 - Start every session with `pnpm run docs:list` (or repo equivalent); open surfaced docs before coding and keep them open.
