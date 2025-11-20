@@ -4,8 +4,14 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 
 ## Syncing With Other Repos
 - Treat this repo as the canonical mirror for the shared guardrail helpers. Whenever you edit `runner`, `scripts/runner.ts`, `bin/git`, `scripts/git-policy.ts`, `scripts/committer`, or `scripts/docs-list.ts` in any repo, copy the change here and then back out to every other repo that carries the same helpers so they stay byte-identical.
-- When someone says “sync agent scripts,” pull the latest changes here, diff against each repo that consumes these helpers (including `~/Projects/sweetistics`), and reconcile both directions before moving on.
+- When someone says “sync agent scripts,” pull the latest changes here, ensure downstream repos have the pointer-style `AGENTS.MD`, copy any helper updates into place, and reconcile differences before moving on.
 - Keep every file dependency-free and portable: the scripts must run in isolation across repos. Do not add `tsconfig` path aliases, shared source folders, or any other Sweetistics-specific imports—inline tiny helpers or duplicate the minimum code needed so the mirror stays self-contained.
+
+## Pointer-Style AGENTS/TOOLS
+- Shared guardrail text now lives only inside this repo: `AGENTS.MD` (shared rules + tool list) and `TOOLS.MD` (compatibility pointer).
+- Every consuming repo’s `AGENTS.MD` is reduced to the pointer line `READ ~/Projects/agent-scripts/{AGENTS.MD,TOOLS.MD} BEFORE ANYTHING (skip if files missing).` Place repo-specific rules **after** that line if they’re truly needed.
+- Do **not** copy the `[shared]` or `<tools>` blocks into other repos anymore. Instead, keep this repo updated and have downstream workspaces re-read `AGENTS.MD` when starting work.
+- When updating the shared instructions, edit `agent-scripts/AGENTS.MD`, mirror the change into `~/AGENTS.MD` (Codex global), and let downstream repos continue referencing the pointer.
 
 ## Runner Shim (`runner`, `scripts/runner.ts`)
 - **What it is:** `runner` is the Bash entry point that forces commands through Bun and `scripts/runner.ts`. The Bun runner enforces timeout tiers, intercepts risky commands (git/rm/find), auto-prompts for tmux handoffs, and ensures cleanup logs stay consistent across repos.
@@ -13,28 +19,30 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - **Deletion guardrails:** Before spawning the real command, the runner intercepts `find -delete`, `rm`, and `git rm`, moves targets into macOS Trash (or `trash-cli`) and only stages the removals via `git rm --cached` once the files are safe. Cross-device copies fall back to `cp` + `rm` so nothing is lost even when `.Trash` lives on another volume (`scripts/runner.ts`:562-1099).
 - **Git policy enforcement:** Every invocation is analyzed with `scripts/git-policy.ts`. Direct `git add`/`git commit` calls are blocked in favor of `./scripts/committer`, destructive subcommands (`reset`, `checkout`, etc.) and guarded ones (`push`, `pull`, `rebase`) require `RUNNER_THE_USER_GAVE_ME_CONSENT=1`, and rebases refuse to run until the user explicitly types “rebase” in chat (`scripts/runner.ts`:568-648, `scripts/git-policy.ts`).
 - **Signal handling & tmux nudges:** Child processes inherit stdin while stdout/stderr are piped so the runner can append completion/timing metadata. It forwards SIGINT/SIGTERM, kills over-timeout jobs with SIGTERM→SIGKILL escalation, and emits reminders to move long-lived work into tmux sessions when `RUNNER_TMUX`/`TMUX` are set (`scripts/runner.ts`:400-520).
-- **AGENTS.md rules:**  
-  - “Run all commands through `./runner <command>` ... skip only for read-only inspection tools.” (AGENTS.md:50)  
-  - “When I type ‘rebase,’ … keep using `./runner git …` (or `./git …`) so the guardrails stay active.” (AGENTS.md:189)  
-  - “When you run the allowed git commands, invoke them through the wrapper (e.g., `./runner git status -sb`).” (AGENTS.md:190)
+- **Binary build:** `bin/runner` is the compiled Bun binary that `./runner` delegates to. Rebuild it after editing `scripts/runner.ts` via `bun build scripts/runner.ts --compile --outfile bin/runner` (run inside this repo with Bun installed).
+- **AGENTS.MD rules:**  
+  - “Run all commands through `./runner <command>` ... skip only for read-only inspection tools.” (AGENTS.MD:50)  
+  - “When I type ‘rebase,’ … keep using `./runner git …` (or `./git …`) so the guardrails stay active.” (AGENTS.MD:189)  
+  - “When you run the allowed git commands, invoke them through the wrapper (e.g., `./runner git status -sb`).” (AGENTS.MD:190)
 
 ## Git Shim (`git`, `bin/git`, `scripts/git-policy.ts`)
 - **What it is:** Bun-based drop-in replacement for git that analyzes the invocation, blocks destructive subcommands, and requires either the committer helper or explicit consent environment variables. `scripts/git-policy.ts` houses the heuristics.
-- **AGENTS.md rules:**  
-  - “IMPORTANT! ALL git commands are forbidden ... the only git CLI commands you may run are `git status`, `git diff`, and `git log`; run `git push` only when I explicitly ask for it.” (AGENTS.md:181-184)  
-  - “When I type ‘rebase,’ treat it as consent ... Keep using `./runner git …` (or `./git …` if you absolutely must) so the guardrails stay active.” (AGENTS.md:189)
+- **AGENTS.MD rules:**  
+  - “IMPORTANT! ALL git commands are forbidden ... the only git CLI commands you may run are `git status`, `git diff`, and `git log`; run `git push` only when I explicitly ask for it.” (AGENTS.MD:181-184)  
+  - “When I type ‘rebase,’ treat it as consent ... Keep using `./runner git …` (or `./git …` if you absolutely must) so the guardrails stay active.” (AGENTS.MD:189)
 
 ## Committer Helper (`scripts/committer`)
 - **What it is:** Bash helper that stages exactly the files you list, enforces non-empty commit messages, and creates the commit (used because direct `git add`/`git commit` is blocked).
-- **AGENTS.md rules:**  
-  - “IMPORTANT! To create a commit, use `./scripts/committer "your commit message" "path/to/file1" "path/to/file2"` ... never run `git add` yourself.” (AGENTS.md:192)
+- **AGENTS.MD rules:**  
+  - “IMPORTANT! To create a commit, use `./scripts/committer "your commit message" "path/to/file1" "path/to/file2"` ... never run `git add` yourself.” (AGENTS.MD:192)
 
 ## Docs Lister (`scripts/docs-list.ts`)
 - **What it is:** tsx script that walks `docs/`, enforces front-matter (`summary`, `read_when`), and prints the summaries surfaced by `pnpm run docs:list`. Other repos can wire the same command into their onboarding flow.
-- **AGENTS.md rules:**  
-  - “Non-negotiable: run `pnpm run docs:list`, read the summaries, and open the referenced rule files before you write a single line of code.” (AGENTS.md:72)  
-  - “Start every session with `pnpm run docs:list` ... keep the relevant docs open while you implement.” (AGENTS.md:77)  
-  - “Add `read_when` hints to key docs so `pnpm docs:list` surfaces them when the topic is relevant.” (AGENTS.md:81)
+- **Binary build:** `bin/docs-list` is the compiled Bun CLI; regenerate it after editing `scripts/docs-list.ts` via `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`.
+- **AGENTS.MD rules:**  
+  - “Non-negotiable: run `pnpm run docs:list`, read the summaries, and open the referenced rule files before you write a single line of code.” (AGENTS.MD:72)  
+  - “Start every session with `pnpm run docs:list` ... keep the relevant docs open while you implement.” (AGENTS.MD:77)  
+  - “Add `read_when` hints to key docs so `pnpm docs:list` surfaces them when the topic is relevant.” (AGENTS.MD:81)
 
 ## Browser Tools (`bin/browser-tools`)
 - **What it is:** A standalone Chrome helper inspired by Mario Zechner’s [“What if you don’t need MCP?”](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/) article. It launches/inspects DevTools-enabled Chrome profiles, pastes prompts, captures screenshots, and kills stray helper processes without needing the full Oracle CLI.
@@ -46,13 +54,10 @@ This folder collects the Sweetistics guardrail helpers so they are easy to reuse
 - This repository is the canonical mirror for the guardrail helpers used in mcporter and other Sweetistics projects. Whenever you edit `runner`, `scripts/runner.ts`, `scripts/committer`, `bin/git`, `scripts/git-policy.ts`, `scripts/docs-list.ts`, or related guardrail files in another repo, copy the changes back here immediately (and vice versa) so the code stays byte-identical.
 - When someone asks to “sync agent scripts,” update this repo, compare it against the active project, and reconcile differences in both directions before continuing.
 
-## @steipete Agent Instructions (syncing shared/tool blocks)
-- When syncing guardrails across repos, treat the `<shared></shared>` block in each repo’s `AGENTS.md` as a verbatim copy of this repo’s `AGENTS.md`, and the `<tools></tools>` block as a verbatim copy of `TOOLS.md`.
-- Limit the sweep to repos with Peter’s commits in the last two weeks and skip `agent-scripts` itself; don’t create new `AGENTS.md` files unless explicitly requested.
-- Order of operations: refresh `agent-scripts`, replace `<shared>` and `<tools>` blocks in the target repo, keep any repo-local content that sits outside the blocks, then commit/push using that repo’s wrappers (rebase only if clean/easy).
-- If a repo is already dirty with unrelated changes, stage only `AGENTS.md` for the sync commit and leave the other work untouched.
-- If the target repo has submodules (e.g., Peekaboo → Commander/TauTUI/Tachikoma/AXorcist), run the same `<shared>/<tools>` sync inside those subrepos, push them, then bump the submodule pointers in the parent repo with a follow-up commit.
-- Treat `agent-scripts` as the manager/canonical repo: never include it in the sync sweep itself—only use it as the source of truth for `<shared>`/`<tools>` content.
-- Skip experimental repos such as `poltergeist-pitui` unless explicitly asked to include them.
-- In `TOOLS.md`, the authoritative tool list lives inside a `<tools>` block; when syncing AGENTS, copy only the block contents (not the outer tags) into target `<tools></tools>` sections.
-- The commands shown in `TOOLS.md` are bare invocations (no `./runner` prefixes); apply runner/wrapper guidance per each target repo’s AGENTS when executing.
+## @steipete Agent Instructions (pointer workflow)
+- The only full copies of the guardrails are `agent-scripts/AGENTS.MD` and `~/AGENTS.MD`. Downstream repos should contain the pointer line plus any repo-local additions.
+- During a sync sweep: pull latest `agent-scripts`, ensure each target repo’s `AGENTS.MD` contains the pointer line at the top, append any repo-local notes beneath it, and update the helper scripts as needed.
+- If a repo needs custom instructions, clearly separate them from the pointer so future sweeps don’t overwrite local content.
+- For submodules (Peekaboo/*), repeat the pointer check inside each subrepo, push those changes, then bump submodule SHAs in the parent repo.
+- Skip experimental repos (e.g., `poltergeist-pitui`) unless explicitly requested.
+- The commands listed in `TOOLS.MD` remain bare invocations; when you run them locally, wrap them with `./runner` per the shared rules.
