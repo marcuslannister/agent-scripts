@@ -100,7 +100,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - Simulator automation CLI for describing UI (`axe describe-ui --udid …`), tapping (`axe tap --udid … -x … -y …`), typing, and hardware buttons. Use `axe list-simulators` to enumerate devices.
 
 ### oracle
-- AI reviewer CLI for heavy-context questions (GPT‑5.1 Pro/Codex). Run `npx -y @steipete/oracle --help` for full flags. Attach code with `--file`, pick the model with `--model` (default gpt-5.1-pro), and set a slug via `--slug "<words>"` to reattach later (`oracle session <slug>`). Use `--files-report` to see token spend before sending. If you lack an API key, `--engine browser` drives ChatGPT via Chrome.
+- AI reviewer CLI for heavy-context questions (GPT‑5.1 Pro/Codex). Basics: attach code with `--file`, choose model via `--model` (default gpt-5.1-pro), set a slug with `--slug "<words>"` and reattach later via `oracle session <slug>`. Use `--files-report` to see token spend before sending. No API key? add `--engine browser` to drive ChatGPT via Chrome. Full options: `npx -y @steipete/oracle --help`.
 
 ### mcporter / iterm / firecrawl / XcodeBuildMCP
 - MCP launcher (`npx mcporter`) that can run any registered MCP server; pass the server name as the final arg (`npx mcporter <server>`). Common endpoints: `iterm` for TTY control, `firecrawl` for site-to-Markdown fetching, `XcodeBuildMCP` for Xcode tooling. use `npx mcporter --help` to list available servers.
