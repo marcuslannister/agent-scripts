@@ -38,6 +38,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 ## Flow & Runtime
 - Use the project’s package manager/runtime; no swaps without approval.
 - Run commands through `./runner <cmd>` when available; skip only for read-only inspection (`rg`, `sed`, `ls`, `find`, `cat`, `tmux`, etc.). Include tests, dev servers, package scripts, and allowed git commands. For harness calls that bypass runner, set `timeout_ms >= 60000` to mimic runner’s breathing room.
+- On Windows, don’t use `runner`; run commands directly.
 - Long tasks go in tmux; no `while tmux …` or `tmux has-session` polling. Avoid `tmux wait-for`; run once, sleep briefly if needed, then inspect via direct tmux calls. Treat >10 min in tmux as a likely hang.
 - If a job drags, runner will nudge you to move it into tmux.
 
@@ -51,6 +52,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - Default allowed: `git status`, `git diff`, `git log`; `git push` only when the user asks.
 - Forbidden unless explicit: destructive commands (`reset --hard`, `checkout --`, `clean`, `restore`, `revert`, `rm`, etc.).
 - Commits here: use `./scripts/committer "msg" path…`; don’t run `git add` yourself. In repos without the helper (e.g., outside agent-scripts), use normal git—don’t copy the helper.
+- On Windows, skip `./scripts/committer`; use plain git add/commit instead.
 - “Rebase” in chat = consent to `git rebase` (and continue/abort) with `RUNNER_THE_USER_GAVE_ME_CONSENT=1`, via runner/git shim.
 - Assume unfamiliar diffs belong to others; don’t delete/rename without coordination. Stop if unexpected edits appear mid-task.
 - Avoid repo-wide search/replace scripts; keep edits targeted and reviewable.
