@@ -113,6 +113,9 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 ### gh
 - GitHub CLI for PRs, CI logs, releases, and repo queries; run `gh help`. When someone shares a GitHub issue/PR URL (full or relative like `/pull/5`), use `gh` to read it—do not web-search. Examples: `gh issue view <url> --comments -R owner/repo` and `gh pr view <url> --comments --files -R owner/repo`. If only a number is given, derive the repo from the URL or current checkout and still fetch details via `gh`.
 
+### Slash Commands
+- Global prompts live in `~/.codex/prompts/`; repo-local copies (if any) live in `docs/slash-commands/`. See `docs/slash-commands/README.md` for the index. Common commands: `/handoff` (state transfer) and `/pickup` (rehydrate context).
+
 ### tmux
 - When to use: long/hanging commands (servers, debuggers, long tests, interactive CLIs) should start in tmux; avoid `tmux wait-for` and `while tmux …` loops; if a run exceeds ~10 min, treat it as potentially hung and inspect via tmux.
 - Start: `tmux new -d -s codex-shell -n shell`
