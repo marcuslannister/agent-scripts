@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { inspect } from 'node:util';
 import puppeteer from 'puppeteer-core';
 
 /** Utility type so TypeScript knows the async function constructor */
@@ -135,9 +136,25 @@ program
   .command('eval <code...>')
   .description('Evaluate JavaScript in the active page context.')
   .option('--port <number>', 'Debugger port (default: 9222)', (value) => Number.parseInt(value, 10), DEFAULT_PORT)
+  .option('--pretty-print', 'Format array/object results with indentation.', false)
   .action(async (code: string[], options) => {
     const snippet = code.join(' ');
     const port = options.port as number;
+    const pretty = Boolean(options.prettyPrint);
+    const useColor = process.stdout.isTTY;
+
+    const printPretty = (value: unknown) => {
+      console.log(
+        inspect(value, {
+          depth: 6,
+          colors: useColor,
+          maxArrayLength: 50,
+          breakLength: 80,
+          compact: false,
+        }),
+      );
+    };
+
     const { browser, page } = await getActivePage(port);
     try {
       const result = await page.evaluate((body) => {
@@ -145,7 +162,9 @@ program
         return new ASYNC_FN(`return (${body})`)();
       }, snippet);
 
-      if (Array.isArray(result)) {
+      if (pretty) {
+        printPretty(result);
+      } else if (Array.isArray(result)) {
         result.forEach((entry, index) => {
           if (index > 0) {
             console.log('');

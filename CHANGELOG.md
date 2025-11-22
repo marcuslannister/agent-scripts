@@ -9,6 +9,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## 2025-11-22 — Search & Content Extraction
 - Added `search` and `content` commands to `scripts/browser-tools.ts` for Google SERP scraping with optional readable markdown extraction and single-URL readability output, leveraging the existing DevTools-connected Chrome instance.
+- `eval` now supports `--pretty-print` to inspect complex objects with indentation and colors.
 
 ## 2025-11-15 — Chrome Browser Tools
 - Added `scripts/browser-tools.ts`, a DevTools-ready Chrome helper copied from the Oracle repo so agents can inspect, screenshot, and terminate sessions without dragging in the full CLI. The workflow is inspired by Mario Zechner’s [“What if you don’t need MCP?”](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/).
