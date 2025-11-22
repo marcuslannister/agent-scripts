@@ -10,6 +10,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Files may live in-repo or `~/Projects/agent-scripts`; check both.
 - PR links: use `gh pr view/diff` instead of pasting URLs.
 - Add notes to AGENTS only when the user says “make a note”; edit `AGENTS.MD` (ignore `CLAUDE.md` symlink).
+- On Windows, avoid `./runner` (PowerShell + Git Bash can truncate prompts and trigger app chooser dialogs); run the underlying command directly (`pnpm ...`, `npx ...`, `git ...`).
 - Outside this repo, skip `./runner` if it’s not shipped; otherwise follow the runner rules below.
 - Need an upstream file? Redirect to `/tmp/`, then cherry-pick—never overwrite tracked files.
 - Bug fixes: add a regression test when it makes sense.
