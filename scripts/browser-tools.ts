@@ -502,6 +502,117 @@ program
   });
 
 program
+  .command('search <query...>')
+  .description('Google search with optional readable content extraction.')
+  .option('--port <number>', 'Debugger port (default: 9222)', (value) => Number.parseInt(value, 10), DEFAULT_PORT)
+  .option('-n, --count <number>', 'Number of results to return (default: 5, max: 50)', (value) => Number.parseInt(value, 10), 5)
+  .option('--content', 'Fetch readable content for each result (slower).', false)
+  .option('--timeout <seconds>', 'Per-navigation timeout in seconds (default: 10).', (value) => Number.parseInt(value, 10), 10)
+  .action(async (queryWords: string[], options) => {
+    const port = options.port as number;
+    const count = Math.max(1, Math.min(options.count as number, 50));
+    const fetchContent = Boolean(options.content);
+    const timeoutMs = Math.max(3, (options.timeout as number) ?? 10) * 1000;
+    const query = queryWords.join(' ');
+
+    const { browser, page } = await getActivePage(port);
+    try {
+      const results: { title: string; link: string; snippet: string; content?: string }[] = [];
+      let start = 0;
+      while (results.length < count) {
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&start=${start}`;
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs }).catch(() => {});
+        await page.waitForSelector('div.MjjYud', { timeout: 3000 }).catch(() => {});
+
+        const pageResults = await page.evaluate(() => {
+          const items: { title: string; link: string; snippet: string }[] = [];
+          document.querySelectorAll('div.MjjYud').forEach((result) => {
+            const titleEl = result.querySelector('h3');
+            const linkEl = result.querySelector('a');
+            const snippetEl = result.querySelector('div.VwiC3b, div[data-sncf]');
+            const link = linkEl?.getAttribute('href') ?? '';
+            if (titleEl && linkEl && link && !link.startsWith('https://www.google.com')) {
+              items.push({
+                title: titleEl.textContent?.trim() ?? '',
+                link,
+                snippet: snippetEl?.textContent?.trim() ?? '',
+              });
+            }
+          });
+          return items;
+        });
+
+        for (const r of pageResults) {
+          if (results.length >= count) break;
+          if (!results.some((existing) => existing.link === r.link)) {
+            results.push(r);
+          }
+        }
+
+        if (pageResults.length === 0 || start >= 90) {
+          break;
+        }
+        start += 10;
+      }
+
+      if (fetchContent) {
+        for (const result of results) {
+          try {
+            await page.goto(result.link, { waitUntil: 'networkidle2', timeout: timeoutMs }).catch(() => {});
+            const article = await extractReadableContent(page);
+            result.content = article.content ?? '(No readable content)';
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            result.content = `(Error fetching content: ${message})`;
+          }
+        }
+      }
+
+      results.forEach((r, index) => {
+        console.log(`--- Result ${index + 1} ---`);
+        console.log(`Title: ${r.title}`);
+        console.log(`Link: ${r.link}`);
+        if (r.snippet) {
+          console.log(`Snippet: ${r.snippet}`);
+        }
+        if (r.content) {
+          console.log(`Content:\n${r.content}`);
+        }
+        console.log('');
+      });
+
+      if (results.length === 0) {
+        console.log('No results found.');
+      }
+    } finally {
+      await browser.disconnect();
+    }
+  });
+
+program
+  .command('content <url>')
+  .description('Extract readable content from a URL as markdown-like text.')
+  .option('--port <number>', 'Debugger port (default: 9222)', (value) => Number.parseInt(value, 10), DEFAULT_PORT)
+  .option('--timeout <seconds>', 'Navigation timeout in seconds (default: 10).', (value) => Number.parseInt(value, 10), 10)
+  .action(async (url: string, options) => {
+    const port = options.port as number;
+    const timeoutMs = Math.max(3, (options.timeout as number) ?? 10) * 1000;
+    const { browser, page } = await getActivePage(port);
+    try {
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: timeoutMs }).catch(() => {});
+      const article = await extractReadableContent(page);
+      console.log(`URL: ${article.url}`);
+      if (article.title) {
+        console.log(`Title: ${article.title}`);
+      }
+      console.log('');
+      console.log(article.content ?? '(No readable content)');
+    } finally {
+      await browser.disconnect();
+    }
+  });
+
+program
   .command('cookies')
   .description('Dump cookies from the active tab as JSON.')
   .option('--port <number>', 'Debugger port (default: 9222)', (value) => Number.parseInt(value, 10), DEFAULT_PORT)
@@ -629,6 +740,83 @@ interface ChromeTabInfo {
 interface ChromeSessionDescription extends ChromeProcessInfo {
   version?: Record<string, string>;
   tabs: ChromeTabInfo[];
+}
+
+async function ensureReadability(page: any) {
+  try {
+    await page.setBypassCSP?.(true);
+  } catch {
+    // ignore
+  }
+  const scripts = [
+    'https://unpkg.com/@mozilla/readability@0.4.4/Readability.js',
+    'https://unpkg.com/turndown@7.1.2/dist/turndown.js',
+    'https://unpkg.com/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js',
+  ];
+  for (const src of scripts) {
+    try {
+      const alreadyLoaded = await page.evaluate((url) => {
+        return Boolean(document.querySelector(`script[src="${url}"]`));
+      }, src);
+      if (!alreadyLoaded) {
+        await page.addScriptTag({ url: src });
+      }
+    } catch {
+      // best-effort; continue
+    }
+  }
+}
+
+async function extractReadableContent(page: any): Promise<{ title?: string; content?: string; url: string }> {
+  await ensureReadability(page);
+  const result = await page.evaluate(() => {
+    const asMarkdown = (html: string | null | undefined) => {
+      if (!html) return '';
+      const TurndownService = (window as any).TurndownService;
+      const turndownPluginGfm = (window as any).turndownPluginGfm;
+      if (!TurndownService) {
+        return '';
+      }
+      const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
+      if (turndownPluginGfm?.gfm) {
+        turndown.use(turndownPluginGfm.gfm);
+      }
+      return turndown
+        .turndown(html)
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    };
+
+    const fallbackText = () => {
+      const main =
+        document.querySelector('main, article, [role="main"], .content, #content') || document.body || document.documentElement;
+      return main?.textContent?.trim() ?? '';
+    };
+
+    let title = document.title;
+    let content = '';
+
+    try {
+      const Readability = (window as any).Readability;
+      if (Readability) {
+        const clone = document.cloneNode(true) as Document;
+        const article = new Readability(clone).parse();
+        title = article?.title || title;
+        content = asMarkdown(article?.content) || article?.textContent || '';
+      }
+    } catch {
+      // ignore readability failures
+    }
+
+    if (!content) {
+      content = fallbackText();
+    }
+
+    content = content?.trim().slice(0, 8000);
+
+    return { title, content, url: location.href };
+  });
+  return result;
 }
 
 function parseNumberListArg(value: string): number[] {

@@ -7,6 +7,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## 2025-11-18 — Console Log Capture
 - Added `console` command to `scripts/browser-tools.ts` for capturing and monitoring Chrome DevTools console output with real-time formatting, type filtering (log, error, warn, etc.), continuous follow mode, and configurable timeouts with automatic object serialization.
 
+## 2025-11-22 — Search & Content Extraction
+- Added `search` and `content` commands to `scripts/browser-tools.ts` for Google SERP scraping with optional readable markdown extraction and single-URL readability output, leveraging the existing DevTools-connected Chrome instance.
+
 ## 2025-11-15 — Chrome Browser Tools
 - Added `scripts/browser-tools.ts`, a DevTools-ready Chrome helper copied from the Oracle repo so agents can inspect, screenshot, and terminate sessions without dragging in the full CLI. The workflow is inspired by Mario Zechner’s [“What if you don’t need MCP?”](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/).
 - Documented the new helper in the README so downstream repos know how to run `pnpm tsx scripts/browser-tools.ts --help`.
