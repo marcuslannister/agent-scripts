@@ -28,6 +28,7 @@ Reusable checklist distilled from recent VibeTunnel, Trimmy, and CodexBar releas
 - Pre-release suffixes (beta/rc) belong in the source-of-truth version **before** running release scripts—avoid double-suffix mistakes.
 - For npm/pnpm packages, every beta/rc publish must use a new semver with a suffix (e.g., `1.2.3-beta.1`); npm will not let you overwrite an existing version/tag.
 - If there are sibling surfaces (e.g., web UI), align their versions with the macOS app before releasing.
+- Immediately after publishing, add a fresh `Unreleased` section and a placeholder for the **next patch version** at the top of the changelog so new changes don’t land in the shipped section.
 
 ## Prep: Review History & Changelog
 - Verify the latest published release/tag on GitHub (ensure assets are present and match the appcast) **before starting any new release work**.
@@ -97,6 +98,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
    - Confirm every bullet from the changelog is present; nothing extra.
 5) Push tags/commits once appcast and release notes are correct.
 6) After verifying GitHub uploads, delete local release artifacts (ZIP/DMG/dSYM archives) from the repo workspace—do not leave binaries checked out or staged. Keep only committed source/doc changes.
+7) Post-release bookkeeping: edit `CHANGELOG.md` to add `Unreleased` plus the next patch version header (e.g., if 0.5.3 shipped, add `0.5.4 — Unreleased`) so upcoming changes have a landing spot.
 
 ## Verification (Definition of Done)
 - Download the published artifact, install via `ditto`, launch, and verify:
