@@ -26,6 +26,7 @@ Reusable checklist distilled from recent VibeTunnel, Trimmy, and CodexBar releas
 - Single source of truth (e.g., `version.xcconfig` or `Info.plist`): set both `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`.
 - Build numbers **must** monotonically increase; Sparkle compares `CFBundleVersion`, not the marketing string.
 - Pre-release suffixes (beta/rc) belong in the source-of-truth version **before** running release scripts—avoid double-suffix mistakes.
+- For npm/pnpm packages, every beta/rc publish must use a new semver with a suffix (e.g., `1.2.3-beta.1`); npm will not let you overwrite an existing version/tag.
 - If there are sibling surfaces (e.g., web UI), align their versions with the macOS app before releasing.
 
 ## Prep: Review History & Changelog
