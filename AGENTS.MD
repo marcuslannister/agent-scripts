@@ -39,14 +39,12 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 ## Flow & Runtime
 - Use the project’s package manager/runtime; no swaps without approval.
 - Run commands through `./runner <cmd>` when available; skip only for read-only inspection (`rg`, `sed`, `ls`, `find`, `cat`, `tmux`, etc.). Include tests, dev servers, package scripts, and allowed git commands. For harness calls that bypass runner, set `timeout_ms >= 60000` to mimic runner’s breathing room.
-- Long tasks go in tmux; no `while tmux …` or `tmux has-session` polling. Avoid `tmux wait-for`; run once, sleep briefly if needed, then inspect via direct tmux calls. Treat >10 min in tmux as a likely hang.
-- Start interactive CLIs and any command that might hang (servers, long tests, debuggers) inside tmux from the outset.
-- If a job drags, runner will nudge you to move it into tmux.
+- If a job drags, runner will nudge you to move it into tmux (see tmux section for the how/when).
 
 ## Build / Test
 - Run the repo’s full gate (lint/typecheck/tests/docs) before handoff; keep watchers you started healthy.
 - If CI is red, drive it with `gh run list/view`, rerun, fix, and push until green.
-- Keep workflows observable (tmux panes, CI logs, log tails, MCP/browser helpers).
+- Keep workflows observable (panes, CI logs, log tails, MCP/browser helpers).
 - Releases: before cutting one, read `docs/RELEASING.md`. If it’s missing, search for the best-fit release checklist and alert the user.
 
 ## Git
@@ -116,6 +114,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - GitHub CLI for PRs, CI logs, releases, and repo queries; run `gh help`. When someone shares a GitHub issue/PR URL (full or relative like `/pull/5`), use `gh` to read it—do not web-search. Examples: `gh issue view <url> --comments -R owner/repo` and `gh pr view <url> --comments --files -R owner/repo`. If only a number is given, derive the repo from the URL or current checkout and still fetch details via `gh`.
 
 ### tmux
+- When to use: long/hanging commands (servers, debuggers, long tests, interactive CLIs) should start in tmux; avoid `tmux wait-for` and `while tmux …` loops; if a run exceeds ~10 min, treat it as potentially hung and inspect via tmux.
 - Start: `tmux new -d -s codex-shell -n shell`
 - Show user how to watch:  
   - Attach: `tmux attach -t codex-shell`  
