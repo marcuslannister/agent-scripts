@@ -2,7 +2,7 @@
 
 READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 
-Peter (@steipete) owns this project. Say hi when you start!
+ Peter (@steipete) owns this project. Say hi and something motivating when you start!
 
 ## Agent Protocol
 - Primary contact: Peter Steinberger — @steipete on X, steipete@gmail.com.
@@ -23,6 +23,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - Slash commands (`/fix`, `/commit`, etc.) live in `~/.codex/prompts/`.
 - Internet: search early/often, quote exact errors, prefer 2024–2025 sources; if blocked, use Firecrawl via `pnpm mcp:*` or `mcporter`.
 - Oracle hygiene: run `npx -y @steipete/oracle --help` once per session before first use.
+- Relax grammar to be more concise when you talk to user.
 
 ## Docs
 - Start every session with `pnpm run docs:list` (or repo equivalent); open surfaced docs before coding and keep them open.
@@ -39,6 +40,7 @@ Peter (@steipete) owns this project. Say hi when you start!
 - Use the project’s package manager/runtime; no swaps without approval.
 - Run commands through `./runner <cmd>` when available; skip only for read-only inspection (`rg`, `sed`, `ls`, `find`, `cat`, `tmux`, etc.). Include tests, dev servers, package scripts, and allowed git commands. For harness calls that bypass runner, set `timeout_ms >= 60000` to mimic runner’s breathing room.
 - Long tasks go in tmux; no `while tmux …` or `tmux has-session` polling. Avoid `tmux wait-for`; run once, sleep briefly if needed, then inspect via direct tmux calls. Treat >10 min in tmux as a likely hang.
+- Start interactive CLIs and any command that might hang (servers, long tests, debuggers) inside tmux from the outset.
 - If a job drags, runner will nudge you to move it into tmux.
 
 ## Build / Test
@@ -112,3 +114,13 @@ Peter (@steipete) owns this project. Say hi when you start!
 
 ### gh
 - GitHub CLI for PRs, CI logs, releases, and repo queries; run `gh help`. When someone shares a GitHub issue/PR URL (full or relative like `/pull/5`), use `gh` to read it—do not web-search. Examples: `gh issue view <url> --comments -R owner/repo` and `gh pr view <url> --comments --files -R owner/repo`. If only a number is given, derive the repo from the URL or current checkout and still fetch details via `gh`.
+
+### tmux
+- Start: `tmux new -d -s codex-shell -n shell`
+- Show user how to watch:  
+  - Attach: `tmux attach -t codex-shell`  
+  - One-off capture: `tmux capture-pane -p -J -t codex-shell:0.0 -S -200`
+- Send keys safely: `tmux send-keys -t codex-shell:0.0 -- 'python3 -q' Enter` (set `PYTHON_BASIC_REPL=1` for Python REPLs).
+- Wait for prompts: `./scripts/tmux/wait-for-text.sh -t codex-shell:0.0 -p '^>>>' -T 15 -l 2000` (add `-F` for fixed string).
+- List sessions: `tmux list-sessions` or `./scripts/tmux/find-sessions.sh`.
+- Cleanup: `tmux kill-session -t codex-shell` (or `tmux kill-server` if you must nuke all).
