@@ -53,6 +53,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Default allowed: `git status`, `git diff`, `git log`; `git push` only when the user asks.
 - `git checkout` is allowed when reviewing PRs or when the user explicitly asks you to switch branches.
 - Forbidden unless explicit: destructive commands (`reset --hard`, `checkout --`, `clean`, `restore`, `revert`, `rm`, etc.).
+- Remotes: prefer HTTPS URLs (`https://github.com/...`) for everything under `~/Projects`; flip any lingering SSH remotes to HTTPS before pulling/pushing so builds work behind strict networks.
 - Commits here: use `./scripts/committer "msg" path…`; don’t run `git add` yourself. In repos without the helper (e.g., outside agent-scripts), use normal git—don’t copy the helper.
 - “Rebase” in chat = consent to `git rebase` (and continue/abort) with `RUNNER_THE_USER_GAVE_ME_CONSENT=1`, via runner/git shim.
 - Assume unfamiliar diffs belong to others; don’t delete/rename without coordination. Stop if unexpected edits appear mid-task.
