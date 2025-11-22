@@ -96,6 +96,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
    - Body must be a copy of the curated changelog for that version (user-facing items only, same order).
    - Confirm every bullet from the changelog is present; nothing extra.
 5) Push tags/commits once appcast and release notes are correct.
+6) After verifying GitHub uploads, delete local release artifacts (ZIP/DMG/dSYM archives) from the repo workspace—do not leave binaries checked out or staged. Keep only committed source/doc changes.
 
 ## Verification (Definition of Done)
 - Download the published artifact, install via `ditto`, launch, and verify:
@@ -139,3 +140,4 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 - [ ] Appcast shows the correct notes (single-version chunk), and artifact size looks sane.
 - [ ] GitHub release notes header is `<App> <version>` and body matches changelog bullets exactly.
 - [ ] Manual Sparkle verification done (signature comparison, appcast curl, optional live update test).
+- [ ] Local release artifacts (ZIP/DMG/dSYM zips) removed from the repo workspace after upload/verification.
