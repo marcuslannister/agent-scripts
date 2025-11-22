@@ -90,7 +90,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 ## GitHub Release & Tag
 1) Tag the release after artifacts are ready: `git tag v<version>` (or let the release script tag).
 2) Create the GitHub release (pre-release for betas), title `<App> <version>`, body = changelog section for that version.
-3) Upload artifacts: DMG/ZIP (and appcast if published via Releases). Ensure enclosure URLs in the appcast point to the uploaded assets and return 200/OK.
+3) Upload artifacts: DMG/ZIP **and the dSYM archive** (zip it and attach alongside the main artifact for symbolicated crash debugging). Upload the appcast if it is served via Releases. Ensure enclosure URLs in the appcast point to the uploaded assets and return 200/OK.
 4) Release notes correctness:
    - Header **must be exactly** `<App> <version>` — no prefixes/suffixes.
    - Body must be a copy of the curated changelog for that version (user-facing items only, same order).
