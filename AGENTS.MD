@@ -32,6 +32,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Follow links until you understand the domain; honor any `Read when` hints.
 - Keep notes brief; update docs whenever behavior or APIs change—no feature ships without matching docs.
 - Add `read_when` hints to key docs when you change cross-cutting areas.
+- Model access note (2025-11-23): gpt-5.1-pro and grok-4.1 are not yet available on Peter’s keys; live tests that depend on them will fail until access is granted.
 
 ## PR Feedback
 - Find the active PR: `gh pr view --json number,title,url --jq '"PR #\\(.number): \\(.title)\\n\\(.url)"'`.
