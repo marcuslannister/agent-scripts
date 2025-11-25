@@ -3,13 +3,26 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compact } from 'es-toolkit';
 
 const docsListFile = fileURLToPath(import.meta.url);
 const docsListDir = dirname(docsListFile);
 const DOCS_DIR = join(docsListDir, '..', 'docs');
 
 const EXCLUDED_DIRS = new Set(['archive', 'research']);
+
+function compactStrings(values: unknown[]): string[] {
+  const result: string[] = [];
+  for (const value of values) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    const normalized = String(value).trim();
+    if (normalized.length > 0) {
+      result.push(normalized);
+    }
+  }
+  return result;
+}
 
 function walkMarkdownFiles(dir: string, base: string = dir): string[] {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -70,7 +83,7 @@ function extractMetadata(fullPath: string): {
         try {
           const parsed = JSON.parse(inline.replace(/'/g, '"')) as unknown;
           if (Array.isArray(parsed)) {
-            readWhen.push(...compact(parsed.map((item) => String(item).trim())));
+            readWhen.push(...compactStrings(parsed));
           }
         } catch {
           // ignore malformed inline arrays
