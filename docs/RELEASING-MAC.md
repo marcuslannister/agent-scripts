@@ -84,9 +84,10 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 4) Validate signatures and feed:
    - Run any helper (`./scripts/validate-sparkle-signature.sh`) if provided.
    - `sign_update -p <zip>` output matches `sparkle:edSignature` in the appcast.
+   - Double‑check you used the correct key account: `sign_update --account <app-account> -p <zip>` must match the appcast signature, and the app’s `SUPublicEDKey` must be the public key for that account.
    - `curl -I "<enclosure-url>"` returns 200.
    - `curl "<appcast-url>" | head` shows the new build number/signature/length.
-   - (Optional) Verify update flow using the previous installed build and Sparkle UI.
+   - Verify update flow using the previous installed build and Sparkle UI.
 
 ## GitHub Release & Tag
 1) Tag the release after artifacts are ready: `git tag v<version>` (or let the release script tag).
@@ -139,7 +140,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 - [ ] Tag + GitHub release created; assets uploaded; URLs in appcast resolve (200/OK).
 - [ ] After publishing, bump `CHANGELOG.md`: move the shipped notes under the released version, increment its patch number, and start a new `Unreleased` section for the next patch.
 - [ ] Downloaded artifact passes `spctl`, `codesign`, `stapler`; no `._*` files.
-- [ ] Update flow validated from a previous version.
+- [ ] Update flow validated from a previous version (if appcast was edited, re-run a live update after the change to confirm the new signature is accepted; clear `~/Library/Caches/com.<bundle-id>` if Sparkle cached a bad download).
 - [ ] Appcast shows the correct notes (single-version chunk), and artifact size looks sane.
 - [ ] GitHub release notes header is `<App> <version>` and body matches changelog bullets exactly.
 - [ ] Manual Sparkle verification done (signature comparison, appcast curl, optional live update test).
