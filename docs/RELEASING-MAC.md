@@ -135,6 +135,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 - [ ] Sparkle key verified with test sign_update.
 - [ ] Release script run (or build + sign + notarize completed).
 - [ ] Sparkle signature generated with `-f` and applied to appcast; build number unique.
+- [ ] Verify the published enclosure matches the appcast entry: `curl -L -o /tmp/update.zip <enclosure-url> && sign_update --verify /tmp/update.zip <appcast-signature> -f "$SPARKLE_PRIVATE_KEY_FILE"` (fails if the wrong key/signature is used).
 - [ ] Tag + GitHub release created; assets uploaded; URLs in appcast resolve (200/OK).
 - [ ] After publishing, bump `CHANGELOG.md`: move the shipped notes under the released version, increment its patch number, and start a new `Unreleased` section for the next patch.
 - [ ] Downloaded artifact passes `spctl`, `codesign`, `stapler`; no `._*` files.
