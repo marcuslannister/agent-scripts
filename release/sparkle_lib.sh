@@ -103,3 +103,17 @@ check_assets() {
 clear_sparkle_caches() {
   rm -rf ~/Library/Caches/${1} ~/Library/Caches/org.sparkle-project.Sparkle || true
 }
+
+# Removes AppleDouble/extended attributes that break codesign after zipping.
+clean_macos_metadata() {
+  local path=${1:?"path required"}
+  xattr -cr "$path" 2>/dev/null || true
+  find "$path" -name '._*' -delete 2>/dev/null || true
+}
+
+# Zips a bundle without resource-fork baggage.
+safe_zip() {
+  local source=${1:?"source bundle/app required"} dest=${2:?"destination zip required"}
+  clean_macos_metadata "$source"
+  /usr/bin/ditto --norsrc -c -k --keepParent "$source" "$dest"
+}

@@ -66,9 +66,10 @@ for v in /Volumes/*; do [[ $v == */<App>* ]] && hdiutil detach "$v" -force; done
   - `./Scripts/sign-and-notarize.sh` (SwiftPM apps; produces `<App>-<ver>.zip` and staples)
 - Typical expectations:
   - Release (or universal) configuration, arm64 at minimum; some projects also ship universal binaries.
-  - Sign all nested frameworks/XPCs; use the script’s flags—do **not** change `--deep` usage unless the script requires it.
-  - Notarization via `notarytool` with the exported API key; staple after success.
-  - Avoid `unzip` when testing locally; use `ditto -x -k <zip> /Applications` to prevent `._*` files that break signatures.
+- Sign all nested frameworks/XPCs; use the script’s flags—do **not** change `--deep` usage unless the script requires it.
+- Notarization via `notarytool` with the exported API key; staple after success.
+- Before zipping, strip resource forks/extended attributes from the app (`xattr -cr <App>.app && find <App>.app -name '._*' -delete`) and zip with `ditto --norsrc -c -k --keepParent …` to avoid AppleDouble files that invalidate signatures.
+- Avoid `unzip` when testing locally; use `ditto -x -k <zip> /Applications` to prevent `._*` files that break signatures.
 
 ## Sparkle Signing & Appcast
 **Policy:** Ship full updates only (no deltas). Remove any `<sparkle:deltas>` blocks before publishing the appcast.

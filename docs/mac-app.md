@@ -68,7 +68,7 @@ This is a practical, minimal checklist to get a new macOS (SwiftPM) menubar app 
 ## 9) Common gotchas
 - Sparkle private key file must not contain comments or blank lines—scripts will fail fast.
 - Bundle id must match codesign identity & appcast entry; SUPublicEDKey must match the signing key pair.
-- Don’t use `unzip`; use `ditto -x -k` to avoid `._*` files.
+- Before zipping a notarized app, run `xattr -cr <App>.app` and delete `._*` files, then zip with `ditto --norsrc -c -k --keepParent …` to avoid AppleDouble files that break code signatures. When testing, extract with `ditto -x -k` (not `unzip`).
 - Build numbers must monotonically increase; Sparkle compares `CFBundleVersion`.
 
 ## 10) Files to add in a new repo
