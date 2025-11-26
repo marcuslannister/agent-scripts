@@ -70,7 +70,7 @@ for v in /Volumes/*; do [[ $v == */<App>* ]] && hdiutil detach "$v" -force; done
 - Notarization via `notarytool` with the exported API key; staple after success.
 - Before zipping, strip resource forks/extended attributes from the app (`xattr -cr <App>.app && find <App>.app -name '._*' -delete`) and zip with `ditto --norsrc -c -k --keepParent …` to avoid AppleDouble files that invalidate signatures.
 - Avoid `unzip` when testing locally; use `ditto -x -k <zip> /Applications` to prevent `._*` files that break signatures.
-- Optional but recommended: export `SPARKLE_VERIFY_CODESIGN=1` when running the release helpers to download the enclosure, verify the ed25519 signature, and run `codesign --verify` + `spctl` on the extracted app before publishing.
+- The shared release helpers now always download the enclosure, verify the ed25519 signature, and run `codesign --verify` + `spctl` on the extracted app before publishing—no opt-in flag needed.
 
 ## Sparkle Signing & Appcast
 **Policy:** Ship full updates only (no deltas). Remove any `<sparkle:deltas>` blocks before publishing the appcast.
@@ -94,7 +94,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 ## GitHub Release & Tag
 1) Tag the release after artifacts are ready: `git tag v<version>` (or let the release script tag).
 2) Create the GitHub release (pre-release for betas), title `<App> <version>`, body = changelog section for that version.
-3) Upload artifacts: DMG/ZIP **and the dSYM archive** (zip it and attach alongside the main artifact for symbolicated crash debugging). Upload the appcast if it is served via Releases. Ensure enclosure URLs in the appcast point to the uploaded assets and return 200/OK. If the repo ships a release check script (e.g., `Scripts/check-release-assets.sh`), run it after publishing to verify both zip and dSYM are present.
+3) Upload artifacts: DMG/ZIP **and the dSYM archive** (zip it and attach alongside the main artifact for symbolicated crash debugging). Upload the appcast if it is served via Releases. Ensure enclosure URLs in the appcast point to the uploaded assets and return 200/OK. The shared helpers already re-download the enclosure and run codesign/spctl; if the repo ships a release check script (e.g., `Scripts/check-release-assets.sh`), run it after publishing to verify both zip and dSYM are present.
 4) Release notes correctness:
    - Header **must be exactly** `<App> <version>` — no prefixes/suffixes.
    - Body must be a copy of the curated changelog for that version (user-facing items only, same order).

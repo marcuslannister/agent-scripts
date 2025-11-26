@@ -54,7 +54,6 @@ verify_enclosure() {
 verify_appcast_entry() {
   local appcast=${1:?"appcast path"} version=${2:?"version"} keyfile=${3:?"key file"}
   require_bin python3 curl sign_update
-  local verify_codesign=${SPARKLE_VERIFY_CODESIGN:-0}
   local tmp_meta
   tmp_meta=$(mktemp)
   trap '[[ -n ${tmp_meta:-} ]] && rm -f "$tmp_meta"' RETURN
@@ -85,10 +84,7 @@ PY
   readarray -t m <"$tmp_meta"
   verify_enclosure "${m[0]}" "${m[1]}" "$keyfile" "${m[2]}"
   echo "Appcast entry $version verified (signature & length)."
-
-  if [[ "$verify_codesign" == "1" ]]; then
-    verify_codesign_from_enclosure "${m[0]}"
-  fi
+  verify_codesign_from_enclosure "${m[0]}"
 }
 
 check_assets() {
