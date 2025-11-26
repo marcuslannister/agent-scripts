@@ -54,6 +54,7 @@ verify_enclosure() {
 verify_appcast_entry() {
   local appcast=${1:?"appcast path"} version=${2:?"version"} keyfile=${3:?"key file"}
   require_bin python3 curl sign_update
+  local verify_codesign=${SPARKLE_VERIFY_CODESIGN:-0}
   local tmp_meta
   tmp_meta=$(mktemp)
   trap 'rm -f "$tmp_meta"' RETURN
@@ -84,6 +85,10 @@ PY
   readarray -t m <"$tmp_meta"
   verify_enclosure "${m[0]}" "${m[1]}" "$keyfile" "${m[2]}"
   echo "Appcast entry $version verified (signature & length)."
+
+  if [[ "$verify_codesign" == "1" ]]; then
+    verify_codesign_from_enclosure "${m[0]}"
+  fi
 }
 
 check_assets() {
@@ -116,4 +121,38 @@ safe_zip() {
   local source=${1:?"source bundle/app required"} dest=${2:?"destination zip required"}
   clean_macos_metadata "$source"
   /usr/bin/ditto --norsrc -c -k --keepParent "$source" "$dest"
+}
+
+# Download an enclosure, extract, and verify codesign/spctl on the bundled app.
+verify_codesign_from_enclosure() {
+  local url=${1:?"enclosure URL required"}
+  require_bin curl ditto codesign spctl
+
+  local tmp_dir tmp_zip
+  tmp_dir=$(mktemp -d /tmp/sparkle-verify.XXXX)
+  tmp_zip="$tmp_dir/enclosure.zip"
+  curl -L -o "$tmp_zip" "$url"
+
+  # Extract without resource forks to avoid introducing AppleDouble files.
+  /usr/bin/ditto -x -k --norsrc "$tmp_zip" "$tmp_dir"
+
+  local app
+  app=$(find "$tmp_dir" -maxdepth 2 -name "*.app" | head -n 1)
+  if [[ -z "$app" ]]; then
+    echo "No .app found in enclosure $url" >&2
+    return 1
+  fi
+
+  if ! codesign --verify --deep --strict --verbose "$app"; then
+    echo "codesign verification failed for $app" >&2
+    return 1
+  fi
+  if ! spctl --assess --type execute --verbose "$app"; then
+    echo "spctl assessment failed for $app" >&2
+    return 1
+  fi
+  if command -v stapler >/dev/null 2>&1; then
+    stapler validate "$app" >/dev/null || true
+  fi
+  echo "Codesign/spctl verification OK for $(basename "$app") from $url"
 }

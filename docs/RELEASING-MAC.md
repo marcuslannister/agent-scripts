@@ -70,6 +70,7 @@ for v in /Volumes/*; do [[ $v == */<App>* ]] && hdiutil detach "$v" -force; done
 - Notarization via `notarytool` with the exported API key; staple after success.
 - Before zipping, strip resource forks/extended attributes from the app (`xattr -cr <App>.app && find <App>.app -name '._*' -delete`) and zip with `ditto --norsrc -c -k --keepParent …` to avoid AppleDouble files that invalidate signatures.
 - Avoid `unzip` when testing locally; use `ditto -x -k <zip> /Applications` to prevent `._*` files that break signatures.
+- Optional but recommended: export `SPARKLE_VERIFY_CODESIGN=1` when running the release helpers to download the enclosure, verify the ed25519 signature, and run `codesign --verify` + `spctl` on the extracted app before publishing.
 
 ## Sparkle Signing & Appcast
 **Policy:** Ship full updates only (no deltas). Remove any `<sparkle:deltas>` blocks before publishing the appcast.
