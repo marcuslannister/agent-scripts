@@ -40,7 +40,7 @@ verify_enclosure() {
   require_bin curl sign_update
   local tmp
   tmp=$(mktemp /tmp/sparkle-enclosure.XXXX)
-  trap 'rm -f "$tmp"' RETURN
+  trap '[[ -n ${tmp:-} ]] && rm -f "$tmp"' RETURN
   curl -L -o "$tmp" "$url"
   local len
   len=$(stat -f%z "$tmp")
@@ -57,7 +57,7 @@ verify_appcast_entry() {
   local verify_codesign=${SPARKLE_VERIFY_CODESIGN:-0}
   local tmp_meta
   tmp_meta=$(mktemp)
-  trap 'rm -f "$tmp_meta"' RETURN
+  trap '[[ -n ${tmp_meta:-} ]] && rm -f "$tmp_meta"' RETURN
 
   python3 - "$appcast" "$version" >"$tmp_meta" <<'PY'
 import sys, xml.etree.ElementTree as ET
