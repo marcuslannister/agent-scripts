@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# shazam-song - Identify songs from audio files using Shazam API
+# Usage: shazam-song <audio-file>
+
+set -e
+
+VENV_DIR="/tmp/shazam-env"
+SCRIPT_PATH="/tmp/shazam_song.py"
+
+# Create Python script if it doesn't exist
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+    cat > "$SCRIPT_PATH" << 'PYTHON'
+import asyncio
+import sys
+from shazamio import Shazam
+
+async def main():
+    if len(sys.argv) < 2:
+        print("Usage: shazam-song <audio-file>", file=sys.stderr)
+        sys.exit(1)
+
+    shazam = Shazam()
+    out = await shazam.recognize(sys.argv[1])
+    if out.get('track'):
+        track = out['track']
+        title = track.get('title', 'Unknown')
+        artist = track.get('subtitle', 'Unknown')
+        print(f"🎵 {title} - {artist}")
+
+        # Print extra info if available
+        if track.get('genres'):
+            genres = track['genres'].get('primary', '')
+            if genres:
+                print(f"   Genre: {genres}")
+        if track.get('url'):
+            print(f"   Shazam: {track['url']}")
+    else:
+        print("❌ Song not recognized")
+        sys.exit(1)
+
+asyncio.run(main())
+PYTHON
+fi
+
+# Create venv if it doesn't exist
+if [[ ! -d "$VENV_DIR" ]]; then
+    echo "Setting up Shazam environment (first run only)..."
+    cd /tmp
+    uv venv shazam-env --python 3.12 --quiet
+    source "$VENV_DIR/bin/activate"
+    uv pip install shazamio --quiet
+    echo "Setup complete!"
+fi
+
+# Run the script
+exec "$VENV_DIR/bin/python" "$SCRIPT_PATH" "$@"
