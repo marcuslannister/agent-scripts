@@ -17,6 +17,15 @@ require_bin() {
   done
 }
 
+# Ensures the git working tree is clean before a release.
+require_clean_worktree() {
+  require_bin git
+  if [[ -n $(git status --porcelain) ]]; then
+    echo "Working tree is not clean; commit or stash first." >&2
+    exit 1
+  fi
+}
+
 clean_key() {
   local keyfile=${1:?"key file required"}
   if [[ ! -f "$keyfile" ]]; then
@@ -33,6 +42,17 @@ clean_key() {
   tmp=$(mktemp)
   printf "%s" "$lines" >"$tmp"
   echo "$tmp"
+}
+
+# Quick sanity check that the Sparkle key can sign content.
+probe_sparkle_key() {
+  local keyfile=${1:?"key file required"}
+  require_bin sign_update
+  local tmp
+  tmp=$(mktemp /tmp/sparkle-key-probe.XXXX)
+  echo test >"$tmp"
+  sign_update --ed-key-file "$keyfile" -p "$tmp" >/dev/null
+  rm -f "$tmp"
 }
 
 verify_enclosure() {
@@ -151,4 +171,87 @@ verify_codesign_from_enclosure() {
     stapler validate "$app" >/dev/null || true
   fi
   echo "Codesign/spctl verification OK for $(basename "$app") from $url"
+}
+
+# Ensure changelog top section matches the version and is finalized (not Unreleased).
+ensure_changelog_finalized() {
+  local version=${1:?"version required"}
+  require_bin python3
+  python3 - "$version" <<'PY'
+import sys, pathlib, re
+version = sys.argv[1]
+p = pathlib.Path("CHANGELOG.md")
+text = p.read_text()
+first = re.search(r"^##\s+(.+)$", text, re.M)
+if not first:
+    sys.exit("No changelog sections found")
+header = first.group(1)
+if "Unreleased" in header:
+    sys.exit("Top changelog section still marked Unreleased")
+if not header.startswith(f"{version} ") and not header.startswith(f"{version} —"):
+    sys.exit(f"Top changelog section '{header}' does not match version {version}")
+if not re.search(rf"^##\s+{re.escape(version)}\s+", text, re.M):
+    sys.exit(f"No section found for version {version}")
+PY
+}
+
+# Extract release notes for VERSION from CHANGELOG.md into DEST path.
+extract_notes_from_changelog() {
+  local version=${1:?"version required"}
+  local dest=${2:?"dest path required"}
+  require_bin python3
+  python3 - "$version" "$dest" <<'PY'
+import sys, pathlib, re
+version, dest = sys.argv[1], pathlib.Path(sys.argv[2])
+text = pathlib.Path("CHANGELOG.md").read_text()
+pattern = re.compile(rf"^##\s+{re.escape(version)}\s+.*$", re.M)
+m = pattern.search(text)
+if not m:
+    sys.exit("section not found")
+start = m.end()
+next_header = text.find("\n## ", start)
+chunk = text[start: next_header if next_header != -1 else len(text)]
+lines = [ln for ln in chunk.strip().splitlines() if ln.strip()]
+dest.write_text("\n".join(lines) + "\n")
+PY
+}
+
+# Reads the latest appcast entry (top item) returning version and build to stdout.
+appcast_head_version_build() {
+  local appcast=${1:-appcast.xml}
+  require_bin python3
+  python3 - "$appcast" <<'PY'
+import sys, xml.etree.ElementTree as ET
+appcast = sys.argv[1]
+root = ET.parse(appcast).getroot()
+channel = root.find('channel')
+if channel is None:
+    sys.exit(1)
+item = channel.find('item')
+if item is None:
+    sys.exit(1)
+ns = {'sparkle': 'http://www.andymatuschak.org/xml-namespaces/sparkle'}
+ver = item.findtext('sparkle:shortVersionString', default='', namespaces=ns)
+build = item.findtext('sparkle:version', default='', namespaces=ns)
+print(ver)
+print(build)
+PY
+}
+
+# Ensures the target version/build advance beyond the current appcast head.
+ensure_appcast_monotonic() {
+  local appcast=${1:-appcast.xml} version=${2:?"version required"} build=${3:?"build required"}
+  local current
+  current=$(appcast_head_version_build "$appcast" || true)
+  local cur_ver cur_build
+  cur_ver=$(printf "%s\n" "$current" | sed -n '1p')
+  cur_build=$(printf "%s\n" "$current" | sed -n '2p')
+  if [[ -n "$cur_ver" && "$cur_ver" == "$version" ]]; then
+    echo "appcast already has version $version; bump version first." >&2
+    exit 1
+  fi
+  if [[ -n "$cur_build" && "$build" -le "$cur_build" ]]; then
+    echo "Build number $build must be greater than latest appcast build $cur_build." >&2
+    exit 1
+  fi
 }

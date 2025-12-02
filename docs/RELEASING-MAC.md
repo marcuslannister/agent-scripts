@@ -72,6 +72,13 @@ for v in /Volumes/*; do [[ $v == */<App>* ]] && hdiutil detach "$v" -force; done
 - Avoid `unzip` when testing locally; use `ditto -x -k <zip> /Applications` to prevent `._*` files that break signatures.
 - The shared release helpers now always download the enclosure, verify the ed25519 signature, and run `codesign --verify` + `spctl` on the extracted app before publishing—no opt-in flag needed.
 
+### Shared release helpers (release/sparkle_lib.sh)
+- `require_clean_worktree` — fail fast if git is dirty.
+- `probe_sparkle_key` — quick sign_update probe to ensure the private key is usable.
+- `ensure_changelog_finalized <version>` — top changelog section must match the version and not be “Unreleased”.
+- `ensure_appcast_monotonic <appcast> <version> <build>` — blocks if the appcast already has that version or if the build is not greater than the latest entry.
+- `extract_notes_from_changelog <version> <dest>` — pulls the release-notes slice for reuse in GitHub releases/automation.
+
 ## Sparkle Signing & Appcast
 **Policy:** Ship full updates only (no deltas). Remove any `<sparkle:deltas>` blocks before publishing the appcast.
 1) Generate signature for the shipping artifact (DMG or ZIP):
