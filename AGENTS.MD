@@ -68,6 +68,9 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Swift: use the workspace helper/daemon; validate with `swift build` + appropriate tests; keep concurrency annotations accurate; let sources regenerate artifacts.
 - TypeScript: stick to the repo’s package manager, run `docs:list`, keep files small, follow existing component/data patterns.
 
+## macOS Permissions / Signing (TCC)
+- Never re-sign, ad-hoc sign (`codesign --sign -`), or change signing identity/bundle ID for a macOS app as a “debugging step” without explicit authorization from Peter (it can duplicate/reset TCC permission entries and “f*** up” system permissions state).
+
 ## Critical Thinking
 - Chase root cause, not band-aids—trace upstream and fix the real break.
 - Unsure? Read more code first; if still blocked, ask with a short options summary.
@@ -122,6 +125,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 
 ### tmux
 - When to use: long/hanging commands (servers, debuggers, long tests, interactive CLIs) should start in tmux; avoid `tmux wait-for` and `while tmux …` loops; if a run exceeds ~10 min, treat it as potentially hung and inspect via tmux.
+- No tmux needed for quick package scripts or short app launches (e.g., `pnpm start/restart/stop`) unless you expect them to hang or run for minutes.
 - Start: `tmux new -d -s codex-shell -n shell`
 - Show user how to watch:  
   - Attach: `tmux attach -t codex-shell`  
