@@ -28,6 +28,16 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Oracle hygiene: run `npx -y @steipete/oracle --help` once per session before first use.
 - Relax grammar to be more concise when you talk to user.
 
+## Screenshots (“use a screenshot”)
+- Find newest screenshot PNG in `~/Desktop` or `~/Downloads` (e.g. `Screenshot*.png`, `Screen Shot*.png`, `CleanShot*.png`, `Shottr*.png`).
+- Inspect image; confirm it’s the right app/UI (don’t trust filename).
+- Check dimensions; prefer retina/2× when possible: `sips -g pixelWidth -g pixelHeight <file>`.
+- Optimize lossless via ImageOptim CLI:
+  - If `imageoptim` missing: `brew install imageoptim-cli` (needs `node`; Homebrew installs it if needed).
+  - Then: `imageoptim <file>`.
+- Replace repo screenshot asset (e.g. `codexbar.png`) with optimized PNG; keep dimensions.
+- Commit + push; run repo gate (format/lint/tests), restart app if required; verify CI green (`gh run list/view`).
+
 ## Important Locations
 - Blog repo: `~/Projects/steipete.me`
 - Notes/Docs: `~/Projects/manager/docs/` (see `~/Projects/manager/docs/mac-studio.md`, `~/Projects/manager/docs/mac-vm.md`)
