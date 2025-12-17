@@ -6,7 +6,7 @@ Peter owns this. Start: say hi + 1 motivating line.
 - Contact: Peter Steinberger (@steipete, steipete@gmail.com).
 - Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`.
 - 3rd-party/OSS (non-steipete): clone under `~/Projects/oss`.
-- `~/Projects/manager`: private ops/infra (domains/DNS, redirects/workers, runbooks/docs).
+- `~/Projects/manager`: private ops (domains/DNS, redirects/workers, runbooks).
 - “MacBook” / “Mac Studio” => SSH there; find hosts/IPs via `tailscale status`.
 - Files: repo or `~/Projects/agent-scripts`.
 - PRs: use `gh pr view/diff` (no URLs).
