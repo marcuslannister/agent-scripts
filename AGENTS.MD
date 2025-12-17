@@ -7,6 +7,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 ## Agent Protocol
 - Primary contact: Peter Steinberger — @steipete on X, steipete@gmail.com.
 - Primary workspace is `~/Projects`; expect most repos there. If one is missing, clone `git@github.com:steipete/<repo>.git` (default branch).
+- Tailscale SSH: when Peter says “MacBook” or “Mac Studio”, run commands on that machine via SSH (e.g. `ssh steipete@peters-mac-studio-1 '...'`); find device names/IPs via `tailscale status`.
 - Files may live in-repo or `~/Projects/agent-scripts`; check both.
 - PR links: use `gh pr view/diff` instead of pasting URLs.
 - Add notes to AGENTS only when the user says “make a note”; edit `AGENTS.MD` (ignore `CLAUDE.md` symlink).
