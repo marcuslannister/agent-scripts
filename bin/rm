@@ -1,0 +1,74 @@
+#!/usr/bin/env bun
+
+import process from 'node:process';
+
+import { movePathsToTrash } from '../scripts/trash.ts';
+
+function printUsage() {
+  console.error('Usage: bin/rm [-f] [-r|-R] [--] <path...>');
+  console.error('Moves targets to Trash instead of deleting them.');
+}
+
+const argv = process.argv.slice(2);
+
+if (argv.length === 0) {
+  printUsage();
+  process.exit(1);
+}
+
+if (argv.includes('--help') || argv.includes('-h')) {
+  printUsage();
+  process.exit(0);
+}
+
+let force = false;
+let treatAsTarget = false;
+const targets: string[] = [];
+
+for (const token of argv) {
+  if (!treatAsTarget && token === '--') {
+    treatAsTarget = true;
+    continue;
+  }
+
+  if (!treatAsTarget && token.startsWith('-') && token.length > 1) {
+    if (token === '--interactive' || token.includes('i')) {
+      console.error('bin/rm: interactive mode is not supported (refusing).');
+      process.exit(1);
+    }
+    if (token.includes('f')) {
+      force = true;
+    }
+    continue;
+  }
+
+  targets.push(token);
+}
+
+if (targets.length === 0) {
+  console.error('bin/rm: missing operand');
+  printUsage();
+  process.exit(1);
+}
+
+const result = await movePathsToTrash(targets, process.cwd(), {
+  allowMissing: force,
+  refusePaths: ['.'],
+});
+
+if (!force && result.missing.length > 0) {
+  for (const path of result.missing) {
+    console.error(`rm: ${path}: No such file or directory`);
+  }
+  process.exit(1);
+}
+
+if (result.errors.length > 0) {
+  for (const error of result.errors) {
+    console.error(error);
+  }
+  process.exit(1);
+}
+
+process.exit(0);
+

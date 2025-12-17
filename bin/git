@@ -5,24 +5,193 @@ import { dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
+import { analyzeGitExecution, evaluateGitPolicies, type GitCommandInfo, type GitExecutionContext } from '../scripts/git-policy.ts';
+import { movePathsToTrash } from '../scripts/trash.ts';
+
+type GitRmPlan = {
+  paths: string[];
+  stagingOptions: string[];
+  allowMissing: boolean;
+  shouldIntercept: boolean;
+};
+
 const scriptDir = normalize(dirname(fileURLToPath(import.meta.url)));
 const repoRoot = normalize(resolve(scriptDir, '..'));
-const runnerPath = join(repoRoot, 'runner');
 const gitBinary = findRealGitBinary();
 
 if (!gitBinary) {
-  console.error('Unable to locate the system git binary outside the Sweetistics git shim.');
+  console.error('Unable to locate the system git binary outside the agent git shim.');
   process.exit(1);
 }
 
-const proc = Bun.spawn([runnerPath, gitBinary, ...process.argv.slice(2)], {
+const argv = process.argv.slice(2);
+const gitContext = analyzeGitExecution(['git', ...argv], process.cwd());
+enforceGitPolicies(gitContext);
+
+if (await maybeHandleGitRm(gitBinary, gitContext)) {
+  process.exit(0);
+}
+
+const proc = Bun.spawn([gitBinary, ...argv], {
   stdin: 'inherit',
   stdout: 'inherit',
   stderr: 'inherit',
   env: process.env,
+  cwd: process.cwd(),
 });
 
 process.exit(await proc.exited);
+
+function enforceGitPolicies(gitContext: GitExecutionContext) {
+  const evaluation = evaluateGitPolicies(gitContext);
+  const hasConsentOverride =
+    process.env.AGENT_GIT_CONSENT === '1' || process.env.RUNNER_THE_USER_GAVE_ME_CONSENT === '1';
+
+  if (evaluation.requiresCommitHelper) {
+    console.error(
+      'Direct git add/commit is disabled. Use ./scripts/committer "chore: describe change" "path/to/file" ... instead.'
+    );
+    process.exit(1);
+  }
+
+  if (evaluation.requiresExplicitConsent || evaluation.isDestructive) {
+    if (hasConsentOverride) {
+      return;
+    }
+
+    const subcommand = gitContext.subcommand ?? '';
+    if (evaluation.isDestructive) {
+      console.error(
+        `git ${subcommand} can overwrite or discard work. Confirm with the user first, then re-run with AGENT_GIT_CONSENT=1.`
+      );
+    } else {
+      console.error(
+        `Using git ${subcommand} requires consent. Set AGENT_GIT_CONSENT=1 after verifying with the user.`
+      );
+    }
+    process.exit(1);
+  }
+}
+
+async function maybeHandleGitRm(gitBinary: string, gitContext: GitExecutionContext): Promise<boolean> {
+  if (gitContext.command?.name !== 'rm' || !gitContext.invocation) {
+    return false;
+  }
+
+  const gitRmPlan = parseGitRmArguments(gitContext.invocation.argv, gitContext.command);
+  if (!gitRmPlan?.shouldIntercept) {
+    return false;
+  }
+
+  const moveResult = await movePathsToTrash(gitRmPlan.paths, gitContext.workDir, {
+    allowMissing: gitRmPlan.allowMissing,
+    refusePaths: ['.'],
+  });
+
+  if (!gitRmPlan.allowMissing && moveResult.missing.length > 0) {
+    for (const path of moveResult.missing) {
+      console.error(`git rm: ${path}: No such file or directory`);
+    }
+    process.exit(1);
+  }
+
+  if (moveResult.errors.length > 0) {
+    for (const error of moveResult.errors) {
+      console.error(error);
+    }
+    process.exit(1);
+  }
+
+  await stageGitRm(gitBinary, gitContext.workDir, gitRmPlan);
+  return true;
+}
+
+function parseGitRmArguments(argv: string[], command: GitCommandInfo): GitRmPlan | null {
+  const stagingOptions: string[] = [];
+  const paths: string[] = [];
+  let allowMissing = false;
+  let treatAsPath = false;
+
+  const optionsExpectingValue = new Set(['--pathspec-from-file']);
+
+  let index = command.index + 1;
+  while (index < argv.length) {
+    const token = argv[index];
+    if (token === undefined) {
+      break;
+    }
+    if (!treatAsPath && token === '--') {
+      treatAsPath = true;
+      index += 1;
+      continue;
+    }
+    if (!treatAsPath && token.startsWith('-') && token.length > 1) {
+      if (token === '--cached' || token === '--dry-run' || token === '-n') {
+        return null;
+      }
+      if (token === '--ignore-unmatch' || token === '--force' || token === '-f') {
+        allowMissing = true;
+        stagingOptions.push(token);
+        index += 1;
+        continue;
+      }
+      if (optionsExpectingValue.has(token)) {
+        return null;
+      }
+      if (!token.startsWith('--')) {
+        const flags = token.slice(1).split('');
+        const retainedFlags: string[] = [];
+        for (const flag of flags) {
+          if (flag === 'n') {
+            return null;
+          }
+          if (flag === 'f') {
+            allowMissing = true;
+            continue;
+          }
+          retainedFlags.push(flag);
+        }
+        if (retainedFlags.length > 0) {
+          stagingOptions.push(`-${retainedFlags.join('')}`);
+        }
+        index += 1;
+        continue;
+      }
+      stagingOptions.push(token);
+      index += 1;
+      continue;
+    }
+    if (token.length > 0) {
+      paths.push(token);
+    }
+    index += 1;
+  }
+
+  if (paths.length === 0) {
+    return null;
+  }
+
+  return {
+    paths,
+    stagingOptions,
+    allowMissing,
+    shouldIntercept: true,
+  };
+}
+
+async function stageGitRm(gitBinary: string, workDir: string, plan: GitRmPlan) {
+  const args = [gitBinary, 'rm', '--cached', '--quiet', ...plan.stagingOptions, '--', ...plan.paths];
+  const proc = Bun.spawn(args, {
+    cwd: workDir,
+    stdout: 'inherit',
+    stderr: 'inherit',
+    stdin: 'inherit',
+  });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    process.exit(exitCode);
+  }
+}
 
 function findRealGitBinary(): string | null {
   const skipDirs = new Set([scriptDir, repoRoot]);
@@ -60,4 +229,3 @@ function isExecutable(candidate: string): boolean {
     return false;
   }
 }
-

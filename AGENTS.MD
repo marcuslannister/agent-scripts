@@ -10,8 +10,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Files may live in-repo or `~/Projects/agent-scripts`; check both.
 - PR links: use `gh pr view/diff` instead of pasting URLs.
 - Add notes to AGENTS only when the user says “make a note”; edit `AGENTS.MD` (ignore `CLAUDE.md` symlink).
-- On Windows, avoid `./runner` (PowerShell + Git Bash can truncate prompts and trigger app chooser dialogs); run the underlying command directly (`pnpm ...`, `npx ...`, `git ...`).
-- Outside this repo, skip `./runner` if it’s not shipped; otherwise follow the runner rules below.
+- This repo no longer uses a `./runner` wrapper; run commands directly. Use `bin/git` + `bin/rm` for the guardrails that used to live in runner.
 - Need an upstream file? Redirect to `/tmp/`, then cherry-pick—never overwrite tracked files.
 - Bug fixes: add a regression test when it makes sense.
 - Keep files under ~500 LOC—refactor/split and improve quality/tests while you do it.
@@ -41,8 +40,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 
 ## Flow & Runtime
 - Use the project’s package manager/runtime; no swaps without approval.
-- Run commands through `./runner <cmd>` when available; skip only for read-only inspection (`rg`, `sed`, `ls`, `find`, `cat`, `tmux`, etc.). Include tests, dev servers, package scripts, and allowed git commands. For harness calls that bypass runner, set `timeout_ms >= 60000` to mimic runner’s breathing room.
-- If a job drags, runner will nudge you to move it into tmux (see tmux section for the how/when).
+- Prefer Codex background execution for long-running jobs; use tmux only when you need an interactive/persistent session (debuggers, servers).
 
 ## Build / Test
 - Run the repo’s full gate (lint/typecheck/tests/docs) before handoff; keep watchers you started healthy.
@@ -56,7 +54,7 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Forbidden unless explicit: destructive commands (`reset --hard`, `checkout --`, `clean`, `restore`, `revert`, `rm`, etc.).
 - Remotes: prefer HTTPS URLs (`https://github.com/...`) for everything under `~/Projects`; flip any lingering SSH remotes to HTTPS before pulling/pushing so builds work behind strict networks.
 - Commits here: use `./scripts/committer "msg" path…`; don’t run `git add` yourself. In repos without the helper (e.g., outside agent-scripts), use normal git—don’t copy the helper.
-- “Rebase” in chat = consent to `git rebase` (and continue/abort) with `RUNNER_THE_USER_GAVE_ME_CONSENT=1`, via runner/git shim.
+- After the user explicitly approves a guarded/destructive git operation, re-run with `AGENT_GIT_CONSENT=1` (works with `bin/git`).
 - Assume unfamiliar diffs belong to others; don’t delete/rename without coordination. Stop if unexpected edits appear mid-task.
 - Avoid repo-wide search/replace scripts; keep edits targeted and reviewable.
 - If the user types a command (e.g., “pull and push”), treat that as permission for that specific command—no extra confirmation needed.
@@ -102,24 +100,21 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 - Twitter/X analytics app at `~/Projects/sweetistics`. Tauri desktop app.
 - Use for deeper Twitter data analysis beyond what `bird` provides.
 
-### runner / bin/runner / scripts/runner.ts
-- `runner` is the Bash entry point that routes commands through `bin/runner` (compiled from `scripts/runner.ts`) to enforce timeouts, git policy, and trash-safe deletes. Rebuild `bin/runner` via `bun build scripts/runner.ts --compile --outfile bin/runner`.
-- Runner is for agents; when you show commands to users, print the raw command (without `./runner`).
-
-### git / bin/git / scripts/git-policy.ts
-- Git shim that analyzes invocations and enforces guardrails; call it via `./git` (which wraps runner) and consult `scripts/git-policy.ts` for the rules.
+### bin/git / scripts/git-policy.ts
+- Git shim that enforces guardrails (blocks `git add`/`git commit`, gates guarded/destructive subcommands). Use `bin/git ...`.
+- For guarded/destructive git operations: get explicit user approval, then re-run with `AGENT_GIT_CONSENT=1`.
 
 ### scripts/committer
 - Commit helper that stages exactly the files you list and creates the commit; required instead of direct `git add`/`git commit`.
+
+### bin/rm / scripts/trash.ts
+- Trash-backed `rm` replacement; use `bin/rm ...` instead of `rm` so deletes are recoverable.
 
 ### bin/docs-list / scripts/docs-list.ts
 - `bin/docs-list` walks `docs/`, enforces front-matter, and prints summaries; rebuild via `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`. Edit `scripts/docs-list.ts` before rebuilding.
 
 ### bin/browser-tools / scripts/browser-tools.ts
-- Chrome DevTools helper without running an MCP server. Key commands: `start` (launch Chrome with remote debugging), `nav <url>` (navigate), `eval <js>` (run JS in the active tab), `screenshot` (viewport PNG to /tmp), `pick <msg>` (interactive element picker), `cookies`, `inspect`, `kill`. Launch via `bin/browser-tools --help`. Edit `scripts/browser-tools.ts`, rebuild with `./runner bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools`.
-
-### bin/sleep
-- Sleep shim capped at 30 seconds; run `bin/sleep --help`.
+- Chrome DevTools helper without running an MCP server. Key commands: `start` (launch Chrome with remote debugging), `nav <url>` (navigate), `eval <js>` (run JS in the active tab), `screenshot` (viewport PNG to /tmp), `pick <msg>` (interactive element picker), `cookies`, `inspect`, `kill`. Launch via `bin/browser-tools --help`. Edit `scripts/browser-tools.ts`, rebuild with `bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools`.
 
 ### xcp
 - Xcode project/workspace helper for managing targets, groups, files, build settings, and assets; run `xcp --help`.

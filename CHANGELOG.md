@@ -4,6 +4,11 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2025-12-17 — Remove Runner; Keep Guardrails
+- Removed the `runner` wrapper and `scripts/runner.ts` now that modern Codex sessions handle long-running/background work directly.
+- Kept the safety-critical bits as standalone shims: `bin/git` (git policy + safe `git rm`) and `bin/rm` (moves deletes to Trash via `scripts/trash.ts`).
+- Dropped the `find -delete` interception and the `bin/sleep` shim.
+
 ## 2025-12-02 — Release Preflight Helpers
 - Added shared release helpers in `release/sparkle_lib.sh`: clean working-tree check, Sparkle key probe, changelog finalization/notes extraction, and appcast monotonicity guard for version/build.
 - Documented the helper functions in `docs/RELEASING-MAC.md` so Trimmy/CodexBar-style release scripts can reuse them.

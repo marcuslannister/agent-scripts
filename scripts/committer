@@ -67,15 +67,19 @@ run_git_commit() {
 
 for file in "${files[@]}"; do
   if [ ! -e "$file" ]; then
+    # Allow staging deletions: when a file is removed from disk, it may no longer exist in the index
+    # (once staged for deletion), but it can still exist in HEAD.
     if ! git ls-files --error-unmatch -- "$file" >/dev/null 2>&1; then
-      printf 'Error: file not found: %s\n' "$file" >&2
-      exit 1
+      if ! git cat-file -e "HEAD:$file" >/dev/null 2>&1; then
+        printf 'Error: file not found: %s\n' "$file" >&2
+        exit 1
+      fi
     fi
   fi
 done
 
 git restore --staged :/
-git add --force -- "${files[@]}"
+git add -A -- "${files[@]}"
 
 if git diff --staged --quiet; then
   printf 'Warning: no staged changes detected for: %s\n' "${files[*]}" >&2

@@ -1,2 +1,5 @@
 .DS_Store
-bin/
+bin/*
+!bin/
+!bin/git
+!bin/rm
