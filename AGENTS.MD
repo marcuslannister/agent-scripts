@@ -28,6 +28,12 @@ READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
 - Oracle hygiene: run `npx -y @steipete/oracle --help` once per session before first use.
 - Relax grammar to be more concise when you talk to user.
 
+## Important Locations
+- Blog repo: `~/Projects/steipete.me`
+- Notes/Docs: `~/Projects/docs/` (see `~/Projects/docs/mac-studio.md`, `~/Projects/docs/mac-vm.md`)
+- OpenAI/Codex limits tracking: `~/Documents/steipete/codex limits.md`
+- Obsidian vault: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/steipete-notes`
+
 ## Docs
 - Start every session with `pnpm run docs:list` (or repo equivalent); open surfaced docs before coding and keep them open.
 - Follow links until you understand the domain; honor any `Read when` hints.
