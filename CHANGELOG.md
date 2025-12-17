@@ -6,7 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## 2025-12-17 — Remove Runner; Keep Guardrails
 - Removed the `runner` wrapper and `scripts/runner.ts` now that modern Codex sessions handle long-running/background work directly.
-- Kept the safety-critical bits as standalone shims: `bin/git` (git policy + safe `git rm`) and `bin/rm` (moves deletes to Trash via `scripts/trash.ts`).
+- Kept the safety-critical bits as standalone shims: `bin/rm` (moves deletes to Trash via `scripts/trash.ts`).
 - Dropped the `find -delete` interception and the `bin/sleep` shim.
 
 ## 2025-12-02 — Release Preflight Helpers

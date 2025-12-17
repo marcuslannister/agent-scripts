@@ -12,7 +12,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Files: repo or `~/Projects/agent-scripts`.
 - PRs: use `gh pr view/diff` (no URLs).
 - Only edit AGENTS when user says “make a note” (ignore `CLAUDE.md`).
-- No `./runner`. Guardrails: `bin/git`, `bin/rm`.
+- No `./runner`. Guardrails: `bin/rm`.
 - Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked.
 - Bugs: add regression test when it fits.
 - Keep files <~500 LOC; split/refactor as needed.
@@ -67,8 +67,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - `git checkout` ok for PR review / explicit request.
 - Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
 - Remotes under `~/Projects`: prefer HTTPS; flip SSH->HTTPS before pull/push.
-- This repo: commit via `./scripts/committer "msg" path…` (no `git add`). Other repos: normal git.
-- Guarded/destructive git: get explicit ok; rerun with `AGENT_GIT_CONSENT=1` (`bin/git`).
+- If repo has `./scripts/committer`, prefer it for commits (explicit staging, repeatable).
 - Don’t delete/rename unexpected stuff; stop + ask.
 - No repo-wide S/R scripts; keep edits small/reviewable.
 - If user types a command (“pull and push”), that’s consent for that command.
@@ -108,10 +107,6 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 
 ### sweetistics
 - X analytics app: `~/Projects/sweetistics`.
-
-### bin/git / scripts/git-policy.ts
-- Git shim w/ guardrails (blocks `git add/commit`, gates destructive). Use `bin/git …`.
-- After explicit ok: rerun with `AGENT_GIT_CONSENT=1`.
 
 ### scripts/committer
 - Commit helper: stages only listed paths; required here.
