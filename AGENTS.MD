@@ -12,7 +12,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Files: repo or `~/Projects/agent-scripts`.
 - PRs: use `gh pr view/diff` (no URLs).
 - Only edit AGENTS when user says “make a note” (ignore `CLAUDE.md`).
-- No `./runner`. Guardrails: `bin/rm`.
+- No `./runner`. Guardrails: use `trash` for deletes.
 - Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked.
 - Bugs: add regression test when it fits.
 - Keep files <~500 LOC; split/refactor as needed.
@@ -46,6 +46,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Keep notes short; update docs when behavior/API changes (no ship w/o docs).
 - Add `read_when` hints on cross-cutting docs.
 - Model note (2025-11-23): no `gpt-5.1-pro` / `grok-4.1` on Peter’s keys yet.
+- Model preference: latest only. OK: Anthropic Opus 4.5 / Sonnet 4.5 (Sonnet 3.5 = old; avoid), OpenAI GPT-5.2, xAI Grok-4.1 Fast, Google Gemini 3 Flash.
 
 ## PR Feedback
 - Active PR: `gh pr view --json number,title,url --jq '"PR #\\(.number): \\(.title)\\n\\(.url)"'`.
@@ -65,11 +66,13 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 ## Git
 - Safe by default: `git status/diff/log`. Push only when user asks.
 - `git checkout` ok for PR review / explicit request.
+- Branch changes require user consent.
 - Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
 - Remotes under `~/Projects`: prefer HTTPS; flip SSH->HTTPS before pull/push.
 - If repo has `./scripts/committer`, prefer it for commits (explicit staging, repeatable).
 - Don’t delete/rename unexpected stuff; stop + ask.
 - No repo-wide S/R scripts; keep edits small/reviewable.
+- Avoid manual `git stash`; if Git auto-stashes during pull/rebase, that’s fine (hint, not hard guardrail).
 - If user types a command (“pull and push”), that’s consent for that command.
 - No amend unless asked.
 - Big review: `git --no-pager diff --color=never`.
@@ -111,8 +114,8 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 ### scripts/committer
 - Commit helper: stages only listed paths; required here.
 
-### bin/rm / scripts/trash.ts
-- `rm` -> Trash. Use `bin/rm …`.
+### trash
+- Move files to Trash: `trash …` (system command).
 
 ### bin/docs-list / scripts/docs-list.ts
 - Lists `docs/` + enforces front-matter. Rebuild: `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`.
