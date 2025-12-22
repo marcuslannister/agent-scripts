@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2025-12-22 — Remove Custom rm Shim
+- Dropped `bin/rm` and `scripts/trash.ts`; rely on the system `trash` command for recoverable deletes.
+
 ## 2025-12-17 — Remove Runner; Keep Guardrails
 - Removed the `runner` wrapper and `scripts/runner.ts` now that modern Codex sessions handle long-running/background work directly.
 - Kept the safety-critical bits as standalone shims: `bin/rm` (moves deletes to Trash via `scripts/trash.ts`).
