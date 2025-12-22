@@ -5,16 +5,15 @@ description: Download videos, audio, subtitles, and clean paragraph-style transc
 
 # Video Transcript Downloader
 
-One Node CLI.
+`./scripts/vtd.js` can:
+- Print a transcript as a clean paragraph (timestamps optional).
+- Download video/audio/subtitles.
 
-How it works:
-- Transcript for YouTube: `youtube-transcript-plus` (fast; no files).
-- Transcript for everything else (and YouTube fallback): `yt-dlp` downloads subtitles, then this script cleans them into a single paragraph.
-- Downloads: `yt-dlp` (optionally uses `ffmpeg` for audio extraction).
+Transcript behavior:
+- YouTube: fetch via `youtube-transcript-plus` when possible.
+- Otherwise: pull subtitles via `yt-dlp`, then clean into a paragraph.
 
 ## Setup
-
-One-liner:
 
 ```bash
 cd ~/Projects/agent-scripts/skills/video-transcript-downloader && npm ci
@@ -36,13 +35,33 @@ cd ~/Projects/agent-scripts/skills/video-transcript-downloader && npm ci
 ./scripts/vtd.js subs --url 'https://…' --output-dir ~/Downloads --lang en
 ```
 
+## Formats (list + choose)
+
+List available formats (format ids, resolution, container, audio-only, etc):
+
+```bash
+./scripts/vtd.js formats --url 'https://…'
+```
+
+Download a specific format id (example):
+
+```bash
+./scripts/vtd.js download --url 'https://…' --output-dir ~/Downloads -- --format 137+140
+```
+
+Prefer MP4 container without re-encoding (remux when possible):
+
+```bash
+./scripts/vtd.js download --url 'https://…' --output-dir ~/Downloads -- --remux-video mp4
+```
+
 ## Notes
 
 - Default transcript output is a single paragraph. Use `--timestamps` only when asked.
-- Pass extra `yt-dlp` args after `--` (works for `transcript` fallback, `download`, `audio`, `subs`):
+- Pass extra `yt-dlp` args after `--` for `transcript` fallback, `download`, `audio`, `subs`, `formats`.
 
 ```bash
-./scripts/vtd.js download --url 'https://…' -- --force-ipv4 -v
+./scripts/vtd.js formats --url 'https://…' -- -v
 ```
 
 ## Troubleshooting (only when needed)

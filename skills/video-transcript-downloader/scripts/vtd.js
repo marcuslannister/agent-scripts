@@ -183,7 +183,7 @@ function parseVtt(text) {
   return segments;
 }
 
-async function ytDlpSubtitlesToTemp({ url, lang, cookiesFromBrowser, cookies, forceIpv4, ytdlpPath, extra }) {
+async function ytDlpSubtitlesToTemp({ url, lang, ytdlpPath, extra }) {
   const ytdlp = ytdlpPath || resolveBin("yt-dlp", "/opt/homebrew/bin/yt-dlp");
   if (!ytdlp) die("missing yt-dlp; install `yt-dlp` and ensure it is on PATH");
 
@@ -191,9 +191,6 @@ async function ytDlpSubtitlesToTemp({ url, lang, cookiesFromBrowser, cookies, fo
   const outTemplate = path.join(tmpDir, "%(id)s.%(ext)s");
 
   const args = [];
-  if (forceIpv4) args.push("--force-ipv4");
-  if (cookiesFromBrowser) args.push("--cookies-from-browser", cookiesFromBrowser);
-  if (cookies) args.push("--cookies", cookies);
   args.push(
     "--write-sub",
     "--write-auto-sub",
@@ -220,13 +217,13 @@ async function ytDlpSubtitlesToTemp({ url, lang, cookiesFromBrowser, cookies, fo
 
   if (files.length === 0) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    die(`no subtitles found (lang=${lang}); try --cookies-from-browser or --cookies`);
+    die(`no subtitles found (lang=${lang})`);
   }
 
   return { tmpDir, subtitlePath: files[0] };
 }
 
-async function cmdTranscript({ url, lang, timestamps, keepBrackets, cookiesFromBrowser, cookies, forceIpv4, extra }) {
+async function cmdTranscript({ url, lang, timestamps, keepBrackets, extra }) {
   if (!url) die("missing --url");
 
   if (isYouTubeUrl(url)) {
@@ -254,9 +251,6 @@ async function cmdTranscript({ url, lang, timestamps, keepBrackets, cookiesFromB
   const { tmpDir, subtitlePath } = await ytDlpSubtitlesToTemp({
     url,
     lang,
-    cookiesFromBrowser,
-    cookies,
-    forceIpv4,
     extra,
   });
 
@@ -277,15 +271,12 @@ async function cmdTranscript({ url, lang, timestamps, keepBrackets, cookiesFromB
   }
 }
 
-async function cmdSubs({ url, lang, outputDir, cookiesFromBrowser, cookies, forceIpv4, extra }) {
+async function cmdSubs({ url, lang, outputDir, extra }) {
   if (!url) die("missing --url");
 
   const { tmpDir, subtitlePath } = await ytDlpSubtitlesToTemp({
     url,
     lang,
-    cookiesFromBrowser,
-    cookies,
-    forceIpv4,
     extra,
   });
 
@@ -300,7 +291,7 @@ async function cmdSubs({ url, lang, outputDir, cookiesFromBrowser, cookies, forc
   }
 }
 
-async function cmdDownload({ url, outputDir, cookiesFromBrowser, cookies, forceIpv4, extra }) {
+async function cmdDownload({ url, outputDir, extra }) {
   if (!url) die("missing --url");
   const ytdlp = resolveBin("yt-dlp", "/opt/homebrew/bin/yt-dlp");
   if (!ytdlp) die("missing yt-dlp; install `yt-dlp` and ensure it is on PATH");
@@ -309,9 +300,6 @@ async function cmdDownload({ url, outputDir, cookiesFromBrowser, cookies, forceI
   fs.mkdirSync(out, { recursive: true });
 
   const args = [];
-  if (forceIpv4) args.push("--force-ipv4");
-  if (cookiesFromBrowser) args.push("--cookies-from-browser", cookiesFromBrowser);
-  if (cookies) args.push("--cookies", cookies);
 
   args.push("-P", out, "-o", "%(title).200B (%(id)s).%(ext)s", "-S", "res,ext:mp4:m4a,tbr", "--print", "after_move:filepath");
   if (extra?.length) args.push(...extra);
@@ -326,7 +314,7 @@ async function cmdDownload({ url, outputDir, cookiesFromBrowser, cookies, forceI
   process.stdout.write(path.resolve(filePath) + "\n");
 }
 
-async function cmdAudio({ url, outputDir, cookiesFromBrowser, cookies, forceIpv4, extra }) {
+async function cmdAudio({ url, outputDir, extra }) {
   if (!url) die("missing --url");
   const ytdlp = resolveBin("yt-dlp", "/opt/homebrew/bin/yt-dlp");
   if (!ytdlp) die("missing yt-dlp; install `yt-dlp` and ensure it is on PATH");
@@ -337,9 +325,6 @@ async function cmdAudio({ url, outputDir, cookiesFromBrowser, cookies, forceIpv4
   fs.mkdirSync(out, { recursive: true });
 
   const args = [];
-  if (forceIpv4) args.push("--force-ipv4");
-  if (cookiesFromBrowser) args.push("--cookies-from-browser", cookiesFromBrowser);
-  if (cookies) args.push("--cookies", cookies);
 
   args.push(
     "--ffmpeg-location",
@@ -366,14 +351,29 @@ async function cmdAudio({ url, outputDir, cookiesFromBrowser, cookies, forceIpv4
   process.stdout.write(path.resolve(filePath) + "\n");
 }
 
+async function cmdFormats({ url, extra }) {
+  if (!url) die("missing --url");
+  const ytdlp = resolveBin("yt-dlp", "/opt/homebrew/bin/yt-dlp");
+  if (!ytdlp) die("missing yt-dlp; install `yt-dlp` and ensure it is on PATH");
+
+  const args = ["-F"];
+  if (extra?.length) args.push(...extra);
+  args.push(url);
+
+  const r = await run(ytdlp, args);
+  if (r.code !== 0) die(r.out.trim() || "yt-dlp formats failed");
+  process.stdout.write(r.out);
+}
+
 function usage() {
   const rel = path.relative(process.cwd(), path.join(__dirname, "vtd.js"));
   return [
     "usage:",
-    `  ${rel} transcript --url 'https://…' [--lang en] [--timestamps] [--keep-brackets] [--cookies-from-browser chrome] [--cookies ./cookies.txt] [--force-ipv4] [-- <yt-dlp extra…>]`,
-    `  ${rel} download   --url 'https://…' [--output-dir ~/Downloads] [--cookies-from-browser chrome] [--cookies ./cookies.txt] [--force-ipv4] [-- <yt-dlp extra…>]`,
-    `  ${rel} audio      --url 'https://…' [--output-dir ~/Downloads] [--cookies-from-browser chrome] [--cookies ./cookies.txt] [--force-ipv4] [-- <yt-dlp extra…>]`,
-    `  ${rel} subs       --url 'https://…' [--output-dir ~/Downloads] [--lang en] [--cookies-from-browser chrome] [--cookies ./cookies.txt] [--force-ipv4] [-- <yt-dlp extra…>]`,
+    `  ${rel} transcript --url 'https://…' [--lang en] [--timestamps] [--keep-brackets] [-- <yt-dlp extra…>]`,
+    `  ${rel} download   --url 'https://…' [--output-dir ~/Downloads] [-- <yt-dlp extra…>]`,
+    `  ${rel} audio      --url 'https://…' [--output-dir ~/Downloads] [-- <yt-dlp extra…>]`,
+    `  ${rel} subs       --url 'https://…' [--output-dir ~/Downloads] [--lang en] [-- <yt-dlp extra…>]`,
+    `  ${rel} formats    --url 'https://…' [-- <yt-dlp extra…>]`,
   ].join("\n");
 }
 
@@ -390,27 +390,28 @@ async function main() {
   const lang = opts.lang || "en";
   const outputDir = opts["output-dir"] || path.join(os.homedir(), "Downloads");
 
-  const cookiesFromBrowser = opts["cookies-from-browser"];
-  const cookies = opts.cookies;
-  const forceIpv4 = Boolean(opts["force-ipv4"]);
   const timestamps = Boolean(opts.timestamps);
   const keepBrackets = Boolean(opts["keep-brackets"]);
   const extra = opts.extra || [];
 
   if (cmd === "transcript") {
-    await cmdTranscript({ url, lang, timestamps, keepBrackets, cookiesFromBrowser, cookies, forceIpv4, extra });
+    await cmdTranscript({ url, lang, timestamps, keepBrackets, extra });
     return;
   }
   if (cmd === "download") {
-    await cmdDownload({ url, outputDir, cookiesFromBrowser, cookies, forceIpv4, extra });
+    await cmdDownload({ url, outputDir, extra });
     return;
   }
   if (cmd === "audio") {
-    await cmdAudio({ url, outputDir, cookiesFromBrowser, cookies, forceIpv4, extra });
+    await cmdAudio({ url, outputDir, extra });
     return;
   }
   if (cmd === "subs") {
-    await cmdSubs({ url, lang, outputDir, cookiesFromBrowser, cookies, forceIpv4, extra });
+    await cmdSubs({ url, lang, outputDir, extra });
+    return;
+  }
+  if (cmd === "formats") {
+    await cmdFormats({ url, extra });
     return;
   }
 
