@@ -25,6 +25,7 @@ cd ~/Projects/agent-scripts/skills/video-transcript-downloader && npm ci
 ./scripts/vtd.js transcript --url 'https://…'
 ./scripts/vtd.js transcript --url 'https://…' --lang en
 ./scripts/vtd.js transcript --url 'https://…' --timestamps
+./scripts/vtd.js transcript --url 'https://…' --keep-brackets
 ```
 
 ## Download video / audio / subtitles
@@ -58,6 +59,7 @@ Prefer MP4 container without re-encoding (remux when possible):
 ## Notes
 
 - Default transcript output is a single paragraph. Use `--timestamps` only when asked.
+- Bracketed cues like `[Music]` are stripped by default; keep them via `--keep-brackets`.
 - Pass extra `yt-dlp` args after `--` for `transcript` fallback, `download`, `audio`, `subs`, `formats`.
 
 ```bash
