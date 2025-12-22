@@ -1,11 +1,6 @@
-#!/usr/bin/env bun
-/**
- * Shared trash helpers used by the git/rm shims.
- * Keeps deletes recoverable by moving targets into macOS Trash (or trash-cli).
- */
-
+import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, renameSync, rmSync } from 'node:fs';
-import { basename, join, normalize, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import process from 'node:process';
 
 export type MoveResult = {
@@ -15,39 +10,19 @@ export type MoveResult = {
 
 let cachedTrashCliCommand: string | null | undefined;
 
-export async function movePathsToTrash(
-  paths: string[],
-  baseDir: string,
-  options: { allowMissing: boolean; refusePaths?: string[] }
-): Promise<MoveResult> {
+// Attempts to move the provided paths into trash instead of deleting in place.
+export function movePathsToTrash(paths: string[], baseDir: string, options: { allowMissing: boolean }): MoveResult {
   const missing: string[] = [];
   const existing: { raw: string; absolute: string }[] = [];
 
-  const workspaceCanonical = normalize(resolve(baseDir));
-  const refuseCanonicals = new Set<string>([
-    normalize('/'),
-    workspaceCanonical,
-    ...(options.refusePaths ?? []).map((p) => normalize(resolve(baseDir, p))),
-  ]);
-
   for (const rawPath of paths) {
     const absolute = resolvePath(baseDir, rawPath);
-    const canonical = normalize(absolute);
-
-    if (refuseCanonicals.has(canonical)) {
-      return {
-        missing: [],
-        errors: [`Refusing to trash protected path: ${rawPath}`],
-      };
-    }
-
     if (!existsSync(absolute)) {
       if (!options.allowMissing) {
         missing.push(rawPath);
       }
       continue;
     }
-
     existing.push({ raw: rawPath, absolute });
   }
 
@@ -55,23 +30,21 @@ export async function movePathsToTrash(
     return { missing, errors: [] };
   }
 
-  const trashCliCommand = await findTrashCliCommand();
+  const trashCliCommand = findTrashCliCommand();
   if (trashCliCommand) {
     try {
-      const cliArgs = [trashCliCommand, ...existing.map((item) => item.absolute)];
-      const proc = Bun.spawn(cliArgs, {
-        stdout: 'ignore',
-        stderr: 'pipe',
-      });
-      const [exitCode, stderrText] = await Promise.all([proc.exited, readProcessStream(proc.stderr)]);
-      if (exitCode === 0) {
+      const proc = spawnSync(
+        trashCliCommand,
+        existing.map((item) => item.absolute),
+        {
+          stdio: 'ignore',
+        }
+      );
+      if (proc.status === 0) {
         return { missing, errors: [] };
       }
-      if (stderrText.trim().length > 0) {
-        return { missing, errors: [stderrText.trim()] };
-      }
-    } catch (error) {
-      return { missing, errors: [formatTrashError(error)] };
+    } catch {
+      // fall back to ~/.Trash
     }
   }
 
@@ -103,13 +76,6 @@ export async function movePathsToTrash(
   }
 
   return { missing, errors };
-}
-
-export function formatTrashError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
 }
 
 function resolvePath(baseDir: string, input: string): string {
@@ -144,10 +110,22 @@ function buildTrashTarget(trashDir: string, absolutePath: string): string {
 }
 
 function isCrossDeviceError(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'EXDEV';
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'EXDEV'
+  );
 }
 
-async function findTrashCliCommand(): Promise<string | null> {
+function formatTrashError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
+function findTrashCliCommand(): string | null {
   if (cachedTrashCliCommand !== undefined) {
     return cachedTrashCliCommand;
   }
@@ -176,46 +154,13 @@ async function findTrashCliCommand(): Promise<string | null> {
   }
 
   for (const candidate of candidatePaths) {
-    try {
-      const proc = Bun.spawn([candidate, '--help'], {
-        stdout: 'ignore',
-        stderr: 'ignore',
-      });
-      const exitCode = await proc.exited;
-      if (exitCode === 0 || exitCode === 1) {
-        cachedTrashCliCommand = candidate;
-        return candidate;
-      }
-    } catch {
-      // ignore probes
+    const proc = spawnSync(candidate, ['--help'], { stdio: 'ignore' });
+    if (proc.status === 0 || proc.status === 1) {
+      cachedTrashCliCommand = candidate;
+      return candidate;
     }
   }
 
   cachedTrashCliCommand = null;
   return null;
-}
-
-async function readProcessStream(stream: unknown): Promise<string> {
-  if (!stream) {
-    return '';
-  }
-  try {
-    const candidate = stream as { text?: () => Promise<string> };
-    if (candidate.text) {
-      return (await candidate.text()) ?? '';
-    }
-  } catch {
-    // ignore
-  }
-  try {
-    if (stream instanceof ReadableStream) {
-      return await new Response(stream).text();
-    }
-    if (typeof stream === 'object' && stream !== null) {
-      return await new Response(stream as BodyInit).text();
-    }
-  } catch {
-    // ignore
-  }
-  return '';
 }
