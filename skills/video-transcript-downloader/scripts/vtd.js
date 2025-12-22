@@ -16,6 +16,10 @@ function die(message, code = 1) {
 }
 
 function parseArgs(argv) {
+  // Tiny no-deps parser.
+  // - `--flag` => boolean
+  // - `--key value`
+  // - `--` => forward remaining args to yt-dlp
   const positional = [];
   const opts = {};
   let i = 0;
@@ -53,6 +57,7 @@ function toArray(v) {
 }
 
 function which(cmd) {
+  // Avoid shelling out to `which`; keep it portable + fast.
   const envPath = process.env.PATH || "";
   const parts = envPath.split(path.delimiter);
   for (const p of parts) {
@@ -68,6 +73,7 @@ function resolveBin(name, fallback) {
 
 function run(cmd, args, { cwd } = {}) {
   return new Promise((resolve) => {
+    // Capture stdout + stderr to keep yt-dlp’s error context intact.
     const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     child.stdout.on("data", (d) => (out += d.toString()));
@@ -90,6 +96,8 @@ function extractYouTubeId(input) {
 
 function decodeHtmlEntities(input) {
   if (!input) return input;
+  // Some transcripts come back double-encoded (e.g. "&amp;#39;").
+  // Decode up to 2 passes; stop once stable.
   let text = input;
   for (let i = 0; i < 2; i++) {
     const decoded = text
@@ -125,16 +133,19 @@ function cleanSegments(segments, { keepBrackets } = {}) {
       .trim();
     if (!s) continue;
 
+    // Subtitles often contain HTML-ish tags; strip them.
     const withoutTags = s.replace(/<[^>]+>/g, "").trim();
     const withoutBrackets = keepBrackets ? withoutTags : withoutTags.replace(/\[[^\]]*\]/g, "").trim();
     const withoutCurlies = withoutBrackets.replace(/\{[^}]+\}/g, "").replace(/♪/g, "").trim();
     const t = withoutCurlies.replace(/\s+/g, " ").trim();
     if (!t) continue;
     if (t === prev) continue;
+    // Dedup heuristic: captions often repeat previous line with a longer suffix.
     if (prev && t.startsWith(prev)) {
       const newPart = t.slice(prev.length).trim();
       if (newPart) cleaned.push(newPart);
     } else if (prev && t.includes(prev)) {
+      // Another common pattern: current line contains previous line in the middle.
       const idx = t.indexOf(prev);
       const newPart = (t.slice(0, idx) + t.slice(idx + prev.length)).trim();
       if (newPart) cleaned.push(newPart);
@@ -176,7 +187,7 @@ function parseVtt(text) {
     if (l.includes("-->")) continue;
     // cue settings like "align:start position:0%"
     if (/^(align|position|size|line):/i.test(l)) continue;
-    // remove inline timestamps like "<00:00:00.000>"
+    // Remove inline timestamps like "<00:00:00.000>" (common in YouTube VTT).
     const cleaned = l.replace(/<\d{2}:\d{2}:\d{2}\.\d{3}>/g, "").trim();
     if (cleaned) segments.push(cleaned);
   }
@@ -230,6 +241,7 @@ async function cmdTranscript({ url, lang, timestamps, keepBrackets, extra }) {
     const id = extractYouTubeId(url);
     if (id) {
       try {
+        // Preferred path: direct transcript fetch (no yt-dlp / no files).
         const transcript = await YoutubeTranscript.fetchTranscript(id);
         if (timestamps) {
           for (const entry of transcript) {
@@ -243,7 +255,7 @@ async function cmdTranscript({ url, lang, timestamps, keepBrackets, extra }) {
         process.stdout.write(paragraph + "\n");
         return;
       } catch {
-        // fallback below
+        // Fallback below: use yt-dlp subtitles when direct transcript fails.
       }
     }
   }
@@ -258,7 +270,7 @@ async function cmdTranscript({ url, lang, timestamps, keepBrackets, extra }) {
     const raw = fs.readFileSync(subtitlePath, "utf8");
     const segments = subtitlePath.endsWith(".srt") ? parseSrt(raw) : parseVtt(raw);
     if (timestamps) {
-      // best-effort timestamps from subs are messy; emit paragraph-only unless explicitly requested.
+      // Subtitle timestamps are inconsistent across sites; keep output stable here.
       const paragraph = toParagraph(segments, { keepBrackets });
       process.stdout.write(paragraph + "\n");
       return;
@@ -301,6 +313,7 @@ async function cmdDownload({ url, outputDir, extra }) {
 
   const args = [];
 
+  // `--print after_move:filepath` gives the final path after merges/remux.
   args.push("-P", out, "-o", "%(title).200B (%(id)s).%(ext)s", "-S", "res,ext:mp4:m4a,tbr", "--print", "after_move:filepath");
   if (extra?.length) args.push(...extra);
   args.push(url);
@@ -356,6 +369,7 @@ async function cmdFormats({ url, extra }) {
   const ytdlp = resolveBin("yt-dlp", "/opt/homebrew/bin/yt-dlp");
   if (!ytdlp) die("missing yt-dlp; install `yt-dlp` and ensure it is on PATH");
 
+  // Print raw yt-dlp format table; user picks `--format <id>` for downloads.
   const args = ["-F"];
   if (extra?.length) args.push(...extra);
   args.push(url);
