@@ -3,3 +3,4 @@ bin/*
 !bin/
 !bin/git
 !bin/rm
+skills/.system/
