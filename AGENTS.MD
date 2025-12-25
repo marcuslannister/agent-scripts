@@ -41,7 +41,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Obsidian vault: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/steipete-notes`
 
 ## Docs
-- Start: run docs list (`docs:list` script, or `bin/docs-list` here); open docs before coding.
+- Start: run docs list (`docs:list` script, or `bin/docs-list` here if present; ignore if not installed); open docs before coding.
 - Follow links until domain makes sense; honor `Read when` hints.
 - Keep notes short; update docs when behavior/API changes (no ship w/o docs).
 - Add `read_when` hints on cross-cutting docs.
@@ -119,7 +119,7 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 - Move files to Trash: `trash …` (system command).
 
 ### bin/docs-list / scripts/docs-list.ts
-- Lists `docs/` + enforces front-matter. Rebuild: `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`.
+- Optional. Lists `docs/` + enforces front-matter. Ignore if `bin/docs-list` not installed. Rebuild: `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`.
 
 ### bin/browser-tools / scripts/browser-tools.ts
 - Chrome DevTools helper. Cmds: `start`, `nav`, `eval`, `screenshot`, `pick`, `cookies`, `inspect`, `kill`.
