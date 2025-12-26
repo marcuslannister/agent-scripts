@@ -1,5 +1,7 @@
 ---
 summary: 'Multi-agent system directives and coordination rules. Master reference for agent behavior.'
+read_when:
+  - Coordinating subagents or running tmux-based agent sessions.
 ---
 
 # Claude Subagent Quickstart

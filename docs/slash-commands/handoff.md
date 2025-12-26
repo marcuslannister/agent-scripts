@@ -1,5 +1,7 @@
 ---
 summary: 'Codex handoff checklist for agents.'
+read_when:
+  - Creating a /handoff prompt or refining handoff format.
 ---
 # /handoff
 

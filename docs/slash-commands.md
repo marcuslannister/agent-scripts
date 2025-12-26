@@ -1,8 +1,7 @@
 ---
-summary: 'Slash commands (prompts) for Claude integration. Covers custom command setup.'
----
----
-summary: 'Slash commands have moved. See docs/slash-commands/README.md.'
+summary: 'Slash commands overview and redirect to docs/slash-commands.'
+read_when:
+  - Editing or adding slash commands.
 ---
 # Slash Commands
 

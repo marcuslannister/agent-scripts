@@ -1,5 +1,7 @@
 ---
 summary: 'Reusable macOS release playbook (Sparkle, notarization, GitHub releases)'
+read_when:
+  - Shipping or debugging a macOS release.
 ---
 
 # Releasing macOS Apps (Sparkle + GitHub)

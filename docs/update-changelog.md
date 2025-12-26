@@ -1,5 +1,7 @@
 ---
 summary: 'Checklist for curating CHANGELOG.md from recent commits'
+read_when:
+  - Updating CHANGELOG.md or drafting release notes.
 ---
 # Update CHANGELOG.md
 

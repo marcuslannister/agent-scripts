@@ -1,5 +1,7 @@
 ---
 summary: 'Codex pickup checklist when starting on a task.'
+read_when:
+  - Creating a /pickup prompt or onboarding a new task.
 ---
 # /pickup
 

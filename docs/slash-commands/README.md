@@ -1,5 +1,7 @@
 ---
 summary: 'Index of slash commands (prompts) and where they live.'
+read_when:
+  - Auditing or updating slash command docs.
 ---
 # Slash Commands
 

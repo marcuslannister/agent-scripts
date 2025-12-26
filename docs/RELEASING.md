@@ -1,5 +1,7 @@
 ---
 summary: 'Shared release guardrails (GitHub releases + changelog hygiene)'
+read_when:
+  - Preparing a release or editing release notes.
 ---
 
 # Shared Release Guardrails

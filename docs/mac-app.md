@@ -1,5 +1,7 @@
 ---
 summary: "Scaffold checklist for a new macOS menu bar app with Sparkle updates"
+read_when:
+  - Scaffolding a new macOS menu bar app with Sparkle.
 ---
 
 # New macOS App Scaffold (Sparkle + DevID + shared release flow)
