@@ -69,7 +69,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Branch changes require user consent.
 - Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
 - Remotes under `~/Projects`: prefer HTTPS; flip SSH->HTTPS before pull/push.
-- If repo has `./scripts/committer`, prefer it for commits (explicit staging, repeatable).
+- Commit helper on PATH: `committer` (bash). Prefer it; if repo has `./scripts/committer`, use that.
 - Don’t delete/rename unexpected stuff; stop + ask.
 - No repo-wide S/R scripts; keep edits small/reviewable.
 - Avoid manual `git stash`; if Git auto-stashes during pull/rebase, that’s fine (hint, not hard guardrail).
@@ -112,8 +112,8 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 ### sweetistics
 - X analytics app: `~/Projects/sweetistics`.
 
-### scripts/committer
-- Commit helper: stages only listed paths; required here.
+### committer
+- Commit helper (PATH). Stages only listed paths; required here. Repo may also ship `./scripts/committer`.
 
 ### trash
 - Move files to Trash: `trash …` (system command).
