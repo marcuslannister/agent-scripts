@@ -39,6 +39,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Notes/Runbooks: `~/Projects/manager/docs/` (e.g. `mac-studio.md`, `mac-vm.md`)
 - OpenAI/Codex limits tracking: `~/Documents/steipete/codex limits.md`
 - Obsidian vault: `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/steipete-notes`
+- Sparkle keys: `~/Library/CloudStorage/Dropbox/Backup/Sparkle`
 
 ## Docs
 - Start: run docs list (`docs:list` script, or `bin/docs-list` here if present; ignore if not installed); open docs before coding.
