@@ -11,7 +11,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - “MacBook” / “Mac Studio” => SSH there; find hosts/IPs via `tailscale status`.
 - Files: repo or `~/Projects/agent-scripts`.
 - PRs: use `gh pr view/diff` (no URLs).
-- Only edit AGENTS when user says “make a note” (ignore `CLAUDE.md`).
+- “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md`.
 - No `./runner`. Guardrails: use `trash` for deletes.
 - Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked.
 - Bugs: add regression test when it fits.
