@@ -11,3 +11,4 @@ read_when:
 - Attach all shipping artifacts (zips/tarballs/checksums/dSYMs as applicable) that the downstream clients expect.
 - If the repo has its own release doc, follow it; otherwise adapt this guidance to the stack and add a repo-local checklist.
 - When a release publishes, verify the tag, assets, and notes on GitHub before announcing; fix mismatches immediately (retitle, re-upload assets, or retag if necessary).
+- NPM releases: prefer OTP flow (6-digit code from Peter), not bypass tokens. Ask explicitly: “Need npm OTP (6 digits) to publish. Please paste the code.” Then pass it to the command (`npm publish ... --otp <code>` or `npm dist-tag ... --otp <code>`) or enter when prompted.
