@@ -53,6 +53,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Active PR: `gh pr view --json number,title,url --jq '"PR #\\(.number): \\(.title)\\n\\(.url)"'`.
 - PR comments: `gh pr view …` + `gh api …/comments --paginate`.
 - Replies: cite fix + file/line; resolve threads only after fix lands.
+- When merging a PR: thank the contributor in `CHANGELOG.md`.
 
 ## Flow & Runtime
 - Use repo’s package manager/runtime; no swaps w/o approval.
