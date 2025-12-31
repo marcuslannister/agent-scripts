@@ -101,10 +101,14 @@ print(sig)
 print(length)
 PY
 
-  readarray -t m <"$tmp_meta"
-  verify_enclosure "${m[0]}" "${m[1]}" "$keyfile" "${m[2]}"
+  # Bash 3.2 (macOS default) has no `readarray`/`mapfile`; parse lines portably.
+  local url sig length
+  url=$(sed -n '1p' "$tmp_meta")
+  sig=$(sed -n '2p' "$tmp_meta")
+  length=$(sed -n '3p' "$tmp_meta")
+  verify_enclosure "$url" "$sig" "$keyfile" "$length"
   echo "Appcast entry $version verified (signature & length)."
-  verify_codesign_from_enclosure "${m[0]}"
+  verify_codesign_from_enclosure "$url"
 }
 
 check_assets() {
