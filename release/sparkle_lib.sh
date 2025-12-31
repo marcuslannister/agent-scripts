@@ -157,7 +157,11 @@ verify_codesign_from_enclosure() {
   /usr/bin/ditto -x -k --norsrc "$tmp_zip" "$tmp_dir"
 
   local app
-  app=$(find "$tmp_dir" -maxdepth 2 -name "*.app" | head -n 1)
+  # `ditto -c -k --sequesterRsrc` creates an `__MACOSX/` sidecar on extract; ignore it.
+  app=$(find "$tmp_dir" -maxdepth 2 -name "*.app" -not -path "*/__MACOSX/*" | head -n 1)
+  if [[ -z "$app" ]]; then
+    app=$(find "$tmp_dir" -maxdepth 2 -name "*.app" | head -n 1)
+  fi
   if [[ -z "$app" ]]; then
     echo "No .app found in enclosure $url" >&2
     return 1
