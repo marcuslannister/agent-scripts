@@ -2,6 +2,12 @@
 
 This folder collects the Sweetistics guardrail helpers so they are easy to reuse in other repos or share during onboarding. Everything here is copied verbatim from `/Users/steipete/Projects/sweetistics` on 2025-11-08 unless otherwise noted.
 
+Additional skills (copied 2025-12-31) are from @Dimillian’s public `Dimillian/Skills` repository:
+- `skills/swift-concurrency-expert`
+- `skills/swiftui-liquid-glass`
+- `skills/swiftui-performance-audit`
+- `skills/swiftui-view-refactor`
+
 ## Syncing With Other Repos
 - Treat this repo as the canonical mirror for the shared guardrail helpers. Whenever you edit `scripts/committer` or `scripts/docs-list.ts` in any repo, copy the change here and then back out to every other repo that carries the same helpers so they stay byte-identical.
 - When someone says “sync agent scripts,” pull the latest changes here, ensure downstream repos have the pointer-style `AGENTS.MD`, copy any helper updates into place, and reconcile differences before moving on.
