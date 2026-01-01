@@ -15,6 +15,7 @@ Design CLI surface area (syntax + behavior), human-first, script-friendly.
 ## Do This First
 
 - Read `agent-scripts/skills/create-cli/references/cli-guidelines.md` and apply it as the default rubric.
+- Upstream/full guidelines: https://clig.dev/ (propose changes: https://github.com/cli-guidelines/cli-guidelines)
 - Ask only the minimum clarifying questions needed to lock the interface.
 
 ## Clarify (fast)
@@ -40,6 +41,7 @@ When designing a CLI, produce a compact spec the user can implement:
 - Error + exit code map (top failure modes).
 - Safety rules: `--dry-run`, confirmations, `--force`, `--no-input`.
 - Config/env rules + precedence (flags > env > project config > user config > system).
+- Shell completion story (if relevant): install/discoverability; generation command or bundled scripts.
 - 5–10 example invocations (common flows; include piped/stdin examples).
 
 ## Default Conventions (unless user says otherwise)

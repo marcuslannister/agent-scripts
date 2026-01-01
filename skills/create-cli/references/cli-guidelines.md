@@ -1,5 +1,9 @@
 # Command Line Interface Guidelines (condensed)
 
+Source + contribution:
+- Full guide: https://clig.dev/
+- Propose changes: https://github.com/cli-guidelines/cli-guidelines
+
 Table of contents:
 - Foreword
 - Introduction
