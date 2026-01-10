@@ -11,4 +11,4 @@ read_when:
 - Attach all shipping artifacts (zips/tarballs/checksums/dSYMs as applicable) that the downstream clients expect.
 - If the repo has its own release doc, follow it; otherwise adapt this guidance to the stack and add a repo-local checklist.
 - When a release publishes, verify the tag, assets, and notes on GitHub before announcing; fix mismatches immediately (retitle, re-upload assets, or retag if necessary).
-- NPM releases: assume login is already set up; publish still requires the user’s 6-digit OTP or it will fail. Prefer OTP flow (not bypass tokens). Ask explicitly: “Need npm OTP (6 digits) to publish. Please paste the code.” Then pass it to the command (`npm publish ... --otp <code>` or `npm dist-tag ... --otp <code>`) or enter when prompted.
+- NPM releases: assume login is already set up; publish may require the user’s 6-digit OTP or it will fail. If OTP/TOTP is in 1Password, prefer `op` (see `docs/npm-publish-with-1password.md`).
