@@ -45,6 +45,21 @@ Notes:
 - `tr -d "\n"` avoids accidental extra submits when pasting/reading.
 - Avoid printing token/OTP (no `echo`, no `set -x`, no pane capture right after OTP).
 
+## If you’re already logged in: OTP-only publish
+
+If `npm whoami` works, you usually only need OTP for publish:
+
+```bash
+OTP_REF='op://<Vault>/<Item>/one-time password?attribute=otp'
+tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "npm publish --otp \"\$(op read \"$OTP_REF\" | tr -d \"\\n\")\"" Enter
+```
+
+Tip: unset CI tokens so you don’t accidentally override your local login:
+
+```bash
+env -u NPM_TOKEN -u NODE_AUTH_TOKEN npm whoami
+```
+
 ## Fallback: `npm login` using op buffers (no echo)
 
 When password auth is unavoidable, avoid typing secrets by piping into tmux buffers and pasting.
@@ -71,6 +86,7 @@ tmux -S "$SOCKET" send-keys    -t "$SESSION":1.1 -- Enter
 Gotchas:
 - If npm says “Incorrect or missing password”, the 1Password password is stale or the paste didn’t reach the prompt.
 - Don’t run `tmux capture-pane` after pasting OTP (it may echo); wait 30–60s if you must debug.
+- Repeated reads of the password field can trigger multiple 1Password “password used/copied” alerts; OTP-only flow avoids that entirely.
 
 ## Verify
 
@@ -85,4 +101,3 @@ npm view <pkg> version
 tmux -S "$SOCKET" kill-session -t "$SESSION"
 rm -f "$SOCKET"
 ```
-
