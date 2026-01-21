@@ -26,7 +26,7 @@ Follow the official CLI get-started steps. Don't guess install commands.
 
 ## REQUIRED tmux session (T-Max)
 
-The bash tool uses a fresh TTY per command. To avoid re-prompts and failures, always run `op` inside a dedicated tmux session with a fresh socket/session name.
+The shell tool uses a fresh TTY per command. To avoid re-prompts and failures, always run `op` inside a dedicated tmux session with a fresh socket/session name.
 
 Example (see `tmux` skill for socket conventions, do not reuse old session names):
 

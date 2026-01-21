@@ -118,8 +118,8 @@ check_assets() {
   local assets
   assets=$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
   local zip dsym
-  zip=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*\\.zip$" || true)
-  dsym=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*\\.dSYM\\.zip$" || true)
+  zip=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)?\\.zip$" || true)
+  dsym=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)?\\.dSYM\\.zip$" || true)
   [[ -z "$zip" ]] && { echo "ERROR: app zip missing on release $tag" >&2; exit 1; }
   [[ -z "$dsym" ]] && { echo "ERROR: dSYM zip missing on release $tag" >&2; exit 1; }
   echo "Release $tag has zip ($zip) and dSYM ($dsym)."
