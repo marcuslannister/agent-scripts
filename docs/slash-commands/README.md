@@ -14,5 +14,6 @@ Slash commands are reusable prompt templates that live in `~/.codex/prompts/` (g
 - `/landpr` — Land PR via temp-branch rebase + full gate (`pnpm lint && pnpm build && pnpm test`) before commit; merge via `gh pr merge` (rebase/squash) and verify GitHub state = `MERGED` (never `CLOSED`).
 - `/pickup` — Rehydrate context when starting work (status, tmux sessions, CI/PR state).
 - `/raise` — If changelog is released, open next patch `Unreleased` section (commit + push `CHANGELOG.md`).
+- `/sectriage` — Finish GHSA triage end-to-end (land fix, run gates, patch advisory via `gh api`, ready to publish later).
 
 See the individual files in this directory for details.
