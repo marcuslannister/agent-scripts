@@ -1,0 +1,4 @@
+interface:
+  display_name: "Discord Clawd"
+  short_description: "Query the local Discord archive fast"
+  default_prompt: "Use $discord-clawd to query the local discrawl archive, verify freshness when needed, and answer Discord history questions with counts and channel context."
