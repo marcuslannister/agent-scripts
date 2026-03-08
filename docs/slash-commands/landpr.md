@@ -79,6 +79,14 @@ git checkout "$base"
 git pull --ff-only
 ```
 
+9b) Return to `main` (final local state)
+
+```sh
+git checkout main
+git pull --ff-only
+git branch --show-current
+```
+
 10) Comment with SHAs + thanks
 
 ```sh
