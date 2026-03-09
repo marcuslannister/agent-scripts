@@ -1,0 +1,4 @@
+interface:
+  display_name: "Parallels VM"
+  short_description: "Control Parallels VMs with prlctl, SSH bootstrap, snapshots, guest screenshots, and optional Peekaboo GUI automation."
+  default_prompt: "Use $parallels-vm to automate or inspect Parallels Desktop VMs on Peter's Mac with prlctl first, guest-native control second, and Peekaboo only when host-side GUI automation is required."
