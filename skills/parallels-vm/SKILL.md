@@ -1,11 +1,17 @@
 ---
 name: parallels-vm
-description: Automate and verify Parallels Desktop macOS guests on Peter's Mac. Covers `prlctl` lifecycle/snapshots/screenshots, guest command execution, website installs, OpenClaw release smoke runs from `openclaw.ai`, update/status verification, SSH bootstrap, and optional Peekaboo GUI automation.
+description: Automate and verify Parallels Desktop guests on Peter's Mac. Covers `prlctl` lifecycle/snapshots/screenshots, guest command execution, website installs, OpenClaw release smoke runs from `openclaw.ai`, macOS and Linux guest verification wrappers, SSH bootstrap, and optional Peekaboo GUI automation.
 ---
 
 # Parallels Desktop
 
 Use this skill for Parallels VM work on Peter's Mac.
+
+Guest OS split:
+
+- macOS guest: use `prl-macos-*`
+- Linux guest: use `prl-linux-*`
+- unknown guest: probe with `prlctl exec "<vm>" --current-user sh -lc 'uname -a; cat /etc/os-release 2>/dev/null || true'` before choosing wrappers
 
 Primary tools:
 
@@ -35,6 +41,10 @@ Guest exec pitfalls:
 
 Reusable helpers:
 
+- `scripts/prl-linux-openclaw.sh <vm> [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw on Linux via resolved CLI path
+- `scripts/prl-linux-install-openclaw.sh <vm> [--version latest]`: run the website installer on a Linux guest
+- `scripts/prl-linux-gateway-status-version.sh <vm> [--profile <name>] [--state-dir <dir>] [--json]`: fetch Linux guest gateway status and extract `runtimeVersion`, `rpc.ok`, pid, and port data
+- `scripts/prl-linux-openclaw-update-verify.sh <vm>`: end-to-end published Linux release smoke using manual gateway verification
 - `scripts/prl-macos-enter.sh <vm>`: open a real guest shell via `prlctl enter`
 - `scripts/prl-macos-pnpm.sh <vm> <guest-repo-dir> <pnpm args...>`: run guest `pnpm` through absolute Homebrew Node + PATH
 - `scripts/prl-macos-download.sh <vm> <url> <guest-path>`: download a URL to a guest file first; safer than `curl | bash` through `prlctl exec`
@@ -46,12 +56,27 @@ Reusable helpers:
 
 ## Purpose-Built Wrappers
 
-When the task is about OpenClaw install/update verification on a macOS guest, prefer the wrappers over ad-hoc `prlctl exec`:
+When the task is about OpenClaw install/update verification, prefer the OS-matched wrappers over ad-hoc `prlctl exec`:
+
+- Linux guest:
+  - `prl-linux-install-openclaw.sh`
+  - `prl-linux-openclaw.sh`
+  - `prl-linux-gateway-status-version.sh`
+  - `prl-linux-openclaw-update-verify.sh`
+- macOS guest:
+  - `prl-macos-install-openclaw.sh`
+  - `prl-macos-openclaw.sh`
+  - `prl-macos-gateway-status-version.sh`
+  - `prl-macos-openclaw-update-verify.sh`
 
 - `prl-macos-install-openclaw.sh`: downloads `install.sh` to the guest first, then runs it with explicit PATH/env
 - `prl-macos-openclaw.sh`: bypasses shebang/PATH issues by calling guest OpenClaw with absolute Node + `dist/entry.js`
 - `prl-macos-gateway-status-version.sh`: normalizes noisy `gateway status --json` output into a compact version/probe summary
 - `prl-macos-openclaw-update-verify.sh`: does the Tahoe-style "install old -> verify gateway -> update -> verify gateway" flow and falls back to a detached manual `gateway run` probe after forcing `gateway.mode=local` if LaunchAgent bootstrap fails
+- `prl-linux-install-openclaw.sh`: runs the website installer on Ubuntu/Debian-style guests and then resolves the installed `openclaw` CLI path
+- `prl-linux-openclaw.sh`: runs guest OpenClaw on Linux via resolved `openclaw` binary path and normal PATH
+- `prl-linux-gateway-status-version.sh`: normalizes Linux guest `gateway status --json` output into the same compact summary
+- `prl-linux-openclaw-update-verify.sh`: verifies Linux releases with a detached manual `gateway run` path instead of assuming launchd/systemd service setup
 - `prl-macos-auth-seed.sh`: avoids fragile inline JSON writes when a live test needs stored auth profiles
 
 ## Core Commands
@@ -84,6 +109,11 @@ scripts/prl-macos-pnpm.sh "$VM" "$REPO" test
 scripts/prl-macos-install-openclaw.sh "$VM" --version 2026.3.7
 scripts/prl-macos-gateway-status-version.sh "$VM" --json
 scripts/prl-macos-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-tag latest
+
+VM="Ubuntu 24.04.3 ARM64"
+scripts/prl-linux-install-openclaw.sh "$VM" --version 2026.3.7
+scripts/prl-linux-gateway-status-version.sh "$VM" --json
+scripts/prl-linux-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-tag latest
 ```
 
 Useful IP extractor:
@@ -151,6 +181,13 @@ OpenClaw/Tahoe notes:
 - If manual gateway probing is needed, first force `gateway.mode=local`; released builds can otherwise block startup with `set gateway.mode=local (current: unset) or pass --allow-unconfigured`
 - For listener checks, use `lsof -nP -iTCP:<port> -sTCP:LISTEN`; plain `lsof -i :<port>` is too noisy on Tahoe
 - `src/gateway/gateway-models.profiles.live.test.ts` currently filters on stored auth profiles; env-only `OPENAI_API_KEY` is not enough there, so use `scripts/prl-macos-enter.sh` and write/copy `~/.openclaw/agents/main/agent/auth-profiles.json` inside the guest before rerunning
+
+OpenClaw/Linux notes:
+
+- Linux guests do not use the macOS Homebrew/`dist/entry.js` assumptions; use the `prl-linux-*` wrappers
+- Linux release verification uses manual `gateway run` probes, not launchd
+- Before assuming Linux support is broken, check whether `openclaw` was installed into `~/.local/bin`, `/usr/local/bin`, or `/usr/bin`
+- Ubuntu guest labels in Parallels may lag the actual distro patch level; verify with `/etc/os-release`
 
 ## GUI Automation
 
