@@ -1,6 +1,6 @@
 ---
 name: parallels-vm
-description: Automate and inspect Parallels Desktop VMs on Peter's Mac. Use when working with `prlctl`, VM lifecycle, snapshots, guest screenshots, guest command execution, SSH bootstrap, or host-side GUI control via Peekaboo against the Parallels window.
+description: Automate and verify Parallels Desktop macOS guests on Peter's Mac. Covers `prlctl` lifecycle/snapshots/screenshots, guest command execution, website installs, OpenClaw release smoke runs from `openclaw.ai`, update/status verification, SSH bootstrap, and optional Peekaboo GUI automation.
 ---
 
 # Parallels Desktop
@@ -27,8 +27,32 @@ Guest exec pitfalls:
 
 - `prlctl exec "<vm>" ...` without `--current-user` often runs as `root`; this is wrong for per-user launchd checks on macOS guests
 - `prlctl exec` can have a minimal PATH even with `--current-user`; Homebrew CLIs may fail with `command not found` or `env: node: No such file or directory`
+- `prlctl exec` also mangles shell-heavy commands more often than it should on macOS guests; for pipes, redirects, heredocs, or interactive flows, prefer `prlctl enter "<vm>" --current-user --use-advanced-terminal`
 - prefer absolute guest paths for Homebrew tools on macOS guests, for example `/opt/homebrew/bin/openclaw`, `/opt/homebrew/bin/node`, `/usr/bin/grep`, `/usr/bin/plutil`
 - if you need shell features or user PATH, wrap with a real shell explicitly: `prlctl exec "$VM" --current-user zsh -lc '<cmd>'`
+- if a guest-installed npm CLI fails under `prlctl exec` but works interactively, bypass the shebang and run the entrypoint with absolute Node, for example `/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/openclaw/openclaw.mjs ...`
+- when validating a same-version npm reinstall inside the guest, use a cache-busted tarball filename and inspect the installed compiled file, not just `--version`; npm may leave the old hashed bundle in place if you keep reinstalling the same filename/version pair
+
+Reusable helpers:
+
+- `scripts/prl-macos-enter.sh <vm>`: open a real guest shell via `prlctl enter`
+- `scripts/prl-macos-pnpm.sh <vm> <guest-repo-dir> <pnpm args...>`: run guest `pnpm` through absolute Homebrew Node + PATH
+- `scripts/prl-macos-download.sh <vm> <url> <guest-path>`: download a URL to a guest file first; safer than `curl | bash` through `prlctl exec`
+- `scripts/prl-macos-openclaw.sh <vm> [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw via absolute Node + resolved entrypoint
+- `scripts/prl-macos-install-openclaw.sh <vm> [--version latest]`: run the website installer reliably inside the guest
+- `scripts/prl-macos-gateway-status-version.sh <vm> [--profile <name>] [--state-dir <dir>] [--json]`: fetch gateway status and extract `runtimeVersion`, `rpc.ok`, pid, and port data
+- `scripts/prl-macos-openclaw-update-verify.sh <vm>`: end-to-end published release smoke; install old version from `openclaw.ai`, verify gateway, update to latest, re-verify, and auto-fallback to manual gateway launch when Tahoe launchd bootstrap is broken
+- `scripts/prl-macos-auth-seed.sh <vm> <local-auth-profiles.json|->`: seed `auth-profiles.json` into the guest with base64 transport
+
+## Purpose-Built Wrappers
+
+When the task is about OpenClaw install/update verification on a macOS guest, prefer the wrappers over ad-hoc `prlctl exec`:
+
+- `prl-macos-install-openclaw.sh`: downloads `install.sh` to the guest first, then runs it with explicit PATH/env
+- `prl-macos-openclaw.sh`: bypasses shebang/PATH issues by calling guest OpenClaw with absolute Node + `dist/entry.js`
+- `prl-macos-gateway-status-version.sh`: normalizes noisy `gateway status --json` output into a compact version/probe summary
+- `prl-macos-openclaw-update-verify.sh`: does the Tahoe-style "install old -> verify gateway -> update -> verify gateway" flow and falls back to a detached manual `gateway run` probe after forcing `gateway.mode=local` if LaunchAgent bootstrap fails
+- `prl-macos-auth-seed.sh`: avoids fragile inline JSON writes when a live test needs stored auth profiles
 
 ## Core Commands
 
@@ -45,6 +69,21 @@ prlctl snapshot "$VM" --name pre-change
 prlctl snapshot-list "$VM" --tree
 prlctl snapshot-switch "$VM" --id <snapshot-id>
 prlctl snapshot-delete "$VM" --id <snapshot-id>
+```
+
+Helper examples:
+
+```bash
+VM="macOS Tahoe"
+REPO="/Users/steipete/Projects/openclaw-parallels-gpt54"
+
+scripts/prl-macos-pnpm.sh "$VM" "$REPO" install
+scripts/prl-macos-pnpm.sh "$VM" "$REPO" build
+scripts/prl-macos-pnpm.sh "$VM" "$REPO" check
+scripts/prl-macos-pnpm.sh "$VM" "$REPO" test
+scripts/prl-macos-install-openclaw.sh "$VM" --version 2026.3.7
+scripts/prl-macos-gateway-status-version.sh "$VM" --json
+scripts/prl-macos-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-tag latest
 ```
 
 Useful IP extractor:
@@ -100,6 +139,18 @@ Notes:
 - `launchctl print gui/$(id -u)/<label>` is the fastest way to prove “plist exists but launchd lost the service”
 - `curl http://127.0.0.1:<port>/health` and `lsof -iTCP:<port>` are more reliable than app-specific CLIs when PATH/env inside `prlctl exec` is broken
 - if a service CLI fails under `prlctl exec`, first verify whether the binary or its shebang target is missing from PATH before assuming the service is down
+
+OpenClaw/Tahoe notes:
+
+- Fresh macOS guests may have Homebrew `node` but no `pnpm`; install once with `/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/npm/bin/npm-cli.js install -g pnpm`
+- `prlctl exec` is fine for argv-style commands; for pipes, heredocs, JSON blobs, or multiline shell work, switch to `scripts/prl-macos-enter.sh`
+- Website installer verification should use `scripts/prl-macos-install-openclaw.sh`, not raw `curl | bash` through `prlctl exec`
+- Gateway version verification should use `scripts/prl-macos-gateway-status-version.sh`; it strips pre-JSON warnings and reports `runtimeVersion` when present
+- Real release smoke should prefer `scripts/prl-macos-openclaw-update-verify.sh`; it now tolerates Tahoe `launchctl bootstrap ... Input/output error` by falling back to a detached manual gateway probe
+- Released builds may still print `/dev/tty: Device not configured` during noninteractive installer tail work (`doctor` / plugin updates); treat that as a follow-up bug unless the requested version failed to land
+- If manual gateway probing is needed, first force `gateway.mode=local`; released builds can otherwise block startup with `set gateway.mode=local (current: unset) or pass --allow-unconfigured`
+- For listener checks, use `lsof -nP -iTCP:<port> -sTCP:LISTEN`; plain `lsof -i :<port>` is too noisy on Tahoe
+- `src/gateway/gateway-models.profiles.live.test.ts` currently filters on stored auth profiles; env-only `OPENAI_API_KEY` is not enough there, so use `scripts/prl-macos-enter.sh` and write/copy `~/.openclaw/agents/main/agent/auth-profiles.json` inside the guest before rerunning
 
 ## GUI Automation
 
