@@ -37,7 +37,15 @@ done
 
 prl_windows_require_prlctl
 if [[ -n "$prefix" ]]; then
-  prl_windows_run_openclaw_prefix_env "$vm" "$prefix" "${env_args[@]}" "$@"
+  if [[ ${#env_args[@]} -gt 0 ]]; then
+    prl_windows_run_openclaw_prefix_env "$vm" "$prefix" "${env_args[@]}" "$@"
+  else
+    prl_windows_run_openclaw_prefix_env "$vm" "$prefix" "$@"
+  fi
 else
-  prl_windows_run_openclaw_env "$vm" "${env_args[@]}" "$@"
+  if [[ ${#env_args[@]} -gt 0 ]]; then
+    prl_windows_run_openclaw_env "$vm" "${env_args[@]}" "$@"
+  else
+    prl_windows_run_openclaw_env "$vm" "$@"
+  fi
 fi
