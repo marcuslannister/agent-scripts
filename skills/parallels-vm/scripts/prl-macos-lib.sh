@@ -169,6 +169,21 @@ prl_download_to_guest() {
   prlctl exec "$vm" --current-user /usr/bin/curl -fsSL -o "$guest_path" "$url"
 }
 
+prl_wait_for_url() {
+  local vm=$1
+  local url=$2
+  local attempts=${3:-20}
+  local delay_s=${4:-1}
+  local i
+  for ((i = 1; i <= attempts; i += 1)); do
+    if prlctl exec "$vm" --current-user /usr/bin/curl -fsSI --max-time 10 "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay_s"
+  done
+  return 1
+}
+
 prl_kill_port_listener() {
   local vm=$1
   local port=$2

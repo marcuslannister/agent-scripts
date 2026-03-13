@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/prl-macos-lib.sh"
 
 usage() {
-  echo "usage: $(basename "$0") <vm-name> [--version <version|tag>] [--install-url <url>] [--profile <name>] [--state-dir <dir>] [--method npm|git] [--verbose] [--keep-installer]" >&2
+  echo "usage: $(basename "$0") <vm-name> [--version <version|tag>] [--spec <npm-spec-or-url>] [--install-url <url>] [--profile <name>] [--state-dir <dir>] [--method npm|git] [--verbose] [--keep-installer]" >&2
   exit 64
 }
 
@@ -16,6 +16,7 @@ vm=$1
 shift
 
 version=latest
+spec=
 install_url=https://openclaw.ai/install.sh
 method=npm
 verbose=0
@@ -27,6 +28,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
       version=${2:?missing version}
+      shift 2
+      ;;
+    --spec)
+      spec=${2:?missing spec}
       shift 2
       ;;
     --install-url)
@@ -59,6 +64,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -n "$spec" && "$version" != "latest" ]]; then
+  prl_die "pass only one of --version or --spec"
+fi
+
 case "$method" in
   npm|git) ;;
   *) prl_die "invalid --method: $method" ;;
@@ -68,22 +77,35 @@ prl_require_prlctl
 prl_require_node
 
 installer="/tmp/openclaw-install-$(date +%s).sh"
-prl_download_to_guest "$vm" "$install_url" "$installer"
-
 env_args=("PATH=$PRL_GUEST_PATH" "OPENCLAW_NO_ONBOARD=1")
 [[ -n "$profile" ]] && env_args+=("OPENCLAW_PROFILE=$profile")
 [[ -n "$state_dir" ]] && env_args+=("OPENCLAW_STATE_DIR=$state_dir")
 
-cmd=(prlctl exec "$vm" --current-user /usr/bin/env "${env_args[@]}" /bin/bash "$installer" \
-  --version "$version" --no-onboard --no-prompt "--$method")
-if [[ "$verbose" == "1" ]]; then
-  cmd+=(--verbose)
-fi
+if [[ -n "$spec" ]]; then
+  case "$spec" in
+    http://*|https://*)
+      prl_wait_for_url "$vm" "$spec" 20 1 ||
+        prl_die "guest could not reach install spec URL: $spec"
+      guest_tgz="/tmp/openclaw-install-${RANDOM}-$(date +%s).tgz"
+      prl_download_to_guest "$vm" "$spec" "$guest_tgz"
+      spec=$guest_tgz
+      ;;
+  esac
+  prl_exec_env_node "$vm" "${env_args[@]}" "$PRL_GUEST_NPM_CLI" install -g "$spec"
+else
+  prl_download_to_guest "$vm" "$install_url" "$installer"
 
-"${cmd[@]}"
+  cmd=(prlctl exec "$vm" --current-user /usr/bin/env "${env_args[@]}" /bin/bash "$installer" \
+    --version "$version" --no-onboard --no-prompt "--$method")
+  if [[ "$verbose" == "1" ]]; then
+    cmd+=(--verbose)
+  fi
 
-if [[ "$keep_installer" != "1" ]]; then
-  prlctl exec "$vm" --current-user /bin/rm -f "$installer" >/dev/null 2>&1 || true
+  "${cmd[@]}"
+
+  if [[ "$keep_installer" != "1" ]]; then
+    prlctl exec "$vm" --current-user /bin/rm -f "$installer" >/dev/null 2>&1 || true
+  fi
 fi
 
 prl_run_openclaw_env "$vm" "${env_args[@]:1}" --version
