@@ -49,6 +49,7 @@ Reusable helpers:
 - `scripts/prl-linux-openclaw-update-verify.sh <vm>`: end-to-end published Linux release smoke using manual gateway verification
 - `scripts/prl-macos-enter.sh <vm>`: open a real guest shell via `prlctl enter`
 - `scripts/prl-macos-pnpm.sh <vm> <guest-repo-dir> <pnpm args...>`: run guest `pnpm` through absolute Homebrew Node + PATH
+- `scripts/prl-macos-vitest.sh <vm> <guest-repo-dir> [--env KEY=VALUE ...] [--] <vitest-args...>`: run guest Vitest via `pnpm exec vitest --root <repo>`; use this instead of hand-rolled guest Vitest commands
 - `scripts/prl-macos-repo-openclaw.sh <vm> <guest-repo-dir|guest-entry.js> [--env KEY=VALUE ...] <openclaw-args...>`: run a guest checkout's `openclaw.mjs`/`dist` entry directly; use this for secret-bearing onboard/live commands instead of `pnpm openclaw ...`
 - `scripts/prl-macos-download.sh <vm> <url> <guest-path>`: download a URL to a guest file first; safer than `curl | bash` through `prlctl exec`
 - `scripts/prl-macos-openclaw.sh <vm> [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw via absolute Node + resolved entrypoint
@@ -57,6 +58,7 @@ Reusable helpers:
 - `scripts/prl-macos-openclaw-update-verify.sh <vm>`: end-to-end published release smoke; install old version from `openclaw.ai`, verify gateway, update to latest, re-verify, and auto-fallback to manual gateway launch when Tahoe launchd bootstrap is broken
 - `scripts/prl-macos-auth-seed.sh <vm> <local-auth-profiles.json|->`: seed `auth-profiles.json` into the guest with base64 transport
 - `scripts/prl-windows-install-openclaw.sh <vm> [--version latest] [--spec <npm-spec-or-url>]`: run the Windows website installer with `-NoOnboard`, or install a host-served/current-checkout npm spec directly; native installer now bootstraps user-local portable Git under `%LOCALAPPDATA%\OpenClaw\deps\portable-git`
+- `scripts/prl-windows-overlay-openclaw.sh <vm> --spec <npm-spec-or-url>`: overlay a host-served/current-checkout tgz onto the existing native Windows global install while keeping its `node_modules`; use this when you need upcoming-build code fast and a raw unpacked tgz is missing runtime deps
 - `scripts/prl-windows-openclaw.sh <vm> [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw on native Windows through a PowerShell wrapper that avoids `npm.ps1` / shell quoting nonsense
 - `scripts/prl-windows-gateway-status-version.sh <vm> [--json]`: fetch native Windows `gateway status --json`; strips CLIXML and trailing guidance text before parsing
 - `scripts/prl-windows-openclaw-update-verify.sh <vm>`: end-to-end native Windows release smoke; can start from a published version or a host-served/local npm spec, attempts `update --json`, tolerates trailing post-JSON guidance text, reports known release blockers, waits for the user session first, and skips the reinstall automatically when the VM is already on the requested `--from-version` unless you pass `--force-reinstall`
@@ -78,6 +80,7 @@ When the task is about OpenClaw install/update verification, prefer the OS-match
   - `prl-macos-openclaw-update-verify.sh`
 - Windows guest:
   - `prl-windows-install-openclaw.sh`
+  - `prl-windows-overlay-openclaw.sh`
   - `prl-windows-openclaw.sh`
   - `prl-windows-gateway-status-version.sh`
   - `prl-windows-openclaw-update-verify.sh`
@@ -91,6 +94,7 @@ When the task is about OpenClaw install/update verification, prefer the OS-match
 - `prl-linux-gateway-status-version.sh`: normalizes Linux guest `gateway status --json` output into the same compact summary
 - `prl-linux-openclaw-update-verify.sh`: verifies Linux releases with a detached manual `gateway run` path instead of assuming launchd/systemd service setup
 - `prl-windows-install-openclaw.sh`: runs the public PowerShell installer with `-NoOnboard`, or installs a local/hosted npm spec directly, relying on the installer's user-local MinGit bootstrap instead of admin `winget` Git
+- `prl-windows-overlay-openclaw.sh`: overlays a packed build onto the guest's existing global OpenClaw install so the current code can reuse the installed dependency tree; use this when `--spec` reinstall is too slow or when unpacking a tgz directly would miss runtime deps like `chalk`
 - `prl-windows-openclaw.sh`: runs native Windows `openclaw` via encoded PowerShell, which avoids PATH and execution-policy footguns
 - `prl-windows-gateway-status-version.sh`: returns parsed status JSON even when `gateway status --json` appends human guidance after the JSON block
 - `prl-windows-openclaw-update-verify.sh`: captures native Windows version/install/update behavior even when the published release is partially broken; use `--from-spec` and `--update-spec` to keep the whole smoke on host-served artifacts before npm publish, and lean on the built-in skip-reinstall fast path for repeat runs against the same `--from-version`
@@ -124,6 +128,8 @@ scripts/prl-macos-pnpm.sh "$VM" "$REPO" install
 scripts/prl-macos-pnpm.sh "$VM" "$REPO" build
 scripts/prl-macos-pnpm.sh "$VM" "$REPO" check
 scripts/prl-macos-pnpm.sh "$VM" "$REPO" test
+scripts/prl-macos-vitest.sh "$VM" "$REPO" run src/plugins/discovery.test.ts
+scripts/prl-macos-vitest.sh "$VM" "$REPO" --env "OPENCLAW_LIVE_MODELS=openai/gpt-5.4,anthropic/claude-opus-4-6" --env "OPENCLAW_LIVE_TEST=1" --env "CLAWDBOT_LIVE_TEST=1" -- run --config vitest.live.config.ts src/agents/models.profiles.live.test.ts
 scripts/prl-macos-install-openclaw.sh "$VM" --version 2026.3.7
 scripts/prl-macos-gateway-status-version.sh "$VM" --json
 scripts/prl-macos-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-tag latest
@@ -136,6 +142,7 @@ scripts/prl-linux-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-t
 VM="Windows 11"
 scripts/prl-windows-install-openclaw.sh "$VM" --version latest
 scripts/prl-windows-install-openclaw.sh "$VM" --spec "http://10.211.55.2:8138/openclaw-next.tgz"
+scripts/prl-windows-overlay-openclaw.sh "$VM" --spec "http://10.211.55.2:8138/openclaw-next.tgz"
 scripts/prl-windows-openclaw.sh "$VM" --version
 scripts/prl-windows-gateway-status-version.sh "$VM" --json
 scripts/prl-windows-onboard-verify.sh "$VM" --json
@@ -208,6 +215,9 @@ OpenClaw/Tahoe notes:
 - For OpenAI + Anthropic live model coverage, default to `OPENCLAW_LIVE_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` and `OPENCLAW_LIVE_GATEWAY_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` unless Peter asks for different models
 - Fresh macOS guests may have Homebrew `node` but no `pnpm`; install once with `/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/npm/bin/npm-cli.js install -g pnpm`
 - `scripts/prl-macos-pnpm.sh` now auto-installs missing guest `pnpm` with the guest Homebrew `node`
+- Some Tahoe guests inherit permissive `umask` values (`000`); temp dirs/files can land as `0777`/`0666` and trip OpenClaw's world-writable plugin safety gates. If discovery/loader tests suddenly return no candidates, check permissions first before blaming cache/env logic.
+- Prefer argv-style guest commands (`git -C <repo> ...`, wrappers, absolute paths) over `prlctl exec ... sh -lc 'cd ... && ...'`; Tahoe shell-wrapped git commands were flaky here.
+- For guest Vitest, prefer `scripts/prl-macos-vitest.sh`; if you do it manually, use `pnpm exec vitest` and pass repo-root-relative test paths under `--root <repo>`.
 - `prlctl exec` is fine for argv-style commands; for pipes, heredocs, JSON blobs, or multiline shell work, switch to `scripts/prl-macos-enter.sh`
 - Website installer verification should use `scripts/prl-macos-install-openclaw.sh`, not raw `curl | bash` through `prlctl exec`
 - Gateway version verification should use `scripts/prl-macos-gateway-status-version.sh`; it strips pre-JSON warnings and reports `runtimeVersion` when present
@@ -229,7 +239,10 @@ OpenClaw/Linux notes:
 OpenClaw/Windows notes:
 
 - Prefer the `prl-windows-*` wrappers; raw `prlctl exec ... powershell -Command` is fragile because quoting and PowerShell execution policy love breaking `npm.ps1` / `pnpm.ps1`
+- If you need multiline/native PowerShell work on Windows guests, use the wrapper/lib encoded path, not raw host-shell `powershell -Command "$..."`; host-shell interpolation will happily strip guest `$env:` variables before the command even reaches the VM
 - After a hard reboot or snapshot switch, wait until `prlctl exec "$VM" --current-user whoami` works again before trusting wrapper failures; Parallels Tools/user session readiness lags boot
+- Right after reboot, plain `prlctl exec "$VM" whoami` may already work as `NT AUTHORITY\\SYSTEM` while `--current-user` still fails; that means the guest booted but the desktop user session is not ready yet
+- A black `prlctl capture` right after reboot usually means "guest/session still waking up", not "Windows is dead"
 - `prl-windows-onboard-verify.sh` is the right probe for native onboarding. Without `--install-daemon`, a final gateway health failure is expected unless a local gateway is already running.
 - Native Windows managed gateway install currently goes through Scheduled Tasks. `schtasks create failed: ERROR: Access is denied.` means admin PowerShell is the blocker, not provider auth.
 - Keep embedded hatch/provider checks separate from gateway-service checks. `prl-windows-openclaw.sh "$VM" --env "OPENAI_API_KEY=..." agent --local --agent main ...` can be green while `gateway install` is still red.
@@ -237,6 +250,8 @@ OpenClaw/Windows notes:
 - The public Windows installer now bootstraps user-local portable Git under `%LOCALAPPDATA%\OpenClaw\deps\portable-git`; this avoids UAC/admin prompts for Git
 - The portable Git bootstrap is process-local; a fresh guest shell may still say `git` is missing unless the installer or wrapper added the portable paths for that command
 - For upcoming-build verification, host cache-busted tgz files on the Mac (for example `python3 -m http.server 8138`) and pass them with `prl-windows-install-openclaw.sh --spec ...` or `prl-windows-openclaw-update-verify.sh --from-spec ... --update-spec ...`
+- Do not unpack a Windows tgz in the guest and run `openclaw.mjs` directly as proof; the tarball expects an installed dependency tree. Use `prl-windows-install-openclaw.sh --spec ...` or `prl-windows-overlay-openclaw.sh --spec ...` instead
+- After a reboot, `openclaw.cmd` may not resolve from PATH in a raw guest PowerShell session even though the install is fine; the wrappers already probe `%APPDATA%\\npm` / `%LOCALAPPDATA%\\pnpm` fallback paths, so prefer them over ad-hoc commands
 - For a real OpenAI smoke on native Windows, source `~/.profile` on the host and use the embedded path:
   - `scripts/prl-windows-openclaw.sh "$VM" --env "OPENAI_API_KEY=$OPENAI_API_KEY" agent --local --agent main --json --thinking low -m "Reply with exactly WINDOWS-HATCH-OK."`
 - Embedded `agent --local` still needs a target; use `--agent main` for the default session. `--model` is not a valid flag here.

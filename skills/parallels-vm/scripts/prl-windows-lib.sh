@@ -237,3 +237,23 @@ prl_windows_parse_openclaw_version() {
   [[ -n "$version" ]] || prl_windows_die "could not parse OpenClaw version from: $raw"
   printf '%s\n' "$version"
 }
+
+prl_windows_try_parse_openclaw_version() {
+  local raw=$1
+  printf '%s\n' "$raw" | /usr/bin/perl -ne 'if (/(20[0-9]{2}\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?)/) { print "$1\n"; exit 0 }'
+}
+
+prl_windows_wait_for_user_session() {
+  local vm=$1
+  local timeout_s=${2:-120}
+  local deadline=$((SECONDS + timeout_s))
+
+  while (( SECONDS < deadline )); do
+    if prlctl exec "$vm" --current-user whoami >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  prl_windows_die "guest user session not ready within ${timeout_s}s"
+}
