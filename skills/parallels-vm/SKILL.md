@@ -51,6 +51,7 @@ Reusable helpers:
 - `scripts/prl-macos-pnpm.sh <vm> <guest-repo-dir> <pnpm args...>`: run guest `pnpm` through absolute Homebrew Node + PATH
 - `scripts/prl-macos-vitest.sh <vm> <guest-repo-dir> [--env KEY=VALUE ...] [--] <vitest-args...>`: run guest Vitest via `pnpm exec vitest --root <repo>`; use this instead of hand-rolled guest Vitest commands
 - `scripts/prl-macos-repo-openclaw.sh <vm> <guest-repo-dir|guest-entry.js> [--env KEY=VALUE ...] <openclaw-args...>`: run a guest checkout's `openclaw.mjs`/`dist` entry directly; use this for secret-bearing onboard/live commands instead of `pnpm openclaw ...`
+- `scripts/prl-macos-live-auth-seed.sh <vm> [--agent <agent-id>] [--guest-path <path>] [--provider <provider:ENV_VAR> ...]`: build a minimal guest `auth-profiles.json` from host env vars and seed it; default providers are `openai:OPENAI_API_KEY` + `anthropic:ANTHROPIC_API_KEY`
 - `scripts/prl-macos-download.sh <vm> <url> <guest-path>`: download a URL to a guest file first; safer than `curl | bash` through `prlctl exec`
 - `scripts/prl-macos-openclaw.sh <vm> [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw via absolute Node + resolved entrypoint
 - `scripts/prl-macos-install-openclaw.sh <vm> [--version latest]`: run the website installer reliably inside the guest
@@ -129,7 +130,11 @@ scripts/prl-macos-pnpm.sh "$VM" "$REPO" build
 scripts/prl-macos-pnpm.sh "$VM" "$REPO" check
 scripts/prl-macos-pnpm.sh "$VM" "$REPO" test
 scripts/prl-macos-vitest.sh "$VM" "$REPO" run src/plugins/discovery.test.ts
-scripts/prl-macos-vitest.sh "$VM" "$REPO" --env "OPENCLAW_LIVE_MODELS=openai/gpt-5.4,anthropic/claude-opus-4-6" --env "OPENCLAW_LIVE_TEST=1" --env "CLAWDBOT_LIVE_TEST=1" -- run --config vitest.live.config.ts src/agents/models.profiles.live.test.ts
+scripts/prl-macos-repo-openclaw.sh "$VM" "$REPO" --version
+source ~/.profile >/dev/null 2>&1
+scripts/prl-macos-live-auth-seed.sh "$VM"
+scripts/prl-macos-vitest.sh "$VM" "$REPO" --env "OPENCLAW_LIVE_MODELS=openai/gpt-5.4,anthropic/claude-opus-4-6" --env "OPENCLAW_LIVE_TEST=1" --env "CLAWDBOT_LIVE_TEST=1" --env "OPENAI_API_KEY=$OPENAI_API_KEY" --env "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" -- run --config vitest.live.config.ts src/agents/models.profiles.live.test.ts
+scripts/prl-macos-vitest.sh "$VM" "$REPO" --env "OPENCLAW_LIVE_GATEWAY_MODELS=openai/gpt-5.4,anthropic/claude-opus-4-6" --env "OPENCLAW_LIVE_TEST=1" --env "CLAWDBOT_LIVE_TEST=1" --env "OPENAI_API_KEY=$OPENAI_API_KEY" --env "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" -- run --config vitest.live.config.ts src/gateway/gateway-models.profiles.live.test.ts
 scripts/prl-macos-install-openclaw.sh "$VM" --version 2026.3.7
 scripts/prl-macos-gateway-status-version.sh "$VM" --json
 scripts/prl-macos-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-tag latest
@@ -213,6 +218,8 @@ Notes:
 OpenClaw/Tahoe notes:
 
 - For OpenAI + Anthropic live model coverage, default to `OPENCLAW_LIVE_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` and `OPENCLAW_LIVE_GATEWAY_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` unless Peter asks for different models
+- When proving "what version is on main?" from a guest checkout, use `scripts/prl-macos-repo-openclaw.sh "$VM" "$REPO" --version`. `scripts/prl-macos-openclaw.sh "$VM" --version` only checks the guest-global install and may lag or be missing after snapshot restore.
+- After `snapshot-switch` / snapshot restore, assume guest repo checkouts and `auth-profiles.json` may be stale or gone. Recreate the checkout, pin it to the host commit under test, and reseed live auth before running gateway live tests.
 - Fresh macOS guests may have Homebrew `node` but no `pnpm`; install once with `/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/npm/bin/npm-cli.js install -g pnpm`
 - `scripts/prl-macos-pnpm.sh` now auto-installs missing guest `pnpm` with the guest Homebrew `node`
 - Some Tahoe guests inherit permissive `umask` values (`000`); temp dirs/files can land as `0777`/`0666` and trip OpenClaw's world-writable plugin safety gates. If discovery/loader tests suddenly return no candidates, check permissions first before blaming cache/env logic.
@@ -228,7 +235,8 @@ OpenClaw/Tahoe notes:
 - For listener checks, use `lsof -nP -iTCP:<port> -sTCP:LISTEN`; plain `lsof -i :<port>` is too noisy on Tahoe
 - Avoid `pnpm openclaw ... --openai-api-key ...` / `--anthropic-api-key ...` in guest live setup; `pnpm` echoes the full argv. Use `scripts/prl-macos-repo-openclaw.sh` or direct `node <repo>/openclaw.mjs ...` instead so secrets stay out of logs.
 - Noninteractive onboarding seeds one provider choice per run. For OpenAI + Anthropic live coverage, run onboard twice or seed `auth-profiles.json` directly.
-- `src/gateway/gateway-models.profiles.live.test.ts` currently filters on stored auth profiles; env-only `OPENAI_API_KEY` is not enough there, so use `scripts/prl-macos-enter.sh` and write/copy `~/.openclaw/agents/main/agent/auth-profiles.json` inside the guest before rerunning
+- `src/agents/models.profiles.live.test.ts` can false-green with `"[live-models] no API keys found; skipping"` after a snapshot restore. Treat that as "not actually tested"; pass guest env keys explicitly and verify the log shows real model runs, not a skip.
+- `src/gateway/gateway-models.profiles.live.test.ts` currently filters on stored auth profiles; env-only `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` is not enough there. Use `scripts/prl-macos-live-auth-seed.sh "$VM"` (or `prl-macos-auth-seed.sh` with a prepared file) before rerunning.
 
 OpenClaw/Linux notes:
 
