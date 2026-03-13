@@ -226,6 +226,7 @@ OpenClaw/Tahoe notes:
 - For OpenAI + Anthropic live model coverage, default to `OPENCLAW_LIVE_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` and `OPENCLAW_LIVE_GATEWAY_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` unless Peter asks for different models
 - When proving "what version is on main?" from a guest checkout, use `scripts/prl-macos-repo-openclaw.sh "$VM" "$REPO" --version`. `scripts/prl-macos-openclaw.sh "$VM" --version` only checks the guest-global install and may lag or be missing after snapshot restore.
 - After `snapshot-switch` / snapshot restore, assume guest repo checkouts and `auth-profiles.json` may be stale or gone. Recreate the checkout, pin it to the host commit under test, and reseed live auth before running gateway live tests.
+- Do not trust `prlctl exec` alone to judge installer environment parity on macOS guests. It can miss the interactive shell PATH/init state and falsely report things like missing Homebrew even when the real guest Terminal session sees `/opt/homebrew/bin/brew`.
 - Fresh macOS guests may have Homebrew `node` but no `pnpm`; install once with `/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/npm/bin/npm-cli.js install -g pnpm`
 - `scripts/prl-macos-pnpm.sh` now auto-installs missing guest `pnpm` with the guest Homebrew `node`
 - Some Tahoe guests inherit permissive `umask` values (`000`); temp dirs/files can land as `0777`/`0666` and trip OpenClaw's world-writable plugin safety gates. If discovery/loader tests suddenly return no candidates, check permissions first before blaming cache/env logic.
@@ -240,6 +241,8 @@ OpenClaw/Tahoe notes:
 - If manual gateway probing is needed, first force `gateway.mode=local`; released builds can otherwise block startup with `set gateway.mode=local (current: unset) or pass --allow-unconfigured`
 - For listener checks, use `lsof -nP -iTCP:<port> -sTCP:LISTEN`; plain `lsof -i :<port>` is too noisy on Tahoe
 - Avoid `pnpm openclaw ... --openai-api-key ...` / `--anthropic-api-key ...` in guest live setup; `pnpm` echoes the full argv. Use `scripts/prl-macos-repo-openclaw.sh` or direct `node <repo>/openclaw.mjs ...` instead so secrets stay out of logs.
+- For exact website-installer validation (`curl -fsSL https://openclaw.ai/install.sh | bash` or `... | bash -s -- --beta`), prefer observing/running inside the guest's real Terminal session or `prl-macos-enter.sh`; treat `prlctl exec` installer failures as suspect until confirmed interactively.
+- When reviewing screenshots/logs of installer runs, verify the exact command first. `curl -fsSL https://openclaw.ai/install.sh | bash` is stable; beta requires `bash -s -- --beta`.
 - Noninteractive onboarding seeds one provider choice per run. For OpenAI + Anthropic live coverage, run onboard twice or seed `auth-profiles.json` directly.
 - `src/agents/models.profiles.live.test.ts` can false-green with `"[live-models] no API keys found; skipping"` after a snapshot restore. Treat that as "not actually tested"; pass guest env keys explicitly and verify the log shows real model runs, not a skip.
 - `src/gateway/gateway-models.profiles.live.test.ts` currently filters on stored auth profiles; env-only `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` is not enough there. Use `scripts/prl-macos-live-auth-seed.sh "$VM"` (or `prl-macos-auth-seed.sh` with a prepared file) before rerunning.
