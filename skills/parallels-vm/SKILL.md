@@ -205,6 +205,7 @@ Notes:
 
 OpenClaw/Tahoe notes:
 
+- For OpenAI + Anthropic live model coverage, default to `OPENCLAW_LIVE_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` and `OPENCLAW_LIVE_GATEWAY_MODELS="openai/gpt-5.4,anthropic/claude-opus-4-6"` unless Peter asks for different models
 - Fresh macOS guests may have Homebrew `node` but no `pnpm`; install once with `/opt/homebrew/bin/node /opt/homebrew/lib/node_modules/npm/bin/npm-cli.js install -g pnpm`
 - `scripts/prl-macos-pnpm.sh` now auto-installs missing guest `pnpm` with the guest Homebrew `node`
 - `prlctl exec` is fine for argv-style commands; for pipes, heredocs, JSON blobs, or multiline shell work, switch to `scripts/prl-macos-enter.sh`
