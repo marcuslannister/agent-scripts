@@ -58,12 +58,12 @@ Reusable helpers:
 - `scripts/prl-macos-gateway-status-version.sh <vm> [--profile <name>] [--state-dir <dir>] [--json]`: fetch gateway status and extract `runtimeVersion`, `rpc.ok`, pid, and port data
 - `scripts/prl-macos-openclaw-update-verify.sh <vm>`: end-to-end published release smoke; install old version from `openclaw.ai`, verify gateway, update to latest, re-verify, and auto-fallback to manual gateway launch when Tahoe launchd bootstrap is broken
 - `scripts/prl-macos-auth-seed.sh <vm> <local-auth-profiles.json|->`: seed `auth-profiles.json` into the guest with base64 transport
-- `scripts/prl-windows-install-openclaw.sh <vm> [--version latest] [--spec <npm-spec-or-url>]`: run the Windows website installer with `-NoOnboard`, or install a host-served/current-checkout npm spec directly; native installer now bootstraps user-local portable Git under `%LOCALAPPDATA%\OpenClaw\deps\portable-git`
+- `scripts/prl-windows-install-openclaw.sh <vm> [--version latest] [--spec <npm-spec-or-url>] [--prefix <guest-prefix>]`: run the Windows website installer with `-NoOnboard`, or install a host-served/current-checkout npm spec directly; native installer now bootstraps user-local portable Git under `%LOCALAPPDATA%\OpenClaw\deps\portable-git`, and `--prefix` gives you a clean isolated npm install tree for pre-release smoke
 - `scripts/prl-windows-overlay-openclaw.sh <vm> --spec <npm-spec-or-url>`: overlay a host-served/current-checkout tgz onto the existing native Windows global install while keeping its `node_modules`; use this when you need upcoming-build code fast and a raw unpacked tgz is missing runtime deps
-- `scripts/prl-windows-openclaw.sh <vm> [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw on native Windows through a PowerShell wrapper that avoids `npm.ps1` / shell quoting nonsense
-- `scripts/prl-windows-gateway-status-version.sh <vm> [--json]`: fetch native Windows `gateway status --json`; strips CLIXML and trailing guidance text before parsing
+- `scripts/prl-windows-openclaw.sh <vm> [--prefix <guest-prefix>] [--env KEY=VALUE ...] <openclaw-args...>`: run guest OpenClaw on native Windows; default path uses the encoded PowerShell wrapper, while `--prefix` switches to direct `node --input-type=module` execution against an isolated install tree and avoids flaky `openclaw.cmd` / `--current-user` resolution
+- `scripts/prl-windows-gateway-status-version.sh <vm> [--prefix <guest-prefix>] [--json]`: fetch native Windows `gateway status --json`; strips CLIXML and trailing guidance text before parsing
 - `scripts/prl-windows-openclaw-update-verify.sh <vm>`: end-to-end native Windows release smoke; can start from a published version or a host-served/local npm spec, attempts `update --json`, tolerates trailing post-JSON guidance text, reports known release blockers, waits for the user session first, and skips the reinstall automatically when the VM is already on the requested `--from-version` unless you pass `--force-reinstall`
-- `scripts/prl-windows-onboard-verify.sh <vm>`: native Windows onboarding smoke; separates "embedded/provider setup works" from "managed gateway install works", captures expected no-daemon health failures, surfaces Scheduled Task access-denied errors cleanly, and can optionally run an embedded OpenAI hatch in the same wrapper via `--hatch`
+- `scripts/prl-windows-onboard-verify.sh <vm> [--prefix <guest-prefix>]`: native Windows onboarding smoke; separates "embedded/provider setup works" from "managed gateway install works", captures expected no-daemon health failures, surfaces Scheduled Task access-denied errors cleanly, and can optionally run an embedded OpenAI hatch in the same wrapper via `--hatch`
 
 ## Purpose-Built Wrappers
 
@@ -94,9 +94,9 @@ When the task is about OpenClaw install/update verification, prefer the OS-match
 - `prl-linux-openclaw.sh`: runs guest OpenClaw on Linux via resolved `openclaw` binary path and normal PATH
 - `prl-linux-gateway-status-version.sh`: normalizes Linux guest `gateway status --json` output into the same compact summary
 - `prl-linux-openclaw-update-verify.sh`: verifies Linux releases with a detached manual `gateway run` path instead of assuming launchd/systemd service setup
-- `prl-windows-install-openclaw.sh`: runs the public PowerShell installer with `-NoOnboard`, or installs a local/hosted npm spec directly, relying on the installer's user-local MinGit bootstrap instead of admin `winget` Git
+- `prl-windows-install-openclaw.sh`: runs the public PowerShell installer with `-NoOnboard`, or installs a local/hosted npm spec directly, relying on the installer's user-local MinGit bootstrap instead of admin `winget` Git; use `--prefix` with `--spec` for a clean per-test install root
 - `prl-windows-overlay-openclaw.sh`: overlays a packed build onto the guest's existing global OpenClaw install so the current code can reuse the installed dependency tree; use this when `--spec` reinstall is too slow or when unpacking a tgz directly would miss runtime deps like `chalk`
-- `prl-windows-openclaw.sh`: runs native Windows `openclaw` via encoded PowerShell, which avoids PATH and execution-policy footguns
+- `prl-windows-openclaw.sh`: runs native Windows `openclaw` via encoded PowerShell by default, or directly through `node --input-type=module` when you target an isolated `--prefix`; prefer the prefix path for pre-release Windows smoke because it avoids `openclaw.cmd` drift and flaky Parallels `--current-user` lookups
 - `prl-windows-gateway-status-version.sh`: returns parsed status JSON even when `gateway status --json` appends human guidance after the JSON block
 - `prl-windows-openclaw-update-verify.sh`: captures native Windows version/install/update behavior even when the published release is partially broken; use `--from-spec` and `--update-spec` to keep the whole smoke on host-served artifacts before npm publish, and lean on the built-in skip-reinstall fast path for repeat runs against the same `--from-version`
 - `prl-windows-onboard-verify.sh`: use this when the question is specifically "does native Windows onboarding succeed?" because it distinguishes expected local-health failures from real daemon install failures and can optionally prove embedded-provider hatching in one pass
@@ -147,15 +147,21 @@ scripts/prl-linux-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-t
 VM="Windows 11"
 scripts/prl-windows-install-openclaw.sh "$VM" --version latest
 scripts/prl-windows-install-openclaw.sh "$VM" --spec "http://10.211.55.2:8138/openclaw-next.tgz"
+PREFIX='C:\Users\steipete\AppData\Local\Temp\openclaw-next'
+scripts/prl-windows-install-openclaw.sh "$VM" --spec "http://10.211.55.2:8138/openclaw-next.tgz" --prefix "$PREFIX"
 scripts/prl-windows-overlay-openclaw.sh "$VM" --spec "http://10.211.55.2:8138/openclaw-next.tgz"
 scripts/prl-windows-openclaw.sh "$VM" --version
+scripts/prl-windows-openclaw.sh "$VM" --prefix "$PREFIX" --version
 scripts/prl-windows-gateway-status-version.sh "$VM" --json
+scripts/prl-windows-gateway-status-version.sh "$VM" --prefix "$PREFIX" --json
 scripts/prl-windows-onboard-verify.sh "$VM" --json
 source ~/.profile >/dev/null 2>&1
 scripts/prl-windows-onboard-verify.sh "$VM" --openai-api-key-env OPENAI_API_KEY --hatch --json
+scripts/prl-windows-onboard-verify.sh "$VM" --prefix "$PREFIX" --openai-api-key-env OPENAI_API_KEY --hatch --json
 scripts/prl-windows-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --to-tag latest
 scripts/prl-windows-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --skip-install
 scripts/prl-windows-openclaw-update-verify.sh "$VM" --from-spec "http://10.211.55.2:8138/openclaw-a.tgz" --update-spec "http://10.211.55.2:8138/openclaw-b.tgz"
+scripts/prl-windows-openclaw-update-verify.sh "$VM" --prefix "$PREFIX" --from-spec "http://10.211.55.2:8138/openclaw-a.tgz" --update-spec "http://10.211.55.2:8138/openclaw-b.tgz"
 scripts/prl-windows-openclaw-update-verify.sh "$VM" --from-version 2026.3.7 --update-spec "http://10.211.55.2:8138/openclaw-next.tgz"
 source ~/.profile >/dev/null 2>&1
 scripts/prl-windows-openclaw.sh "$VM" --env "OPENAI_API_KEY=$OPENAI_API_KEY" agent --local --agent main --json --thinking low -m "Reply with exactly WINDOWS-HATCH-OK."
@@ -259,8 +265,10 @@ OpenClaw/Windows notes:
 - The public Windows installer now bootstraps user-local portable Git under `%LOCALAPPDATA%\OpenClaw\deps\portable-git`; this avoids UAC/admin prompts for Git
 - The portable Git bootstrap is process-local; a fresh guest shell may still say `git` is missing unless the installer or wrapper added the portable paths for that command
 - For upcoming-build verification, host cache-busted tgz files on the Mac (for example `python3 -m http.server 8138`) and pass them with `prl-windows-install-openclaw.sh --spec ...` or `prl-windows-openclaw-update-verify.sh --from-spec ... --update-spec ...`
+- For the cleanest pre-release Windows signal, install host-served tgz files into an isolated temp prefix and keep every later command on that same `--prefix`; this avoids stale `%APPDATA%\\npm` dependency trees and missing `openclaw.cmd` shims after snapshot churn
 - Do not unpack a Windows tgz in the guest and run `openclaw.mjs` directly as proof; the tarball expects an installed dependency tree. Use `prl-windows-install-openclaw.sh --spec ...` or `prl-windows-overlay-openclaw.sh --spec ...` instead
 - After a reboot, `openclaw.cmd` may not resolve from PATH in a raw guest PowerShell session even though the install is fine; the wrappers already probe `%APPDATA%\\npm` / `%LOCALAPPDATA%\\pnpm` fallback paths, so prefer them over ad-hoc commands
+- When `--current-user` guest exec gets flaky on Windows, prefer wrappers that target an isolated `--prefix`; they bypass the shim path and run `openclaw.mjs` directly with guest Node
 - For a real OpenAI smoke on native Windows, source `~/.profile` on the host and use the embedded path:
   - `scripts/prl-windows-openclaw.sh "$VM" --env "OPENAI_API_KEY=$OPENAI_API_KEY" agent --local --agent main --json --thinking low -m "Reply with exactly WINDOWS-HATCH-OK."`
 - Embedded `agent --local` still needs a target; use `--agent main` for the default session. `--model` is not a valid flag here.

@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/prl-windows-lib.sh"
 
 usage() {
-  echo "usage: $(basename "$0") <vm-name> [--openai-api-key-env <env-var>] [--openai-api-key <key>] [--install-daemon] [--workspace <path>] [--hatch] [--hatch-message <text>] [--hatch-expect <text>] [--json]" >&2
+  echo "usage: $(basename "$0") <vm-name> [--prefix <guest-prefix>] [--openai-api-key-env <env-var>] [--openai-api-key <key>] [--install-daemon] [--workspace <path>] [--hatch] [--hatch-message <text>] [--hatch-expect <text>] [--json]" >&2
   exit "${1:-64}"
 }
 
@@ -21,6 +21,7 @@ esac
 vm=$1
 shift
 
+prefix=
 openai_api_key=
 openai_api_key_env=
 install_daemon=0
@@ -32,6 +33,10 @@ json_mode=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --prefix)
+      prefix=${2:?missing prefix}
+      shift 2
+      ;;
     --openai-api-key-env)
       openai_api_key_env=${2:?missing env var}
       shift 2
@@ -98,6 +103,9 @@ if [[ -n "$workspace" ]]; then
 fi
 
 wrapper_args=()
+if [[ -n "$prefix" ]]; then
+  wrapper_args+=(--prefix "$prefix")
+fi
 for env_arg in "${env_args[@]}"; do
   wrapper_args+=(--env "$env_arg")
 done

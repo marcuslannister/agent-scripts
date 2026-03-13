@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/prl-windows-lib.sh"
 
 usage() {
-  echo "usage: $(basename "$0") <vm-name> [--json]" >&2
+  echo "usage: $(basename "$0") <vm-name> [--prefix <guest-prefix>] [--json]" >&2
   exit 64
 }
 
@@ -21,10 +21,15 @@ esac
 vm=$1
 shift
 
+prefix=
 json_mode=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --prefix)
+      prefix=${2:?missing prefix}
+      shift 2
+      ;;
     --json)
       json_mode=1
       shift
@@ -36,7 +41,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 set +e
-raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" gateway status --json 2>&1)"
+wrapper_args=()
+if [[ -n "$prefix" ]]; then
+  wrapper_args+=(--prefix "$prefix")
+fi
+raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" "${wrapper_args[@]}" gateway status --json 2>&1)"
 status=$?
 set -e
 json_raw=

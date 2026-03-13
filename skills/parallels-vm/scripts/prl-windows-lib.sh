@@ -115,6 +115,61 @@ prl_windows_exec_ps_script() {
   prlctl exec "$vm" --current-user powershell -NoProfile -EncodedCommand "$encoded"
 }
 
+prl_windows_build_module_runner() {
+  local prefix=$1
+  local env_json=$2
+  local args_json=$3
+
+  /opt/homebrew/bin/node - "$prefix" "$env_json" "$args_json" <<'EOF'
+const util = require('node:util');
+const [prefixInput, envInput, argsInput] = process.argv.slice(2);
+const normalize = (value) => String(value).replace(/\\/g, "/").replace(/\/+$/, "");
+const js = (value) =>
+  util.inspect(value, { depth: null, maxArrayLength: null, breakLength: Infinity, compact: true, quoteStyle: 'single' });
+const prefix = normalize(prefixInput);
+const envPairs = JSON.parse(envInput);
+const args = JSON.parse(argsInput);
+
+const userMatch = prefix.match(/^([A-Za-z]:\/Users\/[^/]+)/);
+const userHome = userMatch ? userMatch[1] : null;
+const inferredAppData = userHome ? `${userHome}/AppData/Roaming` : null;
+const inferredUserName = userHome ? userHome.split("/").at(-1) : null;
+
+const modulePath = `${prefix}/node_modules/openclaw/openclaw.mjs`;
+const moduleUrl = `file:///${modulePath}`;
+
+process.stdout.write(`
+const envPairs = ${js(envPairs)};
+const inferredUserHome = ${js(userHome)};
+const inferredAppData = ${js(inferredAppData)};
+const inferredUserName = ${js(inferredUserName)};
+const modulePath = ${js(modulePath)};
+const moduleUrl = ${js(moduleUrl)};
+for (const pair of envPairs) {
+  if (!pair || !pair.includes('=')) continue;
+  const index = pair.indexOf('=');
+  const key = pair.slice(0, index);
+  const value = pair.slice(index + 1);
+  process.env[key] = value;
+}
+if (!process.env.USERPROFILE && inferredUserHome) {
+  process.env.USERPROFILE = inferredUserHome;
+}
+if (!process.env.HOME && inferredUserHome) {
+  process.env.HOME = inferredUserHome;
+}
+if (!process.env.USERNAME && inferredUserName) {
+  process.env.USERNAME = inferredUserName;
+}
+if (!process.env.APPDATA && inferredAppData) {
+  process.env.APPDATA = inferredAppData;
+}
+process.argv = ['node', modulePath, ...${js(args)}];
+await import(moduleUrl);
+`);
+EOF
+}
+
 prl_windows_build_openclaw_script() {
   local env_json=$1
   local args_json=$2
@@ -179,6 +234,26 @@ prl_windows_run_openclaw_env() {
   prl_windows_exec_ps_script "$vm" "$script" 2>&1 | prl_windows_strip_clixml
 }
 
+prl_windows_run_openclaw_prefix_env() {
+  local vm=$1
+  local prefix=$2
+  shift 2
+
+  local env_args=()
+  while [[ $# -gt 0 && "$1" == *=* ]]; do
+    env_args+=("$1")
+    shift
+  done
+
+  [[ $# -gt 0 ]] || prl_windows_die "missing openclaw args"
+
+  local env_json args_json script
+  env_json=$(prl_windows_json_array "${env_args[@]}")
+  args_json=$(prl_windows_json_array "$@")
+  script=$(prl_windows_build_module_runner "$prefix" "$env_json" "$args_json")
+  prlctl exec "$vm" "C:\\Program Files\\nodejs\\node.exe" --input-type=module -e "$script" 2>&1
+}
+
 prl_windows_build_install_script() {
   local install_url=$1
   local tag=$2
@@ -203,9 +278,10 @@ EOF
 
 prl_windows_build_npm_install_script() {
   local spec=$1
+  local prefix=${2:-}
 
-  /opt/homebrew/bin/node - "$spec" <<'EOF'
-const [spec] = process.argv.slice(2);
+  /opt/homebrew/bin/node - "$spec" "$prefix" <<'EOF'
+const [spec, prefix] = process.argv.slice(2);
 const ps = (value) => "'" + String(value).replace(/'/g, "''") + "'";
 
 process.stdout.write(`$portableRoot = Join-Path $env:LOCALAPPDATA "OpenClaw\\deps\\portable-git"
@@ -224,6 +300,9 @@ $env:NPM_CONFIG_FUND = "false"
 $env:NPM_CONFIG_AUDIT = "false"
 $env:NPM_CONFIG_SCRIPT_SHELL = "cmd.exe"
 $env:NODE_LLAMA_CPP_SKIP_DOWNLOAD = "1"
+if (${JSON.stringify(Boolean(prefix))}) {
+  $env:NPM_CONFIG_PREFIX = ${ps(prefix || "")}
+}
 & npm.cmd install -g ${ps(spec)} --force --no-fund --no-audit --loglevel=error
 exit $LASTEXITCODE
 `);

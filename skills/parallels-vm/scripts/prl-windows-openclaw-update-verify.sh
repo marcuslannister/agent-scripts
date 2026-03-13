@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/prl-windows-lib.sh"
 
 usage() {
-  echo "usage: $(basename "$0") <vm-name> [--from-version <version>] [--from-spec <npm-spec-or-url>] [--to-tag <tag>] [--update-spec <npm-spec-or-url>] [--install-url <url>] [--force-reinstall] [--skip-install]" >&2
+  echo "usage: $(basename "$0") <vm-name> [--prefix <guest-prefix>] [--from-version <version>] [--from-spec <npm-spec-or-url>] [--to-tag <tag>] [--update-spec <npm-spec-or-url>] [--install-url <url>] [--force-reinstall] [--skip-install]" >&2
   exit "${1:-64}"
 }
 
@@ -21,6 +21,7 @@ esac
 vm=$1
 shift
 
+prefix=
 from_version=2026.3.7
 from_spec=
 to_tag=latest
@@ -32,6 +33,10 @@ tmp_dir=
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --prefix)
+      prefix=${2:?missing prefix}
+      shift 2
+      ;;
     --from-version)
       from_version=${2:?missing version}
       shift 2
@@ -74,13 +79,21 @@ cleanup() {
 trap cleanup EXIT
 
 capture_gateway_status() {
-  "$SCRIPT_DIR/prl-windows-gateway-status-version.sh" "$vm" --json
+  if [[ -n "$prefix" ]]; then
+    "$SCRIPT_DIR/prl-windows-gateway-status-version.sh" "$vm" --prefix "$prefix" --json
+  else
+    "$SCRIPT_DIR/prl-windows-gateway-status-version.sh" "$vm" --json
+  fi
 }
 
 capture_current_cli_version() {
   local raw
   set +e
-  raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --version 2>&1)"
+  if [[ -n "$prefix" ]]; then
+    raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --prefix "$prefix" --version 2>&1)"
+  else
+    raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --version 2>&1)"
+  fi
   local status=$?
   set -e
   if [[ "$status" != "0" ]]; then
@@ -99,7 +112,11 @@ install_target_if_needed() {
 
   if [[ -n "$from_spec" ]]; then
     local install_output
-    install_output="$("$SCRIPT_DIR/prl-windows-install-openclaw.sh" "$vm" --spec "$from_spec" 2>/dev/null)"
+    if [[ -n "$prefix" ]]; then
+      install_output="$("$SCRIPT_DIR/prl-windows-install-openclaw.sh" "$vm" --spec "$from_spec" --prefix "$prefix" 2>/dev/null)"
+    else
+      install_output="$("$SCRIPT_DIR/prl-windows-install-openclaw.sh" "$vm" --spec "$from_spec" 2>/dev/null)"
+    fi
     printf '%s\n' "$install_output" >/dev/null
     printf '%s\n' "{\"attempted\":true,\"skipped\":false,\"reason\":null,\"targetVersion\":null,\"targetSpec\":$(printf '%s' "$from_spec" | /opt/homebrew/bin/node -p 'JSON.stringify(require(\"fs\").readFileSync(0,\"utf8\"))')}"
     return 0
@@ -108,6 +125,10 @@ install_target_if_needed() {
   if [[ "$force_reinstall" != "1" && -n "$current_version" && "$current_version" == "$from_version" ]]; then
     printf '%s\n' "{\"attempted\":false,\"skipped\":true,\"reason\":\"current version already matches --from-version\",\"targetVersion\":\"$from_version\",\"targetSpec\":null}"
     return 0
+  fi
+
+  if [[ -n "$prefix" ]]; then
+    prl_windows_die "--prefix only supports --from-spec / --update-spec Windows smoke today"
   fi
 
   local install_output
@@ -119,9 +140,17 @@ install_target_if_needed() {
 capture_update() {
   set +e
   if [[ -n "$update_spec" ]]; then
-    raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --env "OPENCLAW_UPDATE_PACKAGE_SPEC=$update_spec" update --yes --json 2>&1)"
+    if [[ -n "$prefix" ]]; then
+      raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --prefix "$prefix" --env "OPENCLAW_UPDATE_PACKAGE_SPEC=$update_spec" update --yes --json 2>&1)"
+    else
+      raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --env "OPENCLAW_UPDATE_PACKAGE_SPEC=$update_spec" update --yes --json 2>&1)"
+    fi
   else
-    raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" update --tag "$to_tag" --yes --json 2>&1)"
+    if [[ -n "$prefix" ]]; then
+      raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --prefix "$prefix" update --tag "$to_tag" --yes --json 2>&1)"
+    else
+      raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" update --tag "$to_tag" --yes --json 2>&1)"
+    fi
   fi
   status=$?
   set -e
@@ -172,7 +201,11 @@ before_status="$(capture_gateway_status)"
 update_json="$(capture_update)"
 
 set +e
-after_cli_raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --version 2>&1)"
+if [[ -n "$prefix" ]]; then
+  after_cli_raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --prefix "$prefix" --version 2>&1)"
+else
+  after_cli_raw="$("$SCRIPT_DIR/prl-windows-openclaw.sh" "$vm" --version 2>&1)"
+fi
 after_cli_exit=$?
 set -e
 after_cli_version=
