@@ -77,6 +77,24 @@ prl_run_pnpm() {
     "$@"
 }
 
+prl_run_pnpm_env() {
+  local vm=$1
+  local repo_dir=$2
+  shift 2
+  local env_args=()
+  while [[ $# -gt 0 && "$1" == *=* ]]; do
+    env_args+=("$1")
+    shift
+  done
+  prl_ensure_pnpm "$vm"
+  prlctl exec "$vm" --current-user \
+    /usr/bin/env PATH="$PRL_GUEST_PATH" "${env_args[@]}" \
+    "$PRL_GUEST_NODE" \
+    "$PRL_GUEST_PNPM_CLI" \
+    --dir "$repo_dir" \
+    "$@"
+}
+
 prl_resolve_openclaw_entry() {
   local vm=$1
   local candidate

@@ -218,6 +218,7 @@ OpenClaw/Tahoe notes:
 - Some Tahoe guests inherit permissive `umask` values (`000`); temp dirs/files can land as `0777`/`0666` and trip OpenClaw's world-writable plugin safety gates. If discovery/loader tests suddenly return no candidates, check permissions first before blaming cache/env logic.
 - Prefer argv-style guest commands (`git -C <repo> ...`, wrappers, absolute paths) over `prlctl exec ... sh -lc 'cd ... && ...'`; Tahoe shell-wrapped git commands were flaky here.
 - For guest Vitest, prefer `scripts/prl-macos-vitest.sh`; if you do it manually, use `pnpm exec vitest` and pass repo-root-relative test paths under `--root <repo>`.
+- For env-scoped guest `pnpm`/Vitest runs, reuse the shared wrapper/lib path (`prl_run_pnpm_env` via `scripts/prl-macos-vitest.sh`) instead of hand-writing `prlctl exec ... env ... node ... pnpm ...` each time.
 - `prlctl exec` is fine for argv-style commands; for pipes, heredocs, JSON blobs, or multiline shell work, switch to `scripts/prl-macos-enter.sh`
 - Website installer verification should use `scripts/prl-macos-install-openclaw.sh`, not raw `curl | bash` through `prlctl exec`
 - Gateway version verification should use `scripts/prl-macos-gateway-status-version.sh`; it strips pre-JSON warnings and reports `runtimeVersion` when present
