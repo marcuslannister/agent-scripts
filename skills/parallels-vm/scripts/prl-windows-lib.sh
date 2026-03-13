@@ -86,6 +86,17 @@ $command = Get-Command openclaw.cmd -ErrorAction SilentlyContinue
 if (-not $command) {
   $command = Get-Command openclaw -ErrorAction SilentlyContinue
 }
+$knownPaths = @(
+  (Join-Path $env:APPDATA "npm\\openclaw.cmd"),
+  (Join-Path $env:APPDATA "npm\\openclaw"),
+  (Join-Path $env:LOCALAPPDATA "pnpm\\openclaw.cmd"),
+  (Join-Path $env:LOCALAPPDATA "pnpm\\openclaw"),
+  (Join-Path $env:USERPROFILE "AppData\\Roaming\\npm\\openclaw.cmd"),
+  (Join-Path $env:USERPROFILE "AppData\\Roaming\\npm\\openclaw")
+) | Where-Object { $_ -and (Test-Path $_) }
+if ((-not $command -or -not $command.Source) -and $knownPaths.Count -gt 0) {
+  $command = [pscustomobject]@{ Source = $knownPaths[0] }
+}
 if (-not $command -or -not $command.Source) {
   throw "guest openclaw command not found"
 }
@@ -112,7 +123,7 @@ prl_windows_run_openclaw_env() {
   env_json=$(prl_windows_json_array "${env_args[@]}")
   args_json=$(prl_windows_json_array "$@")
   script=$(prl_windows_build_openclaw_script "$env_json" "$args_json")
-  prl_windows_exec_ps_script "$vm" "$script"
+  prl_windows_exec_ps_script "$vm" "$script" 2>&1 | prl_windows_strip_clixml
 }
 
 prl_windows_build_install_script() {
