@@ -9,6 +9,11 @@ read_when:
 
 Goal: publish to npm without pasting tokens/passwords into terminal logs.
 
+Hard rule: do not run `op whoami`, `op item list`, `op item get`, `op read`, or any other
+1Password CLI command directly in a normal shell for this workflow. Use the tmux
+session below first, and send every `op` command through that tmux session. Direct
+`op` commands can trigger repeated 1Password desktop alerts.
+
 ## Prereqs
 
 - 1Password desktop app unlocked + CLI integration enabled.
@@ -28,6 +33,14 @@ SESSION="op-auth-$(date +%Y%m%d-%H%M%S)"
 tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
 tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op signin" Enter
 tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op whoami" Enter
+```
+
+All commands below assume that same tmux socket/session. If you need to discover
+the item name or fields, do it inside tmux too, for example:
+
+```bash
+tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item list" Enter
+tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item get '<Item>' --vault '<Vault>'" Enter
 ```
 
 ## Preferred: granular automation token (+ optional OTP)
