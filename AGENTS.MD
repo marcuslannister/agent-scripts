@@ -1,6 +1,5 @@
 # AGENTS.MD
 
-Peter owns this. Start: say hi + 1 motivating line.
 Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## Agent Protocol
@@ -12,7 +11,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Files: repo or `~/Projects/agent-scripts`.
 - PRs: use `gh pr view/diff` (no URLs).
 - “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md`.
-- No `./runner`. Guardrails: use `trash` for deletes.
 - Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked.
 - Bugs: add regression test when it fits.
 - Keep files <~500 LOC; split/refactor as needed.
@@ -23,8 +21,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Prefer end-to-end verify; if blocked, say what’s missing.
 - New deps: quick health check (recent releases/commits, adoption).
 - Slash cmds: `~/.codex/prompts/`.
-- Web: search early; quote exact errors; prefer 2024–2025 sources; fallback Firecrawl (`pnpm mcp:*`) / `mcporter`.
-- Oracle: run `npx -y @steipete/oracle --help` once/session before first use.
 - Style: telegraph. Drop filler/grammar. Min tokens (global AGENTS + replies).
 
 ## Screenshots (“use a screenshot”)
@@ -81,13 +77,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Big review: `git --no-pager diff --color=never`.
 - Multi-agent: check `git status/diff` before edits; ship small commits.
 
-## Language/Stack Notes
-- Swift: use workspace helper/daemon; validate `swift build` + tests; keep concurrency attrs right.
-- TypeScript: use repo PM; run `docs:list`; keep files small; follow existing patterns.
-
-## macOS Permissions / Signing (TCC)
-- Never re-sign / ad-hoc sign / change bundle ID as “debug” without explicit ok (can mess TCC).
-
 ## Critical Thinking
 - Fix root cause (not band-aid).
 - Unsure: read more code; if still stuck, ask w/ short options.
@@ -99,27 +88,12 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 
-### bird
-- X CLI: `~/Projects/bird/bird`. Cmds: `tweet`, `reply`, `read`, `thread`, `search`, `mentions`, `whoami`.
-- Uses Firefox cookies by default (`--firefox-profile` to switch).
-
-### sonoscli
-- Sonos CLI: `~/Projects/sonoscli/bin/sonos`. Cmds: `discover`, `status`, `play/pause/stop`, `volume set`, `group`.
-- SSDP can fail: use `--ip <speaker-ip>`.
-- Spotify SMAPI: `sonos smapi search --service "Spotify" --category tracks "query"`.
-
 ### peekaboo
 - Screen tools: `~/Projects/Peekaboo`. Cmds: `capture`, `see`, `click`, `list`, `tools`, `permissions status`.
 - Needs Screen Recording + Accessibility. Docs: `~/Projects/Peekaboo/docs/commands/`.
 
-### sweetistics
-- X analytics app: `~/Projects/sweetistics`.
-
 ### committer
 - Commit helper (PATH). Stages only listed paths; required here. Repo may also ship `./scripts/committer`.
-
-### trash
-- Move files to Trash: `trash …` (system command).
 
 ### bin/docs-list / scripts/docs-list.ts
 - Optional. Lists `docs/` + enforces front-matter. Ignore if `bin/docs-list` not installed. Rebuild: `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`.
@@ -127,22 +101,6 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 ### bin/browser-tools / scripts/browser-tools.ts
 - Chrome DevTools helper. Cmds: `start`, `nav`, `eval`, `screenshot`, `pick`, `cookies`, `inspect`, `kill`.
 - Rebuild: `bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools`.
-
-### xcp
-- Xcode project/workspace helper for managing targets, groups, files, build settings, and assets; run `xcp --help`.
-
-### xcodegen
-- Generates Xcode projects from YAML specs; run `xcodegen --help`.
-
-### lldb
-- Use `lldb` inside tmux to debug native apps; attach to the running app to inspect state.
-
-### axe
-- Simulator automation CLI for describing UI (`axe describe-ui --udid …`), tapping (`axe tap --udid … -x … -y …`), typing, and hardware buttons. Use `axe list-simulators` to enumerate devices.
-
-### oracle
-- Bundle prompt+files for 2nd model. Use when stuck/buggy/review.
-- Run `npx -y @steipete/oracle --help` once/session (before first use).
 
 ### mcporter / iterm / firecrawl / XcodeBuildMCP
 - MCP launcher: `npx mcporter <server>` (see `npx mcporter --help`). Common: `iterm`, `firecrawl`, `XcodeBuildMCP`.
@@ -158,15 +116,3 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 ### tmux
 - Use only when you need persistence/interaction (debugger/server).
 - Quick refs: `tmux new -d -s codex-shell`, `tmux attach -t codex-shell`, `tmux list-sessions`, `tmux kill-session -t codex-shell`.
-
-<frontend_aesthetics>
-Avoid “AI slop” UI. Be opinionated + distinctive.
-
-Do:
-- Typography: pick a real font; avoid Inter/Roboto/Arial/system defaults.
-- Theme: commit to a palette; use CSS vars; bold accents > timid gradients.
-- Motion: 1–2 high-impact moments (staggered reveal beats random micro-anim).
-- Background: add depth (gradients/patterns), not flat default.
-
-Avoid: purple-on-white clichés, generic component grids, predictable layouts.
-</frontend_aesthetics>
