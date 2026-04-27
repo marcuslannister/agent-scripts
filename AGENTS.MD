@@ -45,7 +45,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - `beeper`: Beeper/iMessage local history. SQLite `~/Library/Application Support/BeeperTexts/index.db`; inspect `accounts` first; FTS `mx_room_messages_fts`.
 - `birdclaw`: X/Twitter archive/inbox. `birdcrawl` shim exists; DB `~/.birdclaw/birdclaw.sqlite`; repo `~/Projects/birdclaw`; `xurl` live reads/writes; check `birdclaw auth status --json`; stats `birdclaw db stats --json`.
 - `gog`: Google services CLI. Gmail/Calendar/Drive/Docs/Sheets/Chat when connector insufficient; auth `gog auth list/status`; OAuth creds/keyring under `~/Library/Application Support/gogcli`.
-- Env/API keys: check `~/.profile`; secrets/tokens via `op` only inside tmux.
+- Env/API keys: check `~/.profile`; secrets/tokens via `op` only inside tmux. Never call `op` directly.
 
 ## Docs
 - Start: run docs list (`docs:list` script, or `bin/docs-list` here if present; ignore if not installed); open docs before coding.
@@ -61,7 +61,10 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Use repo’s package manager/runtime; no swaps w/o approval.
 - Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
 - Passwords/secrets: check `~/.profile`; `op`/1Password CLI must always run inside `tmux`, never directly.
-- `op` recipe: run the whole secret-using command in `tmux`; avoid temp files unless needed, delete after.
+- NEVER run `op` directly in a normal shell. No exceptions. This includes harmless-looking diagnostics: no direct `op --version`, `op account list`, `op whoami`, `op vault list`, `op item list`, `op read`, or `op item get`.
+- Every command whose executable is `op` must run inside `tmux`. The whole pipeline must be inside that `tmux` command: pipes, redirects, command substitution, OTP reads, and publish commands that call `op`.
+- Do not probe `op` outside `tmux` to check whether it works. If `tmux` cannot be used, stop and say so.
+- `op` recipe: run the whole `op`-using command in `tmux`; avoid temp files unless needed, delete after; inspect only non-secret metadata and keep secret output redacted.
 
 ## Build / Test
 - Before handoff: run full gate (lint/typecheck/tests/docs).
