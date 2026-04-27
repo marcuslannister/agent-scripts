@@ -38,14 +38,14 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## Data Sources
 - Prefer local archives before web/API for message/history questions; state freshness + gaps.
-- `discrawl`: Discord archive/search. DB `~/.discrawl/discrawl.db`; config `~/.discrawl/config.toml`; freshness `sync_state`; check `discrawl doctor`; sync `discrawl sync` / `discrawl sync --full`.
-- `slacrawl`: Slack local/API mirror. `slacawl` shim exists; DB `~/.slacrawl/slacrawl.db`; desktop works without tokens; API/full threads/DMs need Slack token env; check `slacrawl doctor`; sync `slacrawl sync --source desktop`.
-- `wacrawl`: WhatsApp Desktop archive. DB `~/.wacrawl/wacrawl.db`; source `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared`; read-only; check `wacrawl doctor`; import `wacrawl import`.
-- `notcrawl`: Notion SQLite/Markdown mirror. DB `~/.notcrawl/notcrawl.db`; pages `~/.notcrawl/pages`; desktop read-only; API needs `NOTION_TOKEN` from internal integration + page access; check `notcrawl doctor`; sync `notcrawl sync --source desktop`.
-- `imsg`: iMessage/SMS archive + send. DB `~/Library/Messages/chat.db`; check `sqlite3 ... 'pragma quick_check'`; list `imsg chats --json | jq -s`; history `imsg history --chat-id ID --json | jq -s`; JSON is NDJSON.
-- `beeper`: Beeper/iMessage local history. SQLite `~/Library/Application Support/BeeperTexts/index.db`; inspect `accounts` first; FTS `mx_room_messages_fts`.
-- `birdclaw`: X/Twitter archive/inbox. `birdcrawl` shim exists; DB `~/.birdclaw/birdclaw.sqlite`; repo `~/Projects/birdclaw`; `xurl` live reads/writes; check `birdclaw auth status --json`; stats `birdclaw db stats --json`.
-- `gog`: Google services CLI. Gmail/Calendar/Drive/Docs/Sheets/Chat when connector insufficient; auth `gog auth list/status`; OAuth creds/keyring under `~/Library/Application Support/gogcli`.
+- `discrawl`: Discord archive/search; use `$discrawl`.
+- `slacrawl`: Slack local/API mirror; use `$slacrawl`.
+- `wacrawl`: WhatsApp Desktop archive; read-only; use `$wacrawl`.
+- `notcrawl`: Notion SQLite/Markdown mirror; use `$notcrawl`.
+- `imsg`: iMessage/SMS archive + send; send only on request; use `$imsg`.
+- `beeper`: Beeper local cache/FTS; use `$beeper`.
+- `birdclaw`: X/Twitter archive/inbox; use `$birdclaw` and `$xurl` for live X.
+- `gog`: Google services CLI when connectors are insufficient; use `$gog`.
 - Env/API keys: check `~/.profile`; secrets/tokens via `op` only inside tmux. Never call `op` directly.
 
 ## Docs
@@ -99,7 +99,7 @@ Read `~/Projects/agent-scripts/tools.md` for the full tool catalog if it exists.
 - MCP launcher: `npx mcporter <server>` (see `npx mcporter --help`). Common: `iterm`, `firecrawl`, `XcodeBuildMCP`.
 
 ### imsg
-- iMessage/SMS CLI. Read: `imsg chats --json | jq -s`; `imsg history --chat-id ID --json | jq -s`. Send only when explicitly asked.
+- iMessage/SMS CLI. Use `$imsg`. Send only when explicitly asked.
 
 ### gh
 - GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.

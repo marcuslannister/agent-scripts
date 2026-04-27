@@ -28,6 +28,7 @@ Additional skills (copied 2025-12-31) are from @Dimillian’s public `Dimillian/
   - `~/.codex/skills -> ~/Projects/agent-scripts/skills`
   - `~/.claude/skills -> ~/Projects/agent-scripts/skills`
 - Keep shared skills as real folders in `skills/`. For repo-owned skills, keep the canonical skill in the owning repo and expose it here with a tracked relative symlink, for example `skills/birdclaw -> ../../birdclaw/.agents/skills/birdclaw`.
+- Local crawler skills follow that repo-owned pattern: `birdclaw`, `discrawl`, `slacrawl`, `wacrawl`, `imsg`, and `gog`. `beeper`, `notcrawl`, and `discord-clawd` live here until they have repo homes.
 
 ## Committer Helper (`scripts/committer`)
 - **What it is:** Bash helper that stages exactly the files you list, enforces non-empty commit messages, and creates the commit.
