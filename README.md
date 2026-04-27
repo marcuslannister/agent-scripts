@@ -17,7 +17,17 @@ Additional skills (copied 2025-12-31) are from @Dimillian’s public `Dimillian/
 - Shared guardrail text now lives only inside this repo: `AGENTS.MD` (shared rules + tool list).
 - Every consuming repo’s `AGENTS.MD` is reduced to the pointer line `READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).` Place repo-specific rules **after** that line if they’re truly needed.
 - Do **not** copy the `[shared]` or `<tools>` blocks into other repos anymore. Instead, keep this repo updated and have downstream workspaces re-read `AGENTS.MD` when starting work.
-- When updating the shared instructions, edit `agent-scripts/AGENTS.MD`, mirror the change into `~/AGENTS.MD` (Codex global), and let downstream repos continue referencing the pointer.
+- When updating the shared instructions, edit `agent-scripts/AGENTS.MD`; global Codex/Claude files consume it through symlinks.
+
+## Global Agent Setup
+- Global Codex and Claude instructions should point at this repo:
+  - `~/.codex/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
+  - `~/.claude/CLAUDE.md -> ~/Projects/agent-scripts/AGENTS.MD`
+  - `~/.claude/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
+- Global skill discovery should also point at this repo:
+  - `~/.codex/skills -> ~/Projects/agent-scripts/skills`
+  - `~/.claude/skills -> ~/Projects/agent-scripts/skills`
+- Keep shared skills as real folders in `skills/`. For repo-owned skills, keep the canonical skill in the owning repo and expose it here with a tracked relative symlink, for example `skills/birdclaw -> ../../birdclaw/.agents/skills/birdclaw`.
 
 ## Committer Helper (`scripts/committer`)
 - **What it is:** Bash helper that stages exactly the files you list, enforces non-empty commit messages, and creates the commit.
