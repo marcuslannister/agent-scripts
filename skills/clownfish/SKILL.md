@@ -1,6 +1,6 @@
 ---
 name: clownfish-cloud-pr
-description: Use when launching Clownfish in GitHub Actions to create or update one guarded GitHub implementation PR from issue/PR refs, a ClawSweeper report, or a custom maintainer prompt.
+description: Use when launching Clownfish in GitHub Actions to create or update one guarded GitHub implementation PR from issue/PR refs, a ClawSweeper report, a custom maintainer prompt, or to opt an existing Clownfish PR into ClawSweeper-reviewed cloud automerge.
 ---
 
 # Clownfish Cloud PR
@@ -25,6 +25,7 @@ intentional execution window:
 gh variable set CLOWNFISH_ALLOW_EXECUTE --repo openclaw/clownfish --body 1
 gh variable set CLOWNFISH_ALLOW_FIX_PR --repo openclaw/clownfish --body 1
 gh variable set CLOWNFISH_ALLOW_MERGE --repo openclaw/clownfish --body 0
+gh variable set CLOWNFISH_ALLOW_AUTOMERGE --repo openclaw/clownfish --body 0
 ```
 
 Reset `CLOWNFISH_ALLOW_EXECUTE=0` and `CLOWNFISH_ALLOW_FIX_PR=0` after the
@@ -122,6 +123,7 @@ Accepted triggers:
 /clownfish fix ci
 /clownfish address review
 /clownfish rebase
+/clownfish automerge
 /clownfish explain
 /clownfish stop
 @openclaw-clownfish fix ci
@@ -147,6 +149,34 @@ Scheduled routing is dry by default. Set
 `CLOWNFISH_COMMENT_ROUTER_EXECUTE=1` in `openclaw/clownfish` repo variables to
 let scheduled runs post replies and dispatch workers.
 
+## Bounded ClawSweeper-Reviewed Automerge
+
+Use this only for an existing Clownfish PR that maps back to a `clownfish/*`
+branch and job file:
+
+```text
+/clownfish automerge
+```
+
+The router verifies the commenter is a maintainer, adds
+`clownfish:automerge`, dispatches ClawSweeper for the current PR head, and
+waits for trusted ClawSweeper markers. `needs-changes` / `fix-required`
+dispatches the normal repair worker. `pass`, `approved`, or `no-changes` may
+merge only when the marker SHA matches the current PR head, checks are green,
+GitHub says the PR is mergeable, no `clownfish:human-review` label is present,
+and both merge gates are open:
+
+```bash
+gh variable set CLOWNFISH_ALLOW_MERGE --repo openclaw/clownfish --body 1
+gh variable set CLOWNFISH_ALLOW_AUTOMERGE --repo openclaw/clownfish --body 1
+```
+
+The repair loop is capped by `CLOWNFISH_CLAWSWEEPER_MAX_REPAIRS_PER_PR`
+(default `5`) and `CLOWNFISH_CLAWSWEEPER_MAX_REPAIRS_PER_HEAD` (default `1`).
+If either merge gate is closed when ClawSweeper passes, Clownfish labels the PR
+`clownfish:merge-ready` and leaves it for a human. Pause with
+`/clownfish stop`, which adds `clownfish:human-review`.
+
 ## Guardrails
 
 - One cluster, one branch, one PR: `clownfish/<cluster-id>`.
@@ -155,6 +185,8 @@ let scheduled runs post replies and dispatch workers.
 - No security-sensitive work; route vulnerability, secret, auth bypass, RCE,
   XSS/CSRF/SSRF, exploitability, and sensitive-data exposure elsewhere.
 - Do not merge from Clownfish unless Peter explicitly asks.
+- Do not open `CLOWNFISH_ALLOW_AUTOMERGE` unless Peter explicitly asks for an
+  automerge window.
 - Do not close duplicates before the fix PR path exists, lands, or is proven
   unnecessary.
 - Codex workers do not get GitHub tokens; deterministic scripts own writes.
