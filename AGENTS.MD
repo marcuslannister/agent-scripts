@@ -7,7 +7,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`.
 - 3rd-party/OSS (non-steipete): clone under `~/Projects/oss`.
 - `~/Projects/manager`: private ops (domains/DNS, redirects/workers, runbooks).
-- “MacBook” / “Mac Studio” => SSH there; find hosts/IPs via `tailscale status`.
+- “MacBook” / “Mac Studio” => SSH there; find hosts/IPs via `tailscale status`. If Tailscale/SSH host is down or times out, look on LAN: mDNS (`*.local`), `dns-sd -B _ssh._tcp local`, ARP/router leases, then retry SSH with `-o RequestTTY=no -o RemoteCommand=none`.
 - Files: repo or `~/Projects/agent-scripts`.
 - PRs: use `gh pr view/diff` (no URLs).
 - “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md`.
