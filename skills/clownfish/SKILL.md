@@ -17,9 +17,19 @@ gh variable list --repo openclaw/clownfish --json name,value \
   --jq 'map(select(.name|test("^CLOWNFISH_"))) | sort_by(.name) | .[] | {name,value}'
 ```
 
-Keep merge gated unless Peter explicitly opens it. Normal fix-PR work wants
-`CLOWNFISH_ALLOW_EXECUTE=1`, `CLOWNFISH_ALLOW_FIX_PR=1`, and
-`CLOWNFISH_ALLOW_MERGE=0`.
+Keep merge gated unless Peter explicitly opens it. Execute/fix gates are closed
+unless the repo variables are literally `1`; normal fix-PR work needs an
+intentional execution window:
+
+```bash
+gh variable set CLOWNFISH_ALLOW_EXECUTE --repo openclaw/clownfish --body 1
+gh variable set CLOWNFISH_ALLOW_FIX_PR --repo openclaw/clownfish --body 1
+gh variable set CLOWNFISH_ALLOW_MERGE --repo openclaw/clownfish --body 0
+```
+
+Reset `CLOWNFISH_ALLOW_EXECUTE=0` and `CLOWNFISH_ALLOW_FIX_PR=0` after the
+window. If those vars are absent or not `1`, execute/autonomous workflow runs
+stay plan-only/no-mutation.
 
 ## Create One Job
 
@@ -43,6 +53,28 @@ The script checks for an existing open PR/body match and remote branch named
 `clownfish/<cluster-id>` before writing a duplicate job. Use `--dry-run` to
 inspect the exact job body and `--force` only after deciding the duplicate check
 is stale.
+
+## Ask For A Replacement PR
+
+Yes: the skill can trigger replacement PR writing through the same `create-job`
+and `dispatch` path. Put the maintainer decision in the prompt, especially when
+the source PR is useful but the branch should not be edited directly:
+
+```md
+Treat #123 as useful source work. If the source branch cannot be safely updated
+because it is uneditable, stale, draft-only, unmergeable, or unsafe, create a
+narrow Clownfish replacement PR instead of waiting. Preserve the source PR
+author as co-author, credit the source PR in the replacement PR body, and close
+only that source PR after the replacement PR is opened.
+```
+
+The worker should then emit a fix artifact with
+`repair_strategy=replace_uneditable_branch` and `source_prs` listing the source
+PR URL. The deterministic executor opens or updates `clownfish/<cluster-id>`,
+adds non-bot source PR authors as `Co-authored-by` trailers, and closes the
+superseded source PR only after the replacement PR exists. New replacement PRs
+are blocked when the touched area already has
+`CLOWNFISH_MAX_ACTIVE_PRS_PER_AREA` open Clownfish PRs.
 
 ## Validate And Dispatch
 
@@ -118,6 +150,8 @@ let scheduled runs post replies and dispatch workers.
 ## Guardrails
 
 - One cluster, one branch, one PR: `clownfish/<cluster-id>`.
+- New replacement PRs are capped per touched area by
+  `CLOWNFISH_MAX_ACTIVE_PRS_PER_AREA`.
 - No security-sensitive work; route vulnerability, secret, auth bypass, RCE,
   XSS/CSRF/SSRF, exploitability, and sensitive-data exposure elsewhere.
 - Do not merge from Clownfish unless Peter explicitly asks.
