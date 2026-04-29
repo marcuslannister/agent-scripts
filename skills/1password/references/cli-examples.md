@@ -39,13 +39,25 @@
 `op item create` category values may be the human category name. For API tokens, use `"API Credential"`.
 
 ```bash
+ITEM_TITLE="Service API Tokens"
+FIELD_NAME="api_token"
+EXPECTED_PREFIX=""
 TOKEN="$(pbpaste)"
-op item create --account my.1password.com --category "API Credential" --title "OpenClaw Foundation Slack Clawd" "bot_token[password]=$TOKEN" >/dev/null
-op item get "OpenClaw Foundation Slack Clawd" --account my.1password.com --fields label=bot_token >/dev/null
+if [ -n "$EXPECTED_PREFIX" ]; then
+  case "$TOKEN" in "$EXPECTED_PREFIX"*) ;; *) echo "clipboard value does not match expected prefix" >&2; exit 2;; esac
+fi
+op item create --account my.1password.com --category "API Credential" --title "$ITEM_TITLE" "$FIELD_NAME[password]=$TOKEN" >/dev/null
+op item get "$ITEM_TITLE" --account my.1password.com --fields "label=$FIELD_NAME" >/dev/null
 ```
 
 ```bash
+ITEM_TITLE="Service API Tokens"
+FIELD_NAME="app_token"
+EXPECTED_PREFIX=""
 TOKEN="$(pbpaste)"
-op item edit "OpenClaw Foundation Slack Clawd" --account my.1password.com "app_token[password]=$TOKEN" >/dev/null
-op item get "OpenClaw Foundation Slack Clawd" --account my.1password.com --fields label=app_token >/dev/null
+if [ -n "$EXPECTED_PREFIX" ]; then
+  case "$TOKEN" in "$EXPECTED_PREFIX"*) ;; *) echo "clipboard value does not match expected prefix" >&2; exit 2;; esac
+fi
+op item edit "$ITEM_TITLE" --account my.1password.com "$FIELD_NAME[password]=$TOKEN" >/dev/null
+op item get "$ITEM_TITLE" --account my.1password.com --fields "label=$FIELD_NAME" >/dev/null
 ```

@@ -54,15 +54,22 @@ tmux -S "$SOCKET" kill-session -t "$SESSION"
 
 ## Known working secret-write pattern
 
-Use a fresh tmux session, read the secret from the clipboard without printing it, validate the expected token prefix, and write to Peter's account explicitly. The `op` category string is human-readable and case-sensitive in this CLI build; use `"API Credential"`, not `api_credential`.
+Use a fresh tmux session, read the secret from the clipboard without printing it, optionally validate an expected token prefix, and write to Peter's account explicitly. The `op` category string is human-readable and case-sensitive in this CLI build; use `"API Credential"`, not `api_credential`.
 
 ```bash
 tmux new-session -d -s op-store-secret 'bash -lc '\''set -euo pipefail
 set +x
+ACCOUNT="my.1password.com"
+ITEM_TITLE="Service API Tokens"
+FIELD_NAME="api_token"
+EXPECTED_PREFIX=""
+NOTES="Created via tmux-safe op workflow"
 TOKEN="$(pbpaste)"
-case "$TOKEN" in xoxb-*) ;; *) echo "clipboard does not contain expected Slack bot token" >&2; exit 2;; esac
-op item create --account my.1password.com --category "API Credential" --title "OpenClaw Foundation Slack Clawd" "bot_token[password]=$TOKEN" "notesPlain=Slack tokens for OpenClaw Foundation Clawd" >/dev/null
-op item get "OpenClaw Foundation Slack Clawd" --account my.1password.com --fields label=bot_token >/dev/null
+if [ -n "$EXPECTED_PREFIX" ]; then
+  case "$TOKEN" in "$EXPECTED_PREFIX"*) ;; *) echo "clipboard value does not match expected prefix" >&2; exit 2;; esac
+fi
+op item create --account "$ACCOUNT" --category "API Credential" --title "$ITEM_TITLE" "$FIELD_NAME[password]=$TOKEN" "notesPlain=$NOTES" >/dev/null
+op item get "$ITEM_TITLE" --account "$ACCOUNT" --fields "label=$FIELD_NAME" >/dev/null
 echo "stored and verified secret field without printing it"
 sleep 30
 '\'''
@@ -73,10 +80,16 @@ For a second secret on the same item:
 ```bash
 tmux new-session -d -s op-edit-secret 'bash -lc '\''set -euo pipefail
 set +x
+ACCOUNT="my.1password.com"
+ITEM_TITLE="Service API Tokens"
+FIELD_NAME="app_token"
+EXPECTED_PREFIX=""
 TOKEN="$(pbpaste)"
-case "$TOKEN" in xapp-*) ;; *) echo "clipboard does not contain expected Slack app token" >&2; exit 2;; esac
-op item edit "OpenClaw Foundation Slack Clawd" --account my.1password.com "app_token[password]=$TOKEN" >/dev/null
-op item get "OpenClaw Foundation Slack Clawd" --account my.1password.com --fields label=app_token >/dev/null
+if [ -n "$EXPECTED_PREFIX" ]; then
+  case "$TOKEN" in "$EXPECTED_PREFIX"*) ;; *) echo "clipboard value does not match expected prefix" >&2; exit 2;; esac
+fi
+op item edit "$ITEM_TITLE" --account "$ACCOUNT" "$FIELD_NAME[password]=$TOKEN" >/dev/null
+op item get "$ITEM_TITLE" --account "$ACCOUNT" --fields "label=$FIELD_NAME" >/dev/null
 echo "stored and verified secret field without printing it"
 sleep 30
 '\'''
