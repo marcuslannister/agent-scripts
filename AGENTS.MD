@@ -66,6 +66,8 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Every command whose executable is `op` must run inside `tmux`. The whole pipeline must be inside that `tmux` command: pipes, redirects, command substitution, OTP reads, and publish commands that call `op`.
 - Do not probe `op` outside `tmux` to check whether it works. If `tmux` cannot be used, stop and say so.
 - `op` recipe: run the whole `op`-using command in `tmux`; avoid temp files unless needed, delete after; inspect only non-secret metadata and keep secret output redacted.
+- Remote secret files: stream without printing. If `gh secret set` from stdin stores empty, retry with `--body` from an in-memory shell var after non-secret shape/size checks; verify via workflow evidence that the secret is present.
+- OpenClaw Gateway: Peter runs it via a pm2 watcher. Never start/load it via launchd/LaunchAgent on this machine. Do not run `openclaw gateway start/install` or `launchctl bootstrap` for `ai.openclaw.gateway`; if gateway is down, ask before touching the pm2 watcher.
 
 ## Build / Test
 - Before handoff: run full gate (lint/typecheck/tests/docs).
