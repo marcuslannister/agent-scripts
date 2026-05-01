@@ -46,7 +46,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - `beeper`: Beeper local cache/FTS; use `$beeper`.
 - `birdclaw`: X/Twitter archive/inbox; use `$birdclaw` and `$xurl` for live X.
 - `gog`: Google services CLI when connectors are insufficient; use `$gog`.
-- Env/API keys: check `~/.profile`; secrets/tokens via `op` only inside tmux. Never call `op` directly.
+- Env/API keys: check `~/.profile`; secrets/tokens via `op` only inside tmux, and only when strictly needed. Never call `op` directly.
 
 ## Docs
 - Start: run docs list (`docs:list` script, or `bin/docs-list` here if present; ignore if not installed); open docs before coding.
@@ -61,11 +61,13 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 ## Flow & Runtime
 - Use repo’s package manager/runtime; no swaps w/o approval.
 - Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
-- Passwords/secrets: check `~/.profile`; `op`/1Password CLI must always run inside `tmux`, never directly.
+- Passwords/secrets: check `~/.profile` first. `op`/1Password CLI is last resort, must always run inside `tmux`, never directly.
 - NEVER run `op` directly in a normal shell. No exceptions. This includes harmless-looking diagnostics: no direct `op --version`, `op account list`, `op whoami`, `op vault list`, `op item list`, `op read`, or `op item get`.
-- Every command whose executable is `op` must run inside `tmux`. The whole pipeline must be inside that `tmux` command: pipes, redirects, command substitution, OTP reads, and publish commands that call `op`.
+- `tmux` is necessary for `op`, but not sufficient: do not spam 1Password. No parallel `op`; no repeated probe sessions; no broad vault/item enumeration; no trial-and-error secret discovery.
+- Before any `op` call, state the exact single item/field/secret needed and why. If more than one 1Password command seems necessary, stop and ask Peter before continuing.
+- Every command whose executable is `op` must run inside one named `tmux` session. The whole pipeline must be inside that `tmux` command: pipes, redirects, command substitution, OTP reads, and publish commands that call `op`.
 - Do not probe `op` outside `tmux` to check whether it works. If `tmux` cannot be used, stop and say so.
-- `op` recipe: run the whole `op`-using command in `tmux`; avoid temp files unless needed, delete after; inspect only non-secret metadata and keep secret output redacted.
+- `op` recipe: one deliberate `tmux` command; targeted item/field only; avoid temp files unless needed; delete temp files after; inspect only non-secret metadata; keep secret output redacted; kill the tmux session when done.
 - Remote secret files: stream without printing. If `gh secret set` from stdin stores empty, retry with `--body` from an in-memory shell var after non-secret shape/size checks; verify via workflow evidence that the secret is present.
 - OpenClaw Gateway: Peter runs it via a pm2 watcher. Never start/load it via launchd/LaunchAgent on this machine. Do not run `openclaw gateway start/install` or `launchctl bootstrap` for `ai.openclaw.gateway`; if gateway is down, ask before touching the pm2 watcher.
 
