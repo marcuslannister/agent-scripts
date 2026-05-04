@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Project Triage"
+  short_description: "Find open issues and PRs across your GitHub profiles"
+  default_prompt: "Use $github-project-triage to find open issues and pull requests across my GitHub profiles and summarize the highest-priority queues."
