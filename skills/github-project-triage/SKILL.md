@@ -1,6 +1,6 @@
 ---
-name: github-project-triage
-description: Use when Peter asks to find, rank, or sweep open GitHub issues and pull requests across his GitHub profiles, organizations, or local projects using RepoBar. Triggers include "open issues across my profiles", "all open PRs", "project triage", "what should I look at on GitHub", "repo queues", "maintainer queue", and broad GitHub backlog scans that are not about one specific issue or PR.
+name: "github-project-triage"
+description: "Use RepoBar to find and triage open GitHub issues and PRs across Peter's profiles, orgs, and local projects."
 ---
 
 # GitHub Project Triage
