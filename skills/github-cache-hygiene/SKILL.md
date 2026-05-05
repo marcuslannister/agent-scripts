@@ -40,7 +40,7 @@ Use a live call when:
 - the local result is missing or obviously stale
 - the user asks for latest/live state
 
-For PR review, first hydrate exact PR details once with `gitcrawl sync owner/repo --numbers <n> --with pr-details` when you need files, commits, checks, or run summaries. Then use local `gh pr view`, `gh pr checks`, and `gh run list/view` for repeated inspection.
+For PR review, prefer hydrating exact PR details once with `gitcrawl sync owner/repo --numbers <n> --with pr-details` when you know you will inspect files, commits, checks, or run summaries repeatedly. The `gh` shim can auto-hydrate one exact PR on miss, using `GITHUB_TOKEN` or `gh auth token`; explicit hydration makes intent and cost clearer.
 
 After a write, do one targeted readback, not a broad rescan.
 
