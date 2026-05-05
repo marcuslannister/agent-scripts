@@ -14,12 +14,15 @@ Use `gh` normally. On Peter's machines it is expected to be the gitcrawl-backed 
 Prefer these local/cached reads:
 
 ```bash
+gitcrawl sync owner/repo --numbers 123 --with pr-details
 gh search issues "<terms>" -R owner/repo --state open --json number,title,state,url,updatedAt,labels,author
 gh search prs "<terms>" -R owner/repo --state open --json number,title,state,url,updatedAt,isDraft,author
 gh issue list -R owner/repo --state open --author user --assignee user --label bug --json number,title,url
 gh pr list -R owner/repo --state open --author user --label dependencies --json number,title,url
 gh issue view 123 -R owner/repo --json number,title,state,body,comments,labels,url
-gh pr view 123 -R owner/repo --json number,title,state,body,comments,labels,files,commits,url
+gh pr view 123 -R owner/repo --json number,title,state,body,comments,labels,files,commits,statusCheckRollup,url
+gh pr checks 123 -R owner/repo --json name,state,detailsUrl,workflow
+gh run list -R owner/repo --branch branch-name --json databaseId,workflowName,status,conclusion,url
 gh pr diff 123 -R owner/repo --patch
 ```
 
@@ -36,6 +39,8 @@ Use a live call when:
 - verifying CI status after a push
 - the local result is missing or obviously stale
 - the user asks for latest/live state
+
+For PR review, first hydrate exact PR details once with `gitcrawl sync owner/repo --numbers <n> --with pr-details` when you need files, commits, checks, or run summaries. Then use local `gh pr view`, `gh pr checks`, and `gh run list/view` for repeated inspection.
 
 After a write, do one targeted readback, not a broad rescan.
 
