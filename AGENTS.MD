@@ -70,6 +70,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Every command whose executable is `op` must run inside one named `tmux` session. The whole pipeline must be inside that `tmux` command: pipes, redirects, command substitution, OTP reads, and publish commands that call `op`.
 - Do not probe `op` outside `tmux` to check whether it works. If `tmux` cannot be used, stop and say so.
 - `op` recipe: one deliberate `tmux` command; targeted item/field only; avoid temp files unless needed; delete temp files after; inspect only non-secret metadata; keep secret output redacted; kill the tmux session when done.
+- Molty service account: `~/.profile` may define `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` for the restricted Molty vault. Use only when the requested secret is known to live there. Prefer one token-efficient command with `OP_SERVICE_ACCOUNT_TOKEN="$MOLTY_OP_SERVICE_ACCOUNT_TOKEN"` scoped to that command; no broad vault/item enumeration, no repeated probes, no repo-stored token.
 - Remote secret files: stream without printing. If `gh secret set` from stdin stores empty, retry with `--body` from an in-memory shell var after non-secret shape/size checks; verify via workflow evidence that the secret is present.
 - OpenClaw Gateway: Peter runs it via a pm2 watcher. Never start/load it via launchd/LaunchAgent on this machine. Do not run `openclaw gateway start/install` or `launchctl bootstrap` for `ai.openclaw.gateway`; if gateway is down, ask before touching the pm2 watcher.
 
