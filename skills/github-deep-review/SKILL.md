@@ -17,6 +17,8 @@ gh pr view <n> --json number,title,state,author,body,comments,reviews,files,comm
 gh pr diff <n> --patch
 ```
 
+For PRs, collect author context by default unless the author is Peter (`steipete` or an obvious Peter-owned account). Use the local workflow in `~/Projects/agent-scripts/skills/github-author-context/SKILL.md` and include a short `Author context:` block near the top of the review when the author is not Peter.
+
 For repo-local review, also inspect:
 
 ```bash
