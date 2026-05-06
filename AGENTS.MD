@@ -33,6 +33,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Blog repo: `~/Projects/steipete.me`
 - Notes/Runbooks: `~/Projects/manager/docs/` (e.g. `mac-studio.md`, `mac-vm.md`)
 - OpenAI/Codex limits tracking: `~/Documents/steipete/codex limits.md`
+- Codex debugging: read local source first: `~/Projects/codex`; start `codex-rs/AGENTS.md`, then targeted `rg` in `codex-rs/{core,tui,exec,cli,app-server,app-server-protocol,config}`.
 - Obsidian vault: `~/obsidian`; CLI `notesmd-cli` (`obsidian-cli` shim); default vault `obsidian`; list `notesmd-cli list`, print `notesmd-cli print "Note Title"`, content search `notesmd-cli search-content "term" --format json`.
 - Sparkle keys: `~/Library/CloudStorage/Dropbox/Backup/Sparkle`
 
