@@ -37,7 +37,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Sparkle keys: `~/Library/CloudStorage/Dropbox/Backup/Sparkle`
 
 ## Data Sources
-- Prefer local archives before web/API for message/history questions; state freshness + gaps.
+- Prefer local archives before web/API for message/history questions; check freshness first; sync when asked; state freshness + gaps.
 - `discrawl`: Discord archive/search; use `$discrawl`.
 - `slacrawl`: Slack local/API mirror; use `$slacrawl`.
 - `wacrawl`: WhatsApp Desktop archive; read-only; use `$wacrawl`.
@@ -57,10 +57,12 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 ## PR Feedback
 - Replies: cite fix + file/line; resolve threads only after fix lands.
 - When merging a PR: thank the contributor in `CHANGELOG.md`.
+- User-facing fixes/landed PRs: changelog unless pure test/internal.
 
 ## Flow & Runtime
 - Use repo’s package manager/runtime; no swaps w/o approval.
 - Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
+- zsh: don't use `status` as a variable.
 - Passwords/secrets: check `~/.profile` first. `op`/1Password CLI is last resort, must always run inside `tmux`, never directly.
 - NEVER run `op` directly in a normal shell. No exceptions. This includes harmless-looking diagnostics: no direct `op --version`, `op account list`, `op whoami`, `op vault list`, `op item list`, `op read`, or `op item get`.
 - `tmux` is necessary for `op`, but not sufficient: do not spam 1Password. No parallel `op`; no repeated probe sessions; no broad vault/item enumeration; no trial-and-error secret discovery.
@@ -78,6 +80,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## Git
 - Safe by default: `git status/diff/log`. Push only when user asks.
+- End in visible checkout/branch user expects; avoid surprise temp worktrees.
 - Branch changes require user consent.
 - Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
 - Remotes under `~/Projects`: prefer HTTPS; flip SSH->HTTPS before pull/push.
