@@ -32,36 +32,80 @@ If the user names `wacrawl` or `wacli` repo work specifically, read that tool's 
 
 ## Common Commands
 
-Primary archive:
+### Primary Archive
+
+Freshness and status:
 
 ```bash
 wacrawl status
-wacrawl chats --limit 20
-wacrawl unread --limit 20
-wacrawl messages --after 2026-01-01 --limit 50
-wacrawl --json search "query"
+wacrawl doctor
+wacrawl sync
 ```
 
-Alt/live account inspection:
+Unread triage:
+
+```bash
+wacrawl chats --limit 20
+wacrawl unread --limit 20
+wacrawl --json unread --limit 100
+```
+
+Search and slice messages:
+
+```bash
+wacrawl messages --after 2026-01-01 --limit 50
+wacrawl messages --chat JID --asc --limit 100
+wacrawl messages --has-media --limit 50
+wacrawl --json search "query"
+wacrawl search "query" --after 2026-01-01 --from-them
+```
+
+Archive media or backups, only when asked:
+
+```bash
+wacrawl import --copy-media
+wacrawl backup status
+wacrawl --sync never backup push
+```
+
+### Alt/Live Accounts
+
+Account discovery and read-only inspection:
 
 ```bash
 wacli accounts list --json
 wacli --account me auth status --read-only --json
 wacli --account me chats list --read-only --json
+wacli --account me messages list --read-only --json --limit 50
 wacli --account me messages search --read-only --json "query"
 ```
 
-Background live sync, only when requested:
+Background live sync, only when requested. Prefer `tmux` for follow-mode:
 
 ```bash
 wacli --account me sync --follow --events
+wacli --account me sync --once --events
 ```
 
-Sending, only when requested:
+Media, sending, and live mutations, only when explicitly requested:
 
 ```bash
+wacli --account me media download --chat JID --id MESSAGE_ID
 wacli --account me send text --to JID_OR_NAME --message "message"
+wacli --account me send file --to JID_OR_NAME --file ./file.jpg --caption "caption"
+wacli --account me send text --to JID --reply-to MESSAGE_ID --message "reply"
 ```
+
+### Comparisons
+
+When comparing `wacrawl` and `wacli`, compare both counts and overlap:
+
+- message counts and date spans
+- chat counts
+- newest message timestamp
+- overlap by `msg_id`
+- overlap by `chat_jid + msg_id` when JIDs are normalized enough
+- obvious gaps explained by linked-device history limits vs Desktop archive coverage
 
 ## Repo Pointers
 
