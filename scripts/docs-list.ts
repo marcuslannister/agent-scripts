@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const docsListFile = fileURLToPath(import.meta.url);
 const docsListDir = dirname(docsListFile);
-const DOCS_DIR = join(docsListDir, '..', 'docs');
+const repoDir = docsListDir.includes('$bunfs') ? process.cwd() : join(docsListDir, '..');
+const DOCS_DIR = join(repoDir, 'docs');
 
 const EXCLUDED_DIRS = new Set(['archive', 'research']);
 
