@@ -1,6 +1,6 @@
 ---
-name: 1password
-description: Set up and use 1Password CLI (op, one-password). Use when installing the CLI, enabling desktop app integration, signing in, selecting Peter's multi-account setup, or storing/reading/injecting/running secrets via op. Always use tmux for op commands.
+name: one-password
+description: Use 1Password CLI (op, one-password, 1Password) for desktop sign-in, account selection, and storing/reading/injecting secrets. Always use tmux for op commands.
 metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
 ---
 
@@ -31,6 +31,17 @@ Follow the official CLI get-started steps. Don't guess install commands.
 - Pass `--account my.1password.com` on every `op` command when storing or reading Peter's secrets. Do not rely on ambient account selection.
 - `op account list` is metadata-only, but still must run inside tmux. Use it to confirm account names when routing is unclear.
 - `op signin --account my.1password.com` can return status 0 with no useful output and still not make a later shell signed in. Prefer doing sign-in, create/edit/get, and verification in the same tmux shell.
+
+## Service account tokens
+
+- 1Password service accounts are non-interactive tokens for a specific vault/scope, useful for automation without unlocking the desktop app.
+- The current service-account env var is `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` in `~/.profile`; use it only for known items in the restricted `Molty` vault.
+- Check `~/.profile` first for service-account tokens before asking the user to unlock the 1Password desktop app.
+- Export it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$MOLTY_OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault Molty ...`.
+- Service-account `op` reads require an explicit vault query; omitting `--vault Molty` fails even when the token is valid.
+- Keep the tmux rule: every `op` command, including service-account reads, still runs inside one named tmux session.
+- Do not enumerate vaults/items with service accounts. If the known item or field is not accessible, stop and ask the user instead of probing.
+- Print presence/shape only, never token or secret values.
 
 ## REQUIRED tmux session (T-Max)
 
