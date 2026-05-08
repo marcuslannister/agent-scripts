@@ -59,6 +59,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 ## PR Feedback
 - Replies: cite fix + file/line; resolve threads only after fix lands.
+- Review: changelog-only dirt/conflict is routine fixup; don't call PR unmergeable or mention it.
 - When merging a PR: thank the contributor in `CHANGELOG.md`.
 - User-facing fixes/landed PRs: changelog unless pure test/internal.
 
