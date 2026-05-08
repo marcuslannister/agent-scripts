@@ -1,4 +1,0 @@
-interface:
-  display_name: "Sonos Debug"
-  short_description: "Debug Sonos reliability on UniFi"
-  default_prompt: "Use $sonos-debug to check Sonos discovery, firmware, latency, UniFi radio/client placement, and safe Wi-Fi reliability recommendations."
