@@ -35,7 +35,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Notes/Runbooks: `~/Projects/manager/docs/` (e.g. `mac-studio.md`, `mac-vm.md`)
 - OpenAI/Codex limits tracking: `~/Documents/steipete/codex limits.md`
 - Codex debugging: read local source first: `~/Projects/codex`; start `codex-rs/AGENTS.md`, then targeted `rg` in `codex-rs/{core,tui,exec,cli,app-server,app-server-protocol,config}`.
-- Obsidian vault: `~/obsidian`; official CLI `obsidian`; default vault `obsidian`; list vaults `obsidian vaults`, search `obsidian search query="term" format=json`, read `obsidian read path="Note.md"`. Legacy fallback: `notesmd-cli` (`obsidian-cli` shim).
+- Obsidian vault: `~/obsidian`; official CLI `obsidian`; default vault `obsidian`; list vaults `obsidian vaults`, search `obsidian search query="term" format=json`, read `obsidian read path="Note.md"`.
 - Sparkle keys: `~/Library/CloudStorage/Dropbox/Backup/Sparkle`
 
 ## Data Sources

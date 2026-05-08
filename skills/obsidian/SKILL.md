@@ -13,7 +13,6 @@ Use this for local Obsidian vault work. An Obsidian vault is a normal folder of 
 - Default vault name: `obsidian`
 - Usual local vault path: `~/obsidian`
 - Official CLI: `obsidian`
-- Legacy shim, only for fallback: `obsidian-cli` -> `notesmd-cli`
 
 ## First Checks
 
@@ -29,8 +28,6 @@ If `obsidian` says CLI is disabled:
 1. Prefer asking the user to enable Settings -> General -> Advanced -> Command line interface.
 2. If you already confirmed the app config shape, `~/Library/Application Support/obsidian/obsidian.json` uses `"cli": true`.
 3. Restart Obsidian after changing app-level CLI config.
-
-If the official CLI is unavailable, fall back to direct file operations in the vault or the legacy `notesmd-cli`/`obsidian-cli` shim when present.
 
 ## Read Workflow
 
@@ -102,15 +99,3 @@ For `.canvas`, `.base`, and `.json` files, read/edit as structured data when pos
 - Do not create hidden dot-folder notes through the Obsidian URI/CLI path.
 - Preserve frontmatter and wikilinks unless the task is to refactor them.
 - If multiple vaults exist, do not guess; use `obsidian vaults` and `obsidian.json`.
-
-## Fallbacks
-
-Legacy commands may exist:
-
-```bash
-notesmd-cli list
-notesmd-cli print "Note Title"
-notesmd-cli search-content "term" --format json
-```
-
-Treat them as fallback compatibility only. Prefer official `obsidian` for new work.
