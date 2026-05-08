@@ -1,6 +1,6 @@
 ---
 name: "github-project-triage"
-description: "Use RepoBar to find and triage open GitHub issues and PRs across Peter's profiles, orgs, and local projects."
+description: "RepoBar GitHub queue triage: open issues/PRs across Peter profiles, orgs, local projects."
 ---
 
 # GitHub Project Triage

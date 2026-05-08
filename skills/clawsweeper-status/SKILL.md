@@ -1,6 +1,6 @@
 ---
 name: clawsweeper-status
-description: Show ClawSweeper operational status, recent activity, and worker health. Use when the user asks to monitor ClawSweeper, summarize recent closed/commented/reviewed/merged GitHub URLs, check workflow health, count active Codex workers, or get a compact ClawSweeper system status snapshot.
+description: ClawSweeper status: recent closed/commented/reviewed/merged URLs, workflow health, active workers, compact ops snapshot.
 ---
 
 # ClawSweeper Status

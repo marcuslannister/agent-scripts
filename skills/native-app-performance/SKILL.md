@@ -1,6 +1,6 @@
 ---
 name: native-app-performance
-description: Native macOS/iOS app performance profiling via xctrace/Time Profiler and CLI-only analysis of Instruments traces. Use when asked to profile, attach, record, or analyze Instruments .trace files, find hotspots, or optimize native app performance without opening Instruments UI.
+description: Native macOS/iOS performance: xctrace/Time Profiler, .trace analysis, hotspots, CLI-only optimization review.
 ---
 
 # Native App Performance (CLI-only)

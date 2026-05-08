@@ -1,6 +1,6 @@
 ---
 name: beeper
-description: Use for local Beeper cache searches, contact hints, iMessage/WhatsApp room lookup, and message FTS.
+description: Local Beeper cache: contact hints, room lookup, WhatsApp/iMessage traces, message FTS.
 ---
 
 # Beeper

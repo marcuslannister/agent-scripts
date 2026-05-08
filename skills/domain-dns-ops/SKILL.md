@@ -1,7 +1,6 @@
 ---
 name: domain-dns-ops
-description: >
-  Domain/DNS ops across Cloudflare, DNSimple, Namecheap for Peter. Use for onboarding zones to Cloudflare, flipping nameservers, setting redirects (Page Rules/Rulesets/Workers), updating redirect-worker mappings, and verifying DNS/HTTP. Source of truth: ~/Projects/manager.
+description: Peter domain/DNS ops: Cloudflare, DNSimple, Namecheap, zones, nameservers, redirects, workers, DNS/HTTP verify. Truth: `~/Projects/manager`.
 ---
 
 # Domain/DNS Ops (Peter)

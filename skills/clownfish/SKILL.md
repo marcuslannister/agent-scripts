@@ -1,6 +1,6 @@
 ---
 name: clownfish-cloud-pr
-description: Use when launching Clownfish in GitHub Actions to create or update one guarded GitHub implementation PR from issue/PR refs, a ClawSweeper report, a custom maintainer prompt, or to opt an existing Clownfish PR into ClawSweeper-reviewed cloud automerge.
+description: Clownfish GitHub Actions PRs: issue/PR refs, ClawSweeper reports, maintainer prompts, guarded cloud implementation/automerge.
 ---
 
 # Clownfish Cloud PR

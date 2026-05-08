@@ -1,6 +1,6 @@
 ---
 name: github-author-context
-description: Use when reviewing a non-Peter GitHub PR or deciding who a contributor is, how active they are, and whether they are trusted.
+description: GitHub contributor context for non-Peter PRs: identity, activity, trust, company/team signal.
 ---
 
 # GitHub Author Context

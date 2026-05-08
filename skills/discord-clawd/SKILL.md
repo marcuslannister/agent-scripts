@@ -1,6 +1,6 @@
 ---
 name: discord-clawd
-description: Use to talk to the Discord-backed OpenClaw agent/session; not for archive search.
+description: Discord-backed OpenClaw agent/session relay; not archive search.
 ---
 
 # Discord Clawd

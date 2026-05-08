@@ -1,6 +1,6 @@
 ---
 name: speaking
-description: Evaluate and maintain Peter Steinberger's speaking opportunities, conference invites, keynotes, panels, firesides, retreats, and related inbound event requests. Use when asked to scan Gmail/calendar for speaking opportunities, decide whether an invite is worth doing, update the conferences repo, or sync the Peter Steinberger Inbounds Google Sheet.
+description: Peter speaking ops: conference invites, keynotes, panels, firesides, Gmail/calendar scan, conferences repo, Inbounds Sheet.
 ---
 
 # Speaking

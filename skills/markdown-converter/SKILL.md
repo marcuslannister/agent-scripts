@@ -1,6 +1,6 @@
 ---
 name: markdown-converter
-description: Convert documents and files to Markdown using markitdown. Use when converting PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx, .xls), HTML, CSV, JSON, XML, images (with EXIF/OCR), audio (with transcription), ZIP archives, YouTube URLs, or EPubs to Markdown format for LLM processing or text analysis.
+description: Markitdown conversion to Markdown: PDF, Office, HTML, CSV/JSON/XML, images OCR/EXIF, audio transcript, ZIP, YouTube, EPUB.
 ---
 
 # Markdown Converter

@@ -1,6 +1,6 @@
 ---
 name: vm-lab
-description: Build and use a disposable Parallels macOS VM lab for end-to-end GUI automation testing, especially Peekaboo validation with independent screenshots, TCC permissions, Ghostty-launched commands, and two-way verification.
+description: Disposable Parallels macOS VM lab: GUI automation, Peekaboo validation, screenshots, TCC, Ghostty commands, two-way verify.
 ---
 
 # VM Lab

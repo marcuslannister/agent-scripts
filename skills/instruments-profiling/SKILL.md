@@ -1,6 +1,6 @@
 ---
 name: instruments-profiling
-description: Use when profiling native macOS or iOS apps with Instruments/xctrace. Covers correct binary selection, CLI arguments, exports, and common gotchas.
+description: Instruments/xctrace profiling: macOS/iOS app traces, binary choice, CLI args, exports, profiling gotchas.
 metadata:
   short-description: Instruments profiling for macOS/iOS apps
 ---

@@ -1,6 +1,6 @@
 ---
 name: cloudflare-registrar
-description: Buy/check domains with Cloudflare Registrar via mcporter.
+description: Cloudflare Registrar via mcporter: domain availability, prices, registration.
 ---
 
 # Cloudflare Registrar

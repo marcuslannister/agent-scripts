@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Use the @steipete/oracle CLI to bundle a prompt plus the right files and get a second-model review (API or browser) for debugging, refactors, design checks, or cross-validation.
+description: "@steipete/oracle second-model review: bundle prompt/files for debugging, refactors, design checks, cross-validation."
 ---
 
 # Oracle (CLI) — best use

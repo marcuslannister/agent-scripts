@@ -1,6 +1,6 @@
 ---
 name: github-deep-review
-description: Use when the user asks to review a GitHub issue, pull request, bug report, or maintainer thread, especially with wording like "review", "dig in", "best possible fix", "read more code", "is this still an issue", or "should we refactor".
+description: Deep GitHub issue/PR review: bug reports, maintainer threads, best fix, stale-or-real, refactor need, read-code-first.
 ---
 
 # GitHub Deep Review
