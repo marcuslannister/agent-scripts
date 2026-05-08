@@ -53,6 +53,7 @@ For macOS Screen Recording and Accessibility, the responsible process matters.
 - Launch the test command from a visible terminal app in the guest when Screen Recording is involved.
 - Ghostty works as a GUI terminal if installed.
 - After a first failed capture, check `System Settings > Privacy & Security > Screen & System Audio Recording`.
+- `permissions status` run through `prlctl exec` may still report Screen Recording false after Ghostty is allowed; validate Screen Recording by rerunning the capture from Ghostty.
 
 Open the Screen Recording pane:
 
@@ -91,10 +92,12 @@ ln -sf /tmp/run-vm-lab.zsh /tmp/r
 open -a Ghostty'\'''
 ```
 
-Then type `/tmp/r` into Ghostty with `scripts/parallels_type.py`.
+Then link the launcher into Ghostty's home directory and type `./r` with `scripts/parallels_type.py`. This avoids unreliable path characters in Parallels key injection.
 
 ```bash
-python3 skills/vm-lab/scripts/parallels_type.py "macOS Tahoe" $'/tmp/r\n'
+prlctl exec "macOS Tahoe" \
+  "sudo -u steipete -H /bin/zsh -lc 'ln -sf /tmp/run-vm-lab.zsh ~/r'"
+python3 skills/vm-lab/scripts/parallels_type.py "macOS Tahoe" $'./r\n'
 ```
 
 Avoid long command typing. Parallels key injection uses its own key-code table and can be layout-sensitive.
@@ -105,7 +108,8 @@ Avoid long command typing. Parallels key injection uses its own key-code table a
 - `open -na Ghostty.app --args -e ...` may only focus an existing Ghostty window on macOS; do not assume it runs the command.
 - `prlctl exec` may re-join argv through a guest shell; for complex payloads, pass one fully shell-quoted command string or create the file with a tiny Python writer.
 - Parallels `send-key-event --key` uses Parallels key values, not macOS virtual key codes.
-- For normal typing, send `prlctl send-key-event <vm> --key <key>` with no `--event`; explicit `press`/`release` can repeat or stick.
+- For normal typing, send `prlctl send-key-event <vm> --key <key>` with no `--event`; explicit `press`/`release` can repeat or stick. Return is an exception: use press then release.
+- Prefer one `prlctl send-key-event --json` batch over many separate `send-key-event` processes; separate calls can drift under focus/latency.
 - Use `PRL_KEY_ENTER = 36`, `PRL_KEY_SLASH = 61`, `PRL_KEY_R = 27`, `PRL_KEY_T = 28`, `PRL_KEY_M = 58`, `PRL_KEY_P = 33`.
 - If keystrokes produce garbage, send Return to clear the line, create a shorter launcher, then retry.
 - If Peekaboo permission probes hang with Screen Recording missing and emit `SWIFT TASK CONTINUATION MISUSE`, record it as a product bug; do not confuse it with the VM harness.

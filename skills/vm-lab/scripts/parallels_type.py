@@ -8,6 +8,7 @@ write a script inside the guest first and type the short path.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -67,27 +68,19 @@ SHIFT_KEYS = {
 }
 
 
-def send_key(vm: str, key: int, delay: float) -> None:
-    subprocess.run(
-        ["prlctl", "send-key-event", vm, "--key", str(key)],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
-    time.sleep(delay)
+def append_key(events: list[dict[str, int | str | float]], key: int, delay_ms: int) -> None:
+    if key == 36:
+        events.append({"key": key, "event": "press", "delay": delay_ms})
+        events.append({"key": key, "event": "release", "delay": delay_ms})
+        return
+
+    events.append({"key": key, "delay": delay_ms})
 
 
-def send_shift_key(vm: str, key: int, delay: float) -> None:
-    subprocess.run(
-        ["prlctl", "send-key-event", vm, "--key", "50", "--event", "press"],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
-    send_key(vm, key, delay)
-    subprocess.run(
-        ["prlctl", "send-key-event", vm, "--key", "50", "--event", "release"],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
+def append_shift_key(events: list[dict[str, int | str | float]], key: int, delay_ms: int) -> None:
+    events.append({"key": 50, "event": "press", "delay": delay_ms})
+    append_key(events, key, delay_ms)
+    events.append({"key": 50, "event": "release", "delay": delay_ms})
 
 
 def main() -> int:
@@ -107,17 +100,27 @@ def main() -> int:
         )
         time.sleep(0.5)
 
+    delay_ms = int(args.delay * 1000)
+    events: list[dict[str, int | str | float]] = []
+
     for char in args.text:
         lower = char.lower()
         if char in SHIFT_KEYS:
-            send_shift_key(args.vm, SHIFT_KEYS[char], args.delay)
+            append_shift_key(events, SHIFT_KEYS[char], delay_ms)
         elif lower in KEYS and char == lower:
-            send_key(args.vm, KEYS[char], args.delay)
+            append_key(events, KEYS[char], delay_ms)
         elif lower in KEYS and char != lower:
-            send_shift_key(args.vm, KEYS[lower], args.delay)
+            append_shift_key(events, KEYS[lower], delay_ms)
         else:
             print(f"unsupported character: {char!r}", file=sys.stderr)
             return 2
+
+    subprocess.run(
+        ["prlctl", "send-key-event", args.vm, "--json"],
+        input=json.dumps(events).encode(),
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
     return 0
 
 
