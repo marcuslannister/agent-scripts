@@ -1,0 +1,3 @@
+display_name: VM Lab
+short_description: Build and verify disposable Parallels macOS GUI automation labs.
+default_prompt: Use a Parallels macOS VM lab to run GUI automation under real TCC permissions, verify it with independent host screenshots, and report only actionable results.
