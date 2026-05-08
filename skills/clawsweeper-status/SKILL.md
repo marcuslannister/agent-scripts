@@ -1,6 +1,6 @@
 ---
 name: clawsweeper-status
-description: ClawSweeper status: recent closed/commented/reviewed/merged URLs, workflow health, active workers, compact ops snapshot.
+description: "ClawSweeper status: recent closed/commented/reviewed/merged URLs, workflow health, active workers, compact ops snapshot."
 ---
 
 # ClawSweeper Status

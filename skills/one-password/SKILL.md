@@ -1,6 +1,6 @@
 ---
 name: one-password
-description: 1Password CLI/op: desktop sign-in, account choice, targeted secret read/store/inject. tmux-only op commands.
+description: "1Password CLI/op: desktop sign-in, account choice, targeted secret read/store/inject. tmux-only op commands."
 metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
 ---
 

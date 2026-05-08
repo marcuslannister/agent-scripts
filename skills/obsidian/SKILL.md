@@ -1,6 +1,6 @@
 ---
 name: obsidian
-description: Obsidian vault work: search/read/write notes, daily notes, backlinks/links, Bases, Canvas, plugins/themes, official `obsidian` CLI, direct Markdown edits.
+description: "Obsidian vault work: search/read/write notes, daily notes, backlinks/links, Bases, Canvas, plugins/themes, official `obsidian` CLI, direct Markdown edits."
 ---
 
 # Obsidian

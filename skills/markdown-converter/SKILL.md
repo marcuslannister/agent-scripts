@@ -1,6 +1,6 @@
 ---
 name: markdown-converter
-description: Markitdown conversion to Markdown: PDF, Office, HTML, CSV/JSON/XML, images OCR/EXIF, audio transcript, ZIP, YouTube, EPUB.
+description: "Markitdown conversion to Markdown: PDF, Office, HTML, CSV/JSON/XML, images OCR/EXIF, audio transcript, ZIP, YouTube, EPUB."
 ---
 
 # Markdown Converter

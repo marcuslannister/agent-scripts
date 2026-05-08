@@ -1,6 +1,6 @@
 ---
 name: whatsapp
-description: WhatsApp router: history/search, read/unread, archive freshness, alt accounts, sending decisions; wacrawl primary, wacli live/send.
+description: "WhatsApp router: history/search, read/unread, archive freshness, alt accounts, sending decisions; wacrawl primary, wacli live/send."
 ---
 
 # WhatsApp

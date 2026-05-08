@@ -1,6 +1,6 @@
 ---
 name: video-transcript-downloader
-description: yt-dlp video/audio/subtitle/transcript downloads: YouTube and supported sites, clips, rip audio, ffmpeg/formats/playlists.
+description: "yt-dlp video/audio/subtitle/transcript downloads: YouTube and supported sites, clips, rip audio, ffmpeg/formats/playlists."
 ---
 
 # Video Transcript Downloader

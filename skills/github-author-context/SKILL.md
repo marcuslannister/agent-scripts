@@ -1,6 +1,6 @@
 ---
 name: github-author-context
-description: GitHub contributor context for non-Peter PRs: identity, activity, trust, company/team signal.
+description: "GitHub contributor context for non-Peter PRs: identity, activity, trust, company/team signal."
 ---
 
 # GitHub Author Context

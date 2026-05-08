@@ -1,6 +1,6 @@
 ---
 name: cloudflare-registrar
-description: Cloudflare Registrar via mcporter: domain availability, prices, registration.
+description: "Cloudflare Registrar via mcporter: domain availability, prices, registration."
 ---
 
 # Cloudflare Registrar

@@ -1,6 +1,6 @@
 ---
 name: vm-lab
-description: Disposable Parallels macOS VM lab: GUI automation, Peekaboo validation, screenshots, TCC, Ghostty commands, two-way verify.
+description: "Disposable Parallels macOS VM lab: GUI automation, Peekaboo validation, screenshots, TCC, Ghostty commands, two-way verify."
 ---
 
 # VM Lab

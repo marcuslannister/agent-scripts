@@ -1,6 +1,6 @@
 ---
 name: xurl
-description: Official xurl CLI for X API: install, auth, app choice, shortcuts, raw endpoints.
+description: "Official xurl CLI for X API: install, auth, app choice, shortcuts, raw endpoints."
 metadata:
   {
     "openclaw":
