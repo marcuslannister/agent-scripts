@@ -1,7 +1,7 @@
 ---
 name: one-password
 description: "1Password CLI/op: desktop sign-in, account choice, targeted secret read/store/inject. tmux-only op commands."
-metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
+metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op","tmux"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
 ---
 
 # 1Password CLI
@@ -73,10 +73,18 @@ Do not create a new tmux session after a quoting, item-name, or command failure.
 
 ## Known working secret-write pattern
 
-Use the persistent tmux session, read the secret from the clipboard without printing it, optionally validate an expected token prefix, and write to the default account explicitly. The `op` category string is human-readable and case-sensitive in this CLI build; use `"API Credential"`, not `api_credential`.
+Use the persistent tmux session. Write the exact secret task to a temp script, then send that script into `op-work`; do not create a second tmux session for retries.
 
 ```bash
-tmux new-session -d -s op-store-secret 'bash -lc '\''set -euo pipefail
+SOCKET_DIR="${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}"
+SOCKET="$SOCKET_DIR/clawdbot-op.sock"
+SESSION="op-work"
+tmux -S "$SOCKET" has-session -t "$SESSION" 2>/dev/null ||
+  tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
+
+cat > /tmp/op-store-secret.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
 set +x
 ACCOUNT="my.1password.com"
 ITEM_TITLE="Service API Tokens"
@@ -90,42 +98,28 @@ fi
 op item create --account "$ACCOUNT" --category "API Credential" --title "$ITEM_TITLE" "$FIELD_NAME[password]=$TOKEN" "notesPlain=$NOTES" >/dev/null
 op item get "$ITEM_TITLE" --account "$ACCOUNT" --fields "label=$FIELD_NAME" >/dev/null
 echo "stored and verified secret field without printing it"
-sleep 30
-'\'''
+SCRIPT
+chmod 700 /tmp/op-store-secret.sh
+tmux -S "$SOCKET" send-keys -t "$SESSION" -- "bash /tmp/op-store-secret.sh; rm -f /tmp/op-store-secret.sh" C-m
 ```
 
-For a second secret on the same item:
-
-```bash
-tmux new-session -d -s op-edit-secret 'bash -lc '\''set -euo pipefail
-set +x
-ACCOUNT="my.1password.com"
-ITEM_TITLE="Service API Tokens"
-FIELD_NAME="app_token"
-EXPECTED_PREFIX=""
-TOKEN="$(pbpaste)"
-if [ -n "$EXPECTED_PREFIX" ]; then
-  case "$TOKEN" in "$EXPECTED_PREFIX"*) ;; *) echo "clipboard value does not match expected prefix" >&2; exit 2;; esac
-fi
-op item edit "$ITEM_TITLE" --account "$ACCOUNT" "$FIELD_NAME[password]=$TOKEN" >/dev/null
-op item get "$ITEM_TITLE" --account "$ACCOUNT" --fields "label=$FIELD_NAME" >/dev/null
-echo "stored and verified secret field without printing it"
-sleep 30
-'\'''
-```
+The `op` category string is human-readable and case-sensitive in this CLI build; use `"API Credential"`, not `api_credential`.
 
 ## Redacted debugging
 
-Keep the whole pipeline inside tmux. Inspect status and output length, never secret values.
+Keep the whole pipeline inside the same tmux session. Inspect status and output length, never secret values.
 
 ```bash
-tmux new-session -d -s op-debug 'bash -lc '\''set -euo pipefail
+cat > /tmp/op-debug.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
 set +x
 SIGNIN_OUTPUT="$(op signin --account my.1password.com 2>&1 || true)"
 echo "signin output bytes: ${#SIGNIN_OUTPUT}"
 op account list 2>&1 | sed -E "s/(xox[baprs]-)[A-Za-z0-9-]+/\\1REDACTED/g; s/(xapp-)[A-Za-z0-9-]+/\\1REDACTED/g"
-sleep 30
-'\'''
+SCRIPT
+chmod 700 /tmp/op-debug.sh
+tmux -S "$SOCKET" send-keys -t "$SESSION" -- "bash /tmp/op-debug.sh; rm -f /tmp/op-debug.sh" C-m
 ```
 
 ## Guardrails

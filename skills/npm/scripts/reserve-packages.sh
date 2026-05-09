@@ -203,6 +203,10 @@ reserve_pkg() {
     echo "already taken: $name"
     return 0
   fi
+  if NPM_CONFIG_USERCONFIG="$NPMRC" npm access get status "$name" >/dev/null 2>&1; then
+    echo "already reserved: $name"
+    return 0
+  fi
 
   local dir="$WORK/$name"
   mkdir -p "$dir"
@@ -243,6 +247,10 @@ EOF
   fi
 
   echo "publish failed: $name" >&2
+  if grep -qi 'previously published versions' "$log"; then
+    echo "already reserved: $name"
+    return 0
+  fi
   redact <"$log" >&2
   return 1
 }

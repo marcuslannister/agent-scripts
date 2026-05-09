@@ -41,3 +41,4 @@ What it does:
 Notes:
 - npm may reject names as too similar to already-published names. Treat that as a registry policy result, not an auth failure.
 - npm CLI prompt piping is brittle on npm 11. Prefer the helper’s registry API login path over scripted `npm login`.
+- For scoped packages, `npm view` can lag/404 even when the package exists. Check `npm access get status <pkg>`; `public` or a publish failure saying `previously published versions` means the name is reserved.
