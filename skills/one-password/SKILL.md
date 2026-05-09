@@ -69,8 +69,12 @@ Do not create a new tmux session after a quoting, item-name, or npm command fail
 
 - npm auth item: `npmjs`.
 - Use exactly one persistent tmux session for npm publish/reservation work.
-- Read `npmjs` once, keep the secret in an in-memory shell variable, write a temporary npmrc, run all `npm whoami` / `npm publish` commands, delete npmrc, unset the variable.
-- If the token field is ambiguous or `npm whoami` fails, stop and ask for the exact field label. Do not probe more items or start another tmux session.
+- The item may have username/password/TOTP instead of a stored npm token. That is enough for npm publish work.
+- Prefer `$npm` / `skills/npm/scripts/reserve-packages.sh` for package reservations; it creates a temp npm registry session from username/password/TOTP and deletes the temp npmrc afterward.
+- If hand-rolling: read `npmjs` once, keep secrets in in-memory shell variables, require a six-digit `op item get npmjs --account my.1password.com --otp`, write a temporary npmrc, run all `npm whoami` / `npm publish`, delete npmrc, unset variables.
+- npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy` for automation.
+- Avoid `expect` for npm login unless absolutely necessary; logs can echo prompts and are easy to get wrong. Prefer npm's registry API path (`npm-profile` `loginCouch`) or the npm skill helper.
+- If auth shape is ambiguous or `npm whoami` fails, stop and ask for the exact field label / credential fix. Do not probe more items or start another tmux session.
 
 ## Known working secret-write pattern
 
