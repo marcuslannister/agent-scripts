@@ -1,4 +1,4 @@
 interface:
   display_name: "ClawSweeper Status"
   short_description: "Summarize ClawSweeper activity and worker health."
-  default_prompt: "Show ClawSweeper status for recent comments, reviews, closes, merges, and active Codex workers."
+  default_prompt: "Use $clawsweeper-status to show recent comments, reviews, closes, merges, and active Codex workers."

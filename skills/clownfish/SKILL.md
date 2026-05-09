@@ -1,5 +1,5 @@
 ---
-name: clownfish-cloud-pr
+name: clownfish
 description: "Clownfish PRs: issue refs, ClawSweeper reports, cloud fixes/automerge."
 ---
 
