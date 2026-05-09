@@ -27,6 +27,19 @@ repobar_cmd status --json
 
 Default owners for "my profiles": `steipete`, `amantus-ai`, `openclaw`. Add or remove owners based on the user's wording, local repo remotes, or the authenticated GitHub account. For an exact owner-specific task, do not broaden beyond the named owner.
 
+## Local Repo Gate
+
+Before starting work inside any local project, verify the checkout is ready:
+
+```bash
+git status --short --branch
+git branch --show-current
+git pull --ff-only
+git status --short --branch
+```
+
+Proceed only when the branch is `main`, the pull succeeds, and the worktree is clean. If the branch is not `main`, the pull fails, or `git status --short` shows changes, stop and ask Peter what to do. Do not switch branches, stash, commit, reset, restore, or clean without explicit direction.
+
 ## Scope Rule
 
 If the user says `triage` and the current working directory is a Git repo with a GitHub remote, triage only that project. Do not broaden to all Peter/org queues unless the user says `broad`, `all`, `everything`, names multiple owners/orgs, or asks for cross-repo triage.
