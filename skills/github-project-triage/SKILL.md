@@ -1,11 +1,11 @@
 ---
 name: "github-project-triage"
-description: "RepoBar GitHub queue triage: open issues/PRs across Peter profiles, orgs, local projects."
+description: "RepoBar GitHub queue triage: current GitHub project by default; open issues/PRs across Peter profiles, orgs, local projects when broad triage is requested."
 ---
 
 # GitHub Project Triage
 
-Use RepoBar as the first pass for broad queue discovery. It is faster and more profile-aware than hand-rolling `gh repo list` loops, and it already understands Peter's repo activity, issue counts, PR counts, local projects, auth, cache, and filters.
+Use the current GitHub project by default when the user says "triage" from inside a repo. Use RepoBar as the first pass only for broad queue discovery across profiles/orgs. RepoBar is faster and more profile-aware than hand-rolling `gh repo list` loops, and it already understands Peter's repo activity, issue counts, PR counts, local projects, auth, cache, and filters.
 
 ## Setup
 
@@ -27,9 +27,36 @@ repobar_cmd status --json
 
 Default owners for "my profiles": `steipete`, `amantus-ai`, `openclaw`. Add or remove owners based on the user's wording, local repo remotes, or the authenticated GitHub account. For an exact owner-specific task, do not broaden beyond the named owner.
 
+## Scope Rule
+
+If the user says `triage` and the current working directory is a Git repo with a GitHub remote, triage only that project. Do not broaden to all Peter/org queues unless the user says `broad`, `all`, `everything`, names multiple owners/orgs, or asks for cross-repo triage.
+
+Find the current project:
+
+```bash
+repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)
+if [ -z "$repo" ]; then
+  url=$(git remote get-url origin 2>/dev/null || true)
+  repo=$(printf '%s\n' "$url" |
+    sed -E 's#^git@github.com:##; s#^https://github.com/##; s#\\.git$##')
+fi
+printf '%s\n' "$repo"
+```
+
+Current-project triage starts with:
+
+```bash
+gh issue list --repo "$repo" --state open --limit 50 \
+  --json number,title,author,labels,updatedAt,url
+gh pr list --repo "$repo" --state open --limit 50 \
+  --json number,title,author,isDraft,reviewDecision,mergeStateStatus,updatedAt,url
+```
+
+Then inspect selected items with `gh issue view`, `gh pr view`, `gh pr diff`, checks, and source/tests as needed. Only comment, close, merge, rerun, or patch with strong evidence.
+
 ## Fast Queue Map
 
-Start with the repo-level queue map. This finds repos with open issues and/or PRs and gives counts.
+Use this only when the scope is broad. Start with the repo-level queue map. This finds repos with open issues and/or PRs and gives counts.
 
 ```bash
 repobar_cmd repos \
@@ -59,7 +86,7 @@ repobar_cmd repos --scope all --only-with work --owner steipete --owner amantus-
 
 ## Detail Pass
 
-After the queue map, inspect only the top repos unless the user explicitly wants exhaustive detail.
+After a broad queue map, inspect only the top repos unless the user explicitly wants exhaustive detail.
 
 ```bash
 repobar_cmd issues <owner/name> --limit 50 --json
