@@ -18,7 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
 
 DEFAULT_TRANSPORT = os.environ.get("OPENCLAW_RELAY_TRANSPORT", "local")
-DEFAULT_HOST = os.environ.get("OPENCLAW_RELAY_HOST", "mac-studio")
+DEFAULT_HOST = os.environ.get("OPENCLAW_RELAY_HOST", "steipete@steipete-macstudio.local")
 DEFAULT_CWD = os.environ.get("OPENCLAW_RELAY_CWD")
 DEFAULT_ACPX_REPO = os.environ.get("OPENCLAW_RELAY_ACPX_REPO")
 DEFAULT_SESSION = os.environ.get("OPENCLAW_RELAY_SESSION", "codex-bridge")
@@ -58,7 +58,15 @@ def run_local(
 
 def run_ssh(host: str, command: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     proc = subprocess.run(
-        ["ssh", host, f"bash -lc {shlex.quote(command)}"],
+        [
+            "ssh",
+            "-o",
+            "RequestTTY=no",
+            "-o",
+            "RemoteCommand=none",
+            host,
+            f"bash -lc {shlex.quote(command)}",
+        ],
         text=True,
         capture_output=True,
         check=False,
