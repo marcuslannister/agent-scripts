@@ -33,6 +33,10 @@ Additional skills (copied 2025-12-31) are from @Dimillian’s public `Dimillian/
 ## Committer Helper (`scripts/committer`)
 - **What it is:** Bash helper that stages exactly the files you list, enforces non-empty commit messages, and creates the commit.
 
+## Skill Validator Hook
+- **What it is:** `scripts/validate-skills` checks every discoverable `skills/*/SKILL.md` file for valid YAML front matter and required `name`/`description` fields.
+- **Hook:** `hooks/pre-commit` runs the validator before commits. Enable the tracked hooks in a checkout with `git config core.hooksPath hooks`.
+
 ## Docs Lister (`scripts/docs-list.ts`)
 - **What it is:** tsx script that walks `docs/`, enforces front-matter (`summary`, `read_when`), and prints the summaries surfaced by `pnpm run docs:list`. Other repos can wire the same command into their onboarding flow.
 - **Binary build:** `bin/docs-list` is the compiled Bun CLI; regenerate it after editing `scripts/docs-list.ts` via `bun build scripts/docs-list.ts --compile --outfile bin/docs-list`.
