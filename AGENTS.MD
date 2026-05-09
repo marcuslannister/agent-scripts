@@ -5,6 +5,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 - Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`. 3rd-party/OSS: `~/Projects/oss`.
 - "Make a note" here => terse `AGENTS.MD` edit. Ignore `CLAUDE.md`.
+- `ship` => changelog, commit in groups, push, pull.
 - Skills are canonical for tool workflows. Keep this file to hard rules only.
 - Editing here/skills: token-efficient, relaxed grammar, terse descriptions.
 - Read `~/Projects/agent-scripts/tools.md` when the tool catalog matters.
@@ -26,6 +27,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 ## PR / CI
 
 - PR refs: use `gh pr view/diff`, not web search.
+- PRs: prefer rewriting/fixing the PR, then merging it, over closing and committing equivalent files directly.
 - CI: `gh run list/view`; rerun/fix until green when asked.
 - Replies: cite fix + file/line; resolve threads only after fix lands.
 - User-facing fixes/landed PRs: changelog unless pure test/internal.
