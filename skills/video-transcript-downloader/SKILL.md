@@ -23,9 +23,10 @@ CLI syntax:
 
 ```bash
 ./scripts/vtd.js --help
+./scripts/vtd.js transcript --help
 ```
 
-Subcommands currently require `--url`; `transcript --help` prints `missing --url`.
+Subcommands support focused help without requiring `--url`.
 
 ## Transcript (default: clean paragraph)
 

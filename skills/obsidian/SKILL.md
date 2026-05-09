@@ -13,20 +13,21 @@ Use this for local Obsidian vault work. An Obsidian vault is a normal folder of 
 - Default vault name: `obsidian`
 - Usual local vault path: `~/obsidian`
 - Official CLI: `obsidian`
-- Current CLI resolves the vault from cwd; run it from `~/obsidian`.
+- Vault commands resolve the vault from cwd; run them from `~/obsidian`.
 
 ## First Checks
 
 ```bash
 command -v obsidian
-cd ~/obsidian
+obsidian version
 obsidian vaults
+cd ~/obsidian
 obsidian commands filter=search:
 ```
 
-If run outside the vault, `obsidian` may print `Vault not found.` even when
-`~/obsidian` exists and the app config is valid. `obsidian help` and
-`obsidian version` are not reliable checks on the current CLI.
+Global commands like `version` and `vaults` work outside a vault. Vault-content
+commands may print `Vault not found.` outside `~/obsidian`. Use `obsidian
+commands`, not `obsidian help`, for CLI discovery.
 
 If `obsidian` says CLI is disabled:
 
