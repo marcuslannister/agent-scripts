@@ -1,6 +1,6 @@
 ---
 name: frontend-design
-description: "Production frontend UI: pages, apps, components, polished interaction/visual design, non-generic aesthetics."
+description: "Production frontend UI: pages, apps, components, polished non-generic design."
 license: Complete terms in LICENSE.txt
 ---
 

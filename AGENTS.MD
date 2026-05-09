@@ -11,6 +11,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Files: repo or `~/Projects/agent-scripts`.
 - "Make a note" => edit `AGENTS.MD` (shortcut; not a blocker). Ignore `CLAUDE.md`.
 - Skills are canonical for tool-specific workflows. Keep this file as routing + hard rules.
+- Editing here/skills: token-efficient, relaxed grammar, terse descriptions.
 - Read `~/Projects/agent-scripts/tools.md` when the tool catalog matters.
 
 ## Routing

@@ -1,6 +1,6 @@
 ---
 name: brave-search
-description: Brave API web search/content extraction; docs, facts, web pages. Lightweight, no browser.
+description: "Brave API search/extraction: docs, facts, pages; no browser."
 ---
 
 # Brave Search

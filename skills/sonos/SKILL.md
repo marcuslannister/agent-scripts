@@ -1,6 +1,6 @@
 ---
 name: sonos
-description: "Sonos control/music: search, queue, playlists, rooms/groups, volume, YouTube audio. Diagnostics only when asked."
+description: "Sonos control: search, queue, playlists, rooms/groups, volume, YouTube audio."
 metadata:
   short-description: Sonos music and YouTube playback
 ---

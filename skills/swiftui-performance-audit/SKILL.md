@@ -1,6 +1,6 @@
 ---
 name: swiftui-performance-audit
-description: "SwiftUI performance audit: slow render, janky scroll, CPU/memory, excess updates, layout thrash, Instruments guidance."
+description: "SwiftUI performance: render, scroll, CPU/memory, updates, layout, Instruments."
 ---
 
 # SwiftUI Performance Audit

@@ -1,6 +1,6 @@
 ---
 name: browser-use
-description: Existing Chrome browser automation via mcporter chrome-devtools MCP; attach to Peter's current Chrome tabs, inspect/click/type/screenshot. Do not use AppleScript fallback.
+description: "Chrome DevTools MCP automation for Peter's Chrome tabs; no AppleScript."
 ---
 
 # Browser Use

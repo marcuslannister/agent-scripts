@@ -1,6 +1,6 @@
 ---
 name: create-cli
-description: "CLI UX/spec design: args, flags, subcommands, help, output, errors, exits, prompts, config/env precedence, dry-run safety."
+description: "CLI UX/spec: args, flags, help, output, errors, config, dry-run."
 ---
 
 # Create CLI

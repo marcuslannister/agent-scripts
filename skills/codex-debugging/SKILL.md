@@ -1,6 +1,6 @@
 ---
 name: codex-debugging
-description: "Debug Codex behavior from local source first: ~/Projects/codex, codex-rs AGENTS, targeted rg in core/tui/exec/cli/app-server/config."
+description: "Codex source debugging: ~/Projects/codex, codex-rs core/tui/exec/cli/app-server/config."
 ---
 
 # Codex Debugging

@@ -1,6 +1,6 @@
 ---
 name: speaking
-description: "Peter speaking ops: conference invites, keynotes, panels, firesides, Gmail/calendar scan, conferences repo, Inbounds Sheet."
+description: "Speaking ops: invites, keynotes, panels, Gmail/calendar, conferences repo, Inbounds."
 ---
 
 # Speaking

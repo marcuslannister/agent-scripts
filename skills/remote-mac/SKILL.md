@@ -1,6 +1,6 @@
 ---
 name: remote-mac
-description: MacBook/Mac Studio remote access via SSH, Tailscale discovery, LAN fallback, and non-interactive shell hygiene.
+description: "MacBook/Mac Studio SSH: Tailscale, LAN fallback, noninteractive shells."
 ---
 
 # Remote Mac

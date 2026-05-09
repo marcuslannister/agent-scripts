@@ -1,6 +1,6 @@
 ---
 name: github-deep-review
-description: "Deep GitHub issue/PR review: bug reports, maintainer threads, best fix, stale-or-real, refactor need, read-code-first."
+description: "GitHub deep review: bugs, PRs, best fix, stale-or-real, read-code-first."
 ---
 
 # GitHub Deep Review

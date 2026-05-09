@@ -1,6 +1,6 @@
 ---
 name: npm
-description: "npm registry work: login, whoami, package reservation/publish, org/package checks. Use 1Password via one persistent tmux session only."
+description: "npm registry ops: login, whoami, names, publish; 1Password via one tmux."
 metadata: {"clawdbot":{"emoji":"📦","requires":{"bins":["npm","node","tmux","op","jq"]}}}
 ---
 

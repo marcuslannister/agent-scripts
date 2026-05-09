@@ -1,6 +1,6 @@
 ---
 name: domain-dns-ops
-description: "Peter domain/DNS ops: Cloudflare, DNSimple, Namecheap, zones, nameservers, redirects, workers, DNS/HTTP verify. Truth: `~/Projects/manager`."
+description: "Peter DNS/domain ops: registrars, zones, redirects, DNS/HTTP verify; truth in manager."
 ---
 
 # Domain/DNS Ops (Peter)

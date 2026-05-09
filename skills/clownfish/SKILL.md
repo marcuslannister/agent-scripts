@@ -1,6 +1,6 @@
 ---
 name: clownfish-cloud-pr
-description: "Clownfish GitHub Actions PRs: issue/PR refs, ClawSweeper reports, maintainer prompts, guarded cloud implementation/automerge."
+description: "Clownfish PRs: issue refs, ClawSweeper reports, cloud fixes/automerge."
 ---
 
 # Clownfish Cloud PR

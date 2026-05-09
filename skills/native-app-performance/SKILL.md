@@ -1,6 +1,6 @@
 ---
 name: native-app-performance
-description: "Native macOS/iOS performance: xctrace/Time Profiler, .trace analysis, hotspots, CLI-only optimization review."
+description: "Native app performance: xctrace, Time Profiler, traces, hotspots, CLI review."
 ---
 
 # Native App Performance (CLI-only)
