@@ -1,6 +1,6 @@
 ---
 name: github-author-context
-description: "GitHub contributor context for non-Peter PRs: identity, activity, trust, company/team signal."
+description: "GitHub contributor context: identity, activity, trust, company/team signal, notes."
 ---
 
 # GitHub Author Context
@@ -19,13 +19,27 @@ Skip the profile pass for `steipete` unless the user explicitly asks.
 
 ## Source Order
 
-1. Local OpenClaw maintainer notes:
+1. OpenClaw contributor notes:
+
+```bash
+~/Projects/maintainers/scripts/clawtributors find github <login>
+```
+
+If a contributor file matches in `~/Projects/maintainers/contributors/people`, read only:
+
+- `Identity`
+- `Signals`
+- `Context`
+- `Evidence`
+- `Notes`
+
+Fallback only when the new contributor file is missing and old maintainer context might help:
 
 ```bash
 rg -n -i "<login>|<name>|<discord>" ~/Projects/openclaw-maintainers/people ~/Projects/openclaw-maintainers/data
 ```
 
-If a person file matches, read only the relevant sections:
+If an old person file matches, read only the relevant sections:
 
 - `Verdict`
 - `Identity`
@@ -50,7 +64,7 @@ gh search issues --repo <owner/repo> --author <login> --state open --limit 20 --
 gh api "repos/<owner>/<repo>/collaborators/<login>/permission" --jq '{permission,user:.user.login}' 2>/dev/null || true
 ```
 
-For OpenClaw, prefer the existing `openclaw-maintainers` person file over recomputing activity unless freshness clearly matters.
+For OpenClaw, prefer the new `openclaw/maintainers` contributor file over recomputing activity unless freshness clearly matters.
 
 4. Local git evidence when useful:
 
@@ -72,3 +86,17 @@ Author context: @login
 ```
 
 Do not quote private phone/email/contact details unless Peter asks. Separate employer from company-directed OpenClaw work; almost everyone has an employer.
+
+## Contributor Notes
+
+After a merge/rejection/close/review, add a note only if it creates future review value: first good merge, unusually strong work, repeated quality problems, slop, no-repro churn, exceptional responsiveness, lack of follow-through, or identity confirmation.
+
+Use the maintainer repo helper so Markdown stays consistent:
+
+```bash
+~/Projects/maintainers/scripts/clawtributors note github <login> --kind merged --pr <n> --summary "Focused bug fix. Tests credible. Smooth review."
+~/Projects/maintainers/scripts/clawtributors note github <login> --kind rejected --pr <n> --summary "Broad generated refactor; no reproducible bug; asked to split."
+~/Projects/maintainers/scripts/clawtributors link github <login> discord <id> --username <discord> --confidence high --evidence "Self-linked authored PRs in #clawtributors."
+```
+
+Keep notes terse, factual, dated, and linked. Do not record ordinary noise.

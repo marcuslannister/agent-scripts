@@ -34,4 +34,4 @@ For long-running or interactive remote work, use tmux on the remote host and kee
 - Do not assume host identity from a stale IP; verify hostname/user when possible.
 - Do not print secrets from remote files or shells.
 - If a host is unavailable after Tailscale + LAN fallback, say what was tried.
-- For OpenClaw Gateway on Peter's machine, do not start/install launchd. Ask before touching the pm2 watcher.
+- For OpenClaw Gateway on Peter's machines, follow repo docs/AGENTS; do not install/start/stop services unless asked.
