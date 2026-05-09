@@ -16,6 +16,11 @@ Use for npm registry/account tasks: `npm whoami`, package availability, package 
 - The item may contain username/password/TOTP, not a stored npm token. That is fine.
 - Run npm auth work inside one persistent tmux session. Reuse it on failure.
 - Keep npm auth in a temp npmrc; delete it after the command.
+- If hand-rolling, read `npmjs` once, keep secrets in shell variables, require a six-digit `op item get npmjs --account my.1password.com --otp`, write a temp npmrc, run all npm commands with `NPM_CONFIG_USERCONFIG`, then delete the npmrc and unset variables.
+- npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy`.
+- Avoid `expect` for npm login unless necessary; logs can echo prompts and are easy to get wrong.
+- Prefer the helper's registry API login path (`npm-profile` `loginCouch`) for automation.
+- If auth shape is ambiguous or `npm whoami` fails, stop and ask for the exact field label / credential fix. Do not probe more 1Password items or start another tmux session.
 
 ## Package Reservation
 

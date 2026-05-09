@@ -63,18 +63,13 @@ tmux -S "$SOCKET" send-keys -t "$SESSION":0.0 -- "op whoami" Enter
 tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":0.0 -S -200
 ```
 
-Do not create a new tmux session after a quoting, item-name, or npm command failure. Send a corrected command into the existing session.
+Do not create a new tmux session after a quoting, item-name, or command failure. Send a corrected command into the existing session.
 
-## Known npm Auth Item
+## Service-Specific Workflows
 
-- npm auth item: `npmjs`.
-- Use exactly one persistent tmux session for npm publish/reservation work.
-- The item may have username/password/TOTP instead of a stored npm token. That is enough for npm publish work.
-- Prefer `$npm` / `skills/npm/scripts/reserve-packages.sh` for package reservations; it creates a temp npm registry session from username/password/TOTP and deletes the temp npmrc afterward.
-- If hand-rolling: read `npmjs` once, keep secrets in in-memory shell variables, require a six-digit `op item get npmjs --account my.1password.com --otp`, write a temporary npmrc, run all `npm whoami` / `npm publish`, delete npmrc, unset variables.
-- npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy` for automation.
-- Avoid `expect` for npm login unless absolutely necessary; logs can echo prompts and are easy to get wrong. Prefer npm's registry API path (`npm-profile` `loginCouch`) or the npm skill helper.
-- If auth shape is ambiguous or `npm whoami` fails, stop and ask for the exact field label / credential fix. Do not probe more items or start another tmux session.
+- Keep service-specific auth details in the owning skill.
+- For npm registry/package work, use `$npm`; it documents the `npmjs` item, username/password/TOTP flow, and package reservation helper.
+- This skill owns only the generic 1Password rules: tmux-only `op`, targeted reads, one persistent session, no broad enumeration, no secret output.
 
 ## Known working secret-write pattern
 
