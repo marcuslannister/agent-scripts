@@ -30,6 +30,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 - PR refs: use `gh pr view/diff`, not web search.
 - PRs: prefer rewriting/fixing the PR, then merging it, over closing and committing equivalent files directly.
+- `fix ci`: consent to pull, commit, push; fix/rerun/watch until CI green.
 - CI: `gh run list/view`; rerun/fix until green when asked.
 - Replies: cite fix + file/line; resolve threads only after fix lands.
 - User-facing fixes/landed PRs: changelog unless pure test/internal.
