@@ -660,6 +660,10 @@ def cmd_publish(args: argparse.Namespace) -> None:
 
 
 def cmd_force_send(args: argparse.Namespace) -> None:
+    text = (args.text or "").strip()
+    media = (args.media or "").strip()
+    if not text and not media:
+        raise RelayError("force-send needs --text, --media, or both")
     target = resolve_target(args, args.target)
     delivery = {
         **derive_delivery_from_key(str(target["sessionKey"])),
@@ -677,14 +681,22 @@ def cmd_force_send(args: argparse.Namespace) -> None:
         str(delivery["channel"]),
         "--target",
         str(delivery["to"]),
-        "--message",
-        args.text,
         "--json",
     ]
+    if text:
+        argv.extend(["--message", text])
+    if media:
+        argv.extend(["--media", media])
     if delivery.get("accountId"):
         argv.extend(["--account", str(delivery["accountId"])])
     if delivery.get("threadId"):
         argv.extend(["--thread-id", str(delivery["threadId"])])
+    if args.force_document:
+        argv.append("--force-document")
+    if args.gif_playback:
+        argv.append("--gif-playback")
+    if args.silent:
+        argv.append("--silent")
     if args.dry_run:
         print_json({"target": target, "delivery": delivery, "argv": argv})
         return
@@ -846,11 +858,15 @@ def build_parser() -> argparse.ArgumentParser:
     force_send = subparsers.add_parser("force-send")
     add_shared_flags(force_send)
     force_send.add_argument("--target", required=True)
-    force_send.add_argument("--text", required=True)
+    force_send.add_argument("--text")
+    force_send.add_argument("--media", help="Attach media path or URL when the channel supports it")
     force_send.add_argument("--channel")
     force_send.add_argument("--to")
     force_send.add_argument("--account-id")
     force_send.add_argument("--thread-id")
+    force_send.add_argument("--force-document", action="store_true")
+    force_send.add_argument("--gif-playback", action="store_true")
+    force_send.add_argument("--silent", action="store_true")
     force_send.add_argument("--dry-run", action="store_true")
     force_send.set_defaults(func=cmd_force_send)
 

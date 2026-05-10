@@ -101,6 +101,17 @@ python3 scripts/openclaw_relay.py force-send \
   --text "Deploy is done."
 ```
 
+Force-send media when the user explicitly wants a channel post:
+
+```bash
+python3 scripts/openclaw_relay.py force-send \
+  --transport ssh \
+  --host steipete@steipete-macstudio.local \
+  --target maintainers \
+  --text "Demo video." \
+  --media /tmp/demo.mp4
+```
+
 Use the persistent control session:
 
 ```bash
