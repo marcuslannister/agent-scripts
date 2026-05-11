@@ -70,6 +70,8 @@ trap 'rm -rf "$tmpdir"' EXIT
 runs_json="$tmpdir/runs.json"
 comments_json="$tmpdir/comments.json"
 events_json="$tmpdir/events.json"
+closed_items_json="$tmpdir/closed-items.json"
+closed_items_jsonl="$tmpdir/closed-items.jsonl"
 pulls_json="$tmpdir/pulls.json"
 jobs_jsonl="$tmpdir/jobs.jsonl"
 
@@ -77,6 +79,25 @@ gh api "repos/${clawsweeper_repo}/actions/runs?per_page=${run_limit}" >"$runs_js
 gh api "repos/${target_repo}/issues/comments?sort=updated&direction=desc&per_page=100&since=${since}" >"$comments_json"
 gh api "repos/${target_repo}/issues/events?per_page=100" >"$events_json"
 gh api "repos/${target_repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100" >"$pulls_json"
+
+: >"$closed_items_jsonl"
+for page in $(seq 1 20); do
+  page_json="$tmpdir/closed-items-page-${page}.json"
+  gh api -X GET "repos/${target_repo}/issues" \
+    -f state=closed \
+    -f since="$since" \
+    -f sort=updated \
+    -f direction=desc \
+    -f per_page=100 \
+    -f page="$page" >"$page_json" || break
+  page_count="$(jq 'length' "$page_json")"
+  jq -c --arg since "$since" '
+    .[]
+    | select(.closed_at != null and .closed_at >= $since)
+  ' "$page_json" >>"$closed_items_jsonl"
+  [ "$page_count" -lt 100 ] && break
+done
+jq -s '.' "$closed_items_jsonl" >"$closed_items_json"
 
 active_ids="$(jq -r '.workflow_runs[]
   | select(.status == "in_progress" or .status == "pending" or .status == "queued" or .status == "waiting")
@@ -177,12 +198,11 @@ commented="$(
 print_section "Recently commented" "$commented"
 
 closed="$(
-  jq -r --arg since "$since" --arg bot "$bot_regex" --argjson limit "$limit" '
+  jq -r --arg bot "$bot_regex" --argjson limit "$limit" '
     def one_line: gsub("[\r\n\t]+"; " ") | gsub("  +"; " ") | .[0:160];
-    [.[] | select(.event == "closed" and .created_at >= $since)
-      | select((.actor.login // "") | test($bot; "i"))
-    ][0:$limit][]
-    | "- \(.issue.html_url) — \(.issue.title | one_line) (closed by \(.actor.login) at \(.created_at))"
-  ' "$events_json"
+    [.[] | select((.closed_by.login // "") | test($bot; "i"))
+    ] | sort_by(.closed_at) | reverse | .[0:$limit][]
+    | "- \(.html_url) — \(.title | one_line) (closed by \(.closed_by.login) at \(.closed_at))"
+  ' "$closed_items_json"
 )"
 print_section "Recently closed" "$closed"
