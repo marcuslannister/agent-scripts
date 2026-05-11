@@ -68,6 +68,8 @@ tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 runs_json="$tmpdir/runs.json"
+recent_runs_json="$tmpdir/recent-runs.json"
+active_runs_jsonl="$tmpdir/active-runs.jsonl"
 comments_json="$tmpdir/comments.json"
 events_json="$tmpdir/events.json"
 closed_items_json="$tmpdir/closed-items.json"
@@ -75,7 +77,22 @@ closed_items_jsonl="$tmpdir/closed-items.jsonl"
 pulls_json="$tmpdir/pulls.json"
 jobs_jsonl="$tmpdir/jobs.jsonl"
 
-gh api "repos/${clawsweeper_repo}/actions/runs?per_page=${run_limit}" >"$runs_json"
+gh api "repos/${clawsweeper_repo}/actions/runs?per_page=${run_limit}" >"$recent_runs_json"
+: >"$active_runs_jsonl"
+for status in in_progress queued waiting pending requested; do
+  gh api "repos/${clawsweeper_repo}/actions/runs?status=${status}&per_page=${run_limit}" \
+    | jq -c '.workflow_runs[]?' >>"$active_runs_jsonl" || true
+done
+jq -s '
+  {
+    workflow_runs: (
+      (.[0].workflow_runs + (.[1:] | map(. // empty)))
+      | unique_by(.id)
+      | sort_by(.created_at)
+      | reverse
+    )
+  }
+' "$recent_runs_json" "$active_runs_jsonl" >"$runs_json"
 gh api "repos/${target_repo}/issues/comments?sort=updated&direction=desc&per_page=100&since=${since}" >"$comments_json"
 gh api "repos/${target_repo}/issues/events?per_page=100" >"$events_json"
 gh api "repos/${target_repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100" >"$pulls_json"
