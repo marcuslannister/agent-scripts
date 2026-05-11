@@ -11,7 +11,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `moltymac`, `Molty`, 
 
 - Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
 - Workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local`.
-- Personal cloud OpenClaw: `clawmac`, Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected.
+- Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected.
 - Molty: runs on Mac Studio, not `moltymac`, when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
 - `moltymac`: old/alternate node. If Tailscale shows it offline or SSH times out, do not treat it as the live Molty runtime.
 

@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## 2026-05-11 — clawmac GUI Access Note
 - Documented the Peekaboo through Jump Desktop workflow for clawmac GUI prompts and Chrome Safe Storage verification.
+- Documented `crabmac` as Peter's typo/alias for `clawmac`.
 
 ## 2025-12-22 — Remove Custom rm Shim
 - Dropped `bin/rm` and `scripts/trash.ts`; rely on the system `trash` command for recoverable deletes.
