@@ -18,6 +18,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Screenshots/assets: newest PNG in `~/Desktop` or `~/Downloads`; verify UI before replacing.
 - Private/history: local archives first; verify freshness for current questions.
 - Secrets: check `~/.profile` anytime you need an API key or for e2e testing; `$one-password` for op/1Password.
+- Email/Google account for testing: use `gog+clawdbot@gmail.com`.
 
 ## Project Defaults
 
