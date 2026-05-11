@@ -38,6 +38,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Replies: cite fix + file/line; resolve threads only after fix lands.
 - Issue fixed on `main` with proof: comment proof + commit/PR, then close.
 - User-facing fixes/landed PRs: changelog unless pure test/internal.
+- Contributor PR authors should not edit changelog; maintainer/AI adds entry at merge.
 - When merging contributor PRs: thank contributor in `CHANGELOG.md`.
 - Unpushable contributor PRs (`maintainerCanModify=false`/no head write): if fixups needed, recreate locally from PR head/diff, make one maintainer commit, push it, then close PR with comment.
 - Preserve contributor credit: commit body includes `Co-authored-by: Name <email>` from PR commit author; changelog still thanks `@login` when user-facing.
