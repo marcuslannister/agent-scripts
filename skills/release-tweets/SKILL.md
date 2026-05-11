@@ -24,11 +24,11 @@ Use when the user asks for a release tweet, launch tweet, X announcement, releas
 - Typical format:
   - product + version
   - blank line
-  - 3-4 compact feature bullets
+  - 3-4 compact emoji-led feature bullets
   - blank line
   - one short punchline
   - release/changelog URL
-- Emoji bullets are fine when they match the product style. Use them sparingly.
+- Use emoji bullets by default for launch tweets. Pick clear, low-noise emoji that match the feature or product; skip only when the user asks for plain text or the release is incident-style.
 - Tone: high-signal, compact, confident, a little dry when earned. Not corporate.
 - One joke max. Let the feature bullets do the work.
 - Put the release/changelog URL at the end.
@@ -69,7 +69,7 @@ Before final:
 - Exact version string and channel.
 - Release URL included when requested or expected.
 - No unverified claims.
-- No more than 3-4 bullets in the launch tweet.
+- No more than 3-4 emoji-led bullets in the launch tweet.
 - Peter-style concise language; trim filler before trimming facts.
 
 ## Examples
@@ -77,9 +77,9 @@ Before final:
 ```text
 OpenClaw 2026.4.20 beta 1
 
-Docker install/update smoke
-Parallels upgrade checks
-Package verification tightened
+🐳 Docker install/update smoke
+🖥️ Parallels upgrade checks
+🔧 Package verification tightened
 
 Beta first. Stable after the gauntlet.
 <release link>
@@ -88,9 +88,10 @@ Beta first. Stable after the gauntlet.
 ```text
 RepoBar 0.5.0 is live
 
-GitHub refs from your clipboard
-Issue, PR, and commit previews
-Native menu bar behavior that does not hang
+📋 GitHub refs from your clipboard
+🔎 Issue, PR, and commit previews
+🟢 Open/closed/merged at a glance
+🔒 No Accessibility permission needed
 
 Tiny bar, much less mystery.
 <release link>
