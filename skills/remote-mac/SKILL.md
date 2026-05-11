@@ -67,6 +67,14 @@ clawmac healthy shape:
 - `lsof -nP -iTCP:18789 -sTCP:LISTEN` shows loopback listeners.
 - `openclaw channels status --json` shows Telegram connected.
 
+## clawmac GUI Access
+
+- If SSH/cron hits GUI-only prompts, use local Peekaboo through Jump Desktop's `clawmac` window.
+- Find it with `peekaboo list windows --app "Jump Desktop" --json`; capture by `--window-title clawmac` or the reported `--window-id`.
+- Clicks use local global coordinates through the Jump Desktop window; verify with a raw window screenshot before clicking.
+- Chrome cookie/keychain issues: `security` may prompt for `Chrome Safe Storage`; Peter must enter the login keychain password, then click `Always Allow`.
+- After approval, verify over SSH with `/Users/steipete/Projects/bird/bird check` and `/Users/steipete/.openclaw/bin/bird-gui check`.
+
 ## Safety
 
 - Do not assume host identity from a stale IP; verify hostname/user when possible.
