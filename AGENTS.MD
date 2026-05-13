@@ -28,6 +28,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Bugs: add regression test when it fits.
 - Use repo package manager/runtime; no swaps without approval.
 - Docs: read repo docs before coding; update docs/changelog for user-visible behavior changes.
+- Inline code comments: brief notes for tricky, bug-prone, or previously buggy logic.
 - New deps: quick health check for recent releases/commits/adoption.
 
 ## PR / CI
