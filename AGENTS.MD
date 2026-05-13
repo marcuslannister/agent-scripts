@@ -49,6 +49,9 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 - zsh: don't use `status` as a variable.
 - 1Password/op: never run `op` directly in a normal shell. Use `$one-password`; no broad enumeration, no secret output.
+- Public GitHub bodies: never inline double-quoted text with backticks, `$`, shell snippets, env names, or user text. Use temp file + `cat <<'EOF'` + inspect + `--body-file`.
+- Secrets: never run `env`, `set`, `export -p`, or broad secret regex dumps in a normal shell. Query exact names only, redact values, or use 1Password.
+- After touching secrets/env, public `gh` writes use token env unset where possible: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
 
 ## Git
 
