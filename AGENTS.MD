@@ -4,20 +4,21 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 ## Core
 
 - Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`. 3rd-party/OSS: `~/Projects/oss`.
-- "Make a note" here => terse `AGENTS.MD` edit. Ignore `CLAUDE.md`.
+- "Make a note" here => terse `AGENTS.MD` edit. No separate `CLAUDE.md` here.
 - `ship` => changelog, commit in groups, push, pull.
 - Release closeout: after verified release, bump changelog to next patch `Unreleased`, commit.
 - Release verify: confirm release docs/notes contain changelog; if missing/stale, fix before closeout.
 - Changelogs: match file style; prefer one bullet per entry on one line. Do not hard-wrap changelog bullets just because prose is long.
 - Skills are canonical for tool workflows. Keep this file to hard rules only.
 - Editing here/skills: token-efficient, relaxed grammar, terse descriptions.
+- Skill frontmatter: quote `description`; after SKILL.md edits, YAML-parse frontmatter before commit.
 - Read `~/Projects/agent-scripts/tools.md` when the tool catalog matters.
 
 ## Routing
 
 - Screenshots/assets: newest PNG in `~/Desktop` or `~/Downloads`; verify UI before replacing.
 - Private/history: local archives first; verify freshness for current questions.
-- Secrets: check `~/.profile` anytime you need an API key or for e2e testing; `$one-password` for op/1Password.
+- Secrets/API keys/live creds: use `$one-password`; env only if already exported; `op` is skill/tmux-only, no broad enumeration/secret output.
 - Email/Google account for testing: use `gog+clawdbot@gmail.com`.
 
 ## Project Defaults
@@ -48,9 +49,8 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 ## Runtime Safety
 
 - zsh: don't use `status` as a variable.
-- 1Password/op: never run `op` directly in a normal shell. Use `$one-password`; no broad enumeration, no secret output.
 - Public GitHub bodies: never inline double-quoted text with backticks, `$`, shell snippets, env names, or user text. Use temp file + `cat <<'EOF'` + inspect + `--body-file`.
-- Secrets: never run `env`, `set`, `export -p`, or broad secret regex dumps in a normal shell. Query exact names only, redact values, or use 1Password.
+- Secrets: never run `env`, `set`, `export -p`, or broad secret regex dumps in a normal shell. Query exact names only; redact values.
 - After touching secrets/env, public `gh` writes use token env unset where possible: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
 
 ## Git

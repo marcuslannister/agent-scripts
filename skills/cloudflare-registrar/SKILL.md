@@ -12,7 +12,7 @@ Use for Cloudflare Registrar domain availability, pricing, listing, and registra
 - MCP: `cloudflare-openclaw`
 - Account: `OPENCLAW_CLOUDFLARE_ACCOUNT_ID`
 - Token: `OPENCLAW_CLOUDFLARE_API_TOKEN`
-- Source env first: `source ~/.profile`
+- Secrets: follow the root secret rule; export only needed Cloudflare vars for one command.
 
 ## Guardrails
 
@@ -25,7 +25,6 @@ Use for Cloudflare Registrar domain availability, pricing, listing, and registra
 Check availability/pricing:
 
 ```bash
-source ~/.profile
 npx mcporter call cloudflare-openclaw.execute code='async () => {
   return cloudflare.request({
     method: "POST",
@@ -38,7 +37,6 @@ npx mcporter call cloudflare-openclaw.execute code='async () => {
 Register after confirmation:
 
 ```bash
-source ~/.profile
 npx mcporter call cloudflare-openclaw.execute code='async () => {
   return cloudflare.request({
     method: "POST",
@@ -51,7 +49,6 @@ npx mcporter call cloudflare-openclaw.execute code='async () => {
 List registrations:
 
 ```bash
-source ~/.profile
 npx mcporter call cloudflare-openclaw.execute code='async () => {
   return cloudflare.request({
     method: "GET",

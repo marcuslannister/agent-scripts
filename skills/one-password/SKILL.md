@@ -36,8 +36,8 @@ Follow the official CLI get-started steps. Don't guess install commands.
 ## Service account tokens
 
 - 1Password service accounts are non-interactive tokens for a specific vault/scope, useful for automation without unlocking the desktop app.
-- The current service-account env var is `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` in `~/.profile`; use it only for known items in the restricted `Molty` vault.
-- Check `~/.profile` first for service-account tokens before asking the user to unlock the 1Password desktop app.
+- Use a pre-exported `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` only for known items in the restricted `Molty` vault.
+- If the token is not already exported, use the desktop-app 1Password flow below.
 - Export it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$MOLTY_OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault Molty ...`.
 - Service-account `op` reads require an explicit vault query; omitting `--vault Molty` fails even when the token is valid.
 - Keep the tmux rule: every `op` command, including service-account reads, still runs inside one named tmux session.

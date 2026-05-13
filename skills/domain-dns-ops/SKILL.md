@@ -36,7 +36,7 @@ This skill is a thin router: use `~/Projects/manager` as truth, run the repo scr
 
 ## Common ops
 
-- **Cloudflare token sanity**: `source ~/.profile` (prefer `CLOUDFLARE_API_TOKEN`; `CF_API_TOKEN` fallback).
+- **Cloudflare token sanity**: follow the root secret rule; export only the needed Cloudflare token for one command.
 - **Disable “Block AI bots”**: `cd ~/Projects/manager && source profile && bin/cloudflare-ai-bots status` / `bin/cloudflare-ai-bots disable`.
 
 ## After edits (commit/push)
