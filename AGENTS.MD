@@ -46,7 +46,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - When merging contributor PRs: thank contributor in `CHANGELOG.md`.
 - Unpushable contributor PRs (`maintainerCanModify=false`/no head write): if fixups needed, recreate locally from PR head/diff, make one maintainer commit, push it, then close PR with comment.
 - Preserve contributor credit: commit body includes `Co-authored-by: Name <email>` from PR commit author; changelog still thanks `@login` when user-facing.
-- Prefer cherry-pick PR commit(s) when clean; otherwise apply PR diff/checkout to temp branch. Keep PR ref in commit/comment.
+- PR fixups from repo cwd: use that checkout. No worktrees unless asked; if awkward, ask.
 - Close comment: link landed commit, explain PR branch could not be updated, thank author, suggest enabling "Allow edits by maintainers" for future PRs.
 
 ## Runtime Safety
@@ -58,6 +58,11 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 ## Git
 
+- If cwd is in a git repo: work there. Do not jump to sibling checkout unless asked.
+- No `git worktree` from CLI sessions unless user asks. If dirty/wrong branch/awkward: ask.
+- Branch switch/checkout ok when task needs it and repo rules allow.
+- `~/Projects` has many intentional same-repo checkouts. Treat as user-managed, not scratch.
+- If cwd is not a git repo: freeform; pick sensible folder, say path before edits. Worktrees ok if useful.
 - Safe by default: `git status/diff/log`.
 - Push only when user asks.
 - End in visible checkout/branch user expects.
