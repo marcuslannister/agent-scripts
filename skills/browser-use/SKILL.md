@@ -1,11 +1,11 @@
 ---
 name: browser-use
-description: "Chrome DevTools MCP automation for Peter's Chrome tabs; no AppleScript."
+description: "Chrome DevTools MCP automation for the existing Chrome tabs; no AppleScript."
 ---
 
 # Browser Use
 
-Use this for browser tasks against Peter's existing Chrome session.
+Use this for browser tasks against the existing Chrome session.
 
 Hard rule: use `mcporter` `chrome-devtools` only. Do not fall back to AppleScript, `osascript`, GUI scripting, or macOS `open` for browser control.
 
@@ -24,6 +24,10 @@ npx mcporter call chrome-devtools.list_pages --args '{}' --output text
 ```
 
 If it still fails, stop and say Chrome DevTools MCP is unavailable. Do not use AppleScript.
+
+Avoid noisy recovery loops. Repeated MCP/browser restarts can trigger
+reconnect/login prompts and alerts. Try once, then pause and choose a quieter
+path.
 
 ## Typical Flow
 

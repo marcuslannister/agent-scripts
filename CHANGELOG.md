@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-13 — Skill Metadata Guardrails
+- Added generic skill-description guidance and quieter browser recovery notes to reduce noisy auth prompts and token-heavy skill metadata.
+
 ## 2026-05-11 — clawmac GUI Access Note
 - Documented the Peekaboo through Jump Desktop workflow for clawmac GUI prompts and Chrome Safe Storage verification.
 - Documented `crabmac` as Peter's typo/alias for `clawmac`.
