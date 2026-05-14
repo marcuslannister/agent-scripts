@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-14 — GitHub Search Shim Guidance
+- Added AGENTS guidance to prefer shimmed `gh` / `gitcrawl gh` for broad reads and avoid raw Search API POST mistakes.
+
 ## 2026-05-14 — Codex Review Base Caveat
 - Documented that `codex review --base` must not include an inline prompt; use a separate follow-up pass for custom instructions.
 
