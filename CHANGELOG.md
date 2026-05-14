@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-14 — Codex Review Full Access
+- Added `codex-review --full-access` for nested review runs that need localhost bind/listen tests without sandbox noise.
+
 ## 2026-05-14 — GitHub Search Shim Guidance
 - Added AGENTS guidance to prefer shimmed `gh` / `gitcrawl gh` for broad reads and avoid raw Search API POST mistakes.
 

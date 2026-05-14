@@ -102,6 +102,7 @@ The helper:
 - should be left in `--mode auto` or forced to `--mode branch` for committed/PR work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `CODEX_REVIEW_OUTPUT` is set
 - supports `--dry-run` and `--parallel-tests`
+- supports `--full-access` for nested review runs that need localhost bind/listen tests
 - prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0
 
 ## Final Report

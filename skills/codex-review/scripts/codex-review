@@ -9,6 +9,7 @@ Options:
   --mode auto|local|branch   Target selection. Default: auto.
   --base REF                 Base ref for branch review. Default: PR base or origin/main.
   --codex-bin PATH           Codex binary. Default: codex.
+  --full-access              Run nested Codex review without sandbox/approval prompts.
   --output FILE              Also save output to file.
   --parallel-tests CMD       Run review and test command concurrently.
   --dry-run                  Print selected commands, do not run.
@@ -24,6 +25,7 @@ EOF
 mode=auto
 base_ref=
 codex_bin=${CODEX_BIN:-codex}
+codex_args=()
 output=${CODEX_REVIEW_OUTPUT:-}
 parallel_tests=
 dry_run=false
@@ -41,6 +43,10 @@ while [[ $# -gt 0 ]]; do
     --codex-bin)
       codex_bin=${2:-}
       shift 2
+      ;;
+    --full-access)
+      codex_args+=(--dangerously-bypass-approvals-and-sandbox)
+      shift
       ;;
     --output)
       output=${2:-}
@@ -107,9 +113,9 @@ else
 fi
 
 if [[ "$review_kind" == local ]]; then
-  review_cmd=("$codex_bin" review --uncommitted)
+  review_cmd=("$codex_bin" "${codex_args[@]}" review --uncommitted)
 else
-  review_cmd=("$codex_bin" review --base "$base_ref")
+  review_cmd=("$codex_bin" "${codex_args[@]}" review --base "$base_ref")
 fi
 
 printf 'codex-review target: %s\n' "$review_kind"
