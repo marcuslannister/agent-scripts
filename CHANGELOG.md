@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-14 — Codex Review Base Caveat
+- Documented that `codex review --base` must not include an inline prompt; use a separate follow-up pass for custom instructions.
+
 ## 2026-05-14 — Codex Review Loop Guidance
 - Clarified that `codex-review` should iterate until no accepted findings remain and document intentional rejections with useful inline comments when warranted.
 
