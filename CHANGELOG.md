@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-14 — Codex Review Loop Guidance
+- Clarified that `codex-review` should iterate until no accepted findings remain and document intentional rejections with useful inline comments when warranted.
+
 ## 2026-05-14 — README Skills Overview
 - Rewrote the README around agent instructions, skills, helper scripts, and sync expectations; removed stale copied-origin notes.
 
