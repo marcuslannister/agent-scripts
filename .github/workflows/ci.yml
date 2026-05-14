@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: skills/video-transcript-downloader/package-lock.json
+
+      - name: Check codex-review helper syntax
+        run: bash -n skills/codex-review/scripts/codex-review
+
+      - name: Install video transcript downloader dependencies
+        working-directory: skills/video-transcript-downloader
+        run: npm ci
+
+      - name: Smoke video transcript downloader
+        working-directory: skills/video-transcript-downloader
+        run: |
+          node -e "import('youtube-transcript-plus').then(m => { if (typeof m.YoutubeTranscript?.fetchTranscript !== 'function') process.exit(1); })"
+          ./scripts/vtd.js transcript --help
