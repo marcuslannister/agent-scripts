@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-14 — Codex Review Finding Detection
+- Updated `codex-review` to capture review output, report elapsed time, fail on reported P0-P3 findings, and treat empty review output as non-clean.
+
 ## 2026-05-14 — Codex Review Full Access
 - Added `codex-review --full-access` for nested review runs that need localhost bind/listen tests without sandbox noise.
 
