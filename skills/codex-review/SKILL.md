@@ -34,6 +34,12 @@ Dirty local work:
 codex review --uncommitted
 ```
 
+Use this only when the patch is actually unstaged/staged/untracked in the
+current checkout. For committed, pushed, or PR work, review the branch against
+its base instead; do not force `--mode local` / `--uncommitted` just because the
+helper docs mention dirty work first. A clean `--uncommitted` review only proves
+there is no local patch.
+
 Branch/PR work:
 
 ```bash
@@ -93,6 +99,7 @@ The helper:
 - chooses dirty `--uncommitted` first
 - otherwise uses current PR base if `gh pr view` works
 - otherwise uses `origin/main` for non-main branches
+- should be left in `--mode auto` or forced to `--mode branch` for committed/PR work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `CODEX_REVIEW_OUTPUT` is set
 - supports `--dry-run` and `--parallel-tests`
 - prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0
