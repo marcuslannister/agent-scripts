@@ -8,6 +8,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - `ship` => changelog, commit in groups, push, pull.
 - Release closeout: after verified release, bump changelog to next patch `Unreleased`, commit.
 - Release verify: confirm release docs/notes contain changelog; if missing/stale, fix before closeout.
+- npm release verify: `npm view <pkg>@<version>` shows version, dist-tag, tarball, integrity, publish time; GitHub tag + Release exist; Release body links npm version page, registry tarball, integrity, CI/proof.
 - Changelogs: match file style; prefer one bullet per entry on one line. Do not hard-wrap changelog bullets just because prose is long.
 - Skills are canonical for tool workflows. Keep this file to hard rules only.
 - Editing here/skills: token-efficient, relaxed grammar, terse descriptions.
