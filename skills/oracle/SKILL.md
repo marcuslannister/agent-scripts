@@ -35,6 +35,10 @@ Recommended defaults:
 - Token/cost sanity:
   - `npx -y @steipete/oracle --dry-run summary --files-report -p "<task>" --file "src/**"`
 
+- Startup/perf trace:
+  - `npx -y @steipete/oracle --perf-trace --perf-trace-path /tmp/oracle-perf.json --dry-run summary -p "<task>" --file "src/**"`
+  - Use when CLI startup or time-to-first-output feels slow; inspect `first-output` and `exit`.
+
 - Browser run (main path; long-running is normal):
   - `npx -y @steipete/oracle --engine browser --model gpt-5.5-pro -p "<task>" --file "src/**"`
 
@@ -65,6 +69,7 @@ Recommended defaults:
 
 - Target: keep total input under ~196k tokens.
 - Use `--files-report` (and/or `--dry-run json`) to spot the token hogs before spending.
+- Use `--perf-trace` / `ORACLE_PERF_TRACE=1` for startup and first-output timing. Traces redact prompts, tokens, keys, cookies, and inline cookie payloads; detached API children write a session-suffixed sidecar trace.
 - If you need hidden/advanced knobs: `npx -y @steipete/oracle --help --verbose`.
 
 ## Engines (API vs browser)
@@ -106,6 +111,7 @@ Recommended defaults:
   - Attach: `oracle session <id> --render`
 - Use `--slug "<3-5 words>"` to keep session IDs readable.
 - Duplicate prompt guard exists; use `--force` only when you truly want a fresh run.
+- CLI guardrails: root runs without a prompt exit nonzero; `--dry-run` conflicts with `--render` / `--render-markdown`; Ctrl-C exits foreground API runs with code 130 while browser cleanup/reattach still runs.
 
 ## Prompt template (high signal)
 
