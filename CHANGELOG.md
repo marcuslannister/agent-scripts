@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-16 — Codex Review Gitcrawl Repair
+- Updated `codex-review` to run `gitcrawl doctor --json` for malformed local Gitcrawl DB errors before falling back to live GitHub reads.
+
 ## 2026-05-16 — GitHub Project Triage Scope
 - Updated `github-project-triage` to default broad queue scans to `steipete` and `openclaw`, sort PR triage by PR count, and preserve RepoBar order when summarizing.
 
