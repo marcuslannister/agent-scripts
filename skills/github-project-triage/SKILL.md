@@ -1,11 +1,11 @@
 ---
 name: "github-project-triage"
-description: "RepoBar GitHub queue triage: current GitHub project by default; open issues/PRs across Peter profiles, orgs, local projects when broad triage is requested."
+description: "RepoBar GitHub queue triage: current project by default; steipete/openclaw issue and PR discovery when broad triage is requested."
 ---
 
 # GitHub Project Triage
 
-Use the current GitHub project by default when the user says "triage" from inside a repo. Use RepoBar as the first pass only for broad queue discovery across profiles/orgs. RepoBar is faster and more profile-aware than hand-rolling `gh repo list` loops, and it already understands Peter's repo activity, issue counts, PR counts, local projects, auth, cache, and filters.
+Use the current GitHub project by default when the user says "triage" from inside a repo. Use RepoBar as the first pass only for broad queue discovery across relevant owners/orgs. RepoBar is faster and more profile-aware than hand-rolling `gh repo list` loops, and it already understands repo activity, issue counts, PR counts, local projects, auth, cache, and filters.
 
 ## Setup
 
@@ -25,7 +25,7 @@ repobar_cmd() {
 repobar_cmd status --json
 ```
 
-Default owners for "my profiles": `steipete`, `amantus-ai`, `openclaw`. Add or remove owners based on the user's wording, local repo remotes, or the authenticated GitHub account. For an exact owner-specific task, do not broaden beyond the named owner.
+Default owners for broad triage: `steipete`, `openclaw`. Do not include `amantus-ai` or other owners unless the user names them, the current repo is already under that owner, or the task explicitly asks for all/everything. For an exact owner-specific task, do not broaden beyond the named owner.
 
 ## Local Repo Gate
 
@@ -69,16 +69,29 @@ Then inspect selected items with `gh issue view`, `gh pr view`, `gh pr diff`, ch
 
 ## Fast Queue Map
 
-Use this only when the scope is broad. Start with the repo-level queue map. This finds repos with open issues and/or PRs and gives counts.
+Use this only when the scope is broad. Start with repo-level queue maps. This finds repos with open issues and/or PRs and gives counts.
+
+PR queue, primary triage order:
 
 ```bash
 repobar_cmd repos \
   --scope all \
   --only-with work \
   --owner steipete \
-  --owner amantus-ai \
   --owner openclaw \
-  --sort activity \
+  --sort prs \
+  --json
+```
+
+Issue pressure, second pass when issues matter:
+
+```bash
+repobar_cmd repos \
+  --scope all \
+  --only-with work \
+  --owner steipete \
+  --owner openclaw \
+  --sort issues \
   --json
 ```
 
@@ -87,15 +100,17 @@ Use `--forks` and `--archived` only when the user says "all", "everything", or a
 For a compact terminal view:
 
 ```bash
-repobar_cmd repos --scope all --only-with work --owner steipete --owner amantus-ai --owner openclaw --plain
+repobar_cmd repos --scope all --only-with work --owner steipete --owner openclaw --sort prs --plain
 ```
 
 Useful `jq` summary:
 
 ```bash
-repobar_cmd repos --scope all --only-with work --owner steipete --owner amantus-ai --owner openclaw --json |
+repobar_cmd repos --scope all --only-with work --owner steipete --owner openclaw --sort prs --json |
   jq -r '.[] | [.fullName, .openIssues, .openPulls, .activityTitle, .activityActor] | @tsv'
 ```
+
+When summarizing a PR-sorted queue, preserve RepoBar's PR-count order. Do not include a lower-PR repo while omitting a higher-PR repo from the same owner scope. Zero-issue repos with open PRs, for example `openclaw/crabbox`, are still triage-relevant.
 
 ## Detail Pass
 
@@ -150,7 +165,7 @@ Deprioritize:
 For a broad scan, answer with:
 
 ```text
-Owners scanned: steipete, amantus-ai, openclaw
+Owners scanned: steipete, openclaw
 Source: RepoBar <command summary>, plus gh for selected PRs/issues
 
 Top queues:

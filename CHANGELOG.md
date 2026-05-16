@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-16 — GitHub Project Triage Scope
+- Updated `github-project-triage` to default broad queue scans to `steipete` and `openclaw`, sort PR triage by PR count, and preserve RepoBar order when summarizing.
+
 ## 2026-05-14 — Video Transcript Dependency Update
 - Updated `video-transcript-downloader` to `youtube-transcript-plus` 2.0.0.
 
