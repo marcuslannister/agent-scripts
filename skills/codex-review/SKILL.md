@@ -21,6 +21,7 @@ Use when:
 - Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
 - Keep going until Codex review returns no accepted/actionable findings.
 - If a review-triggered fix changes code, rerun focused tests and rerun Codex review.
+- For security-audit suppression changes, verify accepted findings remain auditable: suppressed findings stay in structured output, active output keeps an unsuppressible suppression notice, and aggregate findings cannot hide unrelated active risk.
 - Never switch or override the review model. If the review hits model capacity, retry the same command a few times with the same model. The helper runs nested review in yolo/full-access mode by default; use `--no-yolo` only when intentionally testing sandbox behavior.
 - Stop as soon as the review command/helper exits 0 with no accepted/actionable findings. Do not run an extra direct `codex review` just to get a nicer "clean" line, a second opinion, or clearer closeout wording.
 - Treat the helper's successful exit plus absence of actionable findings as the clean review result, even if the underlying Codex CLI output is terse.
