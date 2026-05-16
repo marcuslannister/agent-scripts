@@ -36,10 +36,10 @@ codex review --uncommitted
 ```
 
 Use this only when the patch is actually unstaged/staged/untracked in the
-current checkout. For committed, pushed, or PR work, review the branch against
-its base instead; do not force `--mode local` / `--uncommitted` just because the
-helper docs mention dirty work first. A clean `--uncommitted` review only proves
-there is no local patch.
+current checkout. For committed, pushed, or PR work, point Codex at the commit
+or branch diff instead; do not force `--mode local` / `--uncommitted` just
+because the helper docs mention dirty work first. A clean `--uncommitted` review
+only proves there is no local patch.
 
 Branch/PR work:
 
@@ -62,6 +62,17 @@ Committed single change:
 ```bash
 codex review --commit HEAD
 ```
+
+or with the helper:
+
+```bash
+/Users/steipete/Projects/agent-scripts/skills/codex-review/scripts/codex-review --mode commit --commit HEAD
+```
+
+Use commit review for already-landed or already-pushed work on `main`. Reviewing
+clean `main` against `origin/main` is usually an empty diff after push. For a
+small stack, review each commit explicitly or review the branch before merging
+with `--base`.
 
 ## Parallel Closeout
 
@@ -100,9 +111,10 @@ The helper:
 - chooses dirty `--uncommitted` first
 - otherwise uses current PR base if `gh pr view` works
 - otherwise uses `origin/main` for non-main branches
-- should be left in `--mode auto` or forced to `--mode branch` for committed/PR work; do not force `--mode local` after committing
+- use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
+- should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `CODEX_REVIEW_OUTPUT` is set
-- supports `--dry-run` and `--parallel-tests`
+- supports `--dry-run`, `--parallel-tests`, and commit refs
 - runs nested review with `--dangerously-bypass-approvals-and-sandbox` by default
 - keeps accepting `--full-access`; use `--no-yolo` or `CODEX_REVIEW_YOLO=0` to opt out
 - prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0
