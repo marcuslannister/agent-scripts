@@ -5,6 +5,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 # Changelog
 
 ## 2026-05-16 — Codex Review Gitcrawl Repair
+- Extended `codex-review` Gitcrawl recovery guidance to inspect portable manifest, source/runtime DB health, and portable-store status before live fallback.
 - Updated `codex-review` to run `gitcrawl doctor --json` for malformed local Gitcrawl DB errors before falling back to live GitHub reads.
 
 ## 2026-05-16 — GitHub Project Triage Scope
