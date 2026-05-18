@@ -8,7 +8,7 @@ metadata: {"clawdbot":{"emoji":"👁️","requires":{"bins":["pnpm","op","tmux",
 
 Release `~/Projects/Peekaboo` as the npm package `@steipete/peekaboo` plus signed/notarized macOS app assets.
 
-Use `$one-password`, `$browser-use`, `$npm`, `$codex-review`, and repo `AGENTS.md` rules. Keep all `op` secret work inside one persistent tmux session. Never print `.p8`, npm tokens, passwords, or OTPs.
+Use `$one-password`, `$browser-use`, `$npm`, `$codex-review`, and repo `AGENTS.md` rules. Read `$npm` before any npm auth, token, or publish recovery work. Keep all `op` secret work inside one persistent tmux session. Never print `.p8`, npm tokens, passwords, or OTPs.
 
 ## Current Secrets
 
