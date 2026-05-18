@@ -7,6 +7,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## 2026-05-18 — 1Password Exact Field Reads
 - Updated `one-password` to avoid tmux window-index assumptions and document exact-label JSON extraction when `op --field` resolves an ambiguous concealed field.
 
+## 2026-05-18 — SSH Doctor Skill
+- Added `ssh-doctor` for Remote Login diagnosis, launchd sshd pre-auth closes, stale `sshd-session` cleanup, and safe OP profile token block checks.
+
 ## 2026-05-18 — 1Password Service Account Priority
 - Updated `one-password` to prefer scoped service-account access before interactive desktop-app sign-in and to ask before fallback when scoped access is missing.
 
