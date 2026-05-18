@@ -7,20 +7,32 @@ description: "Chrome DevTools MCP automation for the existing Chrome tabs; no Ap
 
 Use this for browser tasks against the existing Chrome session.
 
-Hard rule: use `mcporter` `chrome-devtools` only. Do not fall back to AppleScript, `osascript`, GUI scripting, or macOS `open` for browser control.
+Config repair details live in `mcporter-config.md`.
+
+Hard rule: reattach to the existing Chrome profile only. Use this target:
+
+```bash
+mcporter call chrome-devtools.<tool>
+```
+
+Never use `chrome-isolated`, Playwright, Puppeteer, the Codex in-app browser, AppleScript, `osascript`, GUI scripting, or macOS `open` for browser control unless the user explicitly asks for an isolated/new browser.
 
 ## Check MCP
 
 ```bash
-npx mcporter list chrome-devtools --schema
-npx mcporter call chrome-devtools.list_pages --args '{}' --output text
+mcporter list chrome-devtools --schema
+mcporter call chrome-devtools.list_pages --args '{}' --output text
 ```
 
-If `list_pages` fails with `DevToolsActivePort`, restart the mcporter daemon and retry:
+`list_pages` must show the user's real open tabs. If it shows a blank/default isolated Chrome, stop and say reattach failed.
+
+If the call appears to hang while Chrome shows an auth/attach/update prompt, wait for approval. Prefer Peekaboo to press an explicit Chrome `Allow` button when visible; otherwise wait for the human. Do not restart daemons or kill MCP processes just because the first output is slow.
+
+If `list_pages` fails with `DevToolsActivePort`, ask the user to restart Chrome or the DevTools bridge, then retry once:
 
 ```bash
-npx mcporter daemon restart
-npx mcporter call chrome-devtools.list_pages --args '{}' --output text
+mcporter daemon restart
+mcporter call chrome-devtools.list_pages --args '{}' --output text
 ```
 
 If it still fails, stop and say Chrome DevTools MCP is unavailable. Do not use AppleScript.
@@ -33,22 +45,22 @@ path.
 
 ```bash
 # pick the page id from list_pages
-npx mcporter call chrome-devtools.select_page pageId=9 --output text
+mcporter call chrome-devtools.select_page --args '{"pageId":9}' --output text
 
 # inspect page
-npx mcporter call chrome-devtools.take_snapshot --args '{}' --output text
+mcporter call chrome-devtools.take_snapshot --args '{}' --output text
 
 # navigate selected page
-npx mcporter call chrome-devtools.navigate_page url=https://example.com --output text
+mcporter call chrome-devtools.navigate_page --args '{"url":"https://example.com"}' --output text
 
 # click an element uid from the latest snapshot
-npx mcporter call chrome-devtools.click uid=1_38 includeSnapshot=true --output text
+mcporter call chrome-devtools.click --args '{"uid":"1_38","includeSnapshot":true}' --output text
 
 # type/fill
-npx mcporter call chrome-devtools.fill uid=1_13 value='text' includeSnapshot=true --output text
+mcporter call chrome-devtools.fill --args '{"uid":"1_13","value":"text","includeSnapshot":true}' --output text
 
 # run JS, keep secrets out of output
-npx mcporter call chrome-devtools.evaluate_script --args '{"function":"() => document.title"}' --output json
+mcporter call chrome-devtools.evaluate_script --args '{"function":"() => document.title"}' --output json
 ```
 
 Use `take_snapshot` before actions and use current `uid` values only. Avoid `take_screenshot` unless visual layout matters.
