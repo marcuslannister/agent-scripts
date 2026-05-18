@@ -27,6 +27,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 - Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked files.
 - Bugs: add regression test when it fits.
+- Fixes: prefer clean bounded refactor over tiny shim. Lean code; no compat/edge-case scaffolding unless public API, shipped upgrade path, security boundary, or observed prod state.
 - Use repo package manager/runtime; no swaps without approval.
 - Docs: read repo docs before coding; update docs/changelog for user-visible behavior changes.
 - Inline code comments: brief notes for tricky, bug-prone, or previously buggy logic.
