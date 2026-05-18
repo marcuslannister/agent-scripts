@@ -18,6 +18,7 @@ Canonical automation item:
 - title: `API Key - App Store Connect - Personal - Release`
 - fields: `key_id`, `issuer_id`, `private_key_p8`
 - service token: `MOLTY_OP_SERVICE_ACCOUNT_TOKEN`
+- status: if the service account returns `Service Account Deleted`, use desktop `op --account my.1password.com` and restore the Molty service account before the next release.
 - current key id: `AKVLXW849T`
 - issuer id: `69a6de84-c8a9-47e3-e053-5b8c7c11a4d1`
 - App Store Connect key name: `Peekaboo Release 3.2.1`
@@ -36,6 +37,20 @@ Revoked old key:
 Sparkle key:
 
 - `SPARKLE_PRIVATE_KEY_FILE=/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle/sparkle-private-key-KEEP-SECURE.txt`
+
+Developer ID release keychain:
+
+- vault: `Molty`
+- title: `Peekaboo Release Keychain`
+- fields: `keychain_path`, `keychain_password`, `certificate_source`
+- current path: `/Users/steipete/Library/Keychains/peekaboo-release-321-20260518132141.keychain-db`
+
+npm publish token:
+
+- vault: `Private`
+- title: `API Token - npm - Personal`
+- field: `token`
+- Use only through a temp npmrc; delete temp files immediately. If this token requires npm web auth, use the `npmjs` TOTP item and delete any short-lived bypass tokens created during retries.
 
 ## Notary Credential Check
 
@@ -72,7 +87,9 @@ op run --env-file "$ENVFILE" -- bash -c '
 '
 ```
 
-If `history` works but `submit` returns `401`, suspect wrong access level or stale key. Browser route:
+Peekaboo forces `notarytool submit --no-s3-acceleration`; the default S3 accelerated upload path can return a misleading `401` even when `history` auth succeeds.
+
+If both `history` and non-S3 `submit` fail, suspect wrong access level or stale key. Browser route:
 
 1. Use `$browser-use` real Chrome profile.
 2. Open `https://appstoreconnect.apple.com/access/integrations/api`.
@@ -104,6 +121,10 @@ op run --env-file "$ENVFILE" -- \
 ```
 
 The script builds universal CLI, npm package, signed/notarized app zip, appcast, checksums, draft GitHub release, and npm publish.
+
+Notarized releases must sign with `Developer ID Application: Peter Steinberger (Y5PE65HELJ)`, not `Apple Development`. If your shell has `SIGN_IDENTITY` exported for CLI builds, override it for the release command.
+
+If npm upload is slow and TOTP expires, use the stored npm token through a temp npmrc and complete npm web auth immediately when prompted. Do not create granular bypass tokens unless necessary; if created, delete them from `https://www.npmjs.com/settings/steipete/tokens` before closeout.
 
 ## Verify
 
