@@ -1,6 +1,6 @@
 ---
 name: one-password
-description: "1Password/op: sign-in, account choice, targeted secret read/store/inject; tmux only."
+description: "1Password/op: service-account first, sign-in fallback, targeted secret read/store/inject; tmux only."
 metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op","tmux"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
 ---
 
@@ -18,12 +18,13 @@ Follow the official CLI get-started steps. Don't guess install commands.
 
 1. Check OS + shell.
 2. Verify CLI present inside tmux: `op --version`.
-3. Confirm desktop app integration is enabled (per get-started) and the app is unlocked.
-4. REQUIRED: create exactly one persistent named tmux session for the whole secret task.
-5. Sign in / authorize once inside that same session: `op signin` (expect one app prompt).
-6. Verify access inside that same session: `op whoami` (must succeed before any secret read).
-7. If multiple accounts: use `--account` or `OP_ACCOUNT`.
-8. If a command fails, reuse the same tmux session with `tmux send-keys`; do not start a second session just to retry.
+3. REQUIRED: create exactly one persistent named tmux session for the whole secret task.
+4. Try scoped service-account access first when a matching token/workflow exists; no dialogs.
+5. If service-account access is missing or lacks the exact item/field needed, stop and ask before desktop-app sign-in.
+6. Desktop fallback: confirm app integration/unlock, then `op signin` once inside the same session.
+7. Verify chosen access path inside that same session: `op whoami`.
+8. If multiple accounts: use `--account` or `OP_ACCOUNT`.
+9. If a command fails, reuse the same tmux session with `tmux send-keys`; do not start a second session just to retry.
 
 ## Default Account
 
@@ -35,18 +36,19 @@ Follow the official CLI get-started steps. Don't guess install commands.
 
 ## Service account tokens
 
+- Prefer service-account tokens before any interactive 1Password flow. User dialogs are fallback only.
 - 1Password service accounts are non-interactive tokens for a specific vault/scope, useful for automation without unlocking the desktop app.
 - Use a pre-exported `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` only for known items in the restricted `Molty` vault.
-- If the token is not already exported, use the desktop-app 1Password flow below.
+- If the token is not already exported, not applicable, or cannot read the exact known item/field required, ask the user before using the desktop-app 1Password flow below.
 - Export it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$MOLTY_OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault Molty ...`.
 - Service-account `op` reads require an explicit vault query; omitting `--vault Molty` fails even when the token is valid.
 - Keep the tmux rule: every `op` command, including service-account reads, still runs inside one named tmux session.
-- Do not enumerate vaults/items with service accounts. If the known item or field is not accessible, stop and ask the user instead of probing.
+- Do not enumerate vaults/items with service accounts. If the known item or field is not accessible, stop and ask the user instead of probing or triggering app dialogs.
 - Print presence/shape only, never token or secret values.
 
 ## Required Persistent Tmux Session
 
-The shell tool uses a fresh TTY per command. To avoid repeated 1Password prompts, run `op` inside one dedicated tmux session and keep using that same session until the whole secret task is done.
+The shell tool uses a fresh TTY per command. Run `op` inside one dedicated tmux session and keep using that same session until the whole secret task is done. Service-account commands still run here, but must not trigger app prompts.
 
 Example:
 
