@@ -44,13 +44,17 @@ Developer ID release keychain:
 - title: `Peekaboo Release Keychain`
 - fields: `keychain_path`, `keychain_password`, `certificate_source`
 - current path: `/Users/steipete/Library/Keychains/peekaboo-release-321-20260518132141.keychain-db`
+- If macOS shows `codesign wants to use the "peekaboo-release" keychain`, enter this item's `keychain_password`, not the Developer ID `.p12` password.
+- The Developer ID certificate password is only for importing the `.p12` while creating the keychain.
+- After setup/import, run `security unlock-keychain` and `security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"` so `codesign` can use the identity without GUI prompts.
 
 npm publish token:
 
 - vault: `Private`
 - title: `API Token - npm - Personal`
 - field: `token`
-- Use only through a temp npmrc; delete temp files immediately. If this token requires npm web auth, use the `npmjs` TOTP item and delete any short-lived bypass tokens created during retries.
+- Use `$npm` rules. Run inside the same tmux session, write only a temp npmrc, delete it immediately, and use the `npmjs` TOTP item for web auth if npm prompts.
+- Do not create short-lived/granular bypass tokens for a normal Peekaboo publish. They add cleanup risk and did not help the 3.2.1 slow-upload/web-auth path.
 
 ## Notary Credential Check
 
@@ -124,7 +128,7 @@ The script builds universal CLI, npm package, signed/notarized app zip, appcast,
 
 Notarized releases must sign with `Developer ID Application: Peter Steinberger (Y5PE65HELJ)`, not `Apple Development`. If your shell has `SIGN_IDENTITY` exported for CLI builds, override it for the release command.
 
-If npm upload is slow and TOTP expires, use the stored npm token through a temp npmrc and complete npm web auth immediately when prompted. Do not create granular bypass tokens unless necessary; if created, delete them from `https://www.npmjs.com/settings/steipete/tokens` before closeout.
+If npm upload is slow and TOTP expires, use the stored npm token through a temp npmrc and complete npm web auth immediately when prompted with the `npmjs` TOTP. Do not create granular bypass tokens for this; if one was created by mistake, delete it from `https://www.npmjs.com/settings/steipete/tokens` before closeout.
 
 ## Verify
 
