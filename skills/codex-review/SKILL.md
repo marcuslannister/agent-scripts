@@ -51,7 +51,11 @@ git fetch origin
 codex review --base origin/main
 ```
 
-Do not pass an inline prompt with `--base`; current CLI rejects `--base` + `[PROMPT]` even though help text is ambiguous. If custom instructions are needed, run the plain base review first, then do a local/manual follow-up pass.
+Do not pass any prompt with `--base`. Some Codex CLI versions reject both inline
+and stdin prompt forms, including helper commands shaped like
+`codex review --base <ref> -`, with `--base <BRANCH> cannot be used with
+[PROMPT]`. If the helper hits this error, run plain `codex review --base <ref>`
+and report that helper prompt injection was skipped.
 
 If an open PR exists, use its actual base:
 
@@ -120,6 +124,7 @@ The helper:
 - writes only to stdout unless `--output` or `CODEX_REVIEW_OUTPUT` is set
 - supports `--dry-run`, `--parallel-tests`, and commit refs
 - runs nested review with `--dangerously-bypass-approvals-and-sandbox` by default
+- branch mode may fail on Codex CLI versions that reject `--base` plus the helper's stdin prompt; on that exact parser error, rerun plain `codex review --base <ref>` instead of falling back to a non-Codex reviewer
 - keeps accepting `--full-access`; use `--no-yolo` or `CODEX_REVIEW_YOLO=0` to opt out
 - prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0
 
