@@ -23,6 +23,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Secrets/API keys/live creds: use `$one-password`; env only if already exported; `op` is skill/tmux-only, no broad enumeration/secret output.
 - New API keys: immediately store in 1Password service account via `$one-password`; temp files/env only for current task.
 - Email/Google account for testing: use `gog+clawdbot@gmail.com`.
+- OpenClaw deployments: use `service@openclaw.org` accounts only.
 
 ## Project Defaults
 
