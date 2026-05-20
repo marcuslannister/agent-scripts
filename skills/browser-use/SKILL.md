@@ -15,6 +15,8 @@ Hard rule: reattach to the existing Chrome profile only. Use this target:
 mcporter call chrome-devtools.<tool>
 ```
 
+Most login-heavy sites fail in isolated profiles because fresh sessions trigger captcha, device checks, or missing SSO/extension state. Strongly prefer the existing Chrome profile for any website that needs login.
+
 Never use `chrome-isolated`, Playwright, Puppeteer, the Codex in-app browser, AppleScript, `osascript`, GUI scripting, or macOS `open` for browser control unless the user explicitly asks for an isolated/new browser.
 
 ## Check MCP

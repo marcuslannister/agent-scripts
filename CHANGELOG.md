@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-20 — Browser Login Automation
+- Updated `browser-use` to prefer existing Chrome for login-heavy sites because isolated profiles trigger captcha/device checks.
+
 ## 2026-05-20 — OpenClaw Deployment Account
 - Added AGENTS routing to require `service@openclaw.org` accounts for OpenClaw deployments.
 
