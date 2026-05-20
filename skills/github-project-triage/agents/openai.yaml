@@ -1,4 +1,4 @@
 interface:
   display_name: "GitHub Project Triage"
-  short_description: "Find open issues and PRs across your GitHub profiles"
-  default_prompt: "Use $github-project-triage to find open issues and pull requests across my GitHub profiles and summarize the highest-priority queues."
+  short_description: "Triage GitHub issues and PRs with fit, risk, proof, and trust"
+  default_prompt: "Use $github-project-triage to triage the current GitHub repo: summarize each open issue and PR, include author trust signals, judge fit/risk/testability, and recommend the next maintainer action."
