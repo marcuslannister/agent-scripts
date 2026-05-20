@@ -28,6 +28,20 @@ mcporter call chrome-devtools.list_pages --args '{}' --output text
 
 If the call appears to hang while Chrome shows an auth/attach/update prompt, wait for approval. Prefer Peekaboo to press an explicit Chrome `Allow` button when visible; otherwise wait for the human. Do not restart daemons or kill MCP processes just because the first output is slow.
 
+Tested attach-prompt recovery:
+
+```bash
+PB="${PEEKABOO_BIN:-$HOME/bin/peekaboo}"
+[ -x "$PB" ] || PB="$(command -v peekaboo)"
+"$PB" permissions status --json
+"$PB" see --app frontmost --path /tmp/chrome-attach.png --json --annotate
+# If the UI shows Chrome "Allow remote debugging?", click only the visible Allow button.
+"$PB" click --coords <allow_x>,<allow_y> --json
+mcporter call chrome-devtools.list_pages --args '{}' --output text
+```
+
+Use coordinates from the current Peekaboo snapshot, not stale notes. Success means `list_pages` returns the user's real Chrome tabs.
+
 If `list_pages` fails with `DevToolsActivePort`, ask the user to restart Chrome or the DevTools bridge, then retry once:
 
 ```bash
