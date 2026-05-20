@@ -21,6 +21,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Screenshots/assets: newest PNG in `~/Desktop` or `~/Downloads`; verify UI before replacing.
 - Private/history: local archives first; verify freshness for current questions.
 - Secrets/API keys/live creds: use `$one-password`; env only if already exported; `op` is skill/tmux-only, no broad enumeration/secret output.
+- New API keys: immediately store in 1Password service account via `$one-password`; temp files/env only for current task.
 - Email/Google account for testing: use `gog+clawdbot@gmail.com`.
 
 ## Project Defaults
