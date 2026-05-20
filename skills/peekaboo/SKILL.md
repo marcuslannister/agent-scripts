@@ -17,6 +17,9 @@ Use for macOS screen capture, UI inspection, and GUI automation.
 
 - Check permissions before capture/automation: `peekaboo permissions status --json`.
 - Screenshot needs Screen Recording; clicks/typing/window control need Accessibility.
+- On remote Macs, Screenshot may be blocked by missing Screen Recording while
+  clicks/typing still work through Accessibility; continue with clicks or DOM
+  automation when the target is otherwise knowable.
 - Prefer `--json` for machine parsing and `--no-remote` when testing local TCC.
 - Do not click/type/destructively automate unless user asked or target is a controlled test.
 
