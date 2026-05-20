@@ -71,7 +71,7 @@ clawmac healthy shape:
 
 - Prefer direct clawmac automation over Tailscale/SSH first: `open -a "Google Chrome"`, AppleScript, Chrome DOM JavaScript, and remote Peekaboo clicks.
 - For `gog` OAuth on clawmac, keep the browser on clawmac. Start `gog auth add` in remote tmux, open the printed URL on clawmac Chrome, click consent with AppleScript/DOM automation, then verify with `zsh -lc 'gog auth list --check --json --no-input'`.
-- `GOG_KEYRING_PASSWORD` should come from clawmac `~/.profile`; use `zsh -lc` for checks and tmux prompt feeding, and never print the value.
+- If `GOG_KEYRING_PASSWORD` is exported by the remote shell environment, use the matching login shell for checks and tmux prompt feeding, and never print the value.
 - If SSH/cron hits GUI-only prompts that direct automation cannot handle, use local Peekaboo through Jump Desktop's `clawmac` window as fallback.
 - Find it with `peekaboo list windows --app "Jump Desktop" --json`; capture by `--window-title clawmac` or the reported `--window-id`.
 - Clicks use local global coordinates through the Jump Desktop window; verify with a raw window screenshot before clicking.
