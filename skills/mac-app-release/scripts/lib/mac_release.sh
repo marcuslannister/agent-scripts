@@ -44,7 +44,12 @@ mac_release_load_1password_env() {
   for release_op_field in $MAC_RELEASE_OP_FIELDS; do
     [[ -n "${!release_op_field:-}" ]] || missing=1
   done
-  [[ "$missing" == "1" ]] || return 0
+  if [[ "$missing" != "1" ]]; then
+    for release_op_field in $MAC_RELEASE_OP_FIELDS; do
+      export "${release_op_field?}"
+    done
+    return 0
+  fi
 
   require_bin tmux op node
   local account vault socket_dir socket session work_dir script runner env_file log_file status_file
