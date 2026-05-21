@@ -878,7 +878,11 @@ mac_release_run_cmd() {
   local label=$1 cmd=$2
   [[ -z "$cmd" ]] && return 0
   echo "==> $label"
-  bash -lc "$cmd"
+  if [[ "${MAC_RELEASE_RUN_LOGIN_SHELL:-0}" == "1" ]]; then
+    bash -lc "$cmd"
+  else
+    env -u BASH_ENV bash -c "$cmd"
+  fi
 }
 
 mac_release_release() {

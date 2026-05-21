@@ -65,6 +65,7 @@ Common optional:
 - `MAC_RELEASE_EXTRA_ASSET_WAIT_INTERVAL`
 - `MAC_RELEASE_OP_ITEM` + `MAC_RELEASE_OP_FIELDS` for required packaging secrets. The release helper reads the known item once via `op` inside one persistent tmux session, then exports the requested fields for the package command.
 - `MAC_RELEASE_OP_ACCOUNT` defaults to `my.1password.com`; `MAC_RELEASE_OP_VAULT`, `MAC_RELEASE_OP_TMUX_SESSION`, `MAC_RELEASE_OP_WAIT_SECONDS` are optional. Without a vault, service-account token env is unset for that single `op` read so the personal desktop account handles it.
+- `MAC_RELEASE_RUN_LOGIN_SHELL=1` opts command hooks back into `bash -lc`; default hooks use `env -u BASH_ENV bash -c` so shell startup files cannot override exported release secrets.
 
 1Password rules:
 
