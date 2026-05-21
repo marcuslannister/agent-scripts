@@ -6,6 +6,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 - Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`. 3rd-party/OSS: `~/Projects/oss`.
 - "Make a note" here => terse `AGENTS.MD` edit. No separate `CLAUDE.md` here.
 - `ship` => changelog, commit in groups, push, pull.
+- Version bumps only on explicit release request. Release = GitHub Release; npm publish too when package applies.
 - Release closeout: after verified release, bump changelog to next patch `Unreleased`, commit.
 - Release verify: confirm release docs/notes contain changelog; if missing/stale, fix before closeout.
 - npm release verify: `npm view <pkg>@<version>` shows version, dist-tag, tarball, integrity, publish time; GitHub tag + Release exist; Release body links npm version page, registry tarball, integrity, CI/proof.
