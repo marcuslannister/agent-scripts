@@ -42,7 +42,6 @@ Required:
 - `MAC_RELEASE_FEED_URL`
 - `MAC_RELEASE_DOWNLOAD_URL_PREFIX`
 - `MAC_RELEASE_APP_ZIP`
-- `MAC_RELEASE_DSYM_ZIP`
 - either `MAC_RELEASE_INFO_PLIST` or `MAC_RELEASE_SUPUBLIC_ED_KEY`
 - `MAC_RELEASE_PACKAGE_CMD`
 
@@ -50,6 +49,8 @@ Common optional:
 
 - `MAC_RELEASE_PRECHECK`
 - `MAC_RELEASE_SOURCE_FILES` (space-separated app helper files to source before expanding artifact names)
+- `MAC_RELEASE_DSYM_ZIP`
+- `MAC_RELEASE_REQUIRE_DSYM=0` for app-only releases
 - `MAC_RELEASE_ARTIFACT_PREFIX`
 - `MAC_RELEASE_TAG_SIGNED`
 - `MAC_RELEASE_TAG_FORCE`
@@ -68,6 +69,6 @@ Common optional:
 - appcast entry has URL, length, Sparkle signature.
 - downloaded enclosure verifies with Sparkle.
 - extracted app passes `codesign`, `spctl`, and `stapler validate`.
-- GitHub release has app zip + dSYM zip, plus app-specific extra assets.
+- GitHub release has app zip, dSYM zip when configured, plus app-specific extra assets.
 - release notes match the changelog section.
 - after verified release, bump changelog to next patch `Unreleased` in the app repo.

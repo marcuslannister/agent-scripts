@@ -36,7 +36,8 @@ Revoked old key:
 
 Sparkle key:
 
-- `SPARKLE_PRIVATE_KEY_FILE=/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle/sparkle-private-key-KEEP-SECURE.txt`
+- Repo `.mac-release.env` has the current fallback.
+- Do not set `SPARKLE_PRIVATE_KEY_FILE` for normal releases.
 
 Developer ID release keychain:
 
@@ -70,7 +71,6 @@ Create a temp env file with service-account refs:
 APP_STORE_CONNECT_API_KEY_P8=op://Molty/API Key - App Store Connect - Personal - Release/private_key_p8
 APP_STORE_CONNECT_KEY_ID=op://Molty/API Key - App Store Connect - Personal - Release/key_id
 APP_STORE_CONNECT_ISSUER_ID=op://Molty/API Key - App Store Connect - Personal - Release/issuer_id
-SPARKLE_PRIVATE_KEY_FILE=/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle/sparkle-private-key-KEEP-SECURE.txt
 ```
 
 Before a release, verify shape and Apple auth without printing values:

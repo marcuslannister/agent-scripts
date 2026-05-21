@@ -60,9 +60,11 @@ mac_release_load() {
   fi
 
   MAC_RELEASE_VERSION_FILE=${MAC_RELEASE_VERSION_FILE:-version.env}
-  [[ -f "$MAC_RELEASE_VERSION_FILE" ]] || mac_release_die "Missing version file: $MAC_RELEASE_VERSION_FILE"
-  # shellcheck source=/dev/null
-  source "$MAC_RELEASE_VERSION_FILE"
+  if [[ "$MAC_RELEASE_VERSION_FILE" != "/dev/null" ]]; then
+    [[ -f "$MAC_RELEASE_VERSION_FILE" ]] || mac_release_die "Missing version file: $MAC_RELEASE_VERSION_FILE"
+    # shellcheck source=/dev/null
+    source "$MAC_RELEASE_VERSION_FILE"
+  fi
 
   MAC_RELEASE_SPARKLE_CHANNEL=${MAC_RELEASE_SPARKLE_CHANNEL:-${SPARKLE_CHANNEL:-}}
   MAC_RELEASE_SPARKLE_ACCOUNT=${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}
@@ -76,13 +78,12 @@ mac_release_load() {
   : "${MAC_RELEASE_FEED_URL:?MAC_RELEASE_FEED_URL missing}"
   : "${MAC_RELEASE_DOWNLOAD_URL_PREFIX:?MAC_RELEASE_DOWNLOAD_URL_PREFIX missing}"
   : "${MAC_RELEASE_APP_ZIP:?MAC_RELEASE_APP_ZIP missing}"
-  : "${MAC_RELEASE_DSYM_ZIP:?MAC_RELEASE_DSYM_ZIP missing}"
   : "${MAC_RELEASE_PACKAGE_CMD:?MAC_RELEASE_PACKAGE_CMD missing}"
 
   APP_NAME="$MAC_RELEASE_APP_NAME"
   APPCAST=$(mac_release_expand "$MAC_RELEASE_APPCAST")
   APP_ZIP=$(mac_release_expand "$MAC_RELEASE_APP_ZIP")
-  DSYM_ZIP=$(mac_release_expand "$MAC_RELEASE_DSYM_ZIP")
+  DSYM_ZIP=${MAC_RELEASE_DSYM_ZIP:+$(mac_release_expand "$MAC_RELEASE_DSYM_ZIP")}
   FEED_URL=$(mac_release_expand "$MAC_RELEASE_FEED_URL")
   TAG=${MAC_RELEASE_TAG:-"v${MARKETING_VERSION}"}
   ARTIFACT_PREFIX=${MAC_RELEASE_ARTIFACT_PREFIX:-"${APP_NAME}-"}
@@ -132,7 +133,9 @@ probe_sparkle_key() {
 
 mac_release_public_key_from_file() {
   local key_file=${1:?"key file required"}
-  swift - "$key_file" <<'SWIFT'
+  CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-${TMPDIR:-/tmp}/mac-release-clang-module-cache}" \
+    SWIFT_MODULE_CACHE_PATH="${SWIFT_MODULE_CACHE_PATH:-${TMPDIR:-/tmp}/mac-release-swift-module-cache}" \
+    swift - "$key_file" <<'SWIFT'
 import CryptoKit
 import Foundation
 
@@ -295,8 +298,15 @@ item = channel.find("item") if channel is not None else None
 if item is None:
     raise SystemExit(1)
 ns = {"sparkle": "http://www.andymatuschak.org/xml-namespaces/sparkle"}
-print(item.findtext("sparkle:shortVersionString", default="", namespaces=ns))
-print(item.findtext("sparkle:version", default="", namespaces=ns))
+short_version = item.findtext("sparkle:shortVersionString", default="", namespaces=ns)
+build = item.findtext("sparkle:version", default="", namespaces=ns)
+enc = item.find("enclosure")
+if enc is not None:
+    sparkle_ns = "{http://www.andymatuschak.org/xml-namespaces/sparkle}"
+    short_version = short_version or enc.get(f"{sparkle_ns}shortVersionString", "")
+    build = build or enc.get(f"{sparkle_ns}version", "")
+print(short_version)
+print(build)
 PY
 }
 
@@ -306,8 +316,12 @@ ensure_appcast_monotonic() {
   current=$(appcast_head_version_build "$appcast" || true)
   cur_ver=$(printf "%s\n" "$current" | sed -n '1p')
   cur_build=$(printf "%s\n" "$current" | sed -n '2p')
-  [[ -n "$cur_ver" && "$cur_ver" == "$version" ]] && mac_release_die "appcast already has version $version; bump version first."
-  [[ -n "$cur_build" && "$build" -le "$cur_build" ]] && mac_release_die "Build number $build must be greater than latest appcast build $cur_build."
+  if [[ -n "$cur_ver" && "$cur_ver" == "$version" ]]; then
+    mac_release_die "appcast already has version $version; bump version first."
+  fi
+  if [[ -n "$cur_build" && "$build" -le "$cur_build" ]]; then
+    mac_release_die "Build number $build must be greater than latest appcast build $cur_build."
+  fi
 }
 
 ensure_changelog_finalized() {
@@ -434,6 +448,15 @@ for item in root.findall("./channel/item"):
             raise SystemExit(f"Missing url/signature/length for version {version}")
         print(url); print(sig); print(length)
         raise SystemExit(0)
+    enc = item.find("enclosure")
+    if enc is not None and enc.get("{http://www.andymatuschak.org/xml-namespaces/sparkle}shortVersionString") == version:
+        url = enc.get("url")
+        sig = enc.get("{http://www.andymatuschak.org/xml-namespaces/sparkle}edSignature")
+        length = enc.get("length")
+        if not all([url, sig, length]):
+            raise SystemExit(f"Missing url/signature/length for version {version}")
+        print(url); print(sig); print(length)
+        raise SystemExit(0)
 raise SystemExit(f"No appcast entry for version {version}")
 PY
 }
@@ -503,28 +526,34 @@ check_assets() {
   if [[ -z "$repo" ]]; then
     repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
   fi
-  local assets zip dsym expected_zip expected_dsym old_marketing_version asset_version
+  local assets zip="" dsym="" expected_zip="" expected_dsym="" old_marketing_version asset_version
   if gh --live release view "$tag" --repo "$repo" --json assets --jq '.assets[].name' >/dev/null 2>&1; then
     assets=$(gh --live release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
   else
     assets=$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
   fi
-  if [[ -n "${MAC_RELEASE_APP_ZIP:-}" && -n "${MAC_RELEASE_DSYM_ZIP:-}" ]]; then
+  if [[ -n "${MAC_RELEASE_APP_ZIP:-}" ]]; then
     asset_version=${tag#v}
     old_marketing_version=${MARKETING_VERSION:-}
     MARKETING_VERSION="$asset_version"
     expected_zip=$(basename "$(mac_release_expand "$MAC_RELEASE_APP_ZIP")")
-    expected_dsym=$(basename "$(mac_release_expand "$MAC_RELEASE_DSYM_ZIP")")
+    expected_dsym=${MAC_RELEASE_DSYM_ZIP:+$(basename "$(mac_release_expand "$MAC_RELEASE_DSYM_ZIP")")}
     MARKETING_VERSION="$old_marketing_version"
     zip=$(printf "%s\n" "$assets" | grep -Fx "$expected_zip" || true)
-    dsym=$(printf "%s\n" "$assets" | grep -Fx "$expected_dsym" || true)
+    if [[ -n "$expected_dsym" ]]; then
+      dsym=$(printf "%s\n" "$assets" | grep -Fx "$expected_dsym" || true)
+    fi
   else
     zip=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)?\\.zip$" || true)
     dsym=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)?\\.dSYM\\.zip$" || true)
   fi
   [[ -z "$zip" ]] && mac_release_die "app zip missing on release $tag"
-  [[ -z "$dsym" ]] && mac_release_die "dSYM zip missing on release $tag"
-  echo "Release $tag has zip ($zip) and dSYM ($dsym)."
+  if [[ -n "${MAC_RELEASE_DSYM_ZIP:-}" || "${MAC_RELEASE_REQUIRE_DSYM:-1}" == "1" ]]; then
+    [[ -z "$dsym" ]] && mac_release_die "dSYM zip missing on release $tag"
+    echo "Release $tag has zip ($zip) and dSYM ($dsym)."
+  else
+    echo "Release $tag has zip ($zip)."
+  fi
   if [[ "${MAC_RELEASE_SKIP_EXTRA_ASSET_CHECK:-0}" != "1" && -n "${MAC_RELEASE_EXTRA_ASSET_PATTERNS:-}" ]]; then
     local pattern missing=0 asset_version old_marketing_version
     asset_version=${tag#v}
@@ -647,7 +676,7 @@ mac_release_status() {
   printf 'version: %s\n' "$MARKETING_VERSION"
   printf 'build: %s\n' "$BUILD_NUMBER"
   printf 'app zip: %s\n' "$APP_ZIP"
-  printf 'dSYM zip: %s\n' "$DSYM_ZIP"
+  [[ -n "$DSYM_ZIP" ]] && printf 'dSYM zip: %s\n' "$DSYM_ZIP"
   printf 'appcast head version: %s\n' "$(printf "%s\n" "$head" | sed -n '1p')"
   printf 'appcast head build: %s\n' "$(printf "%s\n" "$head" | sed -n '2p')"
   mac_release_sparkle_key_status "${1:-$(mac_release_default_key_source)}" || true
@@ -680,14 +709,14 @@ mac_release_release() {
     local rc=$?
     [[ -n "${key_file:-}" ]] && rm -f "$key_file"
     [[ -n "${notes_md:-}" ]] && rm -f "$notes_md"
-    if [[ "$rc" -ne 0 && "$appcast_pushed" != "1" ]]; then
-      if [[ "$release_created" == "1" ]]; then
+    if [[ "$rc" -ne 0 && "${appcast_pushed:-0}" != "1" ]]; then
+      if [[ "${release_created:-0}" == "1" ]]; then
         gh release delete "$TAG" --repo "$MAC_RELEASE_REPO" --cleanup-tag -y >/dev/null 2>&1 || true
-      elif [[ "$tag_pushed" == "1" ]]; then
+      elif [[ "${tag_pushed:-0}" == "1" ]]; then
         git push origin --delete "$TAG" >/dev/null 2>&1 || true
       fi
-      [[ "$tag_created" == "1" ]] && git tag -d "$TAG" >/dev/null 2>&1 || true
-      if [[ "$appcast_committed" == "1" ]]; then
+      [[ "${tag_created:-0}" == "1" ]] && git tag -d "$TAG" >/dev/null 2>&1 || true
+      if [[ "${appcast_committed:-0}" == "1" ]]; then
         git reset --hard "$pre_release_head" >/dev/null 2>&1 || true
       fi
     fi
@@ -722,7 +751,9 @@ mac_release_release() {
   tag_pushed=1
   gh release create "$TAG" --repo "$MAC_RELEASE_REPO" --title "${APP_NAME} ${MARKETING_VERSION}" --notes-file "$notes_md"
   release_created=1
-  gh release upload "$TAG" "$APP_ZIP" "$DSYM_ZIP" --repo "$MAC_RELEASE_REPO"
+  local release_assets=("$APP_ZIP")
+  [[ -n "$DSYM_ZIP" ]] && release_assets+=("$DSYM_ZIP")
+  gh release upload "$TAG" "${release_assets[@]}" --repo "$MAC_RELEASE_REPO"
   if [[ -n "$key_file" ]]; then
     SPARKLE_PRIVATE_KEY_FILE="$key_file" "$0" verify-appcast "$MARKETING_VERSION"
   else
