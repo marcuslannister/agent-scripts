@@ -30,6 +30,155 @@ mac_release_sparkle_account_args() {
   fi
 }
 
+mac_release_tmux_quote() {
+  local out
+  printf -v out '%q' "$1"
+  printf '%s' "$out"
+}
+
+mac_release_load_1password_env() {
+  [[ -n "${MAC_RELEASE_OP_ITEM:-}" ]] || return 0
+  [[ -n "${MAC_RELEASE_OP_FIELDS:-}" ]] || mac_release_die "Set MAC_RELEASE_OP_FIELDS with MAC_RELEASE_OP_ITEM"
+
+  local missing=0 release_op_field
+  for release_op_field in $MAC_RELEASE_OP_FIELDS; do
+    [[ -n "${!release_op_field:-}" ]] || missing=1
+  done
+  [[ "$missing" == "1" ]] || return 0
+
+  require_bin tmux op node
+  local account vault socket_dir socket session work_dir script runner env_file log_file status_file
+  account=${MAC_RELEASE_OP_ACCOUNT:-my.1password.com}
+  vault=${MAC_RELEASE_OP_VAULT:-}
+  socket_dir=${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}
+  mkdir -p "$socket_dir"
+  socket=${MAC_RELEASE_OP_TMUX_SOCKET:-"$socket_dir/mac-release-op.sock"}
+  session=${MAC_RELEASE_OP_TMUX_SESSION:-mac-release-op}
+  work_dir=$(mktemp -d /tmp/mac-release-op.XXXXXX)
+  script="$work_dir/read-op.sh"
+  runner="$work_dir/run-in-tmux.sh"
+  env_file="$work_dir/secrets.env"
+  log_file="$work_dir/op.log"
+  status_file="$work_dir/status"
+  local old_exit_trap
+  old_exit_trap=$(trap -p EXIT || true)
+  # shellcheck disable=SC2329 # invoked via traps while this function is active
+  cleanup_1password_env() {
+    [[ -z "${work_dir:-}" ]] || rm -rf "$work_dir"
+  }
+  restore_1password_traps() {
+    if [[ -n "$old_exit_trap" ]]; then
+      eval "$old_exit_trap"
+    else
+      trap - EXIT
+    fi
+    trap - INT TERM
+  }
+  trap cleanup_1password_env EXIT
+  trap 'cleanup_1password_env; exit 130' INT
+  trap 'cleanup_1password_env; exit 143' TERM
+
+  cat >"$script" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+set +x
+
+item=${MAC_RELEASE_OP_ITEM:?}
+account=${MAC_RELEASE_OP_ACCOUNT:-my.1password.com}
+vault=${MAC_RELEASE_OP_VAULT:-}
+fields=${MAC_RELEASE_OP_FIELDS:?}
+env_file=${MAC_RELEASE_OP_ENV_FILE:?}
+log_file=${MAC_RELEASE_OP_LOG_FILE:?}
+json_file=$(mktemp /tmp/mac-release-op-json.XXXXXX)
+trap 'rm -f "$json_file"' EXIT
+
+args=(item get "$item" --account "$account" --format json)
+if [[ -n "$vault" ]]; then
+  args+=(--vault "$vault")
+fi
+
+if [[ -n "$vault" || "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" == "1" ]]; then
+  op "${args[@]}" >"$json_file" 2>>"$log_file"
+else
+  env -u OP_SERVICE_ACCOUNT_TOKEN -u MOLTY_OP_SERVICE_ACCOUNT_TOKEN op "${args[@]}" >"$json_file" 2>>"$log_file"
+fi
+MAC_RELEASE_OP_FIELDS="$fields" node - "$json_file" >"$env_file" 2>>"$log_file" <<'NODE'
+const fs = require("fs");
+const path = process.argv[2];
+const item = JSON.parse(fs.readFileSync(path, "utf8"));
+const fields = process.env.MAC_RELEASE_OP_FIELDS.split(/\s+/).filter(Boolean);
+const values = new Map((item.fields || []).map((field) => [field.label || field.id, field.value || ""]));
+function quote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+for (const name of fields) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error(`invalid env field name: ${name}`);
+  }
+  const value = values.get(name);
+  if (!value) {
+    throw new Error(`missing 1Password field: ${name}`);
+  }
+  process.stdout.write(`export ${name}=${quote(value)}\n`);
+  process.stderr.write(`${name}: len=${value.length} escapedNewline=${value.includes("\\n")} realNewline=${value.includes("\n")}\n`);
+}
+NODE
+chmod 600 "$env_file"
+echo "1Password fields exported: $(wc -l <"$env_file" | tr -d ' ')"
+SCRIPT
+  chmod 700 "$script"
+
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'set -euo pipefail\n'
+    printf 'export PATH=%q\n' "$PATH"
+    printf 'export MAC_RELEASE_OP_ITEM=%q\n' "$MAC_RELEASE_OP_ITEM"
+    printf 'export MAC_RELEASE_OP_ACCOUNT=%q\n' "$account"
+    printf 'export MAC_RELEASE_OP_VAULT=%q\n' "$vault"
+    printf 'export MAC_RELEASE_OP_FIELDS=%q\n' "$MAC_RELEASE_OP_FIELDS"
+    printf 'export MAC_RELEASE_OP_USE_SERVICE_ACCOUNT=%q\n' "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}"
+    printf 'export MAC_RELEASE_OP_ENV_FILE=%q\n' "$env_file"
+    printf 'export MAC_RELEASE_OP_LOG_FILE=%q\n' "$log_file"
+    printf 'bash %q\n' "$script"
+  } >"$runner"
+  chmod 700 "$runner"
+
+  tmux -S "$socket" has-session -t "$session" 2>/dev/null ||
+    tmux -S "$socket" new-session -d -s "$session" -n shell
+
+  : >"$log_file"
+  tmux -S "$socket" send-keys -t "$session:" -- \
+    "bash $(mac_release_tmux_quote "$runner"); printf '%s\n' \$? > $(mac_release_tmux_quote "$status_file")" C-m
+
+  local deadline=$((SECONDS + ${MAC_RELEASE_OP_WAIT_SECONDS:-300}))
+  until [[ -f "$status_file" ]]; do
+    [[ "$SECONDS" -lt "$deadline" ]] || {
+      sed -n '1,80p' "$log_file" >&2 || true
+      cleanup_1password_env
+      mac_release_die "Timed out waiting for 1Password fields in tmux session $session"
+    }
+    sleep 1
+  done
+
+  local rc
+  rc=$(cat "$status_file")
+  if [[ "$rc" != "0" ]]; then
+    sed -n '1,120p' "$log_file" >&2 || true
+    cleanup_1password_env
+    mac_release_die "1Password field export failed in tmux session $session"
+  fi
+
+  # shellcheck source=/dev/null
+  source "$env_file"
+  for release_op_field in $MAC_RELEASE_OP_FIELDS; do
+    export "${release_op_field?}"
+    [[ -n "${!release_op_field:-}" ]] || mac_release_die "1Password field did not populate: $release_op_field"
+  done
+  sed -n '1,80p' "$log_file" >&2 || true
+  cleanup_1password_env
+  restore_1password_traps
+}
+
 mac_release_version_from_zip() {
   local zip_name=${1##*/} zip_base
   zip_base=${zip_name%.zip}
@@ -38,6 +187,43 @@ mac_release_version_from_zip() {
   else
     printf '%s\n' "$MARKETING_VERSION"
   fi
+}
+
+mac_release_build_number() {
+  local version=${1:?"version required"} core prerelease major minor patch suffix prerelease_label prerelease_number
+  core=${version%%-*}
+  prerelease=
+  if [[ "$version" == *-* ]]; then
+    prerelease=${version#*-}
+  fi
+  IFS=. read -r major minor patch <<<"$core"
+  [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]] ||
+    mac_release_die "Version must be numeric semver: $version"
+  ((10#$minor <= 99 && 10#$patch <= 99)) ||
+    mac_release_die "Minor and patch versions must be <= 99 for generated build numbers: $version"
+
+  suffix=99
+  if [[ -n "$prerelease" ]]; then
+    prerelease_label=${prerelease%%.*}
+    prerelease_label=${prerelease_label%%-*}
+    prerelease_label=${prerelease_label%%[0-9]*}
+    prerelease_label=${prerelease_label,,}
+    if [[ "$prerelease" =~ ([0-9]+)$ ]]; then
+      prerelease_number=${BASH_REMATCH[1]}
+    else
+      prerelease_number=1
+    fi
+    ((10#$prerelease_number >= 1 && 10#$prerelease_number <= 29)) ||
+      mac_release_die "Prerelease number must be 1..29 for generated build numbers: $version"
+    case "$prerelease_label" in
+      alpha|a) suffix=$((10#$prerelease_number)) ;;
+      beta|b) suffix=$((30 + 10#$prerelease_number)) ;;
+      rc) suffix=$((60 + 10#$prerelease_number)) ;;
+      *) mac_release_die "Prerelease label must be alpha, beta, or rc for generated build numbers: $version" ;;
+    esac
+  fi
+
+  printf '%d\n' $((((10#$major * 100 + 10#$minor) * 100 + 10#$patch) * 100 + 10#$suffix))
 }
 
 mac_release_load() {
@@ -70,6 +256,7 @@ mac_release_load() {
   MAC_RELEASE_SPARKLE_ACCOUNT=${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}
 
   : "${MARKETING_VERSION:?MARKETING_VERSION missing}"
+  BUILD_NUMBER=${BUILD_NUMBER:-$(mac_release_build_number "$MARKETING_VERSION")}
   : "${BUILD_NUMBER:?BUILD_NUMBER missing}"
   : "${MAC_RELEASE_APP_NAME:?MAC_RELEASE_APP_NAME missing}"
   : "${MAC_RELEASE_REPO:?MAC_RELEASE_REPO missing}"
@@ -701,6 +888,7 @@ mac_release_release() {
   pre_release_head=$(git rev-parse HEAD)
   ensure_changelog_finalized "$MARKETING_VERSION"
   ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
+  mac_release_load_1password_env
   mac_release_run_cmd "precheck" "${MAC_RELEASE_PRECHECK:-}"
   KEY_ARGS=()
   local key_file="" notes_md="" release_created=0 tag_created=0 tag_pushed=0 appcast_committed=0 appcast_pushed=0
