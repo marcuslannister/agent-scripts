@@ -29,11 +29,13 @@ This is a practical, minimal checklist to get a new macOS (SwiftPM) menubar app 
 - Public key goes into Info.plist. Example shared public key: `AGCY8w5vHirVfGGDGc8Szc5iuOqupZSh9pMj/Qs67XI=`
 
 ## 4) Packaging & signing scripts (SwiftPM)
+- Add `.mac-release.env` at repo root with repo-owned metadata, artifact names, feed URL, public key expectation, precheck, and package command.
 - Add to `Scripts/`:
   - `package_app.sh` (build, write Info.plist with bundle id/version/Sparkle keys, codesign in debug or skip if not set).
   - `sign-and-notarize.sh` (release build, DevID sign, notarize, zip app + dSYM, enforce key cleanliness).
-  - `release.sh` sourcing `~/Projects/agent-scripts/release/sparkle_lib.sh` to: lint/test, sign+notarize, clear caches, verify appcast/enclosure, optional live-update test, create GH release, check assets, tag/push.
-  - `check-release-assets.sh` thin wrapper that calls `check_assets` from shared lib.
+  - `mac-release` resolver wrapper that uses `MAC_RELEASE_TOOL`, sibling `../agent-scripts`, or `~/Projects/agent-scripts`.
+  - `release.sh` thin wrapper around `Scripts/mac-release release`.
+  - `make_appcast.sh`, `verify_appcast.sh`, `check-release-assets.sh`, `changelog-to-html.sh`, and `generate-release-notes.sh` thin wrappers around matching `mac-release` commands.
   - `test_live_update.sh` (optional manual update smoke test, gated by `RUN_SPARKLE_UPDATE_TEST=1`).
 - Keep `version.env` as the single source for `MARKETING_VERSION` and `BUILD_NUMBER`.
 
@@ -57,7 +59,7 @@ This is a practical, minimal checklist to get a new macOS (SwiftPM) menubar app 
 ## 7) Release flow (shared pattern)
 1. `git status` clean.
 2. Update `version.env` + changelog.
-3. `Scripts/release.sh` (runs lint/test, sign/notarize, appcast verify, GH release, asset check, tag/push). 
+3. `Scripts/release.sh` (runs lint/test, sign/notarize, appcast verify, GH release, asset check, tag/push).
 4. If `RUN_SPARKLE_UPDATE_TEST=1`, perform manual update confirmation.
 
 ## 8) Verification checklist

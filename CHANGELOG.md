@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-21 — Mac App Release Skill
+- Added `mac-app-release` skill and `mac-release` helper so Sparkle appcast, key validation, GitHub release asset checks, and release closeout are shared while app metadata stays in each repo’s `.mac-release.env`.
+
 ## 2026-05-20 — Browser Login Automation
 - Updated `browser-use` to prefer existing Chrome for login-heavy sites because isolated profiles trigger captcha/device checks.
 

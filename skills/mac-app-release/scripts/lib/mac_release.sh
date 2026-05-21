@@ -1,0 +1,744 @@
+#!/usr/bin/env bash
+
+mac_release_die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+require_bin() {
+  for b in "$@"; do
+    command -v "$b" >/dev/null 2>&1 || mac_release_die "Missing required tool: $b"
+  done
+}
+
+mac_release_root() {
+  git rev-parse --show-toplevel 2>/dev/null || pwd
+}
+
+mac_release_expand() {
+  local value=${1:-}
+  eval "printf '%s' \"$value\""
+}
+
+mac_release_sparkle_account_args() {
+  local out_var=${1:?"out var"} account
+  account=${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}
+  if [[ -n "$account" ]]; then
+    eval "$out_var=(--account \"\$account\")"
+  else
+    eval "$out_var=()"
+  fi
+}
+
+mac_release_version_from_zip() {
+  local zip_name=${1##*/} zip_base
+  zip_base=${zip_name%.zip}
+  if [[ "$zip_base" =~ ([0-9]+([.][0-9]+){1,2}([-.][0-9A-Za-z.]+)?)$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  else
+    printf '%s\n' "$MARKETING_VERSION"
+  fi
+}
+
+mac_release_load() {
+  ROOT=${ROOT:-$(mac_release_root)}
+  cd "$ROOT" || mac_release_die "Could not cd to release root: $ROOT"
+  MAC_RELEASE_MANIFEST=${MAC_RELEASE_MANIFEST:-"$ROOT/.mac-release.env"}
+  [[ -f "$MAC_RELEASE_MANIFEST" ]] || mac_release_die "Missing .mac-release.env at $MAC_RELEASE_MANIFEST"
+
+  # shellcheck source=/dev/null
+  source "$MAC_RELEASE_MANIFEST"
+
+  if [[ -n "${MAC_RELEASE_SOURCE_FILES:-}" ]]; then
+    local release_source_file
+    for release_source_file in $MAC_RELEASE_SOURCE_FILES; do
+      release_source_file=$(mac_release_expand "$release_source_file")
+      [[ -f "$release_source_file" ]] || mac_release_die "Missing release source file: $release_source_file"
+      # shellcheck source=/dev/null
+      source "$release_source_file"
+    done
+  fi
+
+  MAC_RELEASE_VERSION_FILE=${MAC_RELEASE_VERSION_FILE:-version.env}
+  [[ -f "$MAC_RELEASE_VERSION_FILE" ]] || mac_release_die "Missing version file: $MAC_RELEASE_VERSION_FILE"
+  # shellcheck source=/dev/null
+  source "$MAC_RELEASE_VERSION_FILE"
+
+  MAC_RELEASE_SPARKLE_CHANNEL=${MAC_RELEASE_SPARKLE_CHANNEL:-${SPARKLE_CHANNEL:-}}
+  MAC_RELEASE_SPARKLE_ACCOUNT=${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}
+
+  : "${MARKETING_VERSION:?MARKETING_VERSION missing}"
+  : "${BUILD_NUMBER:?BUILD_NUMBER missing}"
+  : "${MAC_RELEASE_APP_NAME:?MAC_RELEASE_APP_NAME missing}"
+  : "${MAC_RELEASE_REPO:?MAC_RELEASE_REPO missing}"
+  : "${MAC_RELEASE_BUNDLE_ID:?MAC_RELEASE_BUNDLE_ID missing}"
+  : "${MAC_RELEASE_APPCAST:?MAC_RELEASE_APPCAST missing}"
+  : "${MAC_RELEASE_FEED_URL:?MAC_RELEASE_FEED_URL missing}"
+  : "${MAC_RELEASE_DOWNLOAD_URL_PREFIX:?MAC_RELEASE_DOWNLOAD_URL_PREFIX missing}"
+  : "${MAC_RELEASE_APP_ZIP:?MAC_RELEASE_APP_ZIP missing}"
+  : "${MAC_RELEASE_DSYM_ZIP:?MAC_RELEASE_DSYM_ZIP missing}"
+  : "${MAC_RELEASE_PACKAGE_CMD:?MAC_RELEASE_PACKAGE_CMD missing}"
+
+  APP_NAME="$MAC_RELEASE_APP_NAME"
+  APPCAST=$(mac_release_expand "$MAC_RELEASE_APPCAST")
+  APP_ZIP=$(mac_release_expand "$MAC_RELEASE_APP_ZIP")
+  DSYM_ZIP=$(mac_release_expand "$MAC_RELEASE_DSYM_ZIP")
+  FEED_URL=$(mac_release_expand "$MAC_RELEASE_FEED_URL")
+  TAG=${MAC_RELEASE_TAG:-"v${MARKETING_VERSION}"}
+  ARTIFACT_PREFIX=${MAC_RELEASE_ARTIFACT_PREFIX:-"${APP_NAME}-"}
+
+  local release_var
+  for release_var in ${!MAC_RELEASE_@}; do
+    export "${release_var?}"
+  done
+  export ROOT MARKETING_VERSION BUILD_NUMBER APP_NAME APPCAST APP_ZIP DSYM_ZIP FEED_URL TAG ARTIFACT_PREFIX
+}
+
+require_clean_worktree() {
+  require_bin git
+  if [[ -n $(git status --porcelain) ]]; then
+    mac_release_die "Working tree is not clean; commit or stash first."
+  fi
+}
+
+clean_key() {
+  local keyfile=${1:?"key file required"}
+  [[ -f "$keyfile" ]] || mac_release_die "Sparkle key file not found: $keyfile"
+  local lines
+  lines=$(grep -v '^[[:space:]]*#' "$keyfile" | sed '/^[[:space:]]*$/d')
+  if [[ $(printf "%s\n" "$lines" | wc -l) -ne 1 ]]; then
+    mac_release_die "Sparkle key must be a single base64 line (no comments/blank lines)."
+  fi
+  local tmp
+  tmp=$(mktemp)
+  printf "%s\n" "$lines" >"$tmp"
+  echo "$tmp"
+}
+
+probe_sparkle_key() {
+  local keyfile=${1:-}
+  require_bin sign_update
+  local tmp account_args=()
+  tmp=$(mktemp /tmp/sparkle-key-probe.XXXX)
+  echo test >"$tmp"
+  if [[ -n "$keyfile" ]]; then
+    sign_update --ed-key-file "$keyfile" -p "$tmp" >/dev/null
+  else
+    mac_release_sparkle_account_args account_args
+    sign_update "${account_args[@]}" -p "$tmp" >/dev/null
+  fi
+  rm -f "$tmp"
+}
+
+mac_release_public_key_from_file() {
+  local key_file=${1:?"key file required"}
+  swift - "$key_file" <<'SWIFT'
+import CryptoKit
+import Foundation
+
+let path = CommandLine.arguments[1]
+let raw = try String(contentsOfFile: path, encoding: .utf8)
+  .trimmingCharacters(in: .whitespacesAndNewlines)
+guard let secret = Data(base64Encoded: raw) else {
+  fputs("Sparkle key file is not base64.\n", stderr)
+  exit(1)
+}
+if secret.count == 32 {
+  let key = try Curve25519.Signing.PrivateKey(rawRepresentation: secret)
+  print(key.publicKey.rawRepresentation.base64EncodedString())
+} else if secret.count == 96 {
+  print(secret.suffix(32).base64EncodedString())
+} else {
+  fputs("Sparkle key file has unsupported decoded length \(secret.count); expected 32 or 96 bytes.\n", stderr)
+  exit(1)
+}
+SWIFT
+}
+
+mac_release_public_key_for_source() {
+  local source=${1:-keychain}
+  require_bin generate_keys
+  if [[ "$source" == "keychain" ]]; then
+    local account_args=()
+    mac_release_sparkle_account_args account_args
+    generate_keys "${account_args[@]}" -p
+  else
+    mac_release_public_key_from_file "$source"
+  fi
+}
+
+mac_release_expected_public_key() {
+  mac_release_load
+  if [[ -n "${MAC_RELEASE_SUPUBLIC_ED_KEY:-}" ]]; then
+    printf '%s\n' "$MAC_RELEASE_SUPUBLIC_ED_KEY"
+    return
+  fi
+  [[ -n "${MAC_RELEASE_INFO_PLIST:-}" ]] || mac_release_die "Set MAC_RELEASE_INFO_PLIST or MAC_RELEASE_SUPUBLIC_ED_KEY"
+  local plist
+  plist=$(mac_release_expand "$MAC_RELEASE_INFO_PLIST")
+  [[ -f "$plist" ]] || mac_release_die "Info.plist not found: $plist"
+  /usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$plist"
+}
+
+mac_release_key_source_label() {
+  local source=${1:-keychain}
+  if [[ "$source" == "keychain" ]]; then
+    printf 'Keychain service https://sparkle-project.org account %s' "${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-ed25519}}"
+  else
+    printf '%s' "$source"
+  fi
+}
+
+mac_release_default_key_source() {
+  if [[ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" ]]; then
+    printf '%s\n' "$SPARKLE_PRIVATE_KEY_FILE"
+    return
+  fi
+  if [[ -n "${MAC_RELEASE_SIGNING_KEY_FILE:-}" ]]; then
+    local manifest_key_source
+    manifest_key_source=$(mac_release_expand "$MAC_RELEASE_SIGNING_KEY_FILE")
+    if [[ -f "$manifest_key_source" ]]; then
+      printf '%s\n' "$manifest_key_source"
+      return
+    fi
+  fi
+  printf 'keychain\n'
+}
+
+mac_release_sparkle_key_status() {
+  mac_release_load
+  local source=${1:-$(mac_release_default_key_source)}
+  local label_source=$source
+  local expected actual cleaned_source
+  # shellcheck disable=SC2329 # invoked via RETURN trap
+  cleanup_key_status() {
+    [[ -z "${cleaned_source:-}" ]] || rm -f "$cleaned_source"
+  }
+  if [[ "$source" != "keychain" ]]; then
+    source=$(mac_release_expand "$source")
+    label_source=$source
+    source=$(clean_key "$source")
+    cleaned_source=$source
+    trap cleanup_key_status RETURN
+  fi
+  expected=$(mac_release_expected_public_key)
+  actual=$(mac_release_public_key_for_source "$source")
+  printf 'app: %s\n' "$APP_NAME"
+  printf 'embedded SUPublicEDKey: %s\n' "$expected"
+  printf 'signing source: %s\n' "$(mac_release_key_source_label "$label_source")"
+  printf 'signing public key: %s\n' "$actual"
+  cleanup_key_status
+  trap - RETURN
+  if [[ "$actual" == "$expected" ]]; then
+    printf 'status: match\n'
+  else
+    printf 'status: mismatch\n' >&2
+    return 1
+  fi
+}
+
+mac_release_key_args_and_validate() {
+  local out_var=${1:?"out var"}
+  local key_file_var=${2:?"key file var"}
+  local key_source source cleaned_key_file actual expected
+  key_source=${SPARKLE_PRIVATE_KEY_FILE:-}
+  if [[ -z "$key_source" && -n "${MAC_RELEASE_SIGNING_KEY_FILE:-}" ]]; then
+    local manifest_key_source
+    manifest_key_source=$(mac_release_expand "$MAC_RELEASE_SIGNING_KEY_FILE")
+    [[ -f "$manifest_key_source" ]] && key_source=$manifest_key_source
+  fi
+  if [[ -n "$key_source" ]]; then
+    key_source=$(mac_release_expand "$key_source")
+    cleaned_key_file=$(clean_key "$key_source")
+    source="$cleaned_key_file"
+    eval "$key_file_var=\"\$cleaned_key_file\""
+    eval "$out_var=(--ed-key-file \"\$cleaned_key_file\")"
+  else
+    source=keychain
+    eval "$key_file_var=\"\""
+    mac_release_sparkle_account_args "$out_var"
+  fi
+  expected=$(mac_release_expected_public_key)
+  actual=$(mac_release_public_key_for_source "$source")
+  [[ "$actual" == "$expected" ]] || mac_release_die "Sparkle signing key does not match ${APP_NAME} SUPublicEDKey. Run mac-release sparkle-key-status."
+  if [[ "$source" == keychain ]]; then
+    probe_sparkle_key ""
+  else
+    probe_sparkle_key "$source"
+  fi
+}
+
+clear_sparkle_caches() {
+  rm -rf "$HOME/Library/Caches/${1}" "$HOME/Library/Caches/org.sparkle-project.Sparkle" || true
+}
+
+clean_macos_metadata() {
+  local path=${1:?"path required"}
+  xattr -cr "$path" 2>/dev/null || true
+  find "$path" -name '._*' -delete 2>/dev/null || true
+}
+
+safe_zip() {
+  local source=${1:?"source bundle/app required"} dest=${2:?"destination zip required"}
+  clean_macos_metadata "$source"
+  /usr/bin/ditto --norsrc -c -k --keepParent "$source" "$dest"
+}
+
+appcast_head_version_build() {
+  local appcast=${1:-appcast.xml}
+  require_bin python3
+  python3 - "$appcast" <<'PY'
+import sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+channel = root.find("channel")
+item = channel.find("item") if channel is not None else None
+if item is None:
+    raise SystemExit(1)
+ns = {"sparkle": "http://www.andymatuschak.org/xml-namespaces/sparkle"}
+print(item.findtext("sparkle:shortVersionString", default="", namespaces=ns))
+print(item.findtext("sparkle:version", default="", namespaces=ns))
+PY
+}
+
+ensure_appcast_monotonic() {
+  local appcast=${1:-appcast.xml} version=${2:?"version required"} build=${3:?"build required"}
+  local current cur_ver cur_build
+  current=$(appcast_head_version_build "$appcast" || true)
+  cur_ver=$(printf "%s\n" "$current" | sed -n '1p')
+  cur_build=$(printf "%s\n" "$current" | sed -n '2p')
+  [[ -n "$cur_ver" && "$cur_ver" == "$version" ]] && mac_release_die "appcast already has version $version; bump version first."
+  [[ -n "$cur_build" && "$build" -le "$cur_build" ]] && mac_release_die "Build number $build must be greater than latest appcast build $cur_build."
+}
+
+ensure_changelog_finalized() {
+  local version=${1:?"version required"}
+  require_bin python3
+  python3 - "$version" <<'PY'
+import sys, pathlib, re
+version = sys.argv[1]
+text = pathlib.Path("CHANGELOG.md").read_text()
+first = re.search(r"^##\s+(.+)$", text, re.M)
+if not first:
+    raise SystemExit("No changelog sections found")
+header = first.group(1)
+if "Unreleased" in header:
+    raise SystemExit("Top changelog section still marked Unreleased")
+if not (header.startswith(f"{version} ") or header.startswith(f"{version} -") or header.startswith(f"{version} —")):
+    raise SystemExit(f"Top changelog section '{header}' does not match version {version}")
+if not re.search(rf"^##\s+{re.escape(version)}(\s|$)", text, re.M):
+    raise SystemExit(f"No section found for version {version}")
+PY
+}
+
+extract_notes_from_changelog() {
+  local version=${1:?"version required"}
+  local dest=${2:?"dest path required"}
+  require_bin python3
+  python3 - "$version" "$dest" <<'PY'
+import sys, pathlib, re
+version, dest = sys.argv[1], pathlib.Path(sys.argv[2])
+text = pathlib.Path("CHANGELOG.md").read_text()
+pattern = re.compile(rf"^##\s+(?:\[)?{re.escape(version)}(?:\])?(?:\s+.*)?$", re.M)
+m = pattern.search(text)
+if not m:
+    raise SystemExit("section not found")
+start = m.end()
+next_header = text.find("\n## ", start)
+chunk = text[start: next_header if next_header != -1 else len(text)]
+lines = [ln for ln in chunk.strip().splitlines() if ln.strip()]
+dest.write_text("\n".join(lines) + "\n")
+PY
+}
+
+mac_release_changelog_html() {
+  local version=${1:?"version required"}
+  local changelog=${2:-CHANGELOG.md}
+  mac_release_load
+  require_bin python3
+  python3 - "$version" "$changelog" "$APP_NAME" "$MAC_RELEASE_REPO" <<'PY'
+import html, pathlib, re, sys
+version, changelog, app, repo = sys.argv[1:5]
+text = pathlib.Path(changelog).read_text()
+pattern = re.compile(rf"^##\s+(?:\[)?{re.escape(version)}(?:\])?(?:\s+.*)?$", re.M)
+m = pattern.search(text)
+if not m:
+    raise SystemExit(f"changelog section not found for {version}")
+section = text[m.end(): text.find("\n## ", m.end()) if text.find("\n## ", m.end()) != -1 else len(text)].strip()
+print(f"<h2>{html.escape(app)} {html.escape(version)}</h2>")
+in_list = False
+para = []
+def format_inline(value):
+    out = []
+    pos = 0
+    token_re = re.compile(r"`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?://[^)\s]+)\)")
+    for match in token_re.finditer(value):
+        out.append(html.escape(value[pos:match.start()]))
+        if match.group(1) is not None:
+            out.append(f"<code>{html.escape(match.group(1))}</code>")
+        elif match.group(2) is not None:
+            out.append(f"<strong>{html.escape(match.group(2))}</strong>")
+        else:
+            label = html.escape(match.group(3))
+            href = html.escape(match.group(4), quote=True)
+            out.append(f'<a href="{href}">{label}</a>')
+        pos = match.end()
+    out.append(html.escape(value[pos:]))
+    return "".join(out)
+def flush_para():
+    global para
+    if para:
+        print("<p>{}</p>".format(format_inline(" ".join(para))))
+        para = []
+def close_list():
+    global in_list
+    if in_list:
+        print("</ul>")
+        in_list = False
+for raw in section.splitlines():
+    line = raw.rstrip()
+    if not line.strip():
+        flush_para(); close_list(); continue
+    if line.startswith("### "):
+        flush_para(); close_list(); print(f"<h3>{html.escape(line[4:].strip())}</h3>"); continue
+    bullet = re.match(r"^[-*]\s+(.*)$", line.strip())
+    if bullet:
+        flush_para()
+        if not in_list:
+            print("<ul>"); in_list = True
+        print(f"<li>{format_inline(bullet.group(1))}</li>")
+    else:
+        close_list()
+        para.append(line.strip())
+flush_para(); close_list()
+print(f'<p><a href="https://github.com/{html.escape(repo)}/blob/main/CHANGELOG.md">View full changelog</a></p>')
+PY
+}
+
+mac_release_appcast_meta() {
+  local appcast=${1:?"appcast"} version=${2:?"version"} out=${3:?"out"}
+  require_bin python3
+  python3 - "$appcast" "$version" >"$out" <<'PY'
+import sys, xml.etree.ElementTree as ET
+appcast, version = sys.argv[1], sys.argv[2]
+root = ET.parse(appcast).getroot()
+ns = {"sparkle": "http://www.andymatuschak.org/xml-namespaces/sparkle"}
+for item in root.findall("./channel/item"):
+    if item.findtext("sparkle:shortVersionString", default="", namespaces=ns) == version:
+        enc = item.find("enclosure")
+        if enc is None:
+            raise SystemExit(f"No enclosure for version {version}")
+        url = enc.get("url")
+        sig = enc.get("{http://www.andymatuschak.org/xml-namespaces/sparkle}edSignature")
+        length = enc.get("length")
+        if not all([url, sig, length]):
+            raise SystemExit(f"Missing url/signature/length for version {version}")
+        print(url); print(sig); print(length)
+        raise SystemExit(0)
+raise SystemExit(f"No appcast entry for version {version}")
+PY
+}
+
+verify_enclosure() {
+  local url=$1 sig=$2 key_file=$3 expected_len=$4
+  require_bin curl sign_update
+  local tmp account_args=()
+  tmp=$(mktemp /tmp/sparkle-enclosure.XXXX)
+  trap 'rm -f "${tmp:-}"' RETURN
+  curl -L -o "$tmp" "$url"
+  local len
+  len=$(stat -f%z "$tmp")
+  [[ "$len" == "$expected_len" ]] || mac_release_die "Length mismatch for $url (expected $expected_len, got $len)"
+  if [[ -n "$key_file" ]]; then
+    sign_update --verify "$tmp" "$sig" --ed-key-file "$key_file"
+  else
+    mac_release_sparkle_account_args account_args
+    sign_update "${account_args[@]}" --verify "$tmp" "$sig"
+  fi
+}
+
+verify_codesign_from_enclosure() {
+  local url=${1:?"enclosure URL required"}
+  require_bin curl ditto codesign spctl
+  local tmp_dir tmp_zip app
+  tmp_dir=$(mktemp -d /tmp/sparkle-verify.XXXX)
+  trap 'rm -rf "${tmp_dir:-}"' RETURN
+  tmp_zip="$tmp_dir/enclosure.zip"
+  curl -L -o "$tmp_zip" "$url"
+  /usr/bin/ditto -x -k --norsrc "$tmp_zip" "$tmp_dir"
+  app=$(find "$tmp_dir" -maxdepth 2 -name "${APP_NAME}.app" -not -path "*/__MACOSX/*" | head -n 1)
+  [[ -n "$app" ]] || mac_release_die "No ${APP_NAME}.app found in enclosure $url"
+  codesign --verify --deep --strict --verbose=2 "$app"
+  spctl --assess --type execute --verbose "$app"
+  if command -v stapler >/dev/null 2>&1; then
+    stapler validate "$app"
+  fi
+  echo "Codesign/spctl/stapler verification OK for $(basename "$app")"
+}
+
+verify_appcast_entry() {
+  local appcast=${1:?"appcast path"} version=${2:?"version"} key_file=${3:-}
+  local tmp_meta url sig length
+  tmp_meta=$(mktemp)
+  trap 'rm -f "${tmp_meta:-}"' RETURN
+  mac_release_appcast_meta "$appcast" "$version" "$tmp_meta"
+  url=$(sed -n '1p' "$tmp_meta")
+  sig=$(sed -n '2p' "$tmp_meta")
+  length=$(sed -n '3p' "$tmp_meta")
+  verify_enclosure "$url" "$sig" "$key_file" "$length"
+  echo "Appcast entry $version verified (signature & length)."
+  verify_codesign_from_enclosure "$url"
+}
+
+check_assets() {
+  local tag=${1:?"tag"} prefix=${2:-} repo
+  ROOT=${ROOT:-$(mac_release_root)}
+  if [[ -z "$prefix" ]]; then
+    mac_release_load
+    prefix=$ARTIFACT_PREFIX
+  elif [[ -f "${MAC_RELEASE_MANIFEST:-$ROOT/.mac-release.env}" ]]; then
+    mac_release_load
+  fi
+  require_bin gh
+  repo=${MAC_RELEASE_REPO:-}
+  if [[ -z "$repo" ]]; then
+    repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+  fi
+  local assets zip dsym expected_zip expected_dsym old_marketing_version asset_version
+  if gh --live release view "$tag" --repo "$repo" --json assets --jq '.assets[].name' >/dev/null 2>&1; then
+    assets=$(gh --live release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
+  else
+    assets=$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
+  fi
+  if [[ -n "${MAC_RELEASE_APP_ZIP:-}" && -n "${MAC_RELEASE_DSYM_ZIP:-}" ]]; then
+    asset_version=${tag#v}
+    old_marketing_version=${MARKETING_VERSION:-}
+    MARKETING_VERSION="$asset_version"
+    expected_zip=$(basename "$(mac_release_expand "$MAC_RELEASE_APP_ZIP")")
+    expected_dsym=$(basename "$(mac_release_expand "$MAC_RELEASE_DSYM_ZIP")")
+    MARKETING_VERSION="$old_marketing_version"
+    zip=$(printf "%s\n" "$assets" | grep -Fx "$expected_zip" || true)
+    dsym=$(printf "%s\n" "$assets" | grep -Fx "$expected_dsym" || true)
+  else
+    zip=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)?\\.zip$" || true)
+    dsym=$(printf "%s\n" "$assets" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)?\\.dSYM\\.zip$" || true)
+  fi
+  [[ -z "$zip" ]] && mac_release_die "app zip missing on release $tag"
+  [[ -z "$dsym" ]] && mac_release_die "dSYM zip missing on release $tag"
+  echo "Release $tag has zip ($zip) and dSYM ($dsym)."
+  if [[ "${MAC_RELEASE_SKIP_EXTRA_ASSET_CHECK:-0}" != "1" && -n "${MAC_RELEASE_EXTRA_ASSET_PATTERNS:-}" ]]; then
+    local pattern missing=0 asset_version old_marketing_version
+    asset_version=${tag#v}
+    old_marketing_version=${MARKETING_VERSION:-}
+    while IFS= read -r pattern; do
+      [[ -z "$pattern" ]] && continue
+      MARKETING_VERSION="$asset_version"
+      pattern=$(mac_release_expand "$pattern")
+      MARKETING_VERSION="$old_marketing_version"
+      if ! printf "%s\n" "$assets" | grep -Eq "$pattern"; then
+        echo "ERROR: extra asset missing on release $tag: $pattern" >&2
+        missing=1
+      fi
+    done <<< "$MAC_RELEASE_EXTRA_ASSET_PATTERNS"
+    [[ "$missing" == "0" ]] || exit 1
+  fi
+}
+
+wait_for_assets() {
+  local tag=${1:?"tag"} prefix=${2:-} wait_seconds=${MAC_RELEASE_EXTRA_ASSET_WAIT_SECONDS:-0}
+  local interval=${MAC_RELEASE_EXTRA_ASSET_WAIT_INTERVAL:-30} deadline
+  if [[ "$wait_seconds" -le 0 ]]; then
+    check_assets "$tag" "$prefix"
+    return
+  fi
+  deadline=$((SECONDS + wait_seconds))
+  until ( check_assets "$tag" "$prefix" ); do
+    [[ "$SECONDS" -lt "$deadline" ]] || mac_release_die "release assets not ready before timeout for $tag"
+    echo "Waiting for release assets on $tag..."
+    sleep "$interval"
+  done
+}
+
+mac_release_make_appcast() {
+  mac_release_load
+  local zip=${1:?"Usage: mac-release make-appcast <zip> [feed-url]"}
+  local feed_url=${2:-$FEED_URL}
+  [[ -f "$zip" ]] || mac_release_die "Zip not found: $zip"
+  require_bin generate_appcast
+  local zip_dir zip_name zip_base version notes_html work_dir key_file download_url_prefix old_marketing_version
+  zip_dir=$(cd "$(dirname "$zip")" && pwd)
+  zip_name=$(basename "$zip")
+  zip_base="${zip_name%.zip}"
+  version=${SPARKLE_RELEASE_VERSION:-$(mac_release_version_from_zip "$zip_name")}
+  notes_html="$zip_dir/$zip_base.html"
+  mac_release_changelog_html "$version" "$ROOT/CHANGELOG.md" > "$notes_html"
+  work_dir=$(mktemp -d /tmp/mac-release-appcast.XXXXXX)
+  KEY_ARGS=()
+  key_file=""
+  # shellcheck disable=SC2329 # invoked via EXIT trap
+  cleanup() {
+    [[ -n "${key_file:-}" ]] && rm -f "$key_file"
+    [[ -z "${work_dir:-}" ]] || rm -rf "$work_dir"
+    [[ "${KEEP_SPARKLE_NOTES:-0}" == "1" || -z "${notes_html:-}" ]] || rm -f "$notes_html"
+  }
+  trap cleanup EXIT
+  mac_release_key_args_and_validate KEY_ARGS key_file
+  cp "$APPCAST" "$work_dir/appcast.xml"
+  cp "$zip" "$work_dir/$zip_name"
+  cp "$notes_html" "$work_dir/$zip_base.html"
+  pushd "$work_dir" >/dev/null || mac_release_die "Could not enter appcast workspace: $work_dir"
+  local extra_args=()
+  if [[ -n "${MAC_RELEASE_GENERATE_APPCAST_ARGS:-}" ]]; then
+    eval "extra_args=(${MAC_RELEASE_GENERATE_APPCAST_ARGS})"
+  fi
+  old_marketing_version=$MARKETING_VERSION
+  MARKETING_VERSION="$version"
+  download_url_prefix=$(mac_release_expand "$MAC_RELEASE_DOWNLOAD_URL_PREFIX")
+  MARKETING_VERSION=$old_marketing_version
+  generate_appcast \
+    "${KEY_ARGS[@]}" \
+    --download-url-prefix "$download_url_prefix" \
+    --embed-release-notes \
+    --link "$feed_url" \
+    "${extra_args[@]}" \
+    "$work_dir"
+  popd >/dev/null || mac_release_die "Could not leave appcast workspace: $work_dir"
+  if [[ -n "${MAC_RELEASE_SPARKLE_CHANNEL:-}" ]]; then
+    python3 - "$work_dir/appcast.xml" "$version" "$MAC_RELEASE_SPARKLE_CHANNEL" <<'PY'
+import re, sys
+path, version, channel = sys.argv[1:4]
+lines = open(path, encoding="utf-8").read().splitlines()
+target = f"<sparkle:shortVersionString>{version}</sparkle:shortVersionString>"
+idx = next((i for i, line in enumerate(lines) if target in line), None)
+if idx is None:
+    raise SystemExit(f"Could not find {target} in {path}")
+for j in range(idx, -1, -1):
+    if "<item" in lines[j]:
+        lines[j] = re.sub(r'sparkle:channel="[^"]*"', f'sparkle:channel="{channel}"', lines[j]) if "sparkle:channel" in lines[j] else lines[j].replace("<item", f'<item sparkle:channel="{channel}"', 1)
+        break
+else:
+    raise SystemExit(f"Could not find <item> for version {version}")
+open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+PY
+    echo "Tagged ${version} with sparkle:channel=\"${MAC_RELEASE_SPARKLE_CHANNEL}\""
+  fi
+  cp "$work_dir/appcast.xml" "$APPCAST"
+  echo "Appcast generated: $APPCAST"
+  trap - EXIT
+  cleanup
+}
+
+mac_release_verify_appcast() {
+  mac_release_load
+  local version=${1:-$MARKETING_VERSION}
+  [[ -f "$APPCAST" ]] || mac_release_die "appcast not found: $APPCAST"
+  KEY_ARGS=()
+  local key_file=""
+  trap '[[ -n "${key_file:-}" ]] && rm -f "$key_file"' EXIT
+  mac_release_key_args_and_validate KEY_ARGS key_file
+  verify_appcast_entry "$APPCAST" "$version" "$key_file"
+}
+
+mac_release_status() {
+  mac_release_load
+  local head
+  head=$(appcast_head_version_build "$APPCAST" || true)
+  printf 'app: %s\n' "$APP_NAME"
+  printf 'repo: %s\n' "$MAC_RELEASE_REPO"
+  printf 'version: %s\n' "$MARKETING_VERSION"
+  printf 'build: %s\n' "$BUILD_NUMBER"
+  printf 'app zip: %s\n' "$APP_ZIP"
+  printf 'dSYM zip: %s\n' "$DSYM_ZIP"
+  printf 'appcast head version: %s\n' "$(printf "%s\n" "$head" | sed -n '1p')"
+  printf 'appcast head build: %s\n' "$(printf "%s\n" "$head" | sed -n '2p')"
+  mac_release_sparkle_key_status "${1:-$(mac_release_default_key_source)}" || true
+}
+
+mac_release_run_cmd() {
+  local label=$1 cmd=$2
+  [[ -z "$cmd" ]] && return 0
+  echo "==> $label"
+  bash -lc "$cmd"
+}
+
+mac_release_release() {
+  mac_release_load
+  require_bin git gh
+  local release_branch current_branch
+  release_branch=${MAC_RELEASE_RELEASE_BRANCH:-main}
+  current_branch=$(git branch --show-current)
+  [[ "$current_branch" == "$release_branch" ]] || mac_release_die "Release must run on $release_branch; current branch is ${current_branch:-detached}"
+  require_clean_worktree
+  local pre_release_head
+  pre_release_head=$(git rev-parse HEAD)
+  ensure_changelog_finalized "$MARKETING_VERSION"
+  ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
+  mac_release_run_cmd "precheck" "${MAC_RELEASE_PRECHECK:-}"
+  KEY_ARGS=()
+  local key_file="" notes_md="" release_created=0 tag_created=0 tag_pushed=0 appcast_committed=0 appcast_pushed=0
+  # shellcheck disable=SC2329 # invoked via EXIT trap
+  cleanup_release() {
+    local rc=$?
+    [[ -n "${key_file:-}" ]] && rm -f "$key_file"
+    [[ -n "${notes_md:-}" ]] && rm -f "$notes_md"
+    if [[ "$rc" -ne 0 && "$appcast_pushed" != "1" ]]; then
+      if [[ "$release_created" == "1" ]]; then
+        gh release delete "$TAG" --repo "$MAC_RELEASE_REPO" --cleanup-tag -y >/dev/null 2>&1 || true
+      elif [[ "$tag_pushed" == "1" ]]; then
+        git push origin --delete "$TAG" >/dev/null 2>&1 || true
+      fi
+      [[ "$tag_created" == "1" ]] && git tag -d "$TAG" >/dev/null 2>&1 || true
+      if [[ "$appcast_committed" == "1" ]]; then
+        git reset --hard "$pre_release_head" >/dev/null 2>&1 || true
+      fi
+    fi
+    exit "$rc"
+  }
+  trap cleanup_release EXIT
+  mac_release_key_args_and_validate KEY_ARGS key_file
+  clear_sparkle_caches "$MAC_RELEASE_BUNDLE_ID"
+  mac_release_run_cmd "package" "$MAC_RELEASE_PACKAGE_CMD"
+  notes_md=$(mktemp "/tmp/${APP_NAME}-notes.XXXXXX")
+  extract_notes_from_changelog "$MARKETING_VERSION" "$notes_md"
+  if [[ -n "$key_file" ]]; then
+    SPARKLE_PRIVATE_KEY_FILE="$key_file" "$0" make-appcast "$APP_ZIP" "$FEED_URL"
+  else
+    env -u SPARKLE_PRIVATE_KEY_FILE "$0" make-appcast "$APP_ZIP" "$FEED_URL"
+  fi
+  git add "$APPCAST"
+  git commit -m "docs: update appcast for ${MARKETING_VERSION}"
+  appcast_committed=1
+
+  local tag_args=() push_tag_args=()
+  [[ "${MAC_RELEASE_TAG_FORCE:-1}" == "1" ]] && tag_args+=(-f) && push_tag_args+=(-f)
+  if [[ "${MAC_RELEASE_TAG_SIGNED:-0}" == "1" ]]; then
+    git tag -s "${tag_args[@]}" -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
+  elif [[ "${MAC_RELEASE_TAG_ANNOTATED:-1}" == "1" ]]; then
+    git tag "${tag_args[@]}" -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
+  else
+    git tag "${tag_args[@]}" "$TAG"
+  fi
+  tag_created=1
+  git push "${push_tag_args[@]}" origin "$TAG"
+  tag_pushed=1
+  gh release create "$TAG" --repo "$MAC_RELEASE_REPO" --title "${APP_NAME} ${MARKETING_VERSION}" --notes-file "$notes_md"
+  release_created=1
+  gh release upload "$TAG" "$APP_ZIP" "$DSYM_ZIP" --repo "$MAC_RELEASE_REPO"
+  if [[ -n "$key_file" ]]; then
+    SPARKLE_PRIVATE_KEY_FILE="$key_file" "$0" verify-appcast "$MARKETING_VERSION"
+  else
+    env -u SPARKLE_PRIVATE_KEY_FILE "$0" verify-appcast "$MARKETING_VERSION"
+  fi
+  wait_for_assets "$TAG" "$ARTIFACT_PREFIX"
+  git push origin "HEAD:$release_branch"
+  appcast_pushed=1
+  if [[ "${MAC_RELEASE_RUN_SPARKLE_UPDATE_TEST:-${RUN_SPARKLE_UPDATE_TEST:-0}}" == "1" && -x "$ROOT/Scripts/test_live_update.sh" ]]; then
+    local prev_tag
+    prev_tag=$(git tag --sort=-v:refname | sed -n '2p')
+    [[ -n "$prev_tag" ]] || mac_release_die "Sparkle update test requested but no previous tag found"
+    "$ROOT/Scripts/test_live_update.sh" "$prev_tag" "$TAG"
+  fi
+  trap - EXIT
+  [[ -n "${key_file:-}" ]] && rm -f "$key_file"
+  [[ -n "${notes_md:-}" ]] && rm -f "$notes_md"
+  echo "Release ${MARKETING_VERSION} complete."
+}
