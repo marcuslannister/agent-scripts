@@ -20,6 +20,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 ## Routing
 
 - Screenshots/assets: newest PNG in `~/Desktop` or `~/Downloads`; verify UI before replacing.
+- Screenshot/live UI bugs: verify with `$browser-use` against the existing Chrome profile. `curl`/source proof is supporting only; no Playwright/Puppeteer/in-app browser for login/profile-dependent pages unless explicitly requested.
 - Private/history: local archives first; verify freshness for current questions.
 - Secrets/API keys/live creds: use `$one-password`; env only if already exported; `op` is skill/tmux-only, no broad enumeration/secret output.
 - New API keys: immediately store in 1Password service account via `$one-password`; temp files/env only for current task.
