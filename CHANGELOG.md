@@ -7,6 +7,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## 2026-05-22 — Browser UI Verification
 - Added hard guidance to verify screenshot/live UI bugs through the existing Chrome `$browser-use` path, including one-shot Peekaboo acceptance for visible Chrome attach alerts and no silent Playwright fallback for login/profile-dependent pages.
 
+## 2026-05-22 — npm Release Auth
+- Updated `npm` to treat explicit release/publish requests as consent for the expected desktop 1Password npm auth prompt when service-account access cannot read `npmjs`, while still stopping on missing or ambiguous credentials.
+
 ## 2026-05-22 — Auto Review Skill
 - Replaced the old `codex-review` skill with `autoreview`, keeping Codex as the default/recommended review engine while adding structured findings, prompt/dataset inputs, tool/web-search review context, and security-aware checks.
 
