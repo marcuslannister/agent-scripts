@@ -10,6 +10,7 @@ Run the bundled structured review helper as a closeout check. This is code revie
 Codex review is the default when no engine is set. It usually delivers the best review results and should remain the normal final closeout engine.
 
 Use when:
+
 - user asks for Codex review / Claude review / autoreview / second-model review
 - after non-trivial code edits, before final/commit/ship
 - reviewing a local branch or PR branch after fixes
@@ -126,6 +127,7 @@ If installed from `agent-scripts`, path is:
 ```
 
 The helper:
+
 - chooses dirty local changes first
 - otherwise uses current PR base if `gh pr view` works
 - otherwise uses `origin/main` for non-main branches
@@ -141,6 +143,7 @@ The helper:
 ## Final Report
 
 Include:
+
 - review command used
 - tests/proof run
 - findings accepted/rejected, briefly why
