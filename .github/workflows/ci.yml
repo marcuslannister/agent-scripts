@@ -18,8 +18,14 @@ jobs:
           cache: npm
           cache-dependency-path: skills/video-transcript-downloader/package-lock.json
 
-      - name: Check codex-review helper syntax
-        run: bash -n skills/codex-review/scripts/codex-review
+      - name: Check shell helper syntax
+        run: |
+          find skills -path '*/scripts/*' -type f -print0 |
+            while IFS= read -r -d '' script; do
+              if head -n 1 "$script" | grep -q 'bash'; then
+                bash -n "$script"
+              fi
+            done
 
       - name: Install video transcript downloader dependencies
         working-directory: skills/video-transcript-downloader
