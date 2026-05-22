@@ -46,6 +46,8 @@ Proceed only when the branch is `main`, the pull succeeds, and the worktree is c
 
 If the user says `triage` and the current working directory is a Git repo with a GitHub remote, triage only that project. Do not broaden to all Peter/org queues unless the user says `broad`, `all`, `everything`, names multiple owners/orgs, or asks for cross-repo triage.
 
+If the repo has `VISION.md`, read it before judging what can be handled autonomously. Use it as the product-fit source of truth, then apply this skill's risk/testability rules. If no `VISION.md` exists, use the autonomous-fit rules below.
+
 Find the current project:
 
 ```bash
@@ -78,6 +80,26 @@ gh pr diff <n> --repo "$repo" --patch
 ```
 
 Only comment, close, merge, rerun, or patch with strong evidence.
+
+## Autonomous Work Mode
+
+When the user says `do work autonomously`, `work you can do autonomously`, `keep going`, or similar, do not stop after a queue summary or one local patch. Treat it as permission to process the eligible issue/PR queue sequentially until no safe autonomous item remains, each item is landed/closed/deferred with proof, or a blocker requires Peter.
+
+Never work multiple tickets at once. For each item:
+
+1. Read the issue/PR, related code, docs, CI, and `VISION.md` if present; Google/use official docs when facts may be stale or unclear.
+2. Decide if it is autonomous:
+   - Go: performance improvements unless complexity rises too much; bugfixes with repro/root cause and verification path; small UI/UX tweaks; docs fixes; narrow test/internal fixes; low-risk dependency/CI cleanup with green proof.
+   - Ask first: new features, product/vision choices, broad behavior changes, risky dependencies, security-sensitive changes without strong proof, live-provider work without usable credentials, anything that cannot be end-to-end tested.
+   - Refactor preference: choose a clean bounded refactor when it is the better fix for an autonomous item; do not use "small patch" as the default if it leaves worse design.
+3. Implement or fix the PR in the best maintainable way. Prefer updating the contributor PR when writable; otherwise recreate locally with credit.
+4. Verify locally and live end-to-end when possible. If live testing needs a key/account, use 1Password where expected; if access is missing, stop before pretending the item is done and ask Peter for help.
+5. Run Codex Auto Review before commit/land unless trivial/docs-only or explicitly skipped; address accepted/actionable findings.
+6. Ensure CI is green, PR description/changelog are good, land/close/comment with evidence, then return to `main`, pull `--ff-only`, and verify a clean worktree before selecting the next autonomous item.
+
+Do not end autonomous mode with dirty files or an unpushed local fix unless blocked. If blocked, state the exact blocker, current branch/status, proof already gathered, and the next decision needed.
+
+Autonomous work is still bounded by scope: current repo by default; broad/all queues only when the user asked for broad/all/everything or named owners/orgs.
 
 ## Trust Signals
 
