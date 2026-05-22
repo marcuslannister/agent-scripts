@@ -8,7 +8,7 @@ metadata: {"clawdbot":{"emoji":"👁️","requires":{"bins":["pnpm","op","tmux",
 
 Release `~/Projects/Peekaboo` as the npm package `@steipete/peekaboo` plus signed/notarized macOS app assets.
 
-Use `$one-password`, `$browser-use`, `$npm`, `$codex-review`, and repo `AGENTS.md` rules. Read `$npm` before any npm auth, token, or publish recovery work. Keep all `op` secret work inside one persistent tmux session. Never print `.p8`, npm tokens, passwords, or OTPs.
+Use `$one-password`, `$browser-use`, `$npm`, `$autoreview`, and repo `AGENTS.md` rules. Read `$npm` before any npm auth, token, or publish recovery work. Keep all `op` secret work inside one persistent tmux session. Never print `.p8`, npm tokens, passwords, or OTPs.
 
 ## Current Secrets
 
@@ -114,7 +114,7 @@ If both `history` and non-S3 `submit` fail, suspect wrong access level or stale 
    - Xcode marketing versions under `Apps/*`
 3. Date `CHANGELOG.md` and `Apps/CLI/CHANGELOG.md` for the release.
 4. Run focused proof or release script preflight. Release gates must be warning-free.
-5. Use `$codex-review` before commit unless the change is trivial/docs-only.
+5. Use `$autoreview` before commit unless the change is trivial/docs-only.
 6. Commit release prep with `committer`.
 7. Push `main`.
 8. Run:
