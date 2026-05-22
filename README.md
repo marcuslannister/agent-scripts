@@ -30,9 +30,10 @@ Global discovery usually points here:
 - `~/.codex/skills -> ~/Projects/agent-scripts/skills`
 - `~/.claude/skills -> ~/Projects/agent-scripts/skills`
 
-Shared skills live as real folders in `skills/`. Repo-owned skills stay canonical in their repo and are exposed here with tracked relative symlinks, for example:
+Shared personal skills live as real folders in `skills/`. Public OpenClaw shared skills live in `../agent-skills` and are exposed here with tracked relative symlinks. Repo-owned skills stay canonical in their repo and are exposed here the same way, for example:
 
 ```text
+skills/autoreview -> ../../agent-skills/skills/autoreview
 skills/discrawl -> ../../discrawl/.agents/skills/discrawl
 ```
 
