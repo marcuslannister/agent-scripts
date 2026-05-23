@@ -69,6 +69,8 @@ gh pr list --repo "$repo" --state open --limit 50 \
   --json number,title,author,isDraft,reviewDecision,mergeStateStatus,createdAt,updatedAt,url
 ```
 
+Before acting on any issue or PR, read the latest comments and treat Peter's comments as routing instructions. He may close, comment, or steer an item after a previous triage pass; incorporate those comments before recommending, patching, landing, closing, or asking for more proof.
+
 Then inspect enough detail to explain every surfaced item. For small queues (about 10 open items or fewer), inspect all items. For larger queues, inspect the top priority slice and say what was not expanded.
 
 ```bash
