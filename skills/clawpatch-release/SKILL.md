@@ -1,6 +1,6 @@
 ---
 name: clawpatch-release
-description: "Release the clawpatch TypeScript CLI to npm and GitHub. Use when asked to publish, ship, or verify a clawpatch version: version/changelog prep, local proof, CI/CodeQL watch, npm publish, GitHub tag/release, release verification, and post-release changelog bump."
+description: "clawpatch release: version/changelog, CI, npm publish, GitHub release, verify."
 ---
 
 # Clawpatch Release

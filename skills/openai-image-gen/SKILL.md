@@ -1,6 +1,6 @@
 ---
 name: openai-image-gen
-description: "OpenAI Images API batches: prompt sampler, gallery."
+description: "OpenAI Images API: batches, prompt sampler, gallery."
 ---
 
 # OpenAI Image Gen

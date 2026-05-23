@@ -1,6 +1,6 @@
 ---
 name: whatsapp
-description: "WhatsApp router: history/search/read/send decisions; wacrawl read, wacli live."
+description: "WhatsApp router: history/search/read/send; wacrawl read, wacli live."
 ---
 
 # WhatsApp

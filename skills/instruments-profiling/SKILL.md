@@ -1,6 +1,6 @@
 ---
 name: instruments-profiling
-description: "Instruments/xctrace profiling: macOS/iOS traces, binaries, CLI args, exports."
+description: "Instruments/xctrace profiling: macOS/iOS traces, binaries, args, exports."
 metadata:
   short-description: Instruments profiling for macOS/iOS apps
 ---

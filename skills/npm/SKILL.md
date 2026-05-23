@@ -1,6 +1,6 @@
 ---
 name: npm
-description: "npm registry ops: login, whoami, names, publish; 1Password via one tmux."
+description: "npm registry ops: login, whoami, names, publish; 1Password tmux."
 metadata: {"clawdbot":{"emoji":"📦","requires":{"bins":["npm","node","tmux","op","jq"]}}}
 ---
 

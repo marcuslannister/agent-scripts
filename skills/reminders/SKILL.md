@@ -1,6 +1,6 @@
 ---
 name: reminders
-description: "Apple Reminders via rem CLI: add, list, search, update, complete, delete tasks."
+description: "Apple Reminders via rem CLI: add, list, search, update, complete, delete."
 ---
 
 # Reminders

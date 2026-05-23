@@ -1,6 +1,6 @@
 ---
 name: domain-dns-ops
-description: "Peter DNS/domain ops: registrars, zones, redirects, DNS/HTTP verify; truth in manager."
+description: "DNS/domain ops: registrars, zones, redirects, DNS/HTTP verify, manager truth."
 ---
 
 # Domain/DNS Ops (Peter)

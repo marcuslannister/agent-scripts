@@ -1,6 +1,6 @@
 ---
 name: codex-debugging
-description: "Codex source debugging: ~/Projects/codex, codex-rs core/tui/exec/cli/app-server/config."
+description: "Codex debugging: codex-rs core/tui/exec/cli/app-server/config."
 ---
 
 # Codex Debugging

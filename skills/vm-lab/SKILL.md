@@ -1,6 +1,6 @@
 ---
 name: vm-lab
-description: "Parallels macOS VM lab: GUI automation, Peekaboo, screenshots, TCC, Ghostty."
+description: "Parallels macOS VM lab: GUI automation, Peekaboo, TCC, Ghostty."
 ---
 
 # VM Lab

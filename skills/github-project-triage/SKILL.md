@@ -1,6 +1,6 @@
 ---
 name: "github-project-triage"
-description: "GitHub issue/PR triage for current repos or broad steipete/openclaw queues: summarize each item, judge fit/risk/testability, inspect CI/diffs/repro evidence, and include contributor trust signals."
+description: "GitHub issue/PR triage: summarize, assess risk/testability, inspect CI/diffs/trust."
 ---
 
 # GitHub Project Triage

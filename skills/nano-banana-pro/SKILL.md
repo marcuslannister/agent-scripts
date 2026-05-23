@@ -1,6 +1,6 @@
 ---
 name: nano-banana-pro
-description: "Nano Banana 2/Gemini 3.1 Flash Image gen/edit: text-to-image, image-to-image, 512/1K/2K/4K, input-image workflows."
+description: "Nano Banana/Gemini image gen/edit: text/image input, 512-4K workflows."
 ---
 
 # Nano Banana 2 Image Generation & Editing

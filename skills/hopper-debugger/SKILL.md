@@ -1,6 +1,6 @@
 ---
 name: hopper-debugger
-description: "Hopper native debugging: macOS/iOS binaries, ObjC/Swift symbols, dyld, LLDB."
+description: "Hopper debugging: macOS/iOS binaries, ObjC/Swift symbols, dyld, LLDB."
 ---
 
 # Hopper Debugger

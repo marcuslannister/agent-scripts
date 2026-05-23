@@ -1,6 +1,6 @@
 ---
 name: clickclack
-description: "ClickClack ops: hosted chat app, Hetzner prod deploy, DNS/docs/app surfaces, clean Docker rollout."
+description: "ClickClack ops: chat app, Hetzner deploy, DNS/docs/app, Docker rollout."
 ---
 
 # ClickClack

@@ -1,6 +1,6 @@
 ---
 name: speaking
-description: "Speaking ops: invites, keynotes, panels, Gmail/calendar, conferences repo, Inbounds."
+description: "Speaking ops: invites, keynotes, panels, Gmail/calendar, conferences."
 ---
 
 # Speaking

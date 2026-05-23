@@ -1,6 +1,6 @@
 ---
 name: clawsweeper-status
-description: "ClawSweeper status: recent URLs, workflow health, active workers, ops snapshot."
+description: "ClawSweeper status: URLs, workflow health, active workers, ops snapshot."
 ---
 
 # ClawSweeper Status

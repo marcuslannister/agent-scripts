@@ -1,6 +1,6 @@
 ---
 name: things-todo
-description: "Things 3 todo automation via things CLI: add, list, search, update, delete, verify."
+description: "Things 3 via things CLI: add, list, search, update, delete, verify."
 ---
 
 # Things Todo

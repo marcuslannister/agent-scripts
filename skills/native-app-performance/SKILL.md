@@ -1,6 +1,6 @@
 ---
 name: native-app-performance
-description: "Native app performance: xctrace, Time Profiler, traces, hotspots, CLI review."
+description: "Native app performance: xctrace, Time Profiler, traces, hotspots."
 ---
 
 # Native App Performance (CLI-only)

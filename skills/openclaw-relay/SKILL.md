@@ -1,6 +1,6 @@
 ---
 name: openclaw-relay
-description: "OpenClaw session relay: prompts/posts via local acpx or remote acpx over SSH."
+description: "OpenClaw session relay: prompts/posts via local/remote acpx over SSH."
 ---
 
 # OpenClaw Relay

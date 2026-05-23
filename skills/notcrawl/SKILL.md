@@ -1,6 +1,6 @@
 ---
 name: notcrawl
-description: "Local Notion archive: desktop/API sync, Markdown export, page search, read-only SQL."
+description: "Notion archive: desktop/API sync, Markdown export, page search, read-only SQL."
 ---
 
 # notcrawl

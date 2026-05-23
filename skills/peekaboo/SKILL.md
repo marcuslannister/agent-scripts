@@ -1,6 +1,6 @@
 ---
 name: peekaboo
-description: "macOS screenshots, UI inspection, clicks, typing, app/window automation."
+description: "macOS screenshots, UI inspect, clicks, typing, app/window automation."
 ---
 
 # Peekaboo

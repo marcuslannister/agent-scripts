@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: "Oracle second-model review: bundle prompts/files, debug, refactor, design-check."
+description: "Oracle second-model review: bundle prompts/files, debug, refactor, design."
 ---
 
 # Oracle (CLI) — best use

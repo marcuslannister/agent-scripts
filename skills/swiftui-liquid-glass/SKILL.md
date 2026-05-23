@@ -1,6 +1,6 @@
 ---
 name: swiftui-liquid-glass
-description: "SwiftUI iOS 26+ Liquid Glass: implement, adopt, refactor, review correctness/perf/design."
+description: "SwiftUI Liquid Glass: implement, adopt, refactor, review correctness/perf/design."
 ---
 
 # SwiftUI Liquid Glass

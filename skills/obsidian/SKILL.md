@@ -1,6 +1,6 @@
 ---
 name: obsidian
-description: "Obsidian vault: search/read/write notes, backlinks, Bases, Canvas, CLI edits."
+description: "Obsidian vault: search/read/write notes, backlinks, Bases, Canvas."
 ---
 
 # Obsidian

@@ -1,6 +1,6 @@
 ---
 name: swift-concurrency-expert
-description: "Swift 6.2+ concurrency review/fix: compiler errors, Sendable/isolation, compliance, remediation."
+description: "Swift concurrency review/fix: compiler errors, Sendable, isolation, remediation."
 ---
 
 # Swift Concurrency Expert

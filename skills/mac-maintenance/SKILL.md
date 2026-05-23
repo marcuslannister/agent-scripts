@@ -1,6 +1,6 @@
 ---
 name: mac-maintenance
-description: "Mac upkeep: brew update/upgrade, pull clean ~/Projects repos, empty Trash."
+description: "Mac upkeep: brew update/upgrade, pull clean repos, empty Trash."
 ---
 
 # Mac Maintenance

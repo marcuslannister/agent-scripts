@@ -1,6 +1,6 @@
 ---
 name: github-cache-hygiene
-description: "GitHub quota/cache hygiene: gh, ghx, xcache, gitcrawl, mirrors, rate limits."
+description: "GitHub quota/cache hygiene: gh, ghx, xcache, gitcrawl, mirrors, limits."
 ---
 
 # GitHub Cache Hygiene

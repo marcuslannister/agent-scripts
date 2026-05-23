@@ -1,6 +1,6 @@
 ---
 name: release-tweets
-description: Draft, validate, copy, or post concise X/Twitter release announcements from changelogs, tags, release notes, npm/appcast state, and shipped artifacts.
+description: "Release tweets: draft/copy/post from changelog, tags, npm/appcast, artifacts."
 ---
 
 # Release Tweets

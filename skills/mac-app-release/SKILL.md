@@ -1,6 +1,6 @@
 ---
 name: mac-app-release
-description: "Release signed macOS apps with Sparkle, notarization, GitHub Releases, Homebrew checks, and post-release closeout."
+description: "macOS app release: Sparkle, notarization, GitHub Release, Homebrew, closeout."
 ---
 
 # Mac App Release

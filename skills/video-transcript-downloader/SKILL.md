@@ -1,6 +1,6 @@
 ---
 name: video-transcript-downloader
-description: "yt-dlp downloads: video, audio, subtitles, transcripts, clips, formats, playlists."
+description: "yt-dlp downloads: video, audio, subtitles, transcripts, clips, playlists."
 ---
 
 # Video Transcript Downloader

@@ -1,6 +1,6 @@
 ---
 name: remote-mac
-description: "Peter's Macs: MacBook, Mac Studio, clawmac, Tailscale, SSH, OpenClaw runtime topology."
+description: "Remote Macs: MacBook, Mac Studio, clawmac, Tailscale, SSH, OpenClaw."
 ---
 
 # Remote Mac

@@ -1,6 +1,6 @@
 ---
 name: ssh-doctor
-description: "SSH server triage: Remote Login, launchd sshd, pre-auth closes, stale sshd-session cleanup."
+description: "SSH triage: Remote Login, launchd sshd, pre-auth closes, stale sessions."
 ---
 
 # SSH Doctor

@@ -1,6 +1,6 @@
 ---
 name: browser-use
-description: "Chrome DevTools MCP automation for the existing Chrome tabs; no AppleScript."
+description: "Chrome DevTools MCP automation: existing Chrome tabs, no AppleScript."
 ---
 
 # Browser Use

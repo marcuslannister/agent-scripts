@@ -1,6 +1,6 @@
 ---
 name: release-peekaboo
-description: "Release Peekaboo CLI/Mac app: service-account 1Password notarization, npm/GitHub release, appcast, verification, closeout."
+description: "Peekaboo release: notarization, npm/GitHub release, appcast, verify, closeout."
 metadata: {"clawdbot":{"emoji":"👁️","requires":{"bins":["pnpm","op","tmux","gh","xcrun","jq","node","npm"]}}}
 ---
 

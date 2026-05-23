@@ -1,6 +1,6 @@
 ---
 name: one-password
-description: "1Password/op: service-account first, sign-in fallback, targeted secret read/store/inject; tmux only."
+description: "1Password/op: service-account first, targeted secret read/store/inject, tmux."
 metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op","tmux"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
 ---
 

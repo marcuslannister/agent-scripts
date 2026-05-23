@@ -1,6 +1,6 @@
 ---
 name: github-author-context
-description: "GitHub contributor context: identity, activity, trust, company/team signal, notes."
+description: "GitHub contributor context: identity, activity, trust, company/team signal."
 ---
 
 # GitHub Author Context

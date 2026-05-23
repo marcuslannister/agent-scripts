@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-23 — Skill Description Budget
+- Shortened skill frontmatter descriptions to terse trigger phrases so the skills prompt budget keeps useful routing hints without filler prose.
+
 ## 2026-05-22 — Browser UI Verification
 - Added hard guidance to verify screenshot/live UI bugs through the existing Chrome `$browser-use` path, including one-shot Peekaboo acceptance for visible Chrome attach alerts and no silent Playwright fallback for login/profile-dependent pages.
 

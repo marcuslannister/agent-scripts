@@ -1,6 +1,6 @@
 ---
 name: autoreview
-description: "Auto Review closeout. Codex review is the default when no engine is set and is the recommended reviewer."
+description: "Auto Review closeout: Codex/Claude review, findings, security, prompt datasets."
 ---
 
 # Auto Review

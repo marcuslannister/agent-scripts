@@ -1,6 +1,6 @@
 ---
 name: swiftui-view-refactor
-description: "SwiftUI view refactor/review: layout order, DI, Observation, view models, @Observable state init/pass."
+description: "SwiftUI view refactor/review: layout, DI, Observation, view models."
 ---
 
 # SwiftUI View Refactor
