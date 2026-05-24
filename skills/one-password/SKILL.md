@@ -44,7 +44,7 @@ Follow the official CLI get-started steps. Don't guess install commands.
 - Export/pass it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault Molty ...`.
 - Service-account `op` reads require an explicit vault query; omitting `--vault Molty` fails even when the token is valid.
 - Keep the tmux rule: every `op` command, including service-account reads, still runs inside one named tmux session.
-- Do not enumerate vaults/items with service accounts. If the known item or field is not accessible, stop and ask the user instead of probing or triggering app dialogs.
+- Do not enumerate vaults/items with service accounts by default. If the user explicitly asks to search, gives a screenshot/listing, or gives only a fuzzy item name, use the safe metadata search below before asking.
 - Print presence/shape only, never token or secret values.
 
 ## Required Persistent Tmux Session
@@ -135,6 +135,38 @@ tmux -S "$SOCKET" send-keys -t "$SESSION:" -- "bash /tmp/op-read-field.sh; rm -f
 ```
 
 Keep JSON extraction scoped to the known item and vault. Do not enumerate vaults/items to discover candidates.
+
+## Explicit item search
+
+Only use this when the user explicitly asks to search, gives a screenshot/listing, or the exact title guess failed and the user asks for regex/fuzzy lookup. Stay vault-scoped and metadata-only; print candidate titles/ids/categories/vault names, never fields or values. Prefer exact visible strings from screenshots first: vault name, item title, and field label.
+
+```bash
+cat > /tmp/op-find-item.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+set +x
+VAULT="Molty"
+QUERY="minimax"
+OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
+  op item list --vault "$VAULT" --format json |
+  QUERY="$QUERY" VAULT="$VAULT" node -e '
+let s=""; process.stdin.on("data",d=>s+=d); process.stdin.on("end",()=>{
+  const q=process.env.QUERY.toLowerCase();
+  const vault=process.env.VAULT;
+  const items=JSON.parse(s).filter(x => [
+    x.title, x.id, x.category, ...(x.tags || [])
+  ].filter(Boolean).join("\n").toLowerCase().includes(q));
+  for (const item of items.slice(0, 10)) {
+    console.log(`title:${item.title} id:${item.id} category:${item.category || ""} vault:${vault}`);
+  }
+  console.log(`matches:${items.length}`);
+})'
+SCRIPT
+chmod 700 /tmp/op-find-item.sh
+tmux -S "$SOCKET" send-keys -t "$SESSION:" -- "bash /tmp/op-find-item.sh; rm -f /tmp/op-find-item.sh" C-m
+```
+
+After choosing a candidate, switch back to exact item/field JSON extraction and shape-only validation. Do not broaden from a restricted service-account vault to all vaults without explicit user approval.
 
 ## Redacted debugging
 

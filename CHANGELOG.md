@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-24 — 1Password Item Lookup
+- Updated `one-password` to allow explicit vault-scoped metadata search for fuzzy/screenshot-driven item lookup before exact field reads.
+
 ## 2026-05-23 — Skill Description Budget
 - Shortened skill frontmatter descriptions to terse trigger phrases so the skills prompt budget keeps useful routing hints without filler prose.
 - Updated `gog` auth guidance to preserve broad user OAuth scopes during reauth and rely on command guards for scoped execution.
