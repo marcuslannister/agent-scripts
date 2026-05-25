@@ -38,14 +38,22 @@ type Budget = {
   budgetTokens: number;
   effectiveBudgetTokens: number | null;
   renderedLineChars: number;
-  estimatedTokens: number;
+  unbudgetedFullTokens: number;
+  minimumTokens: number;
+  budgetedTokens: number;
   charsPerToken: number;
-  budgetUsedRatio: number;
+  unbudgetedBudgetUsedRatio: number;
+  budgetedBudgetUsedRatio: number;
   effectiveBudgetUsedRatio: number | null;
-  contextUsedRatio: number;
+  unbudgetedContextUsedRatio: number;
+  budgetedContextUsedRatio: number;
   effectiveContextUsedRatio: number | null;
   remainingBudgetTokens: number;
   remainingEffectiveBudgetTokens: number | null;
+  includedSkills: number;
+  omittedSkills: number;
+  truncatedDescriptionChars: number;
+  truncatedDescriptionCount: number;
 };
 
 const home = os.homedir();
@@ -583,10 +591,163 @@ function formatNumber(value: number): string {
   return Math.round(value).toLocaleString("en-US");
 }
 
-function skillBudget(renderedLineChars: number): Budget {
+function tokenCost(text: string): number {
+  return Math.ceil(Buffer.byteLength(text, "utf8") / 4);
+}
+
+function skillOrderRank(skill: Skill): number {
+  if (skill.path.includes("/.codex/skills/.system/")) return 0;
+  if (skill.scope === "codex-plugin") return 1;
+  if (skill.scope === "repo") return 2;
+  return 3;
+}
+
+function orderedSkillsForBudget(skills: Skill[]): Skill[] {
+  return [...skills].sort((a, b) => {
+    const byScope = skillOrderRank(a) - skillOrderRank(b);
+    if (byScope !== 0) return byScope;
+    return a.name.localeCompare(b.name) || a.path.localeCompare(b.path);
+  });
+}
+
+function renderSkillLine(skill: Skill, description: string): string {
+  return description
+    ? `- ${skill.name}: ${description} (file: ${skill.path})`
+    : `- ${skill.name}: (file: ${skill.path})`;
+}
+
+function renderSkillDescriptionPrefix(skill: Skill, descriptionChars: number): string {
+  if (descriptionChars <= 0) return "";
+  return [...skill.description].slice(0, descriptionChars).join("");
+}
+
+function lineTokenCost(line: string): number {
+  return tokenCost(`${line}\n`);
+}
+
+function minimumLineTokenCost(skill: Skill): number {
+  return lineTokenCost(renderSkillLine(skill, ""));
+}
+
+function fullLineTokenCost(skill: Skill): number {
+  return lineTokenCost(renderSkillLine(skill, skill.description));
+}
+
+function extraDescriptionCosts(skill: Skill): number[] {
+  const minimumLine = renderSkillLine(skill, "");
+  const minimumBytes = Buffer.byteLength(`${minimumLine}\n`, "utf8");
+  const minimumCost = Math.ceil(minimumBytes / 4);
+  const costs = [0];
+  let prefixBytes = 0;
+  for (const char of skill.description) {
+    prefixBytes += Buffer.byteLength(char, "utf8");
+    const renderedBytes = minimumBytes + prefixBytes + 1;
+    costs.push(Math.ceil(renderedBytes / 4) - minimumCost);
+  }
+  return costs;
+}
+
+function codexBudgetedSkillCost(skills: Skill[], budgetTokens: number): {
+  fullTokens: number;
+  minimumTokens: number;
+  budgetedTokens: number;
+  includedSkills: number;
+  omittedSkills: number;
+  truncatedDescriptionChars: number;
+  truncatedDescriptionCount: number;
+} {
+  const ordered = orderedSkillsForBudget(skills);
+  const fullTokens = ordered.reduce((sum, skill) => sum + fullLineTokenCost(skill), 0);
+  if (fullTokens <= budgetTokens) {
+    return {
+      fullTokens,
+      minimumTokens: ordered.reduce((sum, skill) => sum + minimumLineTokenCost(skill), 0),
+      budgetedTokens: fullTokens,
+      includedSkills: ordered.length,
+      omittedSkills: 0,
+      truncatedDescriptionChars: 0,
+      truncatedDescriptionCount: 0,
+    };
+  }
+
+  const minimumTokens = ordered.reduce((sum, skill) => sum + minimumLineTokenCost(skill), 0);
+  if (minimumTokens <= budgetTokens) {
+    const remainingByIndex = ordered.map((skill) => [...skill.description].length);
+    const allocatedByIndex = ordered.map(() => 0);
+    const currentExtraCosts = ordered.map(() => 0);
+    const extraCostsByIndex = ordered.map(extraDescriptionCosts);
+    let remaining = budgetTokens - minimumTokens;
+    while (true) {
+      let changed = false;
+      for (let index = 0; index < ordered.length; index++) {
+        if (allocatedByIndex[index] >= remainingByIndex[index]) continue;
+        const nextChars = allocatedByIndex[index] + 1;
+        const nextCost = extraCostsByIndex[index]?.[nextChars] ?? currentExtraCosts[index];
+        const delta = nextCost - currentExtraCosts[index];
+        if (delta <= remaining) {
+          allocatedByIndex[index] = nextChars;
+          currentExtraCosts[index] = nextCost;
+          remaining -= delta;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+
+    const rendered = ordered.map((skill, index) =>
+      renderSkillLine(skill, renderSkillDescriptionPrefix(skill, allocatedByIndex[index] ?? 0))
+    );
+    const truncatedDescriptionChars = ordered.reduce(
+      (sum, skill, index) => sum + Math.max(0, [...skill.description].length - (allocatedByIndex[index] ?? 0)),
+      0,
+    );
+    const truncatedDescriptionCount = ordered.filter(
+      (skill, index) => (allocatedByIndex[index] ?? 0) < [...skill.description].length,
+    ).length;
+    return {
+      fullTokens,
+      minimumTokens,
+      budgetedTokens: rendered.reduce((sum, line) => sum + lineTokenCost(line), 0),
+      includedSkills: ordered.length,
+      omittedSkills: 0,
+      truncatedDescriptionChars,
+      truncatedDescriptionCount,
+    };
+  }
+
+  let budgetedTokens = 0;
+  let includedSkills = 0;
+  let omittedSkills = 0;
+  let truncatedDescriptionChars = 0;
+  let truncatedDescriptionCount = 0;
+  for (const skill of ordered) {
+    const cost = minimumLineTokenCost(skill);
+    if (budgetedTokens + cost <= budgetTokens) {
+      budgetedTokens += cost;
+      includedSkills++;
+    } else {
+      omittedSkills++;
+    }
+    const descriptionChars = [...skill.description].length;
+    truncatedDescriptionChars += descriptionChars;
+    if (descriptionChars > 0) truncatedDescriptionCount++;
+  }
+  return {
+    fullTokens,
+    minimumTokens,
+    budgetedTokens,
+    includedSkills,
+    omittedSkills,
+    truncatedDescriptionChars,
+    truncatedDescriptionCount,
+  };
+}
+
+function skillBudget(skills: Skill[]): Budget {
   const context = codexModelContext(model);
   const tokenRatio = numberArg(String(charsPerToken), 4);
   const percent = numberArg(String(budgetPercent), 2);
+  const renderedLineChars = skills.reduce((sum, skill) => sum + skill.lineChars, 0);
   const effectiveContextTokens = context.effectivePercent
     ? Math.floor(context.tokens * (context.effectivePercent / 100))
     : null;
@@ -594,7 +755,7 @@ function skillBudget(renderedLineChars: number): Budget {
   const effectiveBudgetTokens = effectiveContextTokens
     ? Math.floor(effectiveContextTokens * (percent / 100))
     : null;
-  const estimatedTokens = Math.ceil(renderedLineChars / tokenRatio);
+  const codexCost = codexBudgetedSkillCost(skills, budgetTokens);
   return {
     model,
     contextTokens: context.tokens,
@@ -605,14 +766,22 @@ function skillBudget(renderedLineChars: number): Budget {
     budgetTokens,
     effectiveBudgetTokens,
     renderedLineChars,
-    estimatedTokens,
+    unbudgetedFullTokens: codexCost.fullTokens,
+    minimumTokens: codexCost.minimumTokens,
+    budgetedTokens: codexCost.budgetedTokens,
     charsPerToken: tokenRatio,
-    budgetUsedRatio: estimatedTokens / budgetTokens,
-    effectiveBudgetUsedRatio: effectiveBudgetTokens ? estimatedTokens / effectiveBudgetTokens : null,
-    contextUsedRatio: estimatedTokens / context.tokens,
-    effectiveContextUsedRatio: effectiveContextTokens ? estimatedTokens / effectiveContextTokens : null,
-    remainingBudgetTokens: budgetTokens - estimatedTokens,
-    remainingEffectiveBudgetTokens: effectiveBudgetTokens ? effectiveBudgetTokens - estimatedTokens : null,
+    unbudgetedBudgetUsedRatio: codexCost.fullTokens / budgetTokens,
+    budgetedBudgetUsedRatio: codexCost.budgetedTokens / budgetTokens,
+    effectiveBudgetUsedRatio: effectiveBudgetTokens ? codexCost.budgetedTokens / effectiveBudgetTokens : null,
+    unbudgetedContextUsedRatio: codexCost.fullTokens / context.tokens,
+    budgetedContextUsedRatio: codexCost.budgetedTokens / context.tokens,
+    effectiveContextUsedRatio: effectiveContextTokens ? codexCost.budgetedTokens / effectiveContextTokens : null,
+    remainingBudgetTokens: budgetTokens - codexCost.budgetedTokens,
+    remainingEffectiveBudgetTokens: effectiveBudgetTokens ? effectiveBudgetTokens - codexCost.budgetedTokens : null,
+    includedSkills: codexCost.includedSkills,
+    omittedSkills: codexCost.omittedSkills,
+    truncatedDescriptionChars: codexCost.truncatedDescriptionChars,
+    truncatedDescriptionCount: codexCost.truncatedDescriptionCount,
   };
 }
 
@@ -660,7 +829,7 @@ function render(skills: Skill[], usage: Map<string, Usage>, logFiles: string[]):
     .slice(0, 80);
   const totalLineChars = enabled.reduce((sum, skill) => sum + skill.lineChars, 0);
   const totalDescChars = enabled.reduce((sum, skill) => sum + skill.descChars, 0);
-  const budget = skillBudget(totalLineChars);
+  const budget = skillBudget(enabled);
   const lines: string[] = [];
   lines.push("# Skill Cleaner Report", "");
   lines.push(`generated: ${new Date().toISOString()}`);
@@ -675,12 +844,17 @@ function render(skills: Skill[], usage: Map<string, Usage>, logFiles: string[]):
   lines.push(`context_tokens: ${formatNumber(budget.contextTokens)}`);
   lines.push(`context_source: ${budget.contextSource}`);
   lines.push(`${budget.budgetPercent}%_budget_tokens: ${formatNumber(budget.budgetTokens)}`);
-  lines.push(
-    `used_tokens_estimate: ${formatNumber(budget.estimatedTokens)} (${formatNumber(budget.renderedLineChars)} rendered chars / ${budget.charsPerToken})`,
-  );
-  lines.push(`used_of_2%_budget: ${formatOnePct(budget.budgetUsedRatio)}`);
-  lines.push(`used_of_context: ${formatOnePct(budget.contextUsedRatio)}`);
+  lines.push(`codex_cost_rule: ceil(utf8_bytes / ${budget.charsPerToken})`);
+  lines.push(`unbudgeted_full_tokens: ${formatNumber(budget.unbudgetedFullTokens)}`);
+  lines.push(`minimum_no_description_tokens: ${formatNumber(budget.minimumTokens)}`);
+  lines.push(`budgeted_tokens_used: ${formatNumber(budget.budgetedTokens)}`);
+  lines.push(`used_of_2%_budget: ${formatOnePct(budget.budgetedBudgetUsedRatio)}`);
+  lines.push(`unbudgeted_used_of_2%_budget: ${formatOnePct(budget.unbudgetedBudgetUsedRatio)}`);
+  lines.push(`used_of_context: ${formatOnePct(budget.budgetedContextUsedRatio)}`);
   lines.push(`remaining_2%_budget_tokens: ${formatNumber(budget.remainingBudgetTokens)}`);
+  lines.push(`included_skills_after_budget: ${budget.includedSkills}`);
+  lines.push(`omitted_skills_after_budget: ${budget.omittedSkills}`);
+  lines.push(`truncated_description_chars: ${formatNumber(budget.truncatedDescriptionChars)}`);
   if (budget.effectiveContextTokens && budget.effectiveBudgetTokens && budget.remainingEffectiveBudgetTokens != null) {
     lines.push(`effective_context_tokens: ${formatNumber(budget.effectiveContextTokens)} (${budget.effectivePercent}%)`);
     lines.push(`effective_2%_budget_tokens: ${formatNumber(budget.effectiveBudgetTokens)}`);
@@ -747,7 +921,7 @@ const skills = discoverSkills();
 const logFiles = recentLogFiles();
 const usage = scanUsage(skills, logFiles);
 const consideredSkills = skills.filter((skill) => skill.enabled || includeAll);
-const budget = skillBudget(consideredSkills.reduce((sum, skill) => sum + skill.lineChars, 0));
+const budget = skillBudget(consideredSkills);
 const output = json
   ? JSON.stringify({ skills, usage: Object.fromEntries(usage), logFiles, budget }, null, 2)
   : render(skills, usage, logFiles);
