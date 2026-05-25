@@ -20,9 +20,12 @@ Useful variants:
 ```bash
 node --experimental-strip-types skills/skill-cleaner/scripts/skill-cleaner.ts --no-logs
 node --experimental-strip-types skills/skill-cleaner/scripts/skill-cleaner.ts --months 6 --max-log-mb 800 --deep-logs
+node --experimental-strip-types skills/skill-cleaner/scripts/skill-cleaner.ts --context-tokens 272000 --budget-percent 2 --no-logs
+node --experimental-strip-types skills/skill-cleaner/scripts/skill-cleaner.ts --root ~/Dropbox/boxd/skills --no-logs
 ```
 
 2. Read the report in this order:
+- `Skill Budget`: GPT-5.5 context size, 2% skills budget, current usage, and over/under budget.
 - `Description candidates`: long descriptions where relaxed grammar saves prompt budget.
 - `Duplicates`: same skill name or near-identical description/body across Codex, plugin cache, repo siblings, and personal skill roots.
 - `Unused candidates`: no recent `$skill` mention, `SKILL.md` read, or explicit skill-use trace in recent Codex/OpenClaw logs.
@@ -38,7 +41,11 @@ node --experimental-strip-types skills/skill-cleaner/scripts/skill-cleaner.ts --
 
 - The script mirrors Codex's model-visible line shape: `- name: description (file: path)`.
 - It applies Codex-like frontmatter rules: YAML frontmatter only, default name from parent dir, single-line sanitized `name` and `description`.
+- It reads `~/.codex/models_cache.json` for GPT-5.5 `context_window` and `effective_context_window_percent`; defaults are 272,000 tokens and 2%.
 - It approximates Codex description budgeting with rendered line chars/bytes. For exact behavior, inspect `codex-rs/core-skills/src/render.rs`.
+- It scans only normal Codex/plugin/repo skill roots by default. Extra folders such as Dropbox archives are included only with `--root <path>`.
+- It realpath-dedupes roots, so symlinked roots such as `~/.codex/skills/agent-scripts -> ~/Projects/agent-scripts/skills` do not create false duplicates.
+- For duplicate names, it reports description/body similarity and suggests deletion candidates only when bodies are near copies. Keep priority defaults to direct Codex system skills, then direct Codex skills, then plugin skills, then personal/repo copies.
 - It scans `~/.codex/history.jsonl` and recent `~/.codex/sessions/**/*.jsonl` by default. Add `--deep-logs` for archived sessions and common OpenClaw/Clawd log folders.
 - Usage evidence is heuristic: `$skill`, `Use $skill`, and paths like `skills/<name>/SKILL.md`.
 
