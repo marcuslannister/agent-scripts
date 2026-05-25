@@ -322,6 +322,10 @@ function pluginPrefixFor(file: string): string | null {
   return null;
 }
 
+function disabledPluginMatches(disabledPlugin: string, pluginPrefix: string): boolean {
+  return disabledPlugin === pluginPrefix || disabledPlugin.startsWith(`${pluginPrefix}@`);
+}
+
 function configState(): { disabledPaths: Set<string>; disabledPlugins: Set<string> } {
   const disabledPaths = new Set<string>();
   const disabledPlugins = new Set<string>();
@@ -340,6 +344,11 @@ function configState(): { disabledPaths: Set<string>; disabledPlugins: Set<strin
     }
     if (pluginBlock) {
       block = `plugin:${pluginBlock[1]}`;
+      continue;
+    }
+    if (/^\[/.test(line)) {
+      block = "";
+      currentPath = "";
       continue;
     }
     if (block === "skill") {
@@ -397,7 +406,7 @@ function discoverSkills(): Skill[] {
         : `- ${name}: (file: ${file})`;
       const disabledByPath = disabledPaths.has(file);
       const disabledByPlugin =
-        pluginPrefix != null && [...disabledPlugins].some((plugin) => plugin.startsWith(pluginPrefix));
+        pluginPrefix != null && [...disabledPlugins].some((plugin) => disabledPluginMatches(plugin, pluginPrefix));
       const bodyKey = normalizeWords(parsed.body);
       const skill: Skill = {
         name,
