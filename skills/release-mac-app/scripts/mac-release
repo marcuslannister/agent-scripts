@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/lib/mac_release.sh
+# shellcheck source=/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/lib/mac_release.sh
 source "$SCRIPT_DIR/lib/mac_release.sh"
 
 cmd=${1:-status}

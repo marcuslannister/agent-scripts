@@ -75,7 +75,7 @@ for v in /Volumes/*; do [[ $v == */<App>* ]] && hdiutil detach "$v" -force; done
 - The shared release helpers now always download the enclosure, verify the ed25519 signature, and run `codesign --verify` + `spctl` on the extracted app before publishing—no opt-in flag needed.
 
 ### Shared release skill
-- Canonical entry point: `~/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release`.
+- Canonical entry point: `~/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release`.
 - Each app repo owns a `.mac-release.env` manifest with app metadata, artifact names, feed URLs, key public-key expectation, and repo-local package/precheck commands.
 - Repo scripts should call a checked-in `Scripts/mac-release` resolver, which uses `MAC_RELEASE_TOOL`, a sibling `../agent-scripts` checkout, or `~/Projects/agent-scripts`.
 - Release scripts should be thin wrappers around `Scripts/mac-release` commands (`release`, `make-appcast`, `verify-appcast`, `check-assets`, `changelog-html`, `notes`).

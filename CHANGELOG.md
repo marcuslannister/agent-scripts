@@ -5,6 +5,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 # Changelog
 
 ## 2026-05-25 — Agent Skills Origin
+- Renamed release workflow skills to the `release-*` convention and moved product-specific release skills into their owning repos.
 - Added AGENTS guidance that `../agent-skills` means `openclaw/agent-skills`, plus local `handoff` skill routing.
 
 ## 2026-05-24 — 1Password Item Lookup
@@ -24,7 +25,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Replaced the old `codex-review` skill with `autoreview`, keeping Codex as the default/recommended review engine while adding structured findings, prompt/dataset inputs, tool/web-search review context, and security-aware checks.
 
 ## 2026-05-21 — Mac App Release Skill
-- Added `mac-app-release` skill and `mac-release` helper so Sparkle appcast, key validation, GitHub release asset checks, and release closeout are shared while app metadata stays in each repo’s `.mac-release.env`.
+- Added `release-mac-app` skill and `mac-release` helper so Sparkle appcast, key validation, GitHub release asset checks, and release closeout are shared while app metadata stays in each repo’s `.mac-release.env`.
 
 ## 2026-05-20 — Browser Login Automation
 - Updated `browser-use` to prefer existing Chrome for login-heavy sites because isolated profiles trigger captcha/device checks.

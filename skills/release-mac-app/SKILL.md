@@ -1,5 +1,5 @@
 ---
-name: mac-app-release
+name: release-mac-app
 description: "macOS app release: Sparkle, notarization, GitHub Release, Homebrew, closeout."
 ---
 
@@ -19,13 +19,13 @@ Use for BlackBar, RepoBar, CodexBar, Trimmy, and similar Sparkle-updated macOS a
 ## Commands
 
 ```bash
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release status
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release notes [version] [output.md]
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release changelog-html <version> [CHANGELOG.md]
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release make-appcast <zip> [feed-url]
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release verify-appcast [version]
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release check-assets [tag]
-/Users/steipete/Projects/agent-scripts/skills/mac-app-release/scripts/mac-release release
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release status
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release notes [version] [output.md]
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release changelog-html <version> [CHANGELOG.md]
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release make-appcast <zip> [feed-url]
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release verify-appcast [version]
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release check-assets [tag]
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release release
 ```
 
 ## Manifest
