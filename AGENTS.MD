@@ -32,7 +32,7 @@ Codex CLI output: avoid Markdown tables by default; they render poorly there. Us
 
 - Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked files.
 - Bugs: add regression test when it fits.
-- Fixes: prefer clean bounded refactor over tiny shim. Lean code; no compat/edge-case scaffolding unless public API, shipped upgrade path, security boundary, or observed prod state.
+- Fixes/refactors: delete old paths by default. "Shipped" means in a release Git tag, not main/GitHub/PR. Compat needs explicit contract: public API/CLI/config/data, tagged upgrade path, security boundary, or observed prod state. If unsure, ask before keeping aliases/shims/fallbacks. Tests alone are not contracts.
 - Use repo package manager/runtime; no swaps without approval.
 - Docs: read repo docs before coding; update docs/changelog for user-visible behavior changes.
 - Inline code comments: brief notes for tricky, bug-prone, or previously buggy logic.
