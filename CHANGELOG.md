@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-05-28 — 1Password Timeout Escalation
+- Added AGENTS guidance to use `sag` to call Peter aloud when interactive 1Password unlock/sign-in times out, keeping the tmux session alive for retry.
+
 ## 2026-05-26 — Browser Network Capture
 - Added `network` to `scripts/browser-tools.ts` for tailing DevTools request, response, and failure events from the active tab, with resource-type filters, color control, one-shot captures, and follow mode. Thanks @mvanhorn.
 
