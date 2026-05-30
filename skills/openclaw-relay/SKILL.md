@@ -101,6 +101,9 @@ python3 scripts/openclaw_relay.py force-send \
   --text "Deploy is done."
 ```
 
+For multiline posts, use `--text-file <path>` or `--text-file -` instead of
+shell-quoting the message.
+
 Force-send media when the user explicitly wants a channel post:
 
 ```bash

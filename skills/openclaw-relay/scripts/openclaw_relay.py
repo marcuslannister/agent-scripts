@@ -502,6 +502,20 @@ def build_publish_prompt(target_key: str, text: str, context: str | None) -> str
     return "\n".join(lines)
 
 
+def read_text_arg(args: argparse.Namespace) -> str:
+    if args.text is not None:
+        return args.text
+    text_file = getattr(args, "text_file", None)
+    if not text_file:
+        return ""
+    if text_file == "-":
+        return sys.stdin.read()
+    try:
+        return Path(text_file).expanduser().read_text(encoding="utf-8")
+    except OSError as error:
+        raise RelayError(f"could not read --text-file {text_file!r}: {error}") from error
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     if args.transport == "local":
         acpx_repo = Path(args.acpx_repo)
@@ -632,7 +646,7 @@ def cmd_ask(args: argparse.Namespace) -> None:
 
 def cmd_publish(args: argparse.Namespace) -> None:
     target = resolve_target(args, args.target)
-    prompt = build_publish_prompt(str(target["sessionKey"]), args.text, args.context)
+    prompt = build_publish_prompt(str(target["sessionKey"]), read_text_arg(args), args.context)
     if args.dry_run:
         print_json({"target": target, "prompt": prompt})
         return
@@ -660,7 +674,7 @@ def cmd_publish(args: argparse.Namespace) -> None:
 
 
 def cmd_force_send(args: argparse.Namespace) -> None:
-    text = (args.text or "").strip()
+    text = read_text_arg(args).strip()
     media = (args.media or "").strip()
     if not text and not media:
         raise RelayError("force-send needs --text, --media, or both")
@@ -850,7 +864,9 @@ def build_parser() -> argparse.ArgumentParser:
     publish = subparsers.add_parser("publish")
     add_shared_flags(publish)
     publish.add_argument("--target", required=True)
-    publish.add_argument("--text", required=True)
+    publish_text = publish.add_mutually_exclusive_group(required=True)
+    publish_text.add_argument("--text")
+    publish_text.add_argument("--text-file", help="Read announcement text from a UTF-8 file, or '-' for stdin")
     publish.add_argument("--context")
     publish.add_argument("--dry-run", action="store_true")
     publish.set_defaults(func=cmd_publish)
@@ -858,7 +874,9 @@ def build_parser() -> argparse.ArgumentParser:
     force_send = subparsers.add_parser("force-send")
     add_shared_flags(force_send)
     force_send.add_argument("--target", required=True)
-    force_send.add_argument("--text")
+    force_text = force_send.add_mutually_exclusive_group()
+    force_text.add_argument("--text")
+    force_text.add_argument("--text-file", help="Read message text from a UTF-8 file, or '-' for stdin")
     force_send.add_argument("--media", help="Attach media path or URL when the channel supports it")
     force_send.add_argument("--channel")
     force_send.add_argument("--to")
