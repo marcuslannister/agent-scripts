@@ -156,24 +156,72 @@ Default to surfacing uncertainty, not hiding it.
 ## Tooling
 Prefer modern CLI tools: `rg`>`grep`, `fd`>`find`, `sd`>`sed`, `eza`>`ls`. Use classic tools only when the modern one can't express the task safely or exactly.
 
-**Anvil MCP edit tools** — prefer over built-in Read/Edit/Write; they ship only the delta and avoid full-file reads.
+## File editing
+
+Prefer Anvil MCP tools over the built-in Read/Edit/Write
+whenever they apply. They ship only the delta, batch multiple
+edits in one round trip, and avoid full-file reads.
+
 - `anvil-file-batch` — 3+ edits to the same file (collapse into one call)
-- `anvil-file-replace-string` / `anvil-file-replace-regexp` — pinpoint replacement; no full-file read needed
-- `anvil-file-insert-at-line` / `anvil-file-delete-lines` / `anvil-file-append` — localized line-level ops
-- Built-in `Edit` is fine for small one-offs. For 3+ edits to one file, always use `anvil-file-batch`.
+- `anvil-file-replace-string` / `anvil-file-replace-regexp` —
+  pinpoint replacement; no need to read the whole file first
+- `anvil-file-insert-at-line` / `anvil-file-delete-lines` /
+  `anvil-file-append` — localized line-level operations
 
-**Org-mode files (.org)** — use `anvil-org-*` instead of Read+Write for section moves, refile, splits, or reading one heading from a large file (10–20× cheaper).
+Use the built-in `Edit` only for small one-off changes. For 3 or
+more edits to the same file, always use `anvil-file-batch`.
+
+## org-mode
+
+For section moves, refile, splits, or reading a single heading
+from a large org file, use `anvil-org-*` tools instead of
+Read+Write. They are 10–20× cheaper in tokens.
+
 - `anvil-org-read-headline` — read a single subtree
-- `anvil-org-read-outline` — outline without bodies
-- `anvil-org-edit-body` / `anvil-org-rename-headline` / `anvil-org-update-todo-state` — targeted edits
+- `anvil-org-read-outline` — outline view without bodies
+- `anvil-org-edit-body` / `anvil-org-rename-headline` /
+  `anvil-org-update-todo-state` — targeted org edits
 
-**Emacs/elisp ops >~1s** (large tangles, byte-compile, multi-MB org scans, full-tree searches) — never run on the main daemon; dispatch through the worker pool.
-- From inside Anvil: prefer `anvil-worker-call` over raw `eval`
-- If the worker is its own MCP server, target `mcp__anvil-worker__eval` directly
-- Symptom you should have used the worker: the main MCP session stalls for several seconds.
+## Heavy operations — worker dispatch
 
-**Scheduled tasks / recurring jobs** — before writing a new ad-hoc script, check whether the job already exists.
-- `anvil-cron-list` — tasks and schedules
-- `anvil-cron-status` — last run, status, recent failures
+Long-running Emacs ops (large tangles, byte-compile, multi-MB
+org scans, full-tree searches) must not run on the main daemon —
+they block every other tool call. Dispatch them through the
+worker pool instead.
+
+- Elisp called from inside Anvil: prefer `anvil-worker-call` over
+  raw `eval` for anything that may exceed ~1s.
+- If the worker is registered as its own MCP server (see README
+  "Optional: register the worker pool too"), heavy `eval` calls
+  should target `mcp__anvil-worker__eval` directly so the main
+  session stays responsive.
+
+Symptom that you should have used the worker: the main MCP
+session stops accepting tool calls for several seconds.
+
+## Scheduled tasks (cron)
+
+If `anvil-cron` tasks are configured (lint, health checks, batch
+indexers, etc.), do not re-implement their work ad hoc. Inspect
+and trigger them through the cron MCP tools:
+
+- `anvil-cron-list` — what tasks exist and their schedules
+- `anvil-cron-status` — last run time, status, recent failures
 - `anvil-cron-run` — fire a registered task on demand
-- Don't re-implement work an existing cron task already does.
+
+Before writing a new ad-hoc script, check `anvil-cron-list` —
+the job may already be defined.
+
+## MCP tool self-reinforcement
+
+If during a task you notice any of the following, switch to
+the appropriate Anvil tool before continuing:
+
+- The same elisp pattern is being written twice in one session
+- Three or more `anvil-eval` calls were issued for one logical edit
+  (a single `anvil-file-batch` would have sufficed)
+- Repeated full-file Reads of the same large file
+- A heavy elisp op blocked the main session — should have been
+  routed via `anvil-worker-call` / `mcp__anvil-worker__eval`
+
+Course-correct mid-task — do not wait until the end.
