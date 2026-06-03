@@ -64,6 +64,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 ## Runtime Safety
 
 - zsh: don't use `status` as a variable.
+- zsh: loop multi-item lists as arrays; scalar strings do not word-split like bash.
 - Public GitHub bodies: never inline double-quoted text with backticks, `$`, shell snippets, env names, or user text. Use temp file + `cat <<'EOF'` + inspect + `--body-file`.
 - PR/issue body edits: fetch via REST + `jq -r`, never `gh pr/issue view --json body --jq .body`. Example: `gh api repos/OWNER/REPO/pulls/NUM | jq -r '.body // ""' > /tmp/body.md`; inspect before `--body-file`; stop if it starts with `"` or shows literal `\n`.
 - Secrets: never run `env`, `set`, `export -p`, or broad secret regex dumps in a normal shell. Query exact names only; redact values.
