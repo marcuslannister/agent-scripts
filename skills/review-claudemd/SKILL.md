@@ -12,10 +12,10 @@ Analyze recent conversations to improve both global (~/.claude/CLAUDE.md) and lo
 The project's conversation history is in `~/.claude/projects/`. The folder name is the project path with slashes replaced by dashes.
 
 ```bash
-# Find the project folder (replace / with -)
-PROJECT_PATH=$(pwd | sed 's|/|-|g' | sed 's|^-||')
+# Find the project folder (path with / replaced by -)
+PROJECT_PATH=${PWD//\//-}; PROJECT_PATH=${PROJECT_PATH#-}
 CONVO_DIR=~/.claude/projects/-${PROJECT_PATH}
-ls -lt "$CONVO_DIR"/*.jsonl | head -20
+eza -1 --sort=modified --reverse "$CONVO_DIR"/*.jsonl | head -20
 ```
 
 ## Step 2: Extract recent conversations
@@ -26,28 +26,29 @@ Extract the 15-20 most recent conversations (excluding the current one) to a tem
 SCRATCH=/tmp/claudemd-review-$(date +%s)
 mkdir -p "$SCRATCH"
 
-for f in $(ls -t "$CONVO_DIR"/*.jsonl | head -20); do
+for f in $(eza -1 --sort=modified --reverse "$CONVO_DIR"/*.jsonl | head -20); do
   basename=$(basename "$f" .jsonl)
-  # Skip current conversation if known
-  cat "$f" | jq -r '
+  # Skip current conversation if known.
+  # User content may be a string or an array of blocks — handle both.
+  jq -r '
     if .type == "user" then
-      "USER: " + (.message.content // "")
+      "USER: " + (if (.message.content | type) == "string" then .message.content else ((.message.content // []) | map(select(.type == "text") | .text) | join("\n")) end)
     elif .type == "assistant" then
       "ASSISTANT: " + ((.message.content // []) | map(select(.type == "text") | .text) | join("\n"))
     else
       empty
     end
-  ' 2>/dev/null | grep -v "^ASSISTANT: $" > "$SCRATCH/${basename}.txt"
+  ' "$f" 2>/dev/null | rg -v "^(ASSISTANT|USER): $" > "$SCRATCH/${basename}.txt"
 done
 
-ls -lhS "$SCRATCH"
+eza -1 --sort=size --reverse "$SCRATCH"
 ```
 
 ## Step 3: Spin up Sonnet subagents
 
 Launch parallel Sonnet subagents to analyze conversations. Each agent should read:
 - Global CLAUDE.md: `~/.claude/CLAUDE.md`
-- Local CLAUDE.md: `./CLAUDE.md` (if exists)
+- Local agent config: `./CLAUDE.md`, or `./AGENTS.md` if that's what the repo uses (some repos have one, not both)
 - Batch of conversation files
 
 Give each agent this prompt template:
@@ -55,12 +56,12 @@ Give each agent this prompt template:
 ```
 Read:
 1. Global CLAUDE.md: ~/.claude/CLAUDE.md
-2. Local CLAUDE.md: [project]/CLAUDE.md
+2. Local agent config: [project]/CLAUDE.md (or [project]/AGENTS.md if that's the one present)
 3. Conversations: [list of files]
 
-Analyze the conversations against BOTH CLAUDE.md files. Find:
+Analyze the conversations against BOTH config files. Find:
 1. Instructions that exist but were violated (need reinforcement or rewording)
-2. Patterns that should be added to LOCAL CLAUDE.md (project-specific)
+2. Patterns that should be added to the LOCAL file (project-specific)
 3. Patterns that should be added to GLOBAL CLAUDE.md (applies everywhere)
 4. Anything in either file that seems outdated or unnecessary
 
