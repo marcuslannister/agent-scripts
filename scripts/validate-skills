@@ -1,82 +1,102 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
+#!/usr/bin/env python3
+"""Validate skills/*/SKILL.md front matter: valid YAML mapping with non-empty,
+unique `name` and non-empty `description`. Used by hooks/pre-commit."""
 
-require "yaml"
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
 
-repo_root = `git rev-parse --show-toplevel 2>/dev/null`.strip
-Dir.chdir(repo_root.empty? ? Dir.pwd : repo_root)
+import yaml
 
-def load_front_matter(path, text)
-  match = text.match(/\A---\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\z)/m)
-  return [nil, "front matter must start on the first line and close with ---"] unless match
+# `\A---` ... `---` block on the first line, like the original Ruby gate.
+FRONT_MATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.DOTALL)
 
-  yaml_text = match[1]
-  data =
-    begin
-      YAML.safe_load(
-        yaml_text,
-        permitted_classes: [],
-        permitted_symbols: [],
-        aliases: false,
-      )
-    rescue ArgumentError
-      YAML.safe_load(yaml_text, [], [], false)
-    end
 
-  return [nil, "front matter must be a YAML mapping"] unless data.is_a?(Hash)
+def repo_root():
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+    except OSError:
+        return ""
 
-  [data, nil]
-rescue Psych::SyntaxError => e
-  [nil, "YAML: #{e.problem} at line #{e.line} column #{e.column}"]
-rescue StandardError => e
-  [nil, "YAML: #{e.message}"]
-end
 
-skill_files = Dir.glob("skills/*/SKILL.md").sort
-errors = []
-names = {}
+def load_front_matter(text):
+    match = FRONT_MATTER_RE.match(text)
+    if not match:
+        return None, "front matter must start on the first line and close with ---"
 
-skill_files.each do |path|
-  text = File.read(path)
-  data, error = load_front_matter(path, text)
+    try:
+        data = yaml.safe_load(match.group(1))
+    except yaml.YAMLError as error:
+        # problem_mark line/column are 0-based (unlike Ruby Psych); leave as-is.
+        mark = getattr(error, "problem_mark", None)
+        if mark is not None:
+            problem = getattr(error, "problem", None) or str(error)
+            return None, f"YAML: {problem} at line {mark.line} column {mark.column}"
+        return None, f"YAML: {error}"
+    except Exception as error:  # noqa: BLE001 - PyYAML constructors raise ValueError etc. on bad scalars (e.g. invalid dates); turn into a validation failure like Ruby's rescue StandardError, never a crash.
+        return None, f"YAML: {error}"
 
-  if error
-    errors << [path, error]
-    next
-  end
+    if not isinstance(data, dict):
+        return None, "front matter must be a YAML mapping"
 
-  %w[name description].each do |field|
-    value = data[field]
-    next if value.is_a?(String) && !value.strip.empty?
+    return data, None
 
-    errors << [path, "missing non-empty string field: #{field}"]
-  end
 
-  name = data["name"]
-  next unless name.is_a?(String) && !name.strip.empty?
+def main():
+    root = repo_root()
+    os.chdir(root if root else os.getcwd())
 
-  normalized_name = name.strip
-  if names.key?(normalized_name)
-    errors << [
-      path,
-      "duplicate skill name #{normalized_name.inspect} also used by #{names[normalized_name]}",
-    ]
-  else
-    names[normalized_name] = path
-  end
-end
+    skill_files = sorted(glob.glob("skills/*/SKILL.md"))
+    errors = []
+    names = {}
 
-if skill_files.empty?
-  warn "No skills/*/SKILL.md files found."
-  exit 0
-end
+    for path in skill_files:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
 
-if errors.any?
-  warn "Skill validation failed:"
-  errors.each do |path, error|
-    warn "- #{path}: #{error}"
-  end
-  exit 1
-end
+        data, error = load_front_matter(text)
+        if error:
+            errors.append((path, error))
+            continue
 
-puts "Validated #{skill_files.length} skill(s)."
+        for field in ("name", "description"):
+            value = data.get(field)
+            if isinstance(value, str) and value.strip():
+                continue
+            errors.append((path, f"missing non-empty string field: {field}"))
+
+        name = data.get("name")
+        if not (isinstance(name, str) and name.strip()):
+            continue
+
+        normalized = name.strip()
+        if normalized in names:
+            # ensure_ascii=False so non-ASCII names quote like Ruby's .inspect.
+            quoted = json.dumps(normalized, ensure_ascii=False)
+            errors.append((path, f"duplicate skill name {quoted} also used by {names[normalized]}"))
+        else:
+            names[normalized] = path
+
+    if not skill_files:
+        print("No skills/*/SKILL.md files found.", file=sys.stderr)
+        sys.exit(0)
+
+    if errors:
+        print("Skill validation failed:", file=sys.stderr)
+        for path, error in errors:
+            print(f"- {path}: {error}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Validated {len(skill_files)} skill(s).")
+
+
+if __name__ == "__main__":
+    main()

@@ -67,6 +67,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Checks every `skills/*/SKILL.md`.
 - Verifies YAML front matter plus required `name` and `description`.
 - Enable as a local hook with `git config core.hooksPath hooks`.
+- Requires Python 3 with PyYAML (`pip install pyyaml`; add `--break-system-packages` on an externally-managed Python).
 
 `scripts/docs-list.ts`
 - Walks `docs/`.
