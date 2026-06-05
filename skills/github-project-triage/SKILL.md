@@ -1,11 +1,13 @@
 ---
 name: "github-project-triage"
-description: "GitHub issue/PR triage: summarize, assess risk/testability, inspect CI/diffs/trust."
+description: "Use whenever the user types triage or asks to triage GitHub issues, PRs, queues, CI, blockers, risk, proof, or next actions."
 ---
 
 # GitHub Project Triage
 
-Use the current GitHub project by default when the user says `triage` from inside a repo. Triage means maintainer-facing item cards: what each issue/PR is about, why it matters, author trust, fit, risk, proof/test state, blockers, and next action. Never return only queue numbers or opaque refs.
+Always use this skill when the user types `triage`, unless the request explicitly targets a non-GitHub domain. From inside a repo, use the current GitHub project by default. Triage means maintainer-facing item cards: URL, what each issue/PR is about, why it matters, author trust, fit, risk, proof/test state, blockers, and next action. Never return only queue numbers or opaque refs.
+
+Output is URL-first: every surfaced issue/PR/repo item must include its GitHub URL in the first line or first sentence for that item. If giving a shortlist, print one URL per item.
 
 Use RepoBar as the first pass only for broad queue discovery across relevant owners/orgs. RepoBar is faster and more profile-aware than hand-rolling `gh repo list` loops, and it already understands repo activity, issue counts, PR counts, local projects, auth, cache, and filters.
 
