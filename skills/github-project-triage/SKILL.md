@@ -71,7 +71,7 @@ gh pr list --repo "$repo" --state open --limit 50 \
   --json number,title,author,isDraft,reviewDecision,mergeStateStatus,createdAt,updatedAt,url
 ```
 
-Before acting on any issue or PR, read the latest comments and treat Peter's comments as routing instructions. He may close, comment, or steer an item after a previous triage pass; incorporate those comments before recommending, patching, landing, closing, or asking for more proof.
+Before acting on any issue or PR, read all comments and treat Peter/owner comments as authoritative routing instructions. If Peter says it looks good, needs changes, is superseded, is product-approved, or is not wanted, that overrides bot labels and ordinary triage judgment. If there is no Peter/owner comment, use maintainer judgment and say that the call is yours.
 
 Then inspect enough detail to explain every surfaced item. For small queues (about 10 open items or fewer), inspect all items. For larger queues, inspect the top priority slice and say what was not expanded.
 
@@ -85,6 +85,16 @@ gh pr diff <n> --repo "$repo" --patch
 
 Only comment, close, merge, rerun, or patch with strong evidence.
 
+## Triage Output
+
+When the user says `triage`, always scan open issues and open PRs for the current repo. Return:
+
+- `Autonomous candidates`: items that appear fixable/landable without more product input, with URL, why it qualifies, required verification, and confidence. This is a selection for review, not permission to start work unless the user also asks for autonomous execution.
+- `Needs Peter`: items blocked on Peter/owner decision, product direction, missing credentials/access, live-provider proof that cannot be obtained, security/privacy judgment, or an authoritative Peter comment requesting changes.
+- `Defer/close/supersede`: stale, duplicate, lower-quality, or overlapping items where the likely action is not new code.
+
+For every plausible autonomous candidate, use available high-reasoning subagents, oracle, or independent agent review to check feasibility before presenting it when tool support exists. Give the subagent only task-local evidence and ask whether the item can be completed autonomously, what verification is required, and what could make it unsafe. If subagents are unavailable, do the same depth yourself and say so.
+
 ## Autonomous Work Mode
 
 When the user says `do work autonomously`, `work you can do autonomously`, `keep going`, or similar, do not stop after a queue summary or one local patch. Treat it as permission to process the eligible issue/PR queue sequentially until no safe autonomous item remains, each item is landed/closed/deferred with proof, or a blocker requires Peter.
@@ -97,9 +107,10 @@ Never work multiple tickets at once. For each item:
    - Ask first: new features, product/vision choices, broad behavior changes, risky dependencies, security-sensitive changes without strong proof, live-provider work without usable credentials, anything that cannot be end-to-end tested.
    - Refactor preference: choose a clean bounded refactor when it is the better fix for an autonomous item; do not use "small patch" as the default if it leaves worse design.
 3. Implement or fix the PR in the best maintainable way. Prefer updating the contributor PR when writable; otherwise recreate locally with credit.
-4. Verify locally and live end-to-end when possible. If live testing needs a key/account, use 1Password where expected; if access is missing, stop before pretending the item is done and ask Peter for help.
+4. Verify locally and live end-to-end when possible. For UI behavior, use the repo's expected live UI proof path, such as Peekaboo, browser-use, screenshots, or VM proof. For API/provider behavior, use a real usable key/account through the expected secret workflow when available. If access is missing, stop before pretending the item is done and ask Peter for help.
 5. Run Codex Auto Review before commit/land unless trivial/docs-only or explicitly skipped; address accepted/actionable findings.
 6. Ensure CI is green, PR description/changelog are good, land/close/comment with evidence, then return to `main`, pull `--ff-only`, and verify a clean worktree before selecting the next autonomous item.
+7. After every landed PR, post a PR comment with exactly how it was tested: local commands, live/UI/API proof, CI run/check state, landed commit, and any caveats. If verification images apply, upload/post them with `gh image` when available; if the uploader is unavailable, say so and include the screenshot path or alternate GitHub attachment proof instead of silently omitting images.
 
 Do not end autonomous mode with dirty files or an unpushed local fix unless blocked. If blocked, state the exact blocker, current branch/status, proof already gathered, and the next decision needed.
 

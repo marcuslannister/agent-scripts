@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-06 — GitHub Triage Autonomy
+- Updated `github-project-triage` so `triage` scans issues and PRs, surfaces autonomous candidates versus Peter-blocked items, treats Peter/owner comments as authoritative, requires independent feasibility checks where available, and posts exact verification proof after every landed PR.
+
 ## 2026-05-28 — 1Password Timeout Escalation
 - Added AGENTS guidance to use `sag` to call Peter aloud when interactive 1Password unlock/sign-in times out, keeping the tmux session alive for retry.
 
