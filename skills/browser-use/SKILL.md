@@ -1,6 +1,6 @@
 ---
 name: browser-use
-description: "Chrome DevTools MCP automation: existing Chrome tabs, no AppleScript."
+description: "Existing Chrome automation: Chrome plugin first, mcporter fallback."
 ---
 
 # Browser Use
@@ -9,7 +9,14 @@ Use this for browser tasks against the existing Chrome session.
 
 Config repair details live in `mcporter-config.md`.
 
-Hard rule: reattach to the existing Chrome profile only. Use this target:
+## Route
+
+1. If the Codex `Chrome` or `Chrome [Internal]` plugin is callable in the current session, use its bundled Chrome-control skill.
+2. Otherwise use the mcporter `chrome-devtools` route below.
+
+Bundled or installed on disk does not mean available; the plugin must be callable in the active session. Both routes must use the user's existing Chrome profile.
+
+For the mcporter fallback, use this target:
 
 ```bash
 mcporter call chrome-devtools.<tool>
