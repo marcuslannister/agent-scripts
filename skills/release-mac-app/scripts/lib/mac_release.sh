@@ -20,6 +20,17 @@ mac_release_expand() {
   eval "printf '%s' \"$value\""
 }
 
+mac_release_expand_home_path() {
+  local value=${1:-}
+  if [[ $value == \~/* ]]; then
+    printf '%s/%s' "$HOME" "${value#\~/}"
+  elif [[ $value == \$HOME/* ]]; then
+    printf '%s/%s' "$HOME" "${value#\$HOME/}"
+  else
+    printf '%s' "$value"
+  fi
+}
+
 mac_release_sparkle_account_args() {
   local out_var=${1:?"out var"} account
   account=${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}
@@ -37,17 +48,29 @@ mac_release_tmux_quote() {
 }
 
 mac_release_load_1password_env() {
-  [[ -n "${MAC_RELEASE_OP_ITEM:-}" ]] || return 0
-  [[ -n "${MAC_RELEASE_OP_FIELDS:-}" ]] || mac_release_die "Set MAC_RELEASE_OP_FIELDS with MAC_RELEASE_OP_ITEM"
-
-  local missing=0 release_op_field
-  for release_op_field in $MAC_RELEASE_OP_FIELDS; do
-    [[ -n "${!release_op_field:-}" ]] || missing=1
-  done
-  if [[ "$missing" != "1" ]]; then
+  set +vx
+  local primary_missing=0 codesign_missing=0 release_op_field
+  if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
+    export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  fi
+  if [[ -n "${MAC_RELEASE_OP_ITEM:-}" ]]; then
+    [[ -n "${MAC_RELEASE_OP_FIELDS:-}" ]] || mac_release_die "Set MAC_RELEASE_OP_FIELDS with MAC_RELEASE_OP_ITEM"
     for release_op_field in $MAC_RELEASE_OP_FIELDS; do
+      [[ -n "${!release_op_field:-}" ]] || primary_missing=1
+    done
+  fi
+  if [[ -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
+    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || codesign_missing=1
+    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || codesign_missing=1
+  fi
+  if [[ "$primary_missing" != "1" && "$codesign_missing" != "1" ]]; then
+    for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
       export "${release_op_field?}"
     done
+    if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
+      export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+    fi
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || export MAC_RELEASE_CODESIGN_KEYCHAIN
     return 0
   fi
 
@@ -88,26 +111,41 @@ mac_release_load_1password_env() {
 set -euo pipefail
 set +x
 
-item=${MAC_RELEASE_OP_ITEM:?}
+item=${MAC_RELEASE_OP_ITEM:-}
 account=${MAC_RELEASE_OP_ACCOUNT:-my.1password.com}
 vault=${MAC_RELEASE_OP_VAULT:-}
-fields=${MAC_RELEASE_OP_FIELDS:?}
+fields=${MAC_RELEASE_OP_FIELDS:-}
+read_primary=${MAC_RELEASE_OP_READ_PRIMARY:-0}
+codesign_item=${MAC_RELEASE_CODESIGN_OP_ITEM:-}
+codesign_account=${MAC_RELEASE_CODESIGN_OP_ACCOUNT:-$account}
+codesign_vault=${MAC_RELEASE_CODESIGN_OP_VAULT-$vault}
+codesign_path_field=${MAC_RELEASE_CODESIGN_OP_PATH_FIELD:-keychain_path}
+codesign_password_field=${MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD:-keychain_password}
+read_codesign=${MAC_RELEASE_CODESIGN_OP_READ:-0}
 env_file=${MAC_RELEASE_OP_ENV_FILE:?}
 log_file=${MAC_RELEASE_OP_LOG_FILE:?}
-json_file=$(mktemp /tmp/mac-release-op-json.XXXXXX)
-trap 'rm -f "$json_file"' EXIT
+work_dir=$(mktemp -d /tmp/mac-release-op-json.XXXXXX)
+trap 'rm -rf "$work_dir"' EXIT
+: >"$env_file"
 
-args=(item get "$item" --account "$account" --format json)
-if [[ -n "$vault" ]]; then
-  args+=(--vault "$vault")
-fi
+read_item() {
+  local target_item=$1 target_account=$2 target_vault=$3 use_service_account=$4 output=$5
+  local args=(item get "$target_item" --account "$target_account" --format json)
+  if [[ -n "$target_vault" ]]; then
+    args+=(--vault "$target_vault")
+  fi
 
-if [[ -n "$vault" || "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" == "1" ]]; then
-  op "${args[@]}" >"$json_file" 2>>"$log_file"
-else
-  env -u OP_SERVICE_ACCOUNT_TOKEN -u MOLTY_OP_SERVICE_ACCOUNT_TOKEN op "${args[@]}" >"$json_file" 2>>"$log_file"
-fi
-MAC_RELEASE_OP_FIELDS="$fields" node - "$json_file" >"$env_file" 2>>"$log_file" <<'NODE'
+  if [[ -n "$target_vault" || "$use_service_account" == "1" ]]; then
+    op "${args[@]}" >"$output" 2>>"$log_file"
+  else
+    env -u OP_SERVICE_ACCOUNT_TOKEN -u MOLTY_OP_SERVICE_ACCOUNT_TOKEN op "${args[@]}" >"$output" 2>>"$log_file"
+  fi
+}
+
+if [[ "$read_primary" == "1" ]]; then
+  json_file="$work_dir/primary.json"
+  read_item "$item" "$account" "$vault" "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" "$json_file"
+  MAC_RELEASE_OP_FIELDS="$fields" node - "$json_file" >>"$env_file" 2>>"$log_file" <<'NODE'
 const fs = require("fs");
 const path = process.argv[2];
 const item = JSON.parse(fs.readFileSync(path, "utf8"));
@@ -128,6 +166,34 @@ for (const name of fields) {
   process.stderr.write(`${name}: len=${value.length} escapedNewline=${value.includes("\\n")} realNewline=${value.includes("\n")}\n`);
 }
 NODE
+fi
+
+if [[ "$read_codesign" == "1" ]]; then
+  codesign_json_file="$work_dir/codesign.json"
+  read_item "$codesign_item" "$codesign_account" "$codesign_vault" "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT:-0}" "$codesign_json_file"
+  MAC_RELEASE_CODESIGN_OP_PATH_FIELD="$codesign_path_field" \
+    MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD="$codesign_password_field" \
+    node - "$codesign_json_file" >>"$env_file" 2>>"$log_file" <<'NODE'
+const fs = require("fs");
+const path = process.argv[2];
+const item = JSON.parse(fs.readFileSync(path, "utf8"));
+const values = new Map((item.fields || []).map((field) => [field.label || field.id, field.value || ""]));
+const pathField = process.env.MAC_RELEASE_CODESIGN_OP_PATH_FIELD;
+const passwordField = process.env.MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD;
+const keychainPath = values.get(pathField);
+const keychainPassword = values.get(passwordField);
+function quote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+if (!keychainPath) throw new Error(`missing 1Password field: ${pathField}`);
+if (!keychainPassword) throw new Error(`missing 1Password field: ${passwordField}`);
+process.stdout.write(`export MAC_RELEASE_CODESIGN_KEYCHAIN=${quote(keychainPath)}\n`);
+process.stdout.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD=${quote(keychainPassword)}\n`);
+process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN: len=${keychainPath.length}\n`);
+process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD: len=${keychainPassword.length}\n`);
+NODE
+fi
+
 chmod 600 "$env_file"
 echo "1Password fields exported: $(wc -l <"$env_file" | tr -d ' ')"
 SCRIPT
@@ -137,11 +203,19 @@ SCRIPT
     printf '#!/usr/bin/env bash\n'
     printf 'set -euo pipefail\n'
     printf 'export PATH=%q\n' "$PATH"
-    printf 'export MAC_RELEASE_OP_ITEM=%q\n' "$MAC_RELEASE_OP_ITEM"
+    printf 'export MAC_RELEASE_OP_ITEM=%q\n' "${MAC_RELEASE_OP_ITEM:-}"
     printf 'export MAC_RELEASE_OP_ACCOUNT=%q\n' "$account"
     printf 'export MAC_RELEASE_OP_VAULT=%q\n' "$vault"
-    printf 'export MAC_RELEASE_OP_FIELDS=%q\n' "$MAC_RELEASE_OP_FIELDS"
+    printf 'export MAC_RELEASE_OP_FIELDS=%q\n' "${MAC_RELEASE_OP_FIELDS:-}"
     printf 'export MAC_RELEASE_OP_USE_SERVICE_ACCOUNT=%q\n' "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}"
+    printf 'export MAC_RELEASE_OP_READ_PRIMARY=%q\n' "$primary_missing"
+    printf 'export MAC_RELEASE_CODESIGN_OP_ITEM=%q\n' "${MAC_RELEASE_CODESIGN_OP_ITEM:-}"
+    printf 'export MAC_RELEASE_CODESIGN_OP_ACCOUNT=%q\n' "${MAC_RELEASE_CODESIGN_OP_ACCOUNT:-$account}"
+    printf 'export MAC_RELEASE_CODESIGN_OP_VAULT=%q\n' "${MAC_RELEASE_CODESIGN_OP_VAULT-$vault}"
+    printf 'export MAC_RELEASE_CODESIGN_OP_PATH_FIELD=%q\n' "${MAC_RELEASE_CODESIGN_OP_PATH_FIELD:-keychain_path}"
+    printf 'export MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD=%q\n' "${MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD:-keychain_password}"
+    printf 'export MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT=%q\n' "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT-${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}}"
+    printf 'export MAC_RELEASE_CODESIGN_OP_READ=%q\n' "$codesign_missing"
     printf 'export MAC_RELEASE_OP_ENV_FILE=%q\n' "$env_file"
     printf 'export MAC_RELEASE_OP_LOG_FILE=%q\n' "$log_file"
     printf 'bash %q\n' "$script"
@@ -175,10 +249,18 @@ SCRIPT
 
   # shellcheck source=/dev/null
   source "$env_file"
-  for release_op_field in $MAC_RELEASE_OP_FIELDS; do
+  for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
     export "${release_op_field?}"
     [[ -n "${!release_op_field:-}" ]] || mac_release_die "1Password field did not populate: $release_op_field"
   done
+  if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
+    export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  fi
+  if [[ -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
+    export MAC_RELEASE_CODESIGN_KEYCHAIN
+    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || mac_release_die "1Password did not populate MAC_RELEASE_CODESIGN_KEYCHAIN"
+    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "1Password did not populate MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD"
+  fi
   sed -n '1,80p' "$log_file" >&2 || true
   cleanup_1password_env
   restore_1password_traps
@@ -232,6 +314,10 @@ mac_release_build_number() {
 }
 
 mac_release_load() {
+  set +vx
+  if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
+    export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  fi
   ROOT=${ROOT:-$(mac_release_root)}
   cd "$ROOT" || mac_release_die "Could not cd to release root: $ROOT"
   MAC_RELEASE_MANIFEST=${MAC_RELEASE_MANIFEST:-"$ROOT/.mac-release.env"}
@@ -284,6 +370,9 @@ mac_release_load() {
   for release_var in ${!MAC_RELEASE_@}; do
     export "${release_var?}"
   done
+  if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
+    export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  fi
   export ROOT MARKETING_VERSION BUILD_NUMBER APP_NAME APPCAST APP_ZIP DSYM_ZIP FEED_URL TAG ARTIFACT_PREFIX
 }
 
@@ -885,6 +974,312 @@ mac_release_run_cmd() {
   fi
 }
 
+MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=
+MAC_RELEASE_CODESIGN_ORIGINAL_PATH=
+MAC_RELEASE_CODESIGN_SHIM_DIR=
+MAC_RELEASE_ORIGINAL_KEYCHAINS=()
+MAC_RELEASE_CODESIGN_SEARCH_PREPARED=0
+MAC_RELEASE_CODESIGN_SETTINGS_PREPARED=0
+MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP=0
+MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT=
+MAC_RELEASE_CODESIGN_LOCK_FILE=
+MAC_RELEASE_CODESIGN_LOCK_HELD=0
+
+mac_release_security_with_password() {
+  set +vx
+  local password=${1:?"password required"}
+  shift
+  expect -f /dev/stdin "$@" 3< <(printf '%s' "$password") <<'EXPECT'
+set timeout 30
+log_user 0
+set password_channel [open "/dev/fd/3" r]
+fconfigure $password_channel -translation binary -encoding binary
+set password [read $password_channel]
+close $password_channel
+set password_sent 0
+
+spawn -noecho {*}$argv
+expect {
+  -nocase -re {password[^\r\n]*:} {
+    if {$password_sent} {
+      close
+      wait
+      exit 1
+    }
+    send -- "$password\r"
+    set password_sent 1
+    exp_continue
+  }
+  eof {}
+  timeout {
+    close
+    wait
+    exit 124
+  }
+}
+set wait_result [wait]
+exit [lindex $wait_result 3]
+EXPECT
+}
+
+mac_release_decode_keychain_list() {
+  local serialized=${1:-}
+  MAC_RELEASE_SERIALIZED_KEYCHAINS=$serialized node <<'NODE'
+const input = process.env.MAC_RELEASE_SERIALIZED_KEYCHAINS || "";
+const lines = input.split(/\r?\n/).filter((line) => line.trim().length > 0);
+
+function decode(line) {
+  const text = line.trim();
+  if (text.length < 2 || text[0] !== '"' || text[text.length - 1] !== '"') {
+    throw new Error("unexpected keychain search-list entry");
+  }
+  const chunks = [];
+  for (let index = 1; index < text.length - 1;) {
+    const character = text[index];
+    if (character !== "\\") {
+      const codePoint = text.codePointAt(index);
+      chunks.push(Buffer.from(String.fromCodePoint(codePoint), "utf8"));
+      index += codePoint > 0xffff ? 2 : 1;
+      continue;
+    }
+    index += 1;
+    if (index >= text.length - 1) throw new Error("trailing keychain escape");
+    const escape = text[index];
+    if (/[0-7]/.test(escape)) {
+      let octal = escape;
+      index += 1;
+      while (index < text.length - 1 && octal.length < 3 && /[0-7]/.test(text[index])) {
+        octal += text[index];
+        index += 1;
+      }
+      chunks.push(Buffer.from([Number.parseInt(octal, 8)]));
+      continue;
+    }
+    const escapes = {
+      "\\": 0x5c,
+      '"': 0x22,
+      n: 0x0a,
+      r: 0x0d,
+      t: 0x09,
+      b: 0x08,
+      f: 0x0c,
+      v: 0x0b,
+      a: 0x07,
+    };
+    if (!(escape in escapes)) throw new Error(`unsupported keychain escape: \\${escape}`);
+    chunks.push(Buffer.from([escapes[escape]]));
+    index += 1;
+  }
+  return Buffer.concat(chunks);
+}
+
+const decoded = lines.map(decode);
+process.stdout.write(Buffer.from(`${decoded.length}\0`));
+for (const path of decoded) {
+  process.stdout.write(path);
+  process.stdout.write(Buffer.from([0]));
+}
+NODE
+}
+
+mac_release_restore_codesign_keychains() {
+  local cleanup_failed=0
+  local settings_args=()
+  if [[ "${MAC_RELEASE_CODESIGN_SEARCH_PREPARED:-0}" == "1" ]]; then
+    if security list-keychains -d user -s "${MAC_RELEASE_ORIGINAL_KEYCHAINS[@]}"; then
+      MAC_RELEASE_ORIGINAL_KEYCHAINS=()
+      MAC_RELEASE_CODESIGN_SEARCH_PREPARED=0
+    else
+      echo "ERROR: Could not restore user keychain search list" >&2
+      cleanup_failed=1
+    fi
+  fi
+  if [[ -n "${MAC_RELEASE_CODESIGN_ORIGINAL_PATH:-}" ]]; then
+    PATH=$MAC_RELEASE_CODESIGN_ORIGINAL_PATH
+    export PATH
+  fi
+  if [[ -n "${MAC_RELEASE_CODESIGN_SHIM_DIR:-}" ]]; then
+    rm -rf "$MAC_RELEASE_CODESIGN_SHIM_DIR"
+  fi
+  if [[ "${MAC_RELEASE_CODESIGN_SETTINGS_PREPARED:-0}" == "1" ]]; then
+    [[ "$MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP" == "1" ]] && settings_args+=(-l)
+    if [[ -n "$MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT" ]]; then
+      settings_args+=(-u -t "$MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT")
+    fi
+    if security set-keychain-settings "${settings_args[@]}" "$MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN"; then
+      MAC_RELEASE_CODESIGN_SETTINGS_PREPARED=0
+      MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP=0
+      MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT=
+    else
+      echo "ERROR: Could not restore Developer ID keychain lock settings" >&2
+      return 1
+    fi
+  fi
+  if [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" ]]; then
+    if security lock-keychain "$MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN" >/dev/null 2>&1; then
+      MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=
+    else
+      echo "ERROR: Could not relock Developer ID keychain: $MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN" >&2
+      cleanup_failed=1
+    fi
+  fi
+  if [[ "$cleanup_failed" == "0" && "${MAC_RELEASE_CODESIGN_LOCK_HELD:-0}" == "1" ]]; then
+    rm -f "$MAC_RELEASE_CODESIGN_LOCK_FILE"
+    MAC_RELEASE_CODESIGN_LOCK_FILE=
+    MAC_RELEASE_CODESIGN_LOCK_HELD=0
+  fi
+  MAC_RELEASE_CODESIGN_ORIGINAL_PATH=
+  MAC_RELEASE_CODESIGN_SHIM_DIR=
+  return "$cleanup_failed"
+}
+
+mac_release_prepare_codesign_keychain() {
+  set +vx
+  [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" || -n "${MAC_RELEASE_CODESIGN_IDENTITY:-}" ]] || return 0
+  [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN with MAC_RELEASE_CODESIGN_IDENTITY"
+  [[ -n "${MAC_RELEASE_CODESIGN_IDENTITY:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_IDENTITY with MAC_RELEASE_CODESIGN_KEYCHAIN"
+  [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD or MAC_RELEASE_CODESIGN_OP_ITEM"
+  [[ "${MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED:-0}" == "1" ]] ||
+    mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED=1 for a dedicated automation-owned keychain"
+  require_bin security codesign shlock stat expect node
+
+  local keychain identity password probe_dir probe_path default_keychain signing_key_count existing_keychain
+  local keychain_file_id default_keychain_file_id keychain_settings signature_info keychain_list expected_keychain_count
+  local developer_id_requirement
+  local signing_search=() keychain_records=()
+  keychain=$(mac_release_expand_home_path "$MAC_RELEASE_CODESIGN_KEYCHAIN")
+  identity=$MAC_RELEASE_CODESIGN_IDENTITY
+  password=$MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  [[ -f "$keychain" ]] || mac_release_die "Developer ID keychain not found: $keychain"
+  default_keychain=$(security default-keychain -d user | sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//')
+  keychain_file_id=$(stat -L -f '%d:%i' "$keychain")
+  default_keychain_file_id=$(stat -L -f '%d:%i' "$default_keychain")
+  [[ "$keychain_file_id" != "$default_keychain_file_id" ]] ||
+    mac_release_die "Developer ID automation requires a dedicated keychain, not the default keychain"
+  MAC_RELEASE_CODESIGN_LOCK_FILE="/tmp/mac-release-codesign-${UID}.lock"
+  if ! shlock -f "$MAC_RELEASE_CODESIGN_LOCK_FILE" -p "$$"; then
+    mac_release_die "Another macOS release is using the user keychain search list"
+  fi
+  MAC_RELEASE_CODESIGN_LOCK_HELD=1
+  if ! keychain_list=$(security list-keychains -d user); then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not read user keychain search list"
+  fi
+  MAC_RELEASE_ORIGINAL_KEYCHAINS=()
+  while IFS= read -r -d '' existing_keychain; do
+    keychain_records+=("$existing_keychain")
+  done < <(mac_release_decode_keychain_list "$keychain_list")
+  [[ "${#keychain_records[@]}" -ge 1 && "${keychain_records[0]}" =~ ^[0-9]+$ ]] || {
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not decode user keychain search list"
+  }
+  expected_keychain_count=${keychain_records[0]}
+  [[ "$expected_keychain_count" -eq $(("${#keychain_records[@]}" - 1)) ]] || {
+    mac_release_restore_codesign_keychains
+    mac_release_die "Incomplete user keychain search list"
+  }
+  MAC_RELEASE_ORIGINAL_KEYCHAINS=("${keychain_records[@]:1}")
+  if [[ "${#MAC_RELEASE_ORIGINAL_KEYCHAINS[@]}" -eq 0 ]]; then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Developer ID automation requires a nonempty user keychain search list"
+  fi
+
+  MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=$keychain
+  # security marks -p/-k as insecure. Drive its CLI prompt through an isolated
+  # PTY while the password arrives on fd 3, never argv, env, logs, or a GUI.
+  if ! mac_release_security_with_password "$password" security unlock-keychain "$keychain"; then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not unlock Developer ID keychain"
+  fi
+  signing_key_count=$(security find-key -s -t private "$keychain" | grep -c '^keychain:' || true)
+  if [[ "$signing_key_count" != "1" ]]; then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Developer ID automation requires a dedicated keychain with exactly one signing private key"
+  fi
+  if ! keychain_settings=$(security show-keychain-info "$keychain" 2>&1); then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not read Developer ID keychain lock settings"
+  fi
+  [[ "$keychain_settings" == *lock-on-sleep* ]] && MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP=1
+  if [[ "$keychain_settings" =~ timeout=([0-9]+)s ]]; then
+    MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT=${BASH_REMATCH[1]}
+  fi
+  MAC_RELEASE_CODESIGN_SETTINGS_PREPARED=1
+  if ! security set-keychain-settings -ut "${MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT:-21600}" "$keychain"; then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not configure Developer ID keychain timeout"
+  fi
+  # This keychain is explicitly automation-owned. Keep its private-key ACL
+  # normalized so unattended codesign never falls back to SecurityAgent.
+  if ! mac_release_security_with_password "$password" \
+    security set-key-partition-list -S apple-tool:,apple:,codesign: -s "$keychain"; then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not configure Developer ID keychain partition list"
+  fi
+  unset MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD password
+
+  export MAC_RELEASE_CODESIGN_KEYCHAIN="$keychain"
+  export CODESIGN_KEYCHAIN="$keychain"
+  signing_search=("$keychain")
+  for existing_keychain in "${MAC_RELEASE_ORIGINAL_KEYCHAINS[@]}"; do
+    [[ "$existing_keychain" == "$keychain" ]] || signing_search+=("$existing_keychain")
+  done
+  MAC_RELEASE_CODESIGN_SEARCH_PREPARED=1
+  if ! security list-keychains -d user -s "${signing_search[@]}"; then
+    mac_release_restore_codesign_keychains
+    mac_release_die "Could not configure user keychain search list"
+  fi
+
+  probe_dir=$(mktemp -d /tmp/mac-release-codesign.XXXXXX)
+  probe_path="$probe_dir/probe"
+  cp /usr/bin/true "$probe_path"
+  if ! codesign --force --timestamp=none --keychain "$keychain" --sign "$identity" "$probe_path" >/dev/null 2>&1; then
+    rm -rf "$probe_dir"
+    mac_release_restore_codesign_keychains
+    mac_release_die "Developer ID signing canary failed without opening a release. Check keychain password and partition list."
+  fi
+  developer_id_requirement='anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists'
+  if ! codesign --verify --strict -R="$developer_id_requirement" "$probe_path" >/dev/null 2>&1; then
+    rm -rf "$probe_dir"
+    mac_release_restore_codesign_keychains
+    mac_release_die "Developer ID signing canary failed Apple trust validation"
+  fi
+  signature_info=$(codesign -dvvv "$probe_path" 2>&1)
+  if ! printf '%s\n' "$signature_info" | grep -q '^Authority=Developer ID Application:'; then
+    rm -rf "$probe_dir"
+    mac_release_restore_codesign_keychains
+    mac_release_die "Signing canary is not signed by a Developer ID Application identity"
+  fi
+  rm -rf "$probe_dir"
+
+  MAC_RELEASE_CODESIGN_ORIGINAL_PATH=$PATH
+  MAC_RELEASE_CODESIGN_SHIM_DIR=$(mktemp -d /tmp/mac-release-codesign-shim.XXXXXX)
+  cat >"$MAC_RELEASE_CODESIGN_SHIM_DIR/codesign" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+
+signing=0
+has_keychain=0
+for arg in "$@"; do
+  case "$arg" in
+    --sign|--sign=*) signing=1 ;;
+    --keychain|--keychain=*) has_keychain=1 ;;
+    --*) ;;
+    -*) [[ "${arg#-}" == *s* ]] && signing=1 ;;
+  esac
+done
+
+if [[ "$signing" == "1" && "$has_keychain" == "0" ]]; then
+  exec /usr/bin/codesign --keychain "${CODESIGN_KEYCHAIN:?}" "$@"
+fi
+exec /usr/bin/codesign "$@"
+SCRIPT
+  chmod 700 "$MAC_RELEASE_CODESIGN_SHIM_DIR/codesign"
+  PATH="$MAC_RELEASE_CODESIGN_SHIM_DIR:$PATH"
+  export PATH
+  echo "Developer ID keychain prepared without GUI interaction."
+}
+
 mac_release_release() {
   mac_release_load
   require_bin git gh
@@ -904,6 +1299,15 @@ mac_release_release() {
   # shellcheck disable=SC2329 # invoked via EXIT trap
   cleanup_release() {
     local rc=$?
+    if ! mac_release_restore_codesign_keychains; then
+      sleep 1
+      if ! mac_release_restore_codesign_keychains; then
+        echo "ERROR: Developer ID keychain cleanup failed after retry" >&2
+        if [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" ]]; then
+          security lock-keychain "$MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
+        fi
+      fi
+    fi
     [[ -n "${key_file:-}" ]] && rm -f "$key_file"
     [[ -n "${notes_md:-}" ]] && rm -f "$notes_md"
     if [[ "$rc" -ne 0 && "${appcast_pushed:-0}" != "1" ]]; then
@@ -922,7 +1326,9 @@ mac_release_release() {
   trap cleanup_release EXIT
   mac_release_key_args_and_validate KEY_ARGS key_file
   clear_sparkle_caches "$MAC_RELEASE_BUNDLE_ID"
+  mac_release_prepare_codesign_keychain
   mac_release_run_cmd "package" "$MAC_RELEASE_PACKAGE_CMD"
+  mac_release_restore_codesign_keychains
   notes_md=$(mktemp "/tmp/${APP_NAME}-notes.XXXXXX")
   extract_notes_from_changelog "$MARKETING_VERSION" "$notes_md"
   if [[ -n "$key_file" ]]; then
