@@ -15,10 +15,33 @@ Coordinate repository work through completion. Use existing domain skills for im
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
 3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Put the repository name first in each thread title. Keep work for one repository in its existing thread.
-4. Monitor workers. Intervene with concrete guidance when design, scope, proof, review, CI, or checkout state is weak.
+4. Monitor workers by reading current state. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
 5. Continue until each autonomous item is merged/closed with proof, or its exact owner blocker is documented.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
+
+## Monitoring Protocol
+
+Assume another person or agent may have steered every worker since the last poll.
+
+Before sending any worker message:
+
+1. Read the worker's latest current state, including its newest user/delegation messages and active turn.
+2. Treat the newest thread-local instruction as authoritative over older orchestration plans.
+3. Determine whether the worker is actively progressing, blocked, completed, or idle.
+4. Send nothing when an active worker has a coherent plan and is making progress.
+
+Intervene only when evidence shows one of:
+
+- the worker explicitly requests coordination or reports a blocker;
+- the worker has completed or run out of autonomous work and needs a next queue item;
+- repeated failures show no progress and a concrete correction is available;
+- wrong repository/item, unauthorized mutation, destructive action, security risk, release-gate violation, or direct conflict with the owner's latest instruction;
+- implementation has grossly diverged from the accepted task, not merely chosen a different reasonable design.
+
+Do not restate the task, add speculative requirements, raise the proof bar mid-flight, or convert a release blocker into a merge blocker. Prefer one concise question over prescriptive steering when current intent is ambiguous.
+
+Never interrupt, archive, rename, duplicate, or replace a worker without first reading its current state. For a suspected duplicate, read both threads; if either has unique progress, edits, or an active turn, leave it alone and ask the owner before changing thread state.
 
 ## Authorization
 
