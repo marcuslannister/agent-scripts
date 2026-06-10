@@ -1,0 +1,114 @@
+---
+name: maintainer-orchestrator
+description: "Coordinate multi-repository maintainer queues and releases."
+---
+
+# Maintainer Orchestrator
+
+Coordinate repository work through completion. Use existing domain skills for implementation, review, registry, and platform-specific release details.
+
+## Operating Model
+
+1. Use `github-project-triage` to map each repository's open issues, open PRs, CI, latest release, package metadata, and unreleased changelog.
+2. Classify every queue item:
+   - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
+   - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
+   - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
+3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Put the repository name first in each thread title. Keep work for one repository in its existing thread.
+4. Monitor workers. Intervene with concrete guidance when design, scope, proof, review, CI, or checkout state is weak.
+5. Continue until each autonomous item is merged/closed with proof, or its exact owner blocker is documented.
+
+Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
+
+## Authorization
+
+Treat triage, monitoring, implementation, public mutation, and release as separate permissions.
+
+- Queue analysis or monitoring does not authorize edits.
+- Delegation or parallel-worker creation requires explicit owner authorization.
+- Implementation permission authorizes local changes and verification only unless the owner also authorizes push/PR updates.
+- Push permission does not imply merge or close permission.
+- CI rerun and CI-fix permission must be explicit; a push alone does not authorize additional repair commits or workflow mutations.
+- Merge/close permission must be explicit for the affected work.
+- Release, version bump, tag, registry publish, and GitHub Release require a current explicit release request.
+- Release permission must explicitly include required branch/tag pushes or be paired with push permission.
+
+Record the granted permissions in each worker prompt. Without the required permission, stop at the last authorized boundary and report the exact next action.
+
+## Worker Contract
+
+Every delegated implementation thread, within its explicit authorization, must:
+
+- read the full issue/PR discussion, repo instructions, docs, and relevant code;
+- reproduce or establish root cause before accepting an existing patch;
+- rewrite when a cleaner bounded design is available;
+- add regression coverage when appropriate;
+- run focused, full, and live/end-to-end proof where feasible;
+- run `autoreview` until no accepted/actionable findings remain;
+- when push is authorized, push the authorized changes;
+- when CI rerun/fix is authorized, rerun required checks and repair failures until green;
+- when CI rerun/fix is not authorized and checks fail, stop with the exact failure and requested permission;
+- when merge/close is authorized, merge or close the queue item with an exact proof comment;
+- after authorized landing, return to updated, clean `main`.
+
+Prefer repairing the contributor PR. Preserve contributor credit and follow the workspace PR rules.
+
+## Release Gate
+
+Compute the effective queue immediately before release:
+
+```text
+effective issues = open issues - explicitly ignored issues
+effective PRs    = open PRs - explicitly ignored PRs
+```
+
+Release only when all are true:
+
+- the owner has explicitly requested this release or authorized release execution for the repository;
+- effective issue count is zero;
+- effective PR count is zero;
+- every ignored item is explicitly named in the current owner instructions;
+- required CI is green for the exact commit and branch/tag candidate being released;
+- release checkout is clean, on the expected branch, and fast-forward current;
+- unreleased changes justify a release and the target version follows SemVer/project convention.
+
+Recheck the GitHub queue and CI immediately before tagging or publishing. Abort if either gate changes.
+
+Never silently exclude an item. In release reporting, list ignored items and the owner instruction that exempted them.
+
+## Release Execution
+
+Use the repository's release docs and matching skill:
+
+- npm packages: use `npm`;
+- macOS apps: use `release-mac-app`;
+- other projects: use established repo scripts/workflows.
+
+Before release:
+
+- reconcile changelog history with existing tags/releases;
+- select patch for compatible fixes, minor for additive features/public API, major only with explicit approval;
+- run full release checks and review release-only edits.
+
+After publishing, verify the actual release:
+
+- Git tag and GitHub Release exist;
+- release notes contain the complete changelog section;
+- expected artifacts/install path work;
+- npm packages show version, dist-tag, tarball, integrity, and publish time;
+- release body links registry/artifact/integrity and CI proof when applicable.
+
+Then open the next patch `Unreleased` section. Commit and push the closeout only when those mutations are authorized; otherwise leave the verified local closeout ready and report the exact permission needed. After an authorized push, pull `--ff-only` and finish on clean `main`.
+
+## Reporting
+
+Keep one compact cross-repo ledger:
+
+- `Active`: repo, item URL, worker, current phase.
+- `Intervened`: exact risk and instruction sent.
+- `Needs owner`: exact decision/access required; no vague "needs review".
+- `Ignored`: exact item and owner-granted exception.
+- `Released`: version, tag/registry verification, closeout commit.
+- `Ready next`: effective queue empty, CI green, recommended version.
+
+Report meaningful changes, not routine polling. Maintain a heartbeat automation when the user asks to keep monitoring.
