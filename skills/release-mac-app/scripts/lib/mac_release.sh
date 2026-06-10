@@ -49,11 +49,14 @@ mac_release_tmux_quote() {
 
 mac_release_load_1password_env() {
   set +vx
+  local mode=${1:-all}
   local primary_missing=0 codesign_missing=0 release_op_field
+  [[ "$mode" == "all" || "$mode" == "codesign-only" ]] ||
+    mac_release_die "Unknown 1Password load mode: $mode"
   if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
     export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   fi
-  if [[ -n "${MAC_RELEASE_OP_ITEM:-}" ]]; then
+  if [[ "$mode" == "all" && -n "${MAC_RELEASE_OP_ITEM:-}" ]]; then
     [[ -n "${MAC_RELEASE_OP_FIELDS:-}" ]] || mac_release_die "Set MAC_RELEASE_OP_FIELDS with MAC_RELEASE_OP_ITEM"
     for release_op_field in $MAC_RELEASE_OP_FIELDS; do
       [[ -n "${!release_op_field:-}" ]] || primary_missing=1
@@ -64,9 +67,11 @@ mac_release_load_1password_env() {
     [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || codesign_missing=1
   fi
   if [[ "$primary_missing" != "1" && "$codesign_missing" != "1" ]]; then
-    for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
-      export "${release_op_field?}"
-    done
+    if [[ "$mode" == "all" ]]; then
+      for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
+        export "${release_op_field?}"
+      done
+    fi
     if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
       export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
     fi
@@ -249,10 +254,12 @@ SCRIPT
 
   # shellcheck source=/dev/null
   source "$env_file"
-  for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
-    export "${release_op_field?}"
-    [[ -n "${!release_op_field:-}" ]] || mac_release_die "1Password field did not populate: $release_op_field"
-  done
+  if [[ "$mode" == "all" ]]; then
+    for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
+      export "${release_op_field?}"
+      [[ -n "${!release_op_field:-}" ]] || mac_release_die "1Password field did not populate: $release_op_field"
+    done
+  fi
   if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
     export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   fi
@@ -974,6 +981,29 @@ mac_release_run_cmd() {
   fi
 }
 
+mac_release_run_with_timeout() {
+  local seconds=${1:?"timeout required"}
+  shift
+  python3 - "$seconds" "$@" <<'PY'
+import subprocess
+import sys
+
+timeout = float(sys.argv[1])
+command = sys.argv[2:]
+try:
+    sys.exit(
+        subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=timeout,
+        ).returncode
+    )
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+PY
+}
+
 MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=
 MAC_RELEASE_CODESIGN_ORIGINAL_PATH=
 MAC_RELEASE_CODESIGN_SHIM_DIR=
@@ -1141,11 +1171,11 @@ mac_release_prepare_codesign_keychain() {
   [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD or MAC_RELEASE_CODESIGN_OP_ITEM"
   [[ "${MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED:-0}" == "1" ]] ||
     mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED=1 for a dedicated automation-owned keychain"
-  require_bin security codesign shlock stat expect node
+  require_bin security codesign shlock stat expect node python3
 
   local keychain identity password probe_dir probe_path default_keychain signing_key_count existing_keychain
   local keychain_file_id default_keychain_file_id keychain_settings signature_info keychain_list expected_keychain_count
-  local developer_id_requirement
+  local canary_rc developer_id_requirement
   local signing_search=() keychain_records=()
   keychain=$(mac_release_expand_home_path "$MAC_RELEASE_CODESIGN_KEYCHAIN")
   identity=$MAC_RELEASE_CODESIGN_IDENTITY
@@ -1233,9 +1263,16 @@ mac_release_prepare_codesign_keychain() {
   probe_dir=$(mktemp -d /tmp/mac-release-codesign.XXXXXX)
   probe_path="$probe_dir/probe"
   cp /usr/bin/true "$probe_path"
-  if ! codesign --force --timestamp=none --keychain "$keychain" --sign "$identity" "$probe_path" >/dev/null 2>&1; then
+  canary_rc=0
+  mac_release_run_with_timeout "${MAC_RELEASE_CODESIGN_CANARY_TIMEOUT:-30}" \
+    codesign --force --timestamp=none --keychain "$keychain" --sign "$identity" "$probe_path" ||
+    canary_rc=$?
+  if [[ "$canary_rc" != "0" ]]; then
     rm -rf "$probe_dir"
     mac_release_restore_codesign_keychains
+    if [[ "$canary_rc" == "124" ]]; then
+      mac_release_die "Developer ID signing canary timed out; aborting before packaging"
+    fi
     mac_release_die "Developer ID signing canary failed without opening a release. Check keychain password and partition list."
   fi
   developer_id_requirement='anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists'
@@ -1278,6 +1315,77 @@ SCRIPT
   PATH="$MAC_RELEASE_CODESIGN_SHIM_DIR:$PATH"
   export PATH
   echo "Developer ID keychain prepared without GUI interaction."
+}
+
+mac_release_load_codesign_config() {
+  set +vx
+  ROOT=${ROOT:-$(mac_release_root)}
+  cd "$ROOT" || mac_release_die "Could not cd to release root: $ROOT"
+  local manifest=${MAC_RELEASE_MANIFEST:-"$ROOT/.mac-release.env"}
+  if [[ -f "$manifest" ]]; then
+    # shellcheck source=/dev/null
+    source "$manifest"
+  elif [[ -n "${MAC_RELEASE_MANIFEST:-}" ]]; then
+    mac_release_die "Missing release manifest: $manifest"
+  fi
+
+  [[ -n "${MAC_RELEASE_CODESIGN_IDENTITY:-}" ]] ||
+    mac_release_die "codesign-run requires MAC_RELEASE_CODESIGN_IDENTITY or a release manifest"
+  [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" || -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]] ||
+    mac_release_die "codesign-run requires a managed keychain or MAC_RELEASE_CODESIGN_OP_ITEM"
+  export MAC_RELEASE_CODESIGN_IDENTITY
+  export MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED
+  [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT:-}" ]] || export MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT
+  [[ -z "${MAC_RELEASE_CODESIGN_CANARY_TIMEOUT:-}" ]] || export MAC_RELEASE_CODESIGN_CANARY_TIMEOUT
+  CODESIGN_IDENTITY=$MAC_RELEASE_CODESIGN_IDENTITY
+  export CODESIGN_IDENTITY
+}
+
+mac_release_codesign_run() {
+  local load_mode=codesign-only
+  if [[ "${1:-}" == "--with-package-secrets" ]]; then
+    load_mode=all
+    shift
+  fi
+  [[ "${1:-}" == "--" ]] && shift
+  [[ "$#" -gt 0 ]] ||
+    mac_release_die "Usage: mac-release codesign-run [--with-package-secrets] -- <command> [args...]"
+
+  mac_release_load_codesign_config
+  mac_release_load_1password_env "$load_mode"
+  if [[ "$load_mode" == "codesign-only" ]]; then
+    local release_op_field
+    for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
+      [[ "$release_op_field" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] ||
+        mac_release_die "Invalid package secret environment name: $release_op_field"
+      unset "$release_op_field"
+    done
+  fi
+  # shellcheck disable=SC2329 # invoked via EXIT trap
+  cleanup_codesign_run() {
+    local rc=$?
+    if ! mac_release_restore_codesign_keychains; then
+      sleep 1
+      mac_release_restore_codesign_keychains || true
+      [[ "$rc" -ne 0 ]] || rc=1
+    fi
+    exit "$rc"
+  }
+  trap cleanup_codesign_run EXIT
+
+  mac_release_prepare_codesign_keychain
+  local command_rc=0 cleanup_rc=0
+  "$@" || command_rc=$?
+  if ! mac_release_restore_codesign_keychains; then
+    sleep 1
+    mac_release_restore_codesign_keychains || cleanup_rc=$?
+  fi
+  if [[ "$cleanup_rc" == "0" ]]; then
+    trap - EXIT
+  else
+    return "$cleanup_rc"
+  fi
+  return "$command_rc"
 }
 
 mac_release_release() {

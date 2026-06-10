@@ -41,6 +41,9 @@ case "$cmd" in
   sparkle-key-status)
     mac_release_sparkle_key_status "$@"
     ;;
+  codesign-run)
+    mac_release_codesign_run "$@"
+    ;;
   --public-key)
     mac_release_load
     mac_release_public_key_for_source "${1:-keychain}"
@@ -63,6 +66,7 @@ Commands:
   verify-appcast [version]
   check-assets [tag]
   sparkle-key-status [keychain|/path/to/key]
+  codesign-run [--with-package-secrets] -- <command> [args...]
   release
 EOF
     exit 2
