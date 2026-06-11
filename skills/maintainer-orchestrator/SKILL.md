@@ -24,7 +24,7 @@ Coordinate repository work through completion. This is a control-plane skill: in
 3. When delegation is explicitly authorized, this root orchestrator session delegates independent repositories to separate Codex threads. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
 4. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
 5. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
-6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, or an empty effective queue is released.
+6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, an empty effective queue is released, or an otherwise idle non-Summarize repository has current dependencies.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
 
@@ -111,8 +111,11 @@ An idle or completed repository thread must not remain a polling-only lane. Afte
 1. Assign the next autonomous issue or PR to the same repository thread.
 2. Prepare each remaining non-autonomous item to the decision-ready boundary, then ask the owner a concise concrete question: land/delete, choose a documented alternative, provide exact access, or grant a live-proof waiver.
 3. When the effective issue and PR queues are empty, execute the authorized patch or minor release after all release gates pass.
+4. If no queue or authorized release work remains, audit and update dependencies to current stable releases, except in `steipete/summarize`. Delegate this as normal repository work: inspect upstream changes and package health, avoid prerelease-only upgrades unless already adopted, preserve the repository's package manager, add compatibility fixes/tests when needed, run exact built/live proof, autoreview, the Public Model Identifier Gate, and required CI, then prepare or land the update within granted permissions.
 
 Do not keep completed threads merely to satisfy a lane count. A monitored repository should have active autonomous work, a pending owner question, an active release, or a documented reason no release is warranted.
+
+Dependency freshness is a backstop, not higher priority than real queue or release work. Never perform this standing dependency sweep in `steipete/summarize`; update Summarize dependencies only under a separate explicit owner instruction.
 
 ## Authorization
 
