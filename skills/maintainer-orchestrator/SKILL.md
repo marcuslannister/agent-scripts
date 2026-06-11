@@ -39,7 +39,7 @@ Intervene only when evidence shows one of:
 - wrong repository/item, unauthorized mutation, destructive action, security risk, release-gate violation, or direct conflict with the owner's latest instruction;
 - implementation has grossly diverged from the accepted task, not merely chosen a different reasonable design.
 
-Do not restate the task, add speculative requirements, raise the proof bar mid-flight, or convert a release blocker into a merge blocker. Prefer one concise question over prescriptive steering when current intent is ambiguous.
+Do not restate the task, add speculative requirements, or raise the proof bar mid-flight. Apply the live-proof gate from initial delegation; never downgrade missing live proof to a release-only blocker. Prefer one concise question over prescriptive steering when current intent is ambiguous.
 
 Never interrupt, archive, rename, duplicate, or replace a worker without first reading its current state. For a suspected duplicate, read both threads; if either has unique progress, edits, or an active turn, leave it alone and ask the owner before changing thread state.
 
@@ -66,7 +66,7 @@ Every delegated implementation thread, within its explicit authorization, must:
 - reproduce or establish root cause before accepting an existing patch;
 - rewrite when a cleaner bounded design is available;
 - add regression coverage when appropriate;
-- run focused, full, and live/end-to-end proof where feasible;
+- run focused and full tests, then live/end-to-end proof against the real affected boundary before landing;
 - run `autoreview` until no accepted/actionable findings remain;
 - when push is authorized, push the authorized changes;
 - when CI rerun/fix is authorized, rerun required checks and repair failures until green;
@@ -75,6 +75,20 @@ Every delegated implementation thread, within its explicit authorization, must:
 - after authorized landing, return to updated, clean `main`.
 
 Prefer repairing the contributor PR. Preserve contributor credit and follow the workspace PR rules.
+
+## Live Proof Gate
+
+Live proof is a pre-land requirement, not optional polish.
+
+- Test the exact final candidate commit through the changed user path using the real built/installed artifact and real service, account, device, OS, or external provider as applicable.
+- For external integrations, authenticated live calls are required. Docs, mocks, fixtures, protocol captures, route-existence checks, and CI supplement live proof; they do not replace it.
+- Redact secrets and private user data while retaining concrete evidence such as command, behavior, response class, artifact hash, or observed state transition.
+- If credentials, account state, hardware, platform access, or a safe live target are unavailable, finish all autonomous code, tests, review, and CI work, then stop before merge/close. Ask for the exact access, an explicit item-specific waiver, or a reject/close decision.
+- Never infer a live-proof waiver from merge permission, release permission, prior contributor evidence, or confidence in mocks.
+- Re-run live proof after any fix that changes the relevant runtime path.
+- Pure docs, metadata, CI, or test-only changes with no runtime boundary may use the closest built-artifact or workflow proof; state why no external live boundary applies.
+
+Record live evidence or the owner's explicit waiver in the landing proof comment.
 
 ## Release Gate
 
@@ -92,6 +106,7 @@ Release only when all are true:
 - effective PR count is zero;
 - every ignored item is explicitly named in the current owner instructions;
 - required CI is green for the exact commit and branch/tag candidate being released;
+- all user-facing runtime changes in the release have required live proof, unless the owner explicitly waives that proof for the release;
 - release checkout is clean, on the expected branch, and fast-forward current;
 - unreleased changes justify a release and the target version follows SemVer/project convention.
 
