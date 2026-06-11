@@ -21,12 +21,20 @@ Coordinate repository work through completion. This is a control-plane skill: in
    - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
-3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
+3. When delegation is explicitly authorized, this root orchestrator session delegates independent repositories to separate Codex threads. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
 4. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
 5. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
 6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, or an empty effective queue is released.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
+
+## Control-Plane Ownership
+
+- Only this root orchestrator session may create, reuse, fork, assign, rename, archive, or steer worker threads.
+- Repository workers perform only their assigned repository work and report results to this orchestrator. They must not create subworkers, delegate work, or manage other chats.
+- Put the no-subdelegation rule in every worker prompt.
+- Do not delegate portfolio triage, thread creation, or worker management to another worker.
+- Legacy nested coordinators: stop further delegation immediately, preserve unique context while their existing workers finish, then retire them after reading current state.
 
 ## Decision-Ready Queue Rule
 
@@ -70,6 +78,13 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 - Read the latest state and newest thread-local instructions before renaming.
 - Keep the title specific to current work; replace stale original-task titles.
 - Polling alone does not justify a rename.
+
+## Persistent Log
+
+- This root orchestrator owns `~/oss-orchestrator.md`; workers do not edit it.
+- Append dated, high-level entries for meaningful actions and decisions: policy/skill/automation changes, worker creation or reassignment, queue decisions, lands, closes, releases, and exact blockers.
+- Include full canonical issue/PR URLs when relevant.
+- Never record secrets or routine polling.
 
 ## Idle Thread Closeout
 
