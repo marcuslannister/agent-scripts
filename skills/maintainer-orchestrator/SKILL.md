@@ -14,7 +14,7 @@ Coordinate repository work through completion. Use existing domain skills for im
    - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
-3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Put the repository name first in each thread title. Keep work for one repository in its existing thread.
+3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Put the repository name first in each thread title. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
 4. Monitor workers by reading current state. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
 5. Continue until each autonomous item is merged/closed with proof, its exact owner blocker is asked, or an empty effective queue is released.
 
