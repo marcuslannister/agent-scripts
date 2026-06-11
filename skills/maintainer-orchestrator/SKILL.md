@@ -16,7 +16,7 @@ Coordinate repository work through completion. Use existing domain skills for im
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
 3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Put the repository name first in each thread title. Keep work for one repository in its existing thread.
 4. Monitor workers by reading current state. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
-5. Continue until each autonomous item is merged/closed with proof, or its exact owner blocker is documented.
+5. Continue until each autonomous item is merged/closed with proof, its exact owner blocker is asked, or an empty effective queue is released.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
 
@@ -42,6 +42,16 @@ Intervene only when evidence shows one of:
 Do not restate the task, add speculative requirements, or raise the proof bar mid-flight. Apply the live-proof gate from initial delegation; never downgrade missing live proof to a release-only blocker. Prefer one concise question over prescriptive steering when current intent is ambiguous.
 
 Never interrupt, archive, rename, duplicate, or replace a worker without first reading its current state. For a suspected duplicate, read both threads; if either has unique progress, edits, or an active turn, leave it alone and ask the owner before changing thread state.
+
+## Idle Thread Closeout
+
+An idle or completed repository thread must not remain a polling-only lane. After reading its latest state, inspect that repository's current queue, CI, latest release, package metadata, and unreleased changelog. Then do exactly one:
+
+1. Assign the next autonomous issue or PR to the same repository thread.
+2. Ask the owner a concise concrete question for each remaining non-autonomous item: land/fix direction, reject/close, access, security/product choice, or live-proof waiver.
+3. When the effective issue and PR queues are empty, execute the authorized patch or minor release after all release gates pass.
+
+Do not keep completed threads merely to satisfy a lane count. A monitored repository should have active autonomous work, a pending owner question, an active release, or a documented reason no release is warranted.
 
 ## Authorization
 
@@ -125,7 +135,9 @@ Use the repository's release docs and matching skill:
 Before release:
 
 - reconcile changelog history with existing tags/releases;
-- select patch for compatible fixes, minor for additive features/public API, major only with explicit approval;
+- default to patch for compatible fixes, maintenance, refactors, docs, CI, and small behavior improvements;
+- select minor only for substantial additive functionality, a meaningful new feature set, or a new backward-compatible public API;
+- never use minor merely because several fixes accumulated; major requires explicit approval;
 - run full release checks and review release-only edits.
 
 After publishing, verify the actual release:
@@ -147,6 +159,6 @@ Keep one compact cross-repo ledger:
 - `Needs owner`: exact decision/access required; no vague "needs review".
 - `Ignored`: exact item and owner-granted exception.
 - `Released`: version, tag/registry verification, closeout commit.
-- `Ready next`: effective queue empty, CI green, recommended version.
+- `Ready next`: effective queue empty, CI green, recommended patch/minor version and rationale.
 
 Report meaningful changes, not routine polling. Maintain a heartbeat automation when the user asks to keep monitoring.
