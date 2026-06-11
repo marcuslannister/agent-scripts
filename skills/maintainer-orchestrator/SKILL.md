@@ -1,11 +1,18 @@
 ---
 name: maintainer-orchestrator
-description: "Coordinate multi-repository maintainer queues and releases."
+description: "Orchestrate delegated maintainer work across Peter-majority repositories: prepare decision-ready PRs, monitor workers, clear queues, and release."
 ---
 
 # Maintainer Orchestrator
 
-Coordinate repository work through completion. Use existing domain skills for implementation, review, registry, and platform-specific release details.
+Coordinate repository work through completion. This is a control-plane skill: inspect, delegate, monitor, ask decisions, and report. Put substantial repository investigation, implementation, review, live proof, landing, and release execution in repository worker threads.
+
+## Repository Scope
+
+- Own repositories where Peter is the majority commit author, regardless of GitHub owner.
+- Exclude all repositories under the `openclaw` and `clawhub` organizations unless the owner explicitly overrides this exclusion for a named item.
+- Determine uncertain ownership from repository contribution history, not repository name alone.
+- Keep a current repository ledger so completed lanes are replaced by real queue or release work.
 
 ## Operating Model
 
@@ -15,10 +22,23 @@ Coordinate repository work through completion. Use existing domain skills for im
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
 3. When delegation is explicitly authorized, delegate independent repositories to separate Codex threads. Put the repository name first in each thread title. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
-4. Monitor workers by reading current state. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
-5. Continue until each autonomous item is merged/closed with proof, its exact owner blocker is asked, or an empty effective queue is released.
+4. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
+5. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
+6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, or an empty effective queue is released.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
+
+## Decision-Ready Queue Rule
+
+Do not ask the owner to decide from an unprepared issue or rough contributor branch.
+
+- Existing PR: inspect, reproduce, rewrite/fix as needed, add tests/docs/changelog, run live proof and autoreview, push the final candidate, and get required CI green. Ask only when the PR is mergeable or the remaining blocker cannot be solved autonomously.
+- Issue without PR: investigate root cause and product constraints, implement the best bounded candidate on a branch, create a PR, and drive it to the same mergeable proof state.
+- Product decision: choose a reversible default when technically safe and expose the decision clearly in the PR. Prepare alternatives in the PR description when useful.
+- Access or live-proof blocker: finish code, tests, docs, review, and CI first. Ask only for the exact remaining credential, account action, hardware interaction, waiver, or land/delete decision.
+- Rejection candidate: produce concrete research and proof. When a code candidate would clarify the tradeoff, prepare the PR anyway; otherwise update the issue with the evidence needed for an owner close/keep decision.
+
+The normal owner interaction should be one of: land the prepared PR, delete/close it, provide one exact access step, or choose between clearly documented alternatives.
 
 ## Monitoring Protocol
 
@@ -48,7 +68,7 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 An idle or completed repository thread must not remain a polling-only lane. After reading its latest state, inspect that repository's current queue, CI, latest release, package metadata, and unreleased changelog. Then do exactly one:
 
 1. Assign the next autonomous issue or PR to the same repository thread.
-2. Ask the owner a concise concrete question for each remaining non-autonomous item: land/fix direction, reject/close, access, security/product choice, or live-proof waiver.
+2. Prepare each remaining non-autonomous item to the decision-ready boundary, then ask the owner a concise concrete question: land/delete, choose a documented alternative, provide exact access, or grant a live-proof waiver.
 3. When the effective issue and PR queues are empty, execute the authorized patch or minor release after all release gates pass.
 
 Do not keep completed threads merely to satisfy a lane count. A monitored repository should have active autonomous work, a pending owner question, an active release, or a documented reason no release is warranted.
@@ -85,6 +105,7 @@ Keep credential discovery and use inside the worker that needs the secret. Repor
 Every delegated implementation thread, within its explicit authorization, must:
 
 - read the full issue/PR discussion, repo instructions, docs, and relevant code;
+- when an issue has no PR, create one after implementing the best bounded candidate;
 - reproduce or establish root cause before accepting an existing patch;
 - rewrite when a cleaner bounded design is available;
 - add regression coverage when appropriate;
@@ -97,6 +118,7 @@ Every delegated implementation thread, within its explicit authorization, must:
 - after authorized landing, return to updated, clean `main`.
 
 Prefer repairing the contributor PR. Preserve contributor credit and follow the workspace PR rules.
+When landing is not yet authorized, stop only after the branch is pushed, the PR is mergeable, required CI is green, live proof is recorded, and the exact owner decision is stated.
 
 ## Live Proof Gate
 
