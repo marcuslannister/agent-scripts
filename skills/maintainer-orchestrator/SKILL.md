@@ -68,6 +68,18 @@ Treat triage, monitoring, implementation, public mutation, and release as separa
 
 Record the granted permissions in each worker prompt. Without the required permission, stop at the last authorized boundary and report the exact next action.
 
+## Credential Access
+
+Assume most maintainer credentials are stored in 1Password. Before reporting a credential blocker:
+
+1. Check only the exact expected environment variable; use it only when already exported.
+2. Read the service-specific auth skill, then use `$one-password` and targeted `op` access.
+3. Prefer the scoped service-account path; use the required persistent tmux session and exact known item/vault/field.
+4. Never broadly enumerate secrets or print values. Use `op run` or `op inject` when supported.
+5. Ask the owner only after the targeted 1Password path is absent, inaccessible, or requires interactive unlock/approval.
+
+Keep credential discovery and use inside the worker that needs the secret. Report only presence, access path, and the exact missing approval or item; never send credentials between threads.
+
 ## Worker Contract
 
 Every delegated implementation thread, within its explicit authorization, must:
