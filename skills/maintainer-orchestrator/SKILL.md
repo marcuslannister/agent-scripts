@@ -48,6 +48,24 @@ Do not ask the owner to decide from an unprepared issue or rough contributor bra
 
 The normal owner interaction should be one of: land the prepared PR, delete/close it, provide one exact access step, or choose between clearly documented alternatives.
 
+## Owner Decision Briefs
+
+Never ask for `land/delete`, approval, access, waiver, or a product choice with only a URL or status label.
+
+Immediately before asking, refresh the item and worker state. Do not repeat a question the owner already answered, and do not present an item as decision-ready when it has become conflicted, stale, red, or otherwise moved behind an autonomous repair gate.
+
+Every owner decision request must include:
+
+- full canonical clickable URL and title;
+- plain-language explanation of what changes and who benefits;
+- why the decision is needed now;
+- completed proof: reproduction, live test, tests, autoreview, CI, and mergeability as applicable;
+- material tradeoffs, residual risks, scope concerns, or missing evidence;
+- the orchestrator's recommendation and concise rationale;
+- the exact choices available and what each choice does.
+
+When several decisions are grouped, give each item its own brief. Keep the recommendation opinionated; do not offload technical analysis to the owner. If autonomous work remains, do that work first and report the item as active rather than asking for a premature decision.
+
 ## Monitoring Protocol
 
 Assume another person or agent may have steered every worker since the last poll.
@@ -219,5 +237,7 @@ Keep one compact cross-repo ledger:
 - `Ready next`: effective queue empty, CI green, recommended patch/minor version and rationale.
 
 Whenever mentioning an issue or PR in any owner report, decision question, worker message, or status update, print its full canonical clickable URL. Never use only a repository-local number such as `#123`; include `https://github.com/OWNER/REPO/issues/123` or `https://github.com/OWNER/REPO/pull/123`.
+
+For `Needs owner`, use the Owner Decision Brief format. Never emit a bare URL plus `land/delete`.
 
 Report meaningful changes, not routine polling. Maintain a heartbeat automation when the user asks to keep monitoring.

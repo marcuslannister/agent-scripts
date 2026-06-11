@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-11 — Maintainer Decision Briefs
+- Updated `maintainer-orchestrator` to refresh state before owner questions and explain each decision with the change, proof, risks, recommendation, and exact choices instead of bare land/delete prompts.
+
 ## 2026-06-06 — GitHub Triage Autonomy
 - Updated `github-project-triage` so `triage` scans issues and PRs, surfaces autonomous candidates versus Peter-blocked items, treats Peter/owner comments as authoritative, requires independent feasibility checks where available, and posts exact verification proof after every landed PR.
 
