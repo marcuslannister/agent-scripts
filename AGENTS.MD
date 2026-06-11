@@ -16,6 +16,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Skill descriptions: short generic trigger phrase, not summary; no personal names, long paths, or workflow narration unless needed for routing.
 - Skill frontmatter: quote `description`; after SKILL.md edits, YAML-parse frontmatter before commit.
 - Read `~/Projects/agent-scripts/tools.md` when the tool catalog matters.
+- Confidentiality: never expose, quote, infer, or publish non-public organizational information, including internal project/model names, codenames, systems, infrastructure, processes, credentials, URLs, datasets, personnel details, or proprietary context. Treat it as confidential unless the user explicitly confirms it is public and approves release.
 
 ## Routing
 

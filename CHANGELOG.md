@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-11 — Confidentiality Guardrail
+- Added strong global guidance against exposing non-public organizational information, including internal project and model names.
+
 ## 2026-06-11 — Maintainer Decision Briefs
 - Updated `maintainer-orchestrator` to refresh state before owner questions and explain each decision with the change, proof, risks, recommendation, and exact choices instead of bare land/delete prompts.
 
