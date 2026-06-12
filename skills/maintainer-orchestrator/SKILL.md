@@ -11,6 +11,8 @@ Coordinate repository work through completion. This is a control-plane skill: in
 
 - Own repositories where Peter is the majority commit author, regardless of GitHub owner.
 - Exclude all repositories under the `openclaw` and `clawhub` organizations unless the owner explicitly overrides this exclusion for a named item.
+- Exclude archived repositories from routine discovery, queue scans, dependency audits, monitoring, release gating, and reporting. Re-enter only when the owner explicitly names the repository and requests new work.
+- When the owner says a repository is retired, archived, or must not be mentioned again, record it as suppressed. Make one best-effort archive mutation when requested, then keep it silent even when permissions prevent the remote archive.
 - Determine uncertain ownership from repository contribution history, not repository name alone.
 - Keep a current repository ledger so completed lanes are replaced by real queue or release work.
 
@@ -251,6 +253,8 @@ Keep one compact cross-repo ledger:
 - `Ignored`: exact item and owner-granted exception.
 - `Released`: version, tag/registry verification, closeout commit.
 - `Ready next`: effective queue empty, CI green, recommended patch/minor version and rationale.
+
+Omit archived and owner-suppressed repositories entirely. Do not list them as ignored, blocked, stale, or available work.
 
 Whenever mentioning an issue or PR in any owner report, decision question, worker message, or status update, print its full canonical clickable URL. Never use only a repository-local number such as `#123`; include `https://github.com/OWNER/REPO/issues/123` or `https://github.com/OWNER/REPO/pull/123`.
 
