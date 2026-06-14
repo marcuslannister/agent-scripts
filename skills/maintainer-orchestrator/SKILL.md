@@ -1,6 +1,6 @@
 ---
 name: maintainer-orchestrator
-description: "Orchestrate delegated maintainer work across Peter-majority repositories: prepare decision-ready PRs, monitor workers, clear queues, and release."
+description: "Delegated maintainer ops: decision-ready PRs, worker monitoring, queue cleanup, releases."
 ---
 
 # Maintainer Orchestrator

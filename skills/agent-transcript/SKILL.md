@@ -1,6 +1,6 @@
 ---
 name: agent-transcript
-description: "Add a redacted agent transcript section to GitHub PR or issue bodies during OpenClaw agent-created PR/issue workflows."
+description: "GitHub PR/issue agent transcripts: redact, preview, and insert safely."
 ---
 
 # Agent Transcript

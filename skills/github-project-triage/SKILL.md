@@ -1,6 +1,6 @@
 ---
 name: "github-project-triage"
-description: "Use whenever the user types triage or asks to triage GitHub issues, PRs, queues, CI, blockers, risk, proof, or next actions."
+description: "GitHub issue/PR triage: queues, CI, blockers, risk, proof, next actions."
 ---
 
 # GitHub Project Triage

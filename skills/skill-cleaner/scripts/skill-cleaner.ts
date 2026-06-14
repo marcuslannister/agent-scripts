@@ -2,6 +2,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 type Skill = {
   name: string;
@@ -20,6 +22,9 @@ type Skill = {
   bodyHash: string;
   bodyKey: string;
   descKey: string;
+  renderPath: string;
+  order: number;
+  live: boolean;
 };
 
 type Usage = {
@@ -70,6 +75,7 @@ const noLogs = args.has("--no-logs");
 const deepLogs = args.has("--deep-logs");
 const json = args.has("--json");
 const includeAll = args.has("--all");
+const noLive = args.has("--no-live");
 const model = argValue("--model", "gpt-5.5");
 const budgetPercent = Number(argValue("--budget-percent", "2"));
 const contextTokensOverride = argValue("--context-tokens", "");
@@ -239,6 +245,129 @@ function parseFrontmatter(file: string): { name?: string; description?: string; 
   return { name, description, body: lines.slice(end + 1).join("\n") };
 }
 
+type LivePrompt = {
+  prompt: string;
+  roots: Map<string, string>;
+  skillLines: string[];
+};
+
+function findSkillsPrompt(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value.includes("<skills_instructions>") && value.includes("### Available skills")
+      ? value
+      : null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findSkillsPrompt(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!value || typeof value !== "object") return null;
+  for (const item of Object.values(value as Record<string, unknown>)) {
+    const found = findSkillsPrompt(item);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function parseLiveSkillsPrompt(raw: string): LivePrompt {
+  const parsed = JSON.parse(raw) as unknown;
+  const prompt = findSkillsPrompt(parsed);
+  if (!prompt) throw new Error("Codex prompt output did not contain skills instructions");
+
+  const roots = new Map<string, string>();
+  const skillLines: string[] = [];
+  let section = "";
+  for (const line of prompt.split(/\r?\n/)) {
+    if (line === "### Skill roots") {
+      section = "roots";
+      continue;
+    }
+    if (line === "### Available skills") {
+      section = "skills";
+      continue;
+    }
+    if (line === "### How to use skills") {
+      section = "";
+      continue;
+    }
+    if (section === "roots") {
+      const match = /^- `(r\d+)` = `([^`]+)`$/.exec(line);
+      if (match) roots.set(match[1]!, match[2]!);
+    } else if (section === "skills" && line.startsWith("- ")) {
+      skillLines.push(line);
+    }
+  }
+  if (skillLines.length === 0) throw new Error("Codex prompt output contained no skills");
+  return { prompt, roots, skillLines };
+}
+
+function livePrompt(): LivePrompt | null {
+  if (noLive) return null;
+  try {
+    const raw = execFileSync("codex", ["debug", "prompt-input"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return parseLiveSkillsPrompt(raw);
+  } catch (error) {
+    if (!json) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`skill-cleaner: live Codex inventory unavailable (${message}); using filesystem scan`);
+    }
+    return null;
+  }
+}
+
+function resolveLivePath(locator: string, roots: Map<string, string>): string {
+  const match = /^(r\d+)\/(.+)$/.exec(locator);
+  return match ? path.join(roots.get(match[1]!) ?? match[1]!, match[2]!) : expandHome(locator);
+}
+
+function parseLiveSkills(live: LivePrompt): Skill[] {
+  return live.skillLines.flatMap((line, order) => {
+    const match = /^- (\S+):(?: (.*?))? \(file: (.+)\)$/.exec(line);
+    if (!match) return [];
+    const name = match[1]!;
+    const renderPath = match[3]!;
+    const file = resolveLivePath(renderPath, live.roots);
+    if (!exists(file)) return [];
+    const parsed = parseFrontmatter(file);
+    if (!parsed) return [];
+    const description = parsed.description ?? "";
+    const realPath = fs.realpathSync(file);
+    const root = [...live.roots.values()]
+      .filter((candidate) => realPath === candidate || realPath.startsWith(`${candidate}${path.sep}`))
+      .sort((a, b) => b.length - a.length)[0] ?? path.dirname(file);
+    const baseName = name.split(":").at(-1) ?? name;
+    return [{
+      name,
+      baseName,
+      description,
+      path: file,
+      realPath,
+      dir: path.dirname(file),
+      root,
+      realRoot: exists(root) ? fs.realpathSync(root) : root,
+      scope: skillRootScope(root),
+      enabled: true,
+      descChars: [...description].length,
+      lineChars: [...`${line}\n`].length,
+      lineBytes: Buffer.byteLength(`${line}\n`, "utf8"),
+      bodyHash: fnv1a(normalizeWords(parsed.body)),
+      bodyKey: normalizeWords(parsed.body),
+      descKey: normalizeWords(description),
+      renderPath,
+      order,
+      live: true,
+    }];
+  });
+}
+
 function fnv1a(input: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
@@ -326,20 +455,27 @@ function disabledPluginMatches(disabledPlugin: string, pluginPrefix: string): bo
   return disabledPlugin === pluginPrefix || disabledPlugin.startsWith(`${pluginPrefix}@`);
 }
 
-function configState(): { disabledPaths: Set<string>; disabledPlugins: Set<string> } {
+function configState(): {
+  disabledPaths: Set<string>;
+  disabledNames: Set<string>;
+  disabledPlugins: Set<string>;
+} {
   const disabledPaths = new Set<string>();
+  const disabledNames = new Set<string>();
   const disabledPlugins = new Set<string>();
   const config = path.join(home, ".codex/config.toml");
-  if (!exists(config)) return { disabledPaths, disabledPlugins };
+  if (!exists(config)) return { disabledPaths, disabledNames, disabledPlugins };
   const lines = fs.readFileSync(config, "utf8").split(/\r?\n/);
   let block = "";
   let currentPath = "";
+  let currentName = "";
   for (const line of lines) {
     const skillBlock = /^\[\[skills\.config\]\]/.test(line);
     const pluginBlock = /^\[plugins\."([^"]+)"\]/.exec(line);
     if (skillBlock) {
       block = "skill";
       currentPath = "";
+      currentName = "";
       continue;
     }
     if (pluginBlock) {
@@ -349,17 +485,23 @@ function configState(): { disabledPaths: Set<string>; disabledPlugins: Set<strin
     if (/^\[/.test(line)) {
       block = "";
       currentPath = "";
+      currentName = "";
       continue;
     }
     if (block === "skill") {
       const pathMatch = /^path\s*=\s*"([^"]+)"/.exec(line);
+      const nameMatch = /^name\s*=\s*"([^"]+)"/.exec(line);
       if (pathMatch) currentPath = expandHome(pathMatch[1] ?? "");
-      if (/^enabled\s*=\s*false/.test(line) && currentPath) disabledPaths.add(currentPath);
+      if (nameMatch) currentName = nameMatch[1] ?? "";
+      if (/^enabled\s*=\s*false/.test(line)) {
+        if (currentPath) disabledPaths.add(currentPath);
+        if (currentName) disabledNames.add(currentName);
+      }
     } else if (block.startsWith("plugin:") && /^enabled\s*=\s*false/.test(line)) {
       disabledPlugins.add(block.slice("plugin:".length));
     }
   }
-  return { disabledPaths, disabledPlugins };
+  return { disabledPaths, disabledNames, disabledPlugins };
 }
 
 function discoverRoots(): string[] {
@@ -391,7 +533,7 @@ function discoverRoots(): string[] {
 }
 
 function discoverSkills(): Skill[] {
-  const { disabledPaths, disabledPlugins } = configState();
+  const { disabledPaths, disabledNames, disabledPlugins } = configState();
   const skillsByRealPath = new Map<string, Skill>();
   for (const root of discoverRoots()) {
     for (const file of walkFiles(root, (candidate) => path.basename(candidate) === "SKILL.md", 10)) {
@@ -405,6 +547,7 @@ function discoverSkills(): Skill[] {
         ? `- ${name}: ${description} (file: ${file})`
         : `- ${name}: (file: ${file})`;
       const disabledByPath = disabledPaths.has(file);
+      const disabledByName = disabledNames.has(name);
       const disabledByPlugin =
         pluginPrefix != null && [...disabledPlugins].some((plugin) => disabledPluginMatches(plugin, pluginPrefix));
       const bodyKey = normalizeWords(parsed.body);
@@ -418,13 +561,16 @@ function discoverSkills(): Skill[] {
         root,
         realRoot: fs.realpathSync(root),
         scope: skillRootScope(root),
-        enabled: !disabledByPath && !disabledByPlugin,
+        enabled: !disabledByPath && !disabledByName && !disabledByPlugin,
         descChars: [...description].length,
         lineChars: [...`${rendered}\n`].length,
         lineBytes: Buffer.byteLength(`${rendered}\n`, "utf8"),
         bodyHash: fnv1a(bodyKey),
         bodyKey,
         descKey: normalizeWords(description),
+        renderPath: file,
+        order: Number.MAX_SAFE_INTEGER,
+        live: false,
       };
       const existing = skillsByRealPath.get(skill.realPath);
       skillsByRealPath.set(skill.realPath, existing ? preferredDisplaySkill(existing, skill) : skill);
@@ -486,14 +632,107 @@ function walkRecentFiles(root: string, predicate: (file: string) => boolean, max
   return out;
 }
 
+function messageText(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(messageText);
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  if (record.type === "input_text" && typeof record.text === "string") return [record.text];
+  return Object.values(record).flatMap(messageText);
+}
+
+export function usageEvidence(record: Record<string, unknown>): {
+  callArgs?: string;
+  userText?: string;
+} {
+  const payload = record.payload as Record<string, unknown> | undefined;
+  if (record.type === "response_item" && payload?.type === "function_call") {
+    return {
+      callArgs: typeof payload.arguments === "string" ? payload.arguments : "",
+    };
+  }
+  if (
+    typeof record.session_id === "string" &&
+    typeof record.text === "string" &&
+    typeof record.ts === "number"
+  ) {
+    return { userText: record.text };
+  }
+  const isUser =
+    (record.type === "response_item" && payload?.type === "message" && payload.role === "user") ||
+    (record.type === "event_msg" && payload?.type === "user_message");
+  return isUser ? { userText: messageText(payload).join("\n") } : {};
+}
+
+function collectWorkingDirectories(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(collectWorkingDirectories);
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const current = [record.workdir, record.cwd]
+    .filter((item): item is string => typeof item === "string");
+  return [...current, ...Object.values(record).flatMap(collectWorkingDirectories)];
+}
+
+export function referencedSkillPaths(callArgs: string): string[] {
+  let parsed: unknown = callArgs;
+  try {
+    parsed = JSON.parse(callArgs) as unknown;
+  } catch {}
+  const texts = typeof parsed === "string" ? [parsed] : messageText(parsed);
+  const workdirs = collectWorkingDirectories(parsed).map(expandHome);
+  const paths = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/(?:^|[\s"'`=])((?:\/|\.{1,2}\/)?[^\s"'`]*\/SKILL\.md)\b/g)) {
+      const locator = expandHome(match[1] ?? "");
+      if (!locator) continue;
+      if (path.isAbsolute(locator)) {
+        paths.add(path.normalize(locator));
+      } else {
+        for (const workdir of workdirs) paths.add(path.resolve(workdir, locator));
+      }
+    }
+  }
+  return [...paths];
+}
+
+function applyUserMentions(
+  userText: string,
+  aliases: Map<string, string[]>,
+  usage: Map<string, Usage>,
+): void {
+  const dollarCounts = countTokens(
+    [...userText.matchAll(/\$([A-Za-z][A-Za-z0-9_.:-]{1,80})/g)]
+      .map((match) => (match[1] ?? "").toLowerCase()),
+  );
+  const textCounts = countTokens(
+    [...userText.matchAll(/\b(?:use|using|load|read)\s+`?\$?([A-Za-z][A-Za-z0-9_.:-]{1,80})`?/gi)]
+      .map((match) => (match[1] ?? "").toLowerCase()),
+  );
+  for (const [realPath, names] of aliases) {
+    const item = usage.get(realPath);
+    if (!item) continue;
+    for (const candidate of names) {
+      item.dollar += dollarCounts.get(candidate) ?? 0;
+      item.text += textCounts.get(candidate) ?? 0;
+    }
+  }
+}
+
+export function plainLogSkillReads(text: string): string[] {
+  return [...text.matchAll(
+    /\b(?:cat|sed|head|tail|less|open|read)\b[^\r\n]{0,500}?(?:\.agents\/)?skills\/([^/"'`\\\s]+)\/SKILL\.md/gi,
+  )].map((match) => (match[1] ?? "").toLowerCase());
+}
+
 function scanUsage(skills: Skill[], logFiles: string[]): Map<string, Usage> {
+  const uniqueSkills = [...new Map(skills.map((skill) => [skill.realPath, skill])).values()];
   const aliases = new Map<string, string[]>();
-  for (const skill of skills) {
+  for (const skill of uniqueSkills) {
     const values = new Set([skill.name, skill.baseName, skill.name.split(":").at(-1) ?? skill.name]);
-    aliases.set(skill.name, [...values].map((value) => value.toLowerCase()));
+    aliases.set(skill.realPath, [...values].map((value) => value.toLowerCase()));
   }
   const usage = new Map<string, Usage>();
-  for (const skill of skills) usage.set(skill.name, { dollar: 0, fileRead: 0, text: 0 });
+  for (const skill of uniqueSkills) usage.set(skill.realPath, { dollar: 0, fileRead: 0, text: 0 });
   let consumedBytes = 0;
   for (const file of logFiles) {
     let text = "";
@@ -506,26 +745,50 @@ function scanUsage(skills: Skill[], logFiles: string[]): Map<string, Usage> {
     } catch {
       continue;
     }
-    const dollarCounts = countTokens(
-      [...text.matchAll(/\$([A-Za-z][A-Za-z0-9_.:-]{1,80})/g)].map((m) => (m[1] ?? "").toLowerCase()),
-    );
-    const pathCounts = countTokens(
-      [...text.matchAll(/(?:^|[/"'`\\])(?:\.agents\/)?skills\/([^/"'`\\\s]+)\/SKILL\.md/g)].map((m) =>
-        (m[1] ?? "").toLowerCase()
-      ),
-    );
-    const textCounts = countTokens(
-      [...text.matchAll(/\b(?:use|using|load|read)\s+`?\$?([A-Za-z][A-Za-z0-9_.:-]{1,80})`?/gi)].map((m) =>
-        (m[1] ?? "").toLowerCase()
-      ),
-    );
-    for (const [name, names] of aliases) {
-      const item = usage.get(name);
-      if (!item) continue;
-      for (const candidate of names) {
-        item.dollar += dollarCounts.get(candidate) ?? 0;
-        item.fileRead += pathCounts.get(candidate) ?? 0;
-        item.text += textCounts.get(candidate) ?? 0;
+    const plainLines: string[] = [];
+    for (const line of text.split(/\r?\n/)) {
+      let record: Record<string, unknown>;
+      try {
+        record = JSON.parse(line) as Record<string, unknown>;
+      } catch {
+        plainLines.push(line);
+        continue;
+      }
+      const evidence = usageEvidence(record);
+      if (evidence.callArgs != null) {
+        const referencedPaths = new Set(
+          referencedSkillPaths(evidence.callArgs).flatMap((referencedPath) => {
+            try {
+              return [referencedPath, fs.realpathSync(referencedPath)];
+            } catch {
+              return [referencedPath];
+            }
+          }),
+        );
+        for (const skill of uniqueSkills) {
+          if (
+            evidence.callArgs.includes(skill.path) ||
+            evidence.callArgs.includes(skill.realPath) ||
+            referencedPaths.has(skill.path) ||
+            referencedPaths.has(skill.realPath)
+          ) {
+            const item = usage.get(skill.realPath);
+            if (item) item.fileRead++;
+          }
+        }
+        continue;
+      }
+      if (evidence.userText == null) continue;
+      applyUserMentions(evidence.userText, aliases, usage);
+    }
+    if (plainLines.length > 0) {
+      const plainText = plainLines.join("\n");
+      applyUserMentions(plainText, aliases, usage);
+      const pathCounts = countTokens(plainLogSkillReads(plainText));
+      for (const [realPath, names] of aliases) {
+        const item = usage.get(realPath);
+        if (!item) continue;
+        for (const candidate of names) item.fileRead += pathCounts.get(candidate) ?? 0;
       }
     }
   }
@@ -538,35 +801,23 @@ function countTokens(values: string[]): Map<string, number> {
   return map;
 }
 
-function suggestDescription(skill: Skill): string {
-  const source = normalizeWords(`${skill.baseName} ${skill.description}`);
-  const cues: string[] = [];
-  const add = (label: string, pattern: RegExp) => {
-    if (pattern.test(source) && !cues.includes(label)) cues.push(label);
-  };
-  add("OpenClaw", /\bopenclaw|claw|clawd\b/);
-  add("GitHub", /\b(github|issue|pr|ci)\b|pull request/);
-  add("Slack", /\bslack\b/);
-  add("Discord", /\bdiscord\b/);
-  add("Gmail", /\bgmail|email\b/);
-  add("Google", /\b(google|drive|calendar|docs|sheets|slides)\b/);
-  add("Cloudflare", /\b(cloudflare|worker|wrangler)\b|durable object/);
-  add("release", /\b(release|publish|ship|notar)/);
-  add("debug", /\b(debug|trace|inspect|profile|diagnos)/);
-  add("search", /\b(search|archive|crawl|sync|history)\b/);
-  add("deploy", /\b(deploy|ops|server|ssh|vm)\b/);
-  add("docs", /\b(doc|docs|markdown|write|review)\b/);
-  const verbs = cues.length ? cues.slice(0, 5).join(", ") : skill.baseName.replace(/-/g, " ");
-  return `${verbs}: ${shortAction(source)}.`;
-}
-
-function shortAction(source: string): string {
-  if (/\btriage|review\b/.test(source)) return "triage, review, proof";
-  if (/\bdebug|diagnos|inspect\b/.test(source)) return "debug, inspect, fix";
-  if (/\bsearch|sync|archive\b/.test(source)) return "search, sync, summarize";
-  if (/\bdeploy|release|publish|ship\b/.test(source)) return "deploy, release, verify";
-  if (/\bcreate|scaffold|build\b/.test(source)) return "create, build, validate";
-  return "audit, clean, verify";
+export function compactDescription(description: string, maxChars = 110): string {
+  let draft = sanitizeSingleLine(description)
+    .replace(/^Use this skill alongside ([A-Za-z0-9_.:-]+) when the task involves /i, "$1 + workflow: ")
+    .replace(/^Use this skill whenever /i, "")
+    .replace(/^Use this skill when /i, "")
+    .replace(/^Use when /i, "")
+    .replace(/^Trigger whenever the user asks to /i, "")
+    .replace(/^This is the preferred workflow skill whenever /i, "")
+    .replace(/\bthe user wants to\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const firstSentence = draft.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim();
+  if (firstSentence && firstSentence.length >= 35) draft = firstSentence;
+  if ([...draft].length <= maxChars) return draft;
+  const prefix = [...draft].slice(0, maxChars - 3).join("");
+  const boundary = Math.max(prefix.lastIndexOf(";"), prefix.lastIndexOf(","), prefix.lastIndexOf(" "));
+  return `${prefix.slice(0, boundary >= maxChars * 0.6 ? boundary : prefix.length).trimEnd()}...`;
 }
 
 function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
@@ -613,6 +864,7 @@ function skillOrderRank(skill: Skill): number {
 
 function orderedSkillsForBudget(skills: Skill[]): Skill[] {
   return [...skills].sort((a, b) => {
+    if (a.live && b.live) return a.order - b.order;
     const byScope = skillOrderRank(a) - skillOrderRank(b);
     if (byScope !== 0) return byScope;
     return a.name.localeCompare(b.name) || a.path.localeCompare(b.path);
@@ -621,8 +873,8 @@ function orderedSkillsForBudget(skills: Skill[]): Skill[] {
 
 function renderSkillLine(skill: Skill, description: string): string {
   return description
-    ? `- ${skill.name}: ${description} (file: ${skill.path})`
-    : `- ${skill.name}: (file: ${skill.path})`;
+    ? `- ${skill.name}: ${description} (file: ${skill.renderPath})`
+    : `- ${skill.name}: (file: ${skill.renderPath})`;
 }
 
 function renderSkillDescriptionPrefix(skill: Skill, descriptionChars: number): string {
@@ -752,7 +1004,7 @@ function codexBudgetedSkillCost(skills: Skill[], budgetTokens: number): {
   };
 }
 
-function skillBudget(skills: Skill[]): Budget {
+function skillBudget(skills: Skill[], metadataOverheadTokens = 0): Budget {
   const context = codexModelContext(model);
   const tokenRatio = numberArg(String(charsPerToken), 4);
   const percent = numberArg(String(budgetPercent), 2);
@@ -764,7 +1016,13 @@ function skillBudget(skills: Skill[]): Budget {
   const effectiveBudgetTokens = effectiveContextTokens
     ? Math.floor(effectiveContextTokens * (percent / 100))
     : null;
-  const codexCost = codexBudgetedSkillCost(skills, budgetTokens);
+  const codexCost = codexBudgetedSkillCost(
+    skills,
+    Math.max(1, budgetTokens - metadataOverheadTokens),
+  );
+  const fullTokens = codexCost.fullTokens + metadataOverheadTokens;
+  const minimumTokens = codexCost.minimumTokens + metadataOverheadTokens;
+  const budgetedTokens = codexCost.budgetedTokens + metadataOverheadTokens;
   return {
     model,
     contextTokens: context.tokens,
@@ -775,18 +1033,20 @@ function skillBudget(skills: Skill[]): Budget {
     budgetTokens,
     effectiveBudgetTokens,
     renderedLineChars,
-    unbudgetedFullTokens: codexCost.fullTokens,
-    minimumTokens: codexCost.minimumTokens,
-    budgetedTokens: codexCost.budgetedTokens,
+    unbudgetedFullTokens: fullTokens,
+    minimumTokens,
+    budgetedTokens,
     charsPerToken: tokenRatio,
-    unbudgetedBudgetUsedRatio: codexCost.fullTokens / budgetTokens,
-    budgetedBudgetUsedRatio: codexCost.budgetedTokens / budgetTokens,
-    effectiveBudgetUsedRatio: effectiveBudgetTokens ? codexCost.budgetedTokens / effectiveBudgetTokens : null,
-    unbudgetedContextUsedRatio: codexCost.fullTokens / context.tokens,
-    budgetedContextUsedRatio: codexCost.budgetedTokens / context.tokens,
-    effectiveContextUsedRatio: effectiveContextTokens ? codexCost.budgetedTokens / effectiveContextTokens : null,
-    remainingBudgetTokens: budgetTokens - codexCost.budgetedTokens,
-    remainingEffectiveBudgetTokens: effectiveBudgetTokens ? effectiveBudgetTokens - codexCost.budgetedTokens : null,
+    unbudgetedBudgetUsedRatio: fullTokens / budgetTokens,
+    budgetedBudgetUsedRatio: budgetedTokens / budgetTokens,
+    effectiveBudgetUsedRatio: effectiveBudgetTokens ? budgetedTokens / effectiveBudgetTokens : null,
+    unbudgetedContextUsedRatio: fullTokens / context.tokens,
+    budgetedContextUsedRatio: budgetedTokens / context.tokens,
+    effectiveContextUsedRatio: effectiveContextTokens ? budgetedTokens / effectiveContextTokens : null,
+    remainingBudgetTokens: budgetTokens - budgetedTokens,
+    remainingEffectiveBudgetTokens: effectiveBudgetTokens
+      ? effectiveBudgetTokens - budgetedTokens
+      : null,
     includedSkills: codexCost.includedSkills,
     omittedSkills: codexCost.omittedSkills,
     truncatedDescriptionChars: codexCost.truncatedDescriptionChars,
@@ -819,31 +1079,53 @@ function duplicateDeleteSuggestions(groups: [string, Skill[]][]): string[] {
   return lines.length ? lines : ["- none"];
 }
 
-function render(skills: Skill[], usage: Map<string, Usage>, logFiles: string[]): string {
-  const enabled = skills.filter((skill) => skill.enabled || includeAll);
-  const roots = groupBy(skills, (skill) => skill.root);
-  const byBase = [...groupBy(enabled, (skill) => skill.baseName.toLowerCase()).entries()].filter(([, list]) => list.length > 1);
-  const byBody = [...groupBy(enabled, (skill) => skill.bodyHash).entries()].filter(([hash, list]) => hash !== "811c9dc5" && list.length > 1);
-  const longDescriptions = enabled
+function liveMetadataOverhead(live: LivePrompt | null): number {
+  if (!live) return 0;
+  return [...live.roots.entries()].reduce(
+    (sum, [alias, root]) => sum + tokenCost(`- \`${alias}\` = \`${root}\`\n`),
+    0,
+  );
+}
+
+function usageForSkill(usage: Map<string, Usage>, skill: Skill): Usage {
+  return usage.get(skill.realPath) ?? { dollar: 0, fileRead: 0, text: 0 };
+}
+
+function render(
+  discovered: Skill[],
+  selected: Skill[],
+  usage: Map<string, Usage>,
+  logFiles: string[],
+  live: LivePrompt | null,
+): string {
+  const considered = includeAll ? discovered : selected;
+  const roots = groupBy(discovered, (skill) => skill.root);
+  const duplicatePool = includeAll ? discovered : discovered.filter((skill) => skill.enabled);
+  const byBase = [...groupBy(duplicatePool, (skill) => skill.baseName.toLowerCase()).entries()]
+    .filter(([, list]) => list.length > 1);
+  const byBody = [...groupBy(duplicatePool, (skill) => skill.bodyHash).entries()]
+    .filter(([hash, list]) => hash !== "811c9dc5" && list.length > 1);
+  const longDescriptions = considered
     .filter((skill) => skill.descChars >= 110 || skill.lineChars >= 180)
     .sort((a, b) => b.descChars - a.descChars)
     .slice(0, 30);
-  const unused = enabled
+  const unused = considered
     .filter((skill) => {
-      const item = usage.get(skill.name);
+      const item = usageForSkill(usage, skill);
       return !item || item.dollar + item.fileRead + item.text === 0;
     })
     .filter((skill) => !["codex", "codex-plugin"].includes(skill.scope))
     .sort((a, b) => a.scope.localeCompare(b.scope) || a.name.localeCompare(b.name))
     .slice(0, 80);
-  const totalLineChars = enabled.reduce((sum, skill) => sum + skill.lineChars, 0);
-  const totalDescChars = enabled.reduce((sum, skill) => sum + skill.descChars, 0);
-  const budget = skillBudget(enabled);
+  const totalLineChars = considered.reduce((sum, skill) => sum + skill.lineChars, 0);
+  const totalDescChars = considered.reduce((sum, skill) => sum + skill.descChars, 0);
+  const budget = skillBudget(considered, liveMetadataOverhead(live));
   const lines: string[] = [];
   lines.push("# Skill Cleaner Report", "");
   lines.push(`generated: ${new Date().toISOString()}`);
   lines.push(`months: ${months}`);
-  lines.push(`skills: ${skills.length} discovered, ${enabled.length} considered`);
+  lines.push(`inventory_source: ${live ? "codex debug prompt-input" : "filesystem fallback"}`);
+  lines.push(`skills: ${discovered.length} discovered, ${selected.length} live, ${considered.length} considered`);
   lines.push(`description_chars: ${totalDescChars}`);
   lines.push(`rendered_line_chars: ${totalLineChars}`);
   lines.push(`log_files_scanned: ${logFiles.length}`, "");
@@ -878,7 +1160,7 @@ function render(skills: Skill[], usage: Map<string, Usage>, logFiles: string[]):
     lines.push(`  path: ${skill.path}`);
     lines.push(`  chars: description=${skill.descChars}, rendered_line=${skill.lineChars}`);
     lines.push(`  current: ${skill.description}`);
-    lines.push(`  suggested: ${suggestDescription(skill)}`);
+    lines.push(`  draft: ${compactDescription(skill.description)}`);
   }
   if (longDescriptions.length === 0) lines.push("- none");
   lines.push("");
@@ -912,7 +1194,7 @@ function render(skills: Skill[], usage: Map<string, Usage>, logFiles: string[]):
 
   lines.push("## Unused Candidates", "");
   for (const skill of unused) {
-    const item = usage.get(skill.name) ?? { dollar: 0, fileRead: 0, text: 0 };
+    const item = usageForSkill(usage, skill);
     lines.push(`- ${skill.name}: ${skill.scope}; usage=$${item.dollar}, reads=${item.fileRead}, text=${item.text}; ${skill.path}`);
   }
   if (unused.length === 0) lines.push("- none");
@@ -926,12 +1208,30 @@ function render(skills: Skill[], usage: Map<string, Usage>, logFiles: string[]):
   return lines.join("\n");
 }
 
-const skills = discoverSkills();
-const logFiles = recentLogFiles();
-const usage = scanUsage(skills, logFiles);
-const consideredSkills = skills.filter((skill) => skill.enabled || includeAll);
-const budget = skillBudget(consideredSkills);
-const output = json
-  ? JSON.stringify({ skills, usage: Object.fromEntries(usage), logFiles, budget }, null, 2)
-  : render(skills, usage, logFiles);
-console.log(output);
+function main(): void {
+  const skills = discoverSkills();
+  const live = livePrompt();
+  const liveSkills = live ? parseLiveSkills(live) : [];
+  const selectedSkills = liveSkills.length > 0
+    ? liveSkills
+    : skills.filter((skill) => skill.enabled || includeAll);
+  const logFiles = recentLogFiles();
+  const usage = scanUsage([...skills, ...liveSkills], logFiles);
+  const consideredSkills = includeAll ? skills : selectedSkills;
+  const budget = skillBudget(consideredSkills, liveMetadataOverhead(live));
+  const output = json
+    ? JSON.stringify({
+        skills,
+        selectedSkills,
+        inventorySource: live ? "codex debug prompt-input" : "filesystem fallback",
+        usage: Object.fromEntries(usage),
+        logFiles,
+        budget,
+      }, null, 2)
+    : render(skills, selectedSkills, usage, logFiles, live);
+  console.log(output);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main();
+}

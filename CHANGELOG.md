@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-14 — Skill Budget Audit
+- Updated `skill-cleaner` to audit the live Codex skill inventory, aliased paths, prompt budget, and actual usage traces while retaining broad duplicate diagnostics.
+- Compacted verbose personal skill descriptions without weakening their routing triggers.
+
 ## 2026-06-11 — Confidentiality Guardrail
 - Added strong global guidance against exposing non-public organizational information, including internal project and model names.
 
