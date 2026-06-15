@@ -45,6 +45,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Pasted GitHub issue/PR: first `git status -sb`; if dirty, yell; then `git push` + `git pull --ff-only`.
 - PR refs: use `gh pr view/diff`, not web search.
 - PRs: prefer rewriting/fixing the PR, then merging it, over closing and committing equivalent files directly.
+- PR quality: assume generated code may come from weaker AI models. Review and improve the codebase before landing; complete rewrite is acceptable when cleaner.
 - Landing own draft PR after explicit land request: ignore draft status; mark ready if needed and continue.
 - `fix ci`: consent to pull, commit, push; fix/rerun/watch until CI green.
 - CI: `gh run list/view`; rerun/fix until green when asked.

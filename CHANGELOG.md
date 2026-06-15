@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-15 — PR Quality Guardrail
+- Added global guidance to improve AI-generated PR code before landing and permit complete rewrites when cleaner.
+
 ## 2026-06-14 — Skill Budget Audit
 - Updated `skill-cleaner` to audit the live Codex skill inventory, aliased paths, prompt budget, and actual usage traces while retaining broad duplicate diagnostics.
 - Compacted verbose personal skill descriptions without weakening their routing triggers.
