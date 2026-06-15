@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-15 — Locked-Mac Git Fallback
+- Added AGENTS guidance to use HTTPS transport and unsigned commits when Secretive signing is unavailable on a locked Mac.
+
 ## 2026-06-15 — PR Quality Guardrail
 - Added global guidance to improve AI-generated PR code before landing and permit complete rewrites when cleaner.
 
