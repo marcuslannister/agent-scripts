@@ -58,6 +58,17 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 ## Helpers
 
+`scripts/update-all.zsh`
+- Top-level updater: runs `update-agents.zsh` then `update-cc-plugins.sh`.
+- No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
+
+`scripts/update-agents.zsh`
+- Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
+- Tries both even if one fails; prints version before/after each.
+
+`scripts/update-cc-plugins.sh`
+- Updates all Claude Code marketplaces and installed plugins.
+
 `scripts/committer`
 - Stages exactly the listed files.
 - Enforces a non-empty commit message.

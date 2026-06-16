@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-16 — Agent Update Scripts
+- Added `scripts/update-agents.zsh` (updates Claude Code via `claude update` and Codex via `npm install -g @openai/codex`) and `scripts/update-all.zsh` orchestrator that also runs `update-cc-plugins.sh`, runs every step without fail-fast, and prints a pass/fail summary.
+
 ## 2026-05-28 — 1Password Timeout Escalation
 - Added AGENTS guidance to use `sag` to call Peter aloud when interactive 1Password unlock/sign-in times out, keeping the tmux session alive for retry.
 
