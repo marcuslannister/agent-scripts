@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-17 — Repo Status Sweep
+- Added `scripts/repo-check.zsh` to report uncommitted working-tree changes and unpushed commits across a default repo list (override via args); detects commits on any local branch missing from remotes, prints a pass/fail summary, and exits non-zero on findings.
+
 ## 2026-06-16 — Agent Update Scripts
 - Added `scripts/update-agents.sh` (updates Claude Code via `claude update` and Codex via `npm install -g @openai/codex`) and `scripts/update-all.sh` orchestrator that also runs `update-cc-plugins.sh`, runs every step without fail-fast, and prints a pass/fail summary. Written in bash (portable to Windows git bash).
 
