@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Update the coding-agent CLIs: Claude Code (native) + Codex (npm).
