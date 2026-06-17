@@ -58,11 +58,11 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 ## Helpers
 
-`scripts/update-all.zsh`
-- Top-level updater: runs `update-agents.zsh` then `update-cc-plugins.sh`.
+`scripts/update-all.sh`
+- Top-level updater: runs `update-agents.sh` then `update-cc-plugins.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
-`scripts/update-agents.zsh`
+`scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
 - Tries both even if one fails; prints version before/after each.
 
