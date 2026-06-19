@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-19 — Agent Skills Updater
+- Added `scripts/update-skills.sh` (bootstraps the Waza skill package `tw93/Waza` via `npx skills` when missing, then `skills update --global`) and wired it into `scripts/update-all.sh` as a third step. Treats the skills CLI's `Failed to …` output as a failure since the CLI still exits 0 on partial failures.
+
 ## 2026-06-16 — Agent Update Scripts
 - Added `scripts/update-agents.sh` (updates Claude Code via `claude update` and Codex via `npm install -g @openai/codex`) and `scripts/update-all.sh` orchestrator that also runs `update-cc-plugins.sh`, runs every step without fail-fast, and prints a pass/fail summary. Written in bash (portable to Windows git bash).
 
