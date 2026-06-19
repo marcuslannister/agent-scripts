@@ -42,11 +42,10 @@ If the script returns no rows for a section, say `none found in window`.
 
 Prefer the script because it uses bounded API calls:
 
-- one recent Actions runs page from `openclaw/clawsweeper`;
-- one jobs page per active run to estimate live Codex jobs;
+- field-bounded Actions run queries and bounded in-progress job probes from `openclaw/clawsweeper`;
 - recent issue comments for review/comment URLs;
-- recent issue events for close URLs;
-- recent closed PRs for merge URLs.
+- a field-bounded closed-item search for close URLs and actors;
+- field-bounded recent merged PRs.
 
 Do not browse the web for these checks. Use `gh` directly.
 
@@ -54,5 +53,5 @@ Do not browse the web for these checks. Use `gh` directly.
 
 - Cancelled repository-dispatch review runs are usually expected supersession when a newer event for the same item arrives.
 - Count active Codex from in-progress/queued jobs whose names match review, commit review, repair, or worker execution lanes.
-- Treat stale `gh run list` output cautiously; prefer `gh api repos/openclaw/clawsweeper/actions/runs?...` and per-run jobs when the numbers disagree.
+- Treat stale worker counts cautiously; compare the status-filtered `gh run list` results with the default recent-run list when numbers disagree.
 - Use full GitHub URLs in the final answer.

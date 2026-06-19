@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-19 — ClawSweeper Status Payload Bounds
+- Reworked `clawsweeper-status` around field-bounded workflow and PR queries plus small activity windows, avoiding GitHub relay response caps while preserving worker and repository activity reporting.
+
 ## 2026-06-16 — Image Upload Guardrail
 - Added device-aware image upload guidance that defaults work-managed devices to approved content and destinations only.
 
