@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-20 — Codex Plugin Marketplace Updater
+- Added `scripts/update-codex-plugins.sh` to refresh configured Codex plugin marketplace snapshots with `codex plugin marketplace upgrade --json`, wired it into `scripts/update-all.sh`, and added a focused shell test for the fallback Codex binary path and JSON summary.
+
 ## 2026-06-19 — Agent Skills Updater
 - Added `scripts/update-skills.sh` (bootstraps the Waza skill package `tw93/Waza` via `npx skills` when missing, then `skills update --global`) and wired it into `scripts/update-all.sh` as a third step. Treats the skills CLI's `Failed to …` output as a failure since the CLI still exits 0 on partial failures.
 

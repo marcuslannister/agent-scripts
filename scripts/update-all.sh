@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Top-level updater: agent CLIs + Claude Code plugins + agent skills.
+# Top-level updater: agent CLIs + Claude/Codex plugins + agent skills.
 # Runs every step (no fail-fast), prints a summary, exits non-zero on any failure.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,6 +17,7 @@ status_line() { # name code
 
 agents_status=0
 plugins_status=0
+codex_plugins_status=0
 skills_status=0
 
 section "Updating agent CLIs"
@@ -25,13 +26,17 @@ section "Updating agent CLIs"
 section "Updating Claude Code plugins"
 "$SCRIPT_DIR/update-cc-plugins.sh" || plugins_status=$?
 
+section "Updating Codex plugin marketplaces"
+"$SCRIPT_DIR/update-codex-plugins.sh" || codex_plugins_status=$?
+
 section "Updating agent skills"
 "$SCRIPT_DIR/update-skills.sh" || skills_status=$?
 
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "Claude plugins" "$plugins_status"
+status_line "Codex plugin marketplaces" "$codex_plugins_status"
 status_line "agent skills" "$skills_status"
 
-(( agents_status != 0 || plugins_status != 0 || skills_status != 0 )) && exit 1
+(( agents_status != 0 || plugins_status != 0 || codex_plugins_status != 0 || skills_status != 0 )) && exit 1
 exit 0

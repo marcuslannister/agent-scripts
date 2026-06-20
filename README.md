@@ -59,7 +59,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, then `update-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-codex-plugins.sh`, then `update-skills.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/update-agents.sh`
@@ -68,6 +68,9 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 `scripts/update-cc-plugins.sh`
 - Updates all Claude Code marketplaces and installed plugins.
+
+`scripts/update-codex-plugins.sh`
+- Refreshes configured Codex plugin marketplace snapshots with `codex plugin marketplace upgrade`.
 
 `scripts/update-skills.sh`
 - Updates skills.sh-managed agent skills; bootstraps Waza (`tw93/Waza`) if missing, then `npx skills update --global`.
