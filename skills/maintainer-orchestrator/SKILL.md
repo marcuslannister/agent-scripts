@@ -22,11 +22,11 @@ Coordinate repository work through completion. This is a control-plane skill: in
 2. Classify every queue item:
    - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
-   - `Ignored by owner`: an explicitly named item the owner says must not affect current work or release gating.
+   - `Ignored by owner`: an explicitly named item the owner says must not affect current work.
 3. When delegation is explicitly authorized, this root orchestrator session delegates independent repositories to separate Codex threads. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
 4. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
 5. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
-6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, an empty effective queue is released, or an otherwise idle repository has current dependencies.
+6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
 
@@ -112,7 +112,7 @@ An idle or completed repository thread must not remain a polling-only lane. Afte
 
 1. Assign the next autonomous issue or PR to the same repository thread.
 2. Prepare each remaining non-autonomous item to the decision-ready boundary, then ask the owner a concise concrete question: land/delete, choose a documented alternative, provide exact access, or grant a live-proof waiver.
-3. When the effective issue and PR queues are empty, execute the authorized patch or minor release after all release gates pass.
+3. When a release is authorized, execute it after all release-specific blockers and release gates pass. Open backlog alone does not delay a release.
 4. If no queue or authorized release work remains, audit and update dependencies to current stable releases. Delegate this as normal repository work: inspect upstream changes and package health, honor repository-specific stabilization policies, avoid prerelease-only upgrades unless already adopted, preserve the repository's package manager, add compatibility fixes/tests when needed, run exact built/live proof, autoreview, the Public Model Identifier Gate, and required CI, then prepare or land the update within granted permissions.
 
 Do not keep completed threads merely to satisfy a lane count. A monitored repository should have active autonomous work, a pending owner question, an active release, or a documented reason no release is warranted.
@@ -195,27 +195,28 @@ No push, public mutation, merge, or release may proceed while this gate is block
 
 ## Release Gate
 
-Compute the effective queue immediately before release:
+Open issues and PRs are backlog inventory, not release blockers by default. Compute only the candidate-specific blocker set immediately before release:
 
 ```text
-effective issues = open issues - explicitly ignored issues
-effective PRs    = open PRs - explicitly ignored PRs
+release blockers = items explicitly scoped to the target release
+                 + active authorized work promised for the target release
+                 + demonstrated regressions affecting the release candidate
 ```
+
+Do not ask the owner to exempt unrelated open issues or PRs. An item blocks only when repository metadata, an owner instruction, the release plan, or concrete validation ties it to the target release. Security exposure, data loss, broken install/upgrade, and candidate regressions block when they affect the candidate even without a milestone or label.
 
 Release only when all are true:
 
 - the owner has explicitly requested this release or authorized release execution for the repository;
-- effective issue count is zero;
-- effective PR count is zero;
-- every ignored item is explicitly named in the current owner instructions;
+- the release-specific blocker count is zero;
 - required CI is green for the exact commit and branch/tag candidate being released;
 - all user-facing runtime changes in the release have required live proof, unless the owner explicitly waives that proof for the release;
 - release checkout is clean, on the expected branch, and fast-forward current;
 - unreleased changes justify a release and the target version follows SemVer/project convention.
 
-Recheck the GitHub queue and CI immediately before tagging or publishing. Abort if either gate changes.
+Recheck release-specific blockers, the candidate diff, and CI immediately before tagging or publishing. Abort if any gate changes.
 
-Never silently exclude an item. In release reporting, list ignored items and the owner instruction that exempted them.
+In release reporting, list actual release blockers reviewed and their resolution. Do not enumerate or request waivers for unrelated backlog.
 
 ## Release Execution
 
@@ -252,7 +253,7 @@ Keep one compact cross-repo ledger:
 - `Needs owner`: exact decision/access required; no vague "needs review".
 - `Ignored`: exact item and owner-granted exception.
 - `Released`: version, tag/registry verification, closeout commit.
-- `Ready next`: effective queue empty, CI green, recommended patch/minor version and rationale.
+- `Ready next`: release-specific blockers clear, CI green, recommended patch/minor version and rationale.
 
 Omit archived and owner-suppressed repositories entirely. Do not list them as ignored, blocked, stale, or available work.
 

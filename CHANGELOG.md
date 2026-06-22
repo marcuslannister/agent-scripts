@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-22 — Release Gate Scope
+- Updated `maintainer-orchestrator` so only target-release work and demonstrated candidate regressions block releases; unrelated open issues and PRs remain backlog without exemption requests.
+
 ## 2026-06-19 — Gmail Login Pre-Approval
 - Added global guidance that user-owned Gmail service logins may use saved credentials without asking, while persistent access changes remain separately gated.
 
