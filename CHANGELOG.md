@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-06-23 — Remote Mac Network Boundaries
+- Updated `remote-mac` discovery to use live Tailscale addresses, honor network-boundary constraints, and avoid stale IPs or unreachable relays.
+
 ## 2026-06-22 — Release Gate Scope
 - Updated `maintainer-orchestrator` so only target-release work and demonstrated candidate regressions block releases; unrelated open issues and PRs remain backlog without exemption requests.
 
