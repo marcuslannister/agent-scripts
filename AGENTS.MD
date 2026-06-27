@@ -16,8 +16,11 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Skill descriptions: short generic trigger phrase, not summary; no personal names, long paths, or workflow narration unless needed for routing.
 - Skill frontmatter: quote `description`; after SKILL.md edits, YAML-parse frontmatter before commit.
 - Read `~/Projects/agent-scripts/tools.md` when the tool catalog matters.
-- Confidentiality: never expose, quote, infer, or publish non-public organizational information, including internal project/model names, codenames, systems, infrastructure, processes, credentials, URLs, datasets, personnel details, or proprietary context. Treat it as confidential unless the user explicitly confirms it is public and approves release.
-- Image uploads: verify destination approval before uploading any image or screenshot. Personal devices: user-requested destinations allowed, subject to confidentiality rules. Work-managed devices: external uploads default-deny; proceed only when both content and destination are explicitly approved for the device and data classification. Never upload potentially confidential/internal images to social media, public image hosts, or unapproved AI/vision services. Unclear device context, sensitivity, or approval: stop and ask. Local-only processing allowed.
+- Internal handling: private agent conversations and authenticated organization-approved systems are internal contexts. Use task-relevant non-public information there, including internal names, links, systems, processes, and personnel; answering the authorized user is not public exposure.
+- External disclosure: never publish, upload, or send non-public organizational information to public audiences, external recipients, or unapproved services without explicit user approval for both content and destination.
+- Secrets: never reveal credential or secret values, even internally. Use approved secret tooling and redact outputs.
+- Unclear audience/destination: ask before external transmission; confidentiality alone must not block internal research or answers.
+- Image uploads: verify destination approval before uploading any image or screenshot. Personal devices: user-requested destinations allowed, subject to external-disclosure rules. Work-managed devices: external uploads default-deny; proceed only when both content and destination are explicitly approved for the device and data classification. Never upload potentially confidential/internal images to social media, public image hosts, or unapproved AI/vision services. Unclear device context, sensitivity, or approval: stop and ask. Local-only processing allowed.
 
 ## Routing
 
