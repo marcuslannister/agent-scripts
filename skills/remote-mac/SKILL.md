@@ -10,9 +10,12 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `moltymac`, `Molty`, 
 ## Peter's Topology
 
 - Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
-- Workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local`.
+- Corporate workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local`.
 - Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected.
-- Corporate-network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate-network Mac. Never use `clawmac` as a relay or LAN vantage from there.
+- Network split:
+  - `corporate`: Peter's work-managed environment. Treat Mac Studio as the main remote Mac to configure and inspect there.
+  - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
+- Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
 - Molty: runs on Mac Studio, not `moltymac`, when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
 - `moltymac`: old/alternate node. If Tailscale shows it offline or SSH times out, do not treat it as the live Molty runtime.
 
@@ -24,8 +27,8 @@ Manager repo source of truth:
 ## Discovery
 
 1. Start with live `tailscale status --json`; match hostname/DNS name and use the node's current IP. Manager-cached Tailscale IPs may be stale.
-2. On the corporate network, reach Mac Studio only through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery.
-3. Outside the corporate network, if Tailscale is down or SSH times out, try LAN discovery:
+2. In the `corporate` environment, default to Mac Studio for remote configuration work. Reach it through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery from there.
+3. In the `personal` environment, if Tailscale is down or SSH times out, try LAN discovery:
 
 ```bash
 dns-sd -B _ssh._tcp local
@@ -33,7 +36,7 @@ arp -a
 ```
 
 4. Try mDNS names such as `HOST.local` only when on the same LAN.
-5. If Mac Studio's live Tailscale node is offline from the corporate network, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
+5. If Mac Studio's live Tailscale node is offline from the `corporate` environment, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
 
 ## SSH Rules
 
@@ -68,6 +71,18 @@ clawmac healthy shape:
 - `launchctl list` includes `ai.openclaw.gateway`.
 - `lsof -nP -iTCP:18789 -sTCP:LISTEN` shows loopback listeners.
 - `openclaw channels status --json` shows Telegram connected.
+
+## Codex Automations
+
+- Codex cron automations are host-local scheduler state, not generic cloud jobs.
+- In the `corporate` environment, configure or mirror those automations on Mac Studio unless Peter says otherwise.
+- Treat `~/.codex/automations/<automation-id>/automation.toml` on the target host as the source of truth for the scheduled job definition on that machine.
+- If the goal is to move a cron automation from Peter's current corporate machine to Mac Studio, do the machine work on Mac Studio:
+  - ensure the intended repo checkout exists there
+  - sync the required repo-local policy files
+  - create or update the matching `~/.codex/automations/...` entry on Mac Studio
+  - disable or pause the old corporate-host copy if Peter wants only one runner
+- Do not assume Codex app thread handoff moves cron scheduler ownership; thread movement and cron ownership are separate.
 
 ## clawmac GUI Access
 
