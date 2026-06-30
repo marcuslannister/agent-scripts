@@ -114,26 +114,78 @@ Personal global rules. Apply to every task unless explicitly overridden. Bias: c
 - Prefer modern CLI tools: `rg`>`grep`, `fd`>`find`, `sd`>`sed`, `eza`>`ls`. Use classic tools only when the modern one can't express the task safely or exactly.
 - zsh: don't use `status` as a variable.
 
-## Editing files, org-mode, or Emacs/elisp/cron via Anvil MCP
+## File editing
 
-Prefer Anvil MCP tools over built-in Read/Edit/Write whenever they apply — they ship only the delta, batch edits in one round trip, avoid full-file reads.
+Prefer Anvil MCP tools over the built-in Read/Edit/Write
+whenever they apply. They ship only the delta, batch multiple
+edits in one round trip, and avoid full-file reads.
 
-**File editing:**
-- `anvil-file-batch` — 3+ edits to the same file (collapse into one call; always use for 3+)
-- `anvil-file-replace-string` / `anvil-file-replace-regexp` — pinpoint replacement; no whole-file read needed
-- `anvil-file-insert-at-line` / `anvil-file-delete-lines` / `anvil-file-append` — localized line ops
-- Built-in `Edit` only for small one-off changes.
+- `anvil-file-batch` — 3+ edits to the same file (collapse into one call)
+- `anvil-file-replace-string` / `anvil-file-replace-regexp` —
+  pinpoint replacement; no need to read the whole file first
+- `anvil-file-insert-at-line` / `anvil-file-delete-lines` /
+  `anvil-file-append` — localized line-level operations
 
-**org-mode** (section moves, refile, splits, single-heading reads on large files — 10–20× cheaper):
+Use the built-in `Edit` only for small one-off changes. For 3 or
+more edits to the same file, always use `anvil-file-batch`.
+
+## org-mode
+
+For section moves, refile, splits, or reading a single heading
+from a large org file, use `anvil-org-*` tools instead of
+Read+Write. They are 10–20× cheaper in tokens.
+
 - `anvil-org-read-headline` — read a single subtree
-- `anvil-org-read-outline` — outline without bodies
-- `anvil-org-edit-body` / `anvil-org-rename-headline` / `anvil-org-update-todo-state` — targeted edits
+- `anvil-org-read-outline` — outline view without bodies
+- `anvil-org-edit-body` / `anvil-org-rename-headline` /
+  `anvil-org-update-todo-state` — targeted org edits
 
-**Heavy ops** (large tangles, byte-compile, multi-MB org scans, full-tree searches) must not run on the main daemon — they block every other tool call. Dispatch via the worker pool:
-- Elisp from inside Anvil: prefer `anvil-worker-call` over raw `eval` for anything that may exceed ~1s.
-- If worker is its own MCP server, target `mcp__anvil-worker__eval` directly so the main session stays responsive.
-- Symptom you should have used the worker: main MCP session stops accepting tool calls for several seconds.
+## Heavy operations — worker dispatch
 
-**Cron** — if `anvil-cron` tasks exist (lint, health checks, batch indexers), don't re-implement ad hoc. `anvil-cron-list` (tasks + schedules), `anvil-cron-status` (last run/failures), `anvil-cron-run` (fire on demand). Check `anvil-cron-list` before writing a new ad-hoc script.
+Long-running Emacs ops (large tangles, byte-compile, multi-MB
+org scans, full-tree searches) must not run on the main daemon —
+they block every other tool call. Dispatch them through the
+worker pool instead.
 
-**Self-reinforcement** — switch to the right Anvil tool mid-task (don't wait for the end) if you notice: same elisp pattern written twice in one session; 3+ `anvil-eval` calls for one logical edit (one `anvil-file-batch` suffices); repeated full-file Reads of the same large file; a heavy elisp op blocked the main session (should have been `anvil-worker-call` / `mcp__anvil-worker__eval`).
+- Elisp called from inside Anvil: prefer `anvil-worker-call` over
+  raw `eval` for anything that may exceed ~1s.
+- If the worker is registered as its own MCP server (see README
+  "Optional: register the worker pool too"), heavy `eval` calls
+  should target `mcp__anvil-worker__eval` directly so the main
+  session stays responsive.
+
+Symptom that you should have used the worker: the main MCP
+session stops accepting tool calls for several seconds.
+
+## Scheduled tasks (cron)
+
+If `anvil-cron` tasks are configured (lint, health checks, batch
+indexers, etc.), do not re-implement their work ad hoc. Inspect
+and trigger them through the cron MCP tools:
+
+- `anvil-cron-list` — what tasks exist and their schedules
+- `anvil-cron-status` — last run time, status, recent failures
+- `anvil-cron-run` — fire a registered task on demand
+
+Before writing a new ad-hoc script, check `anvil-cron-list` —
+the job may already be defined.
+
+## Context and output compression
+
+When command output or retrieved context is long, compress it before
+feeding it back into the main reasoning loop.
+
+- Use `shell-run` for shell commands whose stdout can be filtered
+  automatically. It returns compressed stdout plus a `tee-id`; recover
+  the raw output with `shell-tee-get` only when the compressed view is
+  insufficient.
+- Use `context-compress` for non-shell text: API JSON, RAG snippets,
+  web/article extracts, logs from another tool, diffs, or code
+  excerpts. Set `store=true` when the raw text may be needed later;
+  recover it with `context-retrieve` and the returned `ccr-id`.
+- Use `context-stats` / `shell-gain` to inspect savings instead of
+  guessing whether the compression layer is helping.
+
+Do not use compressed views as the only source of truth for legal,
+financial, safety-critical, or exact numeric work. Retrieve the raw
+context before making claims that depend on exact wording or values.
