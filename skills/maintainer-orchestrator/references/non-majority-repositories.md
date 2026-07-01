@@ -23,13 +23,16 @@ Snapshot: 2026-07-01. Metric: Peter-authored non-merge commits divided by author
 | [openclaw/gitcrawl](https://github.com/openclaw/gitcrawl) | 162 / 430 | Vincent Koc: 251 |
 | [openclaw/gitcrawl-store](https://github.com/openclaw/gitcrawl-store) | 13 / 62 | generated publisher history filtered from responsibility metric |
 | [openclaw/graincrawl](https://github.com/openclaw/graincrawl) | 12 / 115 | Vincent Koc: 101 |
+| [openclaw/krillswitch](https://github.com/openclaw/krillswitch) | 0 / 35 | Jesse Merhi: 22 |
 | [openclaw/lobster](https://github.com/openclaw/lobster) | 27 / 110 | Vignesh Natarajan identities lead |
 | [openclaw/multipass](https://github.com/openclaw/multipass) | 12 / 80 | Vincent Koc: 43; Dallin Romney: 23 |
 | [openclaw/nix-openclaw](https://github.com/openclaw/nix-openclaw) | 6 / 753 | openclaw-ci history filtered; other maintainers lead |
 | [openclaw/notcrawl](https://github.com/openclaw/notcrawl) | 18 / 147 | Vincent Koc: 123 |
+| [openclaw/openclaw-ansible](https://github.com/openclaw/openclaw-ansible) | 3 / 96 | sheeek: 47 |
 | [openclaw/openclaw-windows-node](https://github.com/openclaw/openclaw-windows-node) | 6 / 722 | Scott Hanselman: 303 |
 | [openclaw/plugin-inspector](https://github.com/openclaw/plugin-inspector) | 8 / 168 | Vincent Koc: 146 |
 | [openclaw/releases](https://github.com/openclaw/releases) | 6 / 20 | Vincent Koc identities: 13 |
+| [openclaw/rfcs](https://github.com/openclaw/rfcs) | 4 / 35 | Gio Della-Libera: 11 |
 | [openclaw/slacrawl](https://github.com/openclaw/slacrawl) | 79 / 197 | Vincent Koc: 107 |
 | [steipete/nemoforge](https://github.com/steipete/nemoforge) | 3 / 146 | antirez: 102 |
 

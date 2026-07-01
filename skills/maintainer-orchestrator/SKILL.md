@@ -182,9 +182,12 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 
 - Name every root-owned project thread `<Project>: <current status>` at creation and each material transition: reviewing, implementing, proving, waiting for CI, exact blocker, ready, or complete.
 - Put the project first; keep status terse, concrete, and current. Never use generic coordinate, orchestrate, or maintain labels when a specific status is known.
+- Use `<Project>: done — <concrete result>` for terminal success before archiving; name the shipped or closed outcome, not merely `complete`.
+- Use `waiting` only while the named external gate is verifiably pending and the worker turn remains active. The moment it succeeds, fails, or becomes irrelevant, replace the title with the next action, exact blocker, or `done`.
 - Read the latest state and newest thread-local instructions before renaming.
 - Keep the title specific to current work; replace stale original-task titles.
 - Polling alone does not justify a rename.
+- Audit every owned title on each wake. Never leave landed, closed, released, or otherwise terminal work labeled as waiting, maintenance, reviewing, or implementing.
 
 ## Persistent Log
 
