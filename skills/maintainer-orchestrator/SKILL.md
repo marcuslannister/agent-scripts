@@ -18,6 +18,9 @@ Coordinate repository work through completion. This is a control-plane skill: in
 
 - Scan the `steipete` and `openclaw` owners, plus any other repository where Peter is the majority commit author. Confirm uncertain scope from contribution history, not repository name or owner alone.
 - Exclude the large OpenClaw and ClawHub projects, currently `openclaw/openclaw` and `openclaw/clawhub`. Do not exclude the rest of the `openclaw` owner.
+- Read `references/non-majority-repositories.md` during portfolio discovery. Treat listed repositories as outside routine orchestration responsibility: do not use them for queue refills, dependency sweeps, release monitoring, or unsolicited maintenance.
+- The non-majority ledger is a dated evidence cache, not a permanent ownership declaration. Revalidate from the current default branch when the snapshot is older than 30 days, the recorded share is within 10 percentage points of 50%, repository ownership/history changed, or evidence conflicts. Explicit owner requests override the exclusion for the requested work only.
+- Classify majority from non-merge default-branch commits: combine known Peter name/email identities, exclude clearly marked bot identities, and require more than 50%. Keep ambiguous repositories unclassified instead of assuming responsibility.
 - Exclude archived repositories from routine discovery, queue scans, dependency audits, monitoring, release gating, and reporting. Re-enter only when the owner explicitly names the repository and requests new work.
 - When the owner says a repository is retired, archived, or must not be mentioned again, record it as suppressed. Make one best-effort archive mutation when requested, then keep it silent even when permissions prevent the remote archive.
 - Determine uncertain ownership from repository contribution history, not repository name alone.
@@ -152,8 +155,9 @@ Before sending any worker message:
 
 1. Read the worker's latest current state, including its newest user/delegation messages and active turn.
 2. Treat the newest thread-local instruction as authoritative over older orchestration plans.
-3. Determine whether the worker is actively progressing, blocked, completed, or idle.
-4. Send nothing when an active worker has a coherent plan and is making progress.
+3. When the owner directly steers a thread or contributes work, adapt immediately: preserve and account for that work, reconcile current repository/GitHub state, and continue from the owner's direction without duplicating, undoing, or misattributing it.
+4. Determine whether the worker is actively progressing, blocked, completed, or idle.
+5. Send nothing when an active worker has a coherent plan and is making progress.
 
 Intervene only when evidence shows one of:
 
@@ -166,6 +170,13 @@ Intervene only when evidence shows one of:
 Do not restate the task, add speculative requirements, or raise the proof bar mid-flight. Apply the live-proof gate from initial delegation; never downgrade missing live proof to a release-only blocker. Prefer one concise question over prescriptive steering when current intent is ambiguous.
 
 Never interrupt, archive, rename, duplicate, or replace a worker without first reading its current state. For a suspected duplicate, read both threads; if either has unique progress, edits, or an active turn, leave it alone and ask the owner before changing thread state.
+
+### Active Waits
+
+- Keep the project turn active until its work reaches a terminal state. Do not emit a final answer or stop merely because CI, a runner, review, mergeability, deployment, an auth prompt, or a long command is pending.
+- Prefer an in-turn 30–60 second sleep/poll cycle over a per-project automation. After each interval, refresh the exact external state, repair or rerun when needed, and continue through landing and closeout.
+- Suppress routine unchanged-poll chatter, but keep polling. The root heartbeat coordinates the portfolio; it does not replace a worker watching its own pending work.
+- End the turn only after successful terminal closeout, one exact owner decision/access/waiver blocker after every safe step, or a platform failure that makes continued polling impossible.
 
 ## Thread Naming
 
@@ -235,6 +246,7 @@ Every delegated implementation thread, under standing authority and any newer pr
 - run `autoreview` until no accepted/actionable findings remain;
 - commit and push the final candidate, then open or update its PR;
 - rerun required checks and repair failures until exact-head CI is green;
+- remain active through CI/review/deployment waits using bounded sleep/poll cycles; never stop at a nonterminal waiting status;
 - merge or close the queue item with exact proof when evidence supports it;
 - after landing, return to updated, clean `main`;
 - update the changelog for user-visible changes; within the active unreleased/release section, order entries from most to least interesting to users and keep the repository's established format;
