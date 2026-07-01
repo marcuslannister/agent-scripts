@@ -5,7 +5,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 # Changelog
 
 ## 2026-07-01 — visual-explainer Updater
-- Added `scripts/update-visual-explainer.sh`: clones/pulls `nicobailon/visual-explainer` under `~/Projects` (no `/tmp`), links the skill into `~/.codex` with a relative symlink so it tracks pulls, and copies its prompt templates into `~/.codex/prompts`. Wired it into `scripts/update-all.sh` with its own summary line.
+- Added `scripts/update-visual-explainer.sh`: clones/pulls `nicobailon/visual-explainer` under `~/Projects` (no `/tmp`), links the skill into `~/.codex/skills` with a relative symlink so it tracks pulls, and copies its prompt templates into `~/.codex/prompts`. Wired it into `scripts/update-all.sh` with its own summary line.
 
 ## 2026-06-20 — Codex Plugin Marketplace Updater
 - Added `scripts/update-codex-plugins.sh` to refresh configured Codex plugin marketplace snapshots with `codex plugin marketplace upgrade --json`, wired it into `scripts/update-all.sh`, and added a focused shell test for the fallback Codex binary path and JSON summary.
