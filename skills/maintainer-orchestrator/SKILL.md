@@ -44,10 +44,10 @@ Repeat synchronization after every landing and before any release gate.
    - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work.
-3. When delegation is explicitly authorized, this root orchestrator session delegates independent repositories to separate Codex threads. Keep exactly one orchestrator-owned worker thread per repository; never split one repository across several workers. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Reuse its existing thread for later queue items. Do not set or request a custom model; omit model selection and inherit the platform default.
+3. Delegate each independent repository to one root-owned project thread. Reuse it for later queue items and rename it to `<Project>: <short current task>` whenever work materially changes. The project thread handles its queue serially by default. Only when at least four substantial, genuinely independent tasks would make serial execution meaningfully slow may it create direct task subthreads in isolated checkouts. Never fan out two or three items, intertwined work, or trivial tasks. Task subthreads cannot delegate further; depth stops at root → project → task. Omit model selection and inherit the platform default.
 4. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
 5. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
-6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
+6. Continue until each autonomous item is merged/closed with proof, each true decision item has every safe reversible step complete and one exact owner choice remaining, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
 
@@ -56,30 +56,32 @@ Do not treat ordinary draft, stale, difficult, or platform-specific items as ign
 - Close an issue immediately and silently as not planned/spam when its content is clearly spam, incoherent or nonsensical, unrelated outreach, recruiting, sales, promotion, a scam, or contains no coherent repository request. Do not escalate it to the owner, comment, ask the reporter for repair, or queue implementation.
 - Language alone is never a spam signal. Translate and understand foreign-language reports before classifying their content.
 - Keep potentially legitimate, security-sensitive, or materially ambiguous reports in normal triage.
-- This standing authority is the only routine exception to per-item close authorization. It authorizes the issue close only, not code, branch, PR, comment, or release mutations.
+- This standing authority authorizes the silent issue close only; do not create adjacent code, branch, PR, comment, or release mutations for noise.
 
 ## Control-Plane Ownership
 
-- Only this root orchestrator session may create, reuse, fork, assign, rename, archive, or steer worker threads.
-- Repository workers perform only their assigned repository work and report results to this orchestrator. They must not create subworkers, delegate work, or manage other chats.
+- Only this root orchestrator may create, reuse, rename, archive, or steer project threads.
+- A project thread may create, assign, monitor, and retire only its own direct task subthreads under the threshold above. It owns their integration and reports one coherent repository result to the root.
+- Task subthreads must not create workers, delegate, or manage other chats. No grandchildren.
 - Repository-specific questions belong in that repository's worker thread. Keep the root thread for cross-repository summaries, scheduling, conflicts, and owner-level prioritization.
-- Put the no-subdelegation rule in every worker prompt.
-- Do not delegate portfolio triage, thread creation, or worker management to another worker.
+- Put the one-level limit in every project prompt and the no-subdelegation rule in every task-subthread prompt.
+- Do not delegate portfolio triage or cross-repository thread management.
 - Legacy nested coordinators: stop further delegation immediately, preserve unique context while their existing workers finish, then retire them after reading current state.
 
 ## Decision-Ready Queue Rule
 
 Do not ask the owner to decide from an unprepared issue or rough contributor branch.
 
+- Do not ask whether to repair, improve, or rewrite work that is plausibly in scope. Make the technical judgment and do the work. Escalate only after every safe autonomous step is complete.
 - Treat every incoming PR as a recommendation, not an accepted design. Check it against `VISION.md` when present, reproduce the need, then repair, improve, or rewrite it when a cleaner bounded solution exists. Do not ask contributors to perform repair work.
-- Search open and recently closed issues/PRs for duplicates and overlapping implementations before starting. Select the strongest evidence and implementation base, preserve useful contributor credit, and prepare supersede/close comments linking the canonical item when authorized.
-- Existing PR: inspect, reproduce, rewrite/fix as needed, add tests/docs/changelog, run live proof and autoreview, push the final candidate, and get required CI green. Ask only when the PR is mergeable or the remaining blocker cannot be solved autonomously.
-- Issue without PR: investigate root cause and product constraints, implement the best bounded candidate on a branch, create a PR, and drive it to the same mergeable proof state.
+- Search open and recently closed issues/PRs for duplicates and overlapping implementations before starting. Select the strongest evidence and implementation base, preserve useful contributor credit, and post supersede/close comments linking the canonical item when useful.
+- Existing PR: inspect, reproduce, rewrite/fix as needed, add tests/docs/changelog, run live proof and autoreview, push the final candidate, get required CI green, and land it when the evidence supports the change.
+- Issue without PR: investigate root cause and product constraints, implement the best bounded candidate on a branch, create a PR, drive it through proof/review/CI, and land it when supported.
 - Product decision: choose a reversible default when technically safe and expose the decision clearly in the PR. Prepare alternatives in the PR description when useful.
-- Access or live-proof blocker: finish code, tests, docs, review, and CI first. Ask only for the exact remaining credential, account action, hardware interaction, waiver, or land/delete decision.
-- Rejection candidate: produce concrete research and proof. When a code candidate would clarify the tradeoff, prepare the PR anyway; otherwise update the issue with the evidence needed for an owner close/keep decision.
+- Access or live-proof blocker: finish code, tests, docs, review, and CI first. Ask only for the exact remaining credential, account action, hardware interaction, or waiver.
+- Rejection candidate: produce concrete research and proof. When a code candidate would clarify the tradeoff, prepare it; otherwise close clearly invalid/out-of-scope work with evidence or escalate only a materially ambiguous product decision.
 
-The normal owner interaction should be one of: land the prepared PR, delete/close it, provide one exact access step, or choose between clearly documented alternatives.
+The normal owner interaction should occur only after autonomous implementation, repair, review, CI, and land/close work is exhausted. Ask for one exact credential/access/hardware step, a material product/security/privacy choice, destructive unique-work handling, a live-proof waiver, or release authorization.
 
 ## Owner Decision Briefs
 
@@ -99,7 +101,7 @@ Every owner decision request must include:
 
 When several decisions are grouped, give each item its own brief. Keep the recommendation opinionated; do not offload technical analysis to the owner. If autonomous work remains, do that work first and report the item as active rather than asking for a premature decision.
 
-When the owner defers a decision and public-comment permission exists, post a concise comment on the issue or PR recording the deferral, rationale, and concrete revisit condition. Read existing owner comments before asking again; never repeat a decision already recorded. Log the decision and full URL.
+When the owner defers a decision, post a concise comment on the issue or PR recording the deferral, rationale, and concrete revisit condition unless the decision is private or security-sensitive. Read existing owner comments before asking again; never repeat a decision already recorded. Log the decision and full URL.
 
 ## Product Policy Capture
 
@@ -107,7 +109,7 @@ After every meaningful issue or PR decision, decide whether the rationale is a d
 
 1. Read the repository's current `VISION.md` and related product docs.
 2. Keep ticket-specific outcomes in the issue/PR; put only reusable product boundaries, priorities, and decision principles in `VISION.md`.
-3. Own the policy judgment and exact wording in this root orchestrator. Direct the repository worker to apply and validate the edit only when repository mutation is authorized, preserving single-thread checkout ownership.
+3. Own the policy judgment and exact wording in this root orchestrator. Direct the project thread to apply and validate the edit under standing repository-mutation authority, preserving checkout ownership.
 4. If no `VISION.md` exists, create one only when several future decisions would benefit; do not create policy scaffolding for a one-off call.
 5. Link the source issue/PR and record the policy decision in the orchestrator log.
 
@@ -154,9 +156,9 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 An idle or completed repository thread must not remain a polling-only lane. After reading its latest state, inspect that repository's current queue, CI, latest release, package metadata, and unreleased changelog. Then do exactly one:
 
 1. Assign the next autonomous issue or PR to the same repository thread.
-2. Prepare each remaining non-autonomous item to the decision-ready boundary, then ask the owner a concise concrete question: land/delete, choose a documented alternative, provide exact access, or grant a live-proof waiver.
+2. Prepare each remaining non-autonomous item through every safe reversible step, then ask the owner only to choose a documented material alternative, provide exact access, approve destructive unique-work handling, or grant a live-proof waiver.
 3. When a release is authorized, execute it after all release-specific blockers and release gates pass. Open backlog alone does not delay a release.
-4. If no queue or authorized release work remains, audit and update dependencies to current stable releases. Delegate this as normal repository work: inspect upstream changes and package health, honor repository-specific stabilization policies, avoid prerelease-only upgrades unless already adopted, preserve the repository's package manager, add compatibility fixes/tests when needed, run exact built/live proof, autoreview, the Public Model Identifier Gate, and required CI, then prepare or land the update within granted permissions.
+4. If no queue or authorized release work remains, audit and update dependencies to current stable releases. Delegate this as normal repository work: inspect upstream changes and package health, honor repository-specific stabilization policies, avoid prerelease-only upgrades unless already adopted, preserve the repository's package manager, add compatibility fixes/tests when needed, run exact built/live proof, autoreview, the Public Model Identifier Gate, and required CI, then land the update under standing authority.
 
 Do not keep completed threads merely to satisfy a lane count. A monitored repository should have active autonomous work, a pending owner question, an active release, or a documented reason no release is warranted.
 
@@ -166,19 +168,16 @@ Always perform a dependency-freshness check before closing a repository work bat
 
 ## Authorization
 
-Treat triage, monitoring, implementation, public mutation, and release as separate permissions.
+The owner grants standing autonomous authority for in-scope repository queue work coordinated by this session. Project threads may synchronize clean checkouts; edit; create branches; commit; push; open or update PRs; write proof/review/close comments; approve, rerun, and repair CI; merge supported exact-head green changes; close resolved or invalid items; and return to synchronized clean `main`. Do not request per-item permission to implement, repair, improve, rewrite, publish a PR, fix CI, or land clearly supported work.
 
-- Queue analysis or monitoring does not authorize edits.
-- Delegation or parallel-worker creation requires explicit owner authorization.
-- Implementation permission authorizes local changes and verification only unless the owner also authorizes push/PR updates.
-- Push permission does not imply merge or close permission.
-- CI rerun and CI-fix permission must be explicit; a push alone does not authorize additional repair commits or workflow mutations.
-- Merge/close permission must be explicit for the affected work.
-- Clearly qualifying noise under `Immediate Noise Closeout` has standing silent-close authority and does not require per-item escalation.
-- Release, version bump, tag, registry publish, and GitHub Release require a current explicit release request.
-- Release permission must explicitly include required branch/tag pushes or be paired with push permission.
+This standing authority does not include:
 
-Record the granted permissions in each worker prompt. Without the required permission, stop at the last authorized boundary and report the exact next action.
+- releases, version bumps, tags, registry publishing, or GitHub Releases;
+- destructive handling of unique local work or user data;
+- material product, security, privacy, legal, credential-sharing, or irreversible choices that lack a safe reversible default;
+- external-system mutations beyond the repository/GitHub workflow unless separately authorized.
+
+Clearly qualifying noise retains standing silent-close authority. A newer owner instruction may narrow any project. Record standing authority and exceptions in every project/task prompt; stop only at the exact remaining exception or hard blocker.
 
 ## Credential Access
 
@@ -194,7 +193,7 @@ Keep credential discovery and use inside the worker that needs the secret. Repor
 
 ## Worker Contract
 
-Every delegated implementation thread, within its explicit authorization, must:
+Every delegated implementation thread, under standing authority and any newer project-specific limits, must:
 
 - read the full issue/PR discussion, repo instructions, docs, and relevant code;
 - when an issue has no PR, create one after implementing the best bounded candidate;
@@ -203,18 +202,17 @@ Every delegated implementation thread, within its explicit authorization, must:
 - add regression coverage when appropriate;
 - run focused and full tests, then live/end-to-end proof against the real affected boundary before landing;
 - run `autoreview` until no accepted/actionable findings remain;
-- when push is authorized, push the authorized changes;
-- when CI rerun/fix is authorized, rerun required checks and repair failures until green;
-- when CI rerun/fix is not authorized and checks fail, stop with the exact failure and requested permission;
-- when merge/close is authorized, merge or close the queue item with an exact proof comment;
-- after authorized landing, return to updated, clean `main`;
+- commit and push the final candidate, then open or update its PR;
+- rerun required checks and repair failures until exact-head CI is green;
+- merge or close the queue item with exact proof when evidence supports it;
+- after landing, return to updated, clean `main`;
 - update the changelog for user-visible changes; within the active unreleased/release section, order entries from most to least interesting to users and keep the repository's established format;
 - after the assigned queue work, audit dependency freshness and report actionable updates even when none are taken;
 - report every candidate and completed change with full clickable URLs, files changed, insertions, deletions, low/medium/high risk with rationale, proof state, and recommendation;
 - ask repository-specific questions only in this worker thread.
 
 Prefer repairing the contributor PR. Preserve contributor credit and follow the workspace PR rules.
-When landing is not authorized but push is authorized, stop after the branch is pushed, the PR is mergeable, required CI is green, live proof is recorded, and the exact owner decision is stated. Without push permission, stop at the last authorized local boundary.
+If a newer project-specific instruction narrows standing authority, stop at that boundary after completing every still-authorized step and state the exact remaining action.
 
 ## Live Proof Gate
 

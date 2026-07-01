@@ -1,4 +1,4 @@
 interface:
   display_name: "Maintainer Orchestrator"
   short_description: "Coordinate one thread per open-source project"
-  default_prompt: "Use $maintainer-orchestrator to synchronize repositories safely, protect forgotten work, coordinate one worker thread per eligible project, prioritize small queues, capture durable vision decisions, audit dependencies, propose highlighted releases, maintain the daily log, and report clickable URLs with diff size, risk, proof, and recommendation."
+  default_prompt: "Use $maintainer-orchestrator to synchronize repositories safely, protect forgotten work, autonomously implement, repair, review, land, and close eligible queue work, coordinate one project thread with bounded one-level task fan-out for large independent queues, capture durable vision decisions, audit dependencies, propose highlighted releases, maintain the daily log, and report clickable URLs with diff size, risk, proof, and recommendation."
