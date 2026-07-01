@@ -92,7 +92,7 @@ Do not treat ordinary draft, stale, difficult, or platform-specific items as ign
 
 ## Control-Plane Ownership
 
-- Only this root orchestrator may create, reuse, rename, archive, or steer project threads, except the worker's required terminal self-rename immediately before final.
+- Only this root orchestrator may create, reuse, archive, or steer project threads. Each project worker owns its thread title so the title follows the freshest repository state without a root-poll race.
 - A project thread may create, assign, monitor, and retire only its own direct task subthreads under the threshold above. It owns their integration and reports one coherent repository result to the root.
 - Task subthreads must not create workers, delegate, or manage other chats. No grandchildren.
 - Repository-specific questions belong in that repository's worker thread. Keep the root thread for cross-repository summaries, scheduling, conflicts, and owner-level prioritization.
@@ -180,16 +180,15 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 
 ## Thread Naming
 
-- Name every root-owned project thread `<Project>: <current status>` at creation and each material transition: reviewing, implementing, proving, waiting for CI, exact blocker, ready, or complete.
+- Root sets the initial `<Project>: <current status>` title. The project worker self-renames on every material transition: reviewing, implementing, proving, waiting for CI, exact blocker, ready, or complete.
 - Put the project first; keep status terse, concrete, and current. Never use generic coordinate, orchestrate, or maintain labels when a specific status is known.
 - Use `<Project>: done — <concrete result>` for terminal success before archiving; name the shipped or closed outcome, not merely `complete`.
 - Use `waiting` only while the named external gate is verifiably pending and the worker turn remains active. The moment it succeeds, fails, or becomes irrelevant, replace the title with the next action, exact blocker, or `done`.
-- Immediately before any final answer, the project worker must self-rename its thread to `<Project>: done — <concrete result>`, `<Project>: needs owner — <exact blocker>`, or `<Project>: failed — <platform failure>`. The app may make a finished thread unaddressable before root can rename it; this terminal self-rename is the worker's only project-thread management exception.
-- For nonterminal transitions, the worker reports the new phase and root performs the rename.
+- Immediately before any final answer, self-rename to `<Project>: done — <concrete result>`, `<Project>: needs owner — <exact blocker>`, or `<Project>: failed — <platform failure>`.
 - Read the latest state and newest thread-local instructions before renaming.
 - Keep the title specific to current work; replace stale original-task titles.
 - Polling alone does not justify a rename.
-- Audit every owned title on each wake. Never leave landed, closed, released, or otherwise terminal work labeled as waiting, maintenance, reviewing, or implementing.
+- Root audits every owned title on each wake. Never leave landed, closed, released, or otherwise terminal work labeled as waiting, maintenance, reviewing, or implementing. If a title is stale, send the active worker one concise correction after reading its latest state; do not overwrite the title from a stale root snapshot. Finished or unaddressable threads are excluded from active capacity.
 
 ## Persistent Log
 
