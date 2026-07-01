@@ -7,6 +7,13 @@ description: "Open-source maintainer orchestration: repo workers, work recovery,
 
 Coordinate repository work through completion. This is a control-plane skill: inspect, delegate, monitor, ask decisions, and report. Put substantial repository investigation, implementation, review, live proof, landing, and release execution in repository worker threads.
 
+## Activation Watch
+
+- On every activation, immediately create or update one active five-minute heartbeat automation attached to the current root orchestrator thread. Name it `Maintainer Orchestrator Watch`; never create duplicates.
+- The heartbeat prompt must re-enter this skill, read the latest state and newest instructions in every owned worker, apply the Monitoring Protocol, coordinate serialized landing/release gates, root-triage and refill qualified execution work to the current concurrency target, check CI/leases/memory/disk, maintain the persistent log, and surface only prepared owner decisions.
+- Keep the heartbeat active while any worker, owner decision, release, CI wait, or qualified refill work remains. Disable it only when the owner explicitly stops orchestration or the monitored portfolio is genuinely complete.
+- A heartbeat wake is a continuation of this root session, not a discovery worker. Keep portfolio triage and owner questions here; create repository/worktree threads only for concrete execution.
+
 ## Repository Scope
 
 - Scan the `steipete` and `openclaw` owners, plus any other repository where Peter is the majority commit author. Confirm uncertain scope from contribution history, not repository name or owner alone.
@@ -24,7 +31,7 @@ Apply this section only when the owner explicitly asks this session to orchestra
 - Keep all discovery and triage in the root orchestrator session. Refresh Discrawl; read current `#clawtributors` and `#maintainers` messages; inspect candidate issue/PR URLs, related items, current `main`, author permissions, duplicates, blast radius, and verification feasibility; then make the go/no-go and autonomy classification before creating a worker. Use Gitcrawl for related items and live `gh` before every assignment, comment, close, push, or merge.
 - Select only work authored or reported by people without GitHub `write`, `maintain`, or `admin` access. Verify repository permission live; never infer GitHub access from a Discord role or channel membership. External contributors posting in `#maintainers` remain eligible.
 - At startup, read and adopt existing OpenClaw work threads the owner asks this session to maintain. Preserve unique progress, avoid duplicate lanes, and monitor or steer them under the newest thread-local instruction.
-- Maintain at least 10 active root-owned implementation threads while ten qualified independent tasks exist. Create a thread only for concrete execution after root triage has selected an issue or PR and defined the actual fix, review-and-land, live-proof, CI-repair, or close-with-proof objective. Never create discovery, queue-scan, permission-check, candidate-review, ranking, or general triage threads. Use one isolated Codex worktree thread per selected task, title it `OC <ref>: <current status>`, and prohibit worker delegation. The root orchestrator alone creates, steers, archives, and refills these lanes.
+- Maintain a target of 20 active root-owned implementation threads while 20 qualified independent tasks exist. Create a thread only for concrete execution after root triage has selected an issue or PR and defined the actual fix, review-and-land, live-proof, CI-repair, or close-with-proof objective. Never create discovery, queue-scan, permission-check, candidate-review, ranking, or general triage threads. Use one isolated Codex worktree thread per selected task, title it `OC <ref>: <current status>`, and prohibit worker delegation. The root orchestrator alone creates, steers, archives, and refills these lanes.
 - Keep owner questions in the root orchestrator chat. Workers report exact blockers upward and do not ask the owner directly unless the root explicitly delegates that interaction.
 - Prioritize Vision-aligned security/safe-default, bug/stability, setup/first-run, data-loss, auth, install, channel-delivery, and narrow performance/test-infrastructure work. Prefer externally reported, reproducible, bounded items with a real verification path.
 - Treat broad features, protocol-version changes, new config/env/default surfaces, new core plugins/channels/providers, security/privacy policy, irreversible migration choices, or behavior without usable live proof as `Needs owner` after every safe reversible step is complete.
@@ -38,12 +45,13 @@ Apply this section only when the owner explicitly asks this session to orchestra
 
 ## Session Startup
 
-1. List recent Codex threads before choosing repositories. Read enough state to identify repositories the owner or another coordinator is actively handling.
-2. Reserve every project with coherent active or unresolved work in another thread. Do not inspect, mutate, delegate, rename, or steer that project from this session unless the owner explicitly hands it over.
-3. When a local checkout is dirty or on a non-default branch but has no active thread, create one preservation thread for that repository. Treat it as potentially valuable forgotten work, not as a reason to ignore the project.
-4. Use RepoBar for the broad queue map. Filter to eligible, non-archived, non-fork repositories, then confirm Peter has the majority of contributions.
-5. Prefer the smallest non-empty effective queues first. Within equal queue size, prefer bounded bugs, docs, tests, and nearly-ready PRs over features or security/product decisions.
-6. Recheck active threads and queue counts on every wake before assigning new work. A newly active project becomes reserved immediately.
+1. Create or update the required `Maintainer Orchestrator Watch` heartbeat before queue work.
+2. List recent Codex threads before choosing repositories. Read enough state to identify repositories the owner or another coordinator is actively handling.
+3. Reserve every project with coherent active or unresolved work in another thread. Do not inspect, mutate, delegate, rename, or steer that project from this session unless the owner explicitly hands it over.
+4. When a local checkout is dirty or on a non-default branch but has no active thread, create one preservation thread for that repository. Treat it as potentially valuable forgotten work, not as a reason to ignore the project.
+5. Use RepoBar for the broad queue map. Filter to eligible, non-archived, non-fork repositories, then confirm Peter has the majority of contributions.
+6. Prefer the smallest non-empty effective queues first. Within equal queue size, prefer bounded bugs, docs, tests, and nearly-ready PRs over features or security/product decisions.
+7. Recheck active threads and queue counts on every wake before assigning new work. A newly active project becomes reserved immediately.
 
 ## Repository Synchronization
 
@@ -65,7 +73,7 @@ Repeat synchronization after every landing and before any release gate.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work.
 3. Delegate each independent repository to one root-owned project thread. Reuse it for later queue items and update its `<Project>: <current status>` title whenever work materially changes. The project thread handles its queue serially by default. Only when at least four substantial, genuinely independent tasks would make serial execution meaningfully slow may it create direct task subthreads in isolated checkouts. Never fan out two or three items, intertwined work, or trivial tasks. Task subthreads cannot delegate further; depth stops at root → project → task. Omit model selection and inherit the platform default.
-4. Maintain a target of 10 concurrent eligible root-owned project threads. After active-thread reservation and repository-state checks, refill immediately from the smallest eligible majority-authored queue whenever a lane completes, becomes durably blocked, or otherwise stops useful work.
+4. Maintain a target of 20 concurrent eligible root-owned project threads. After active-thread reservation and repository-state checks, refill immediately from the smallest eligible majority-authored queue whenever a lane completes, becomes durably blocked, or otherwise stops useful work.
 5. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
 6. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
 7. Continue until each autonomous item is merged/closed with proof, each true decision item has every safe reversible step complete and one exact owner choice remaining, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
@@ -121,6 +129,8 @@ Every owner decision request must include:
 - the exact choices available and what each choice does.
 
 When several decisions are grouped, give each item its own brief. Keep the recommendation opinionated; do not offload technical analysis to the owner. If autonomous work remains, do that work first and report the item as active rather than asking for a premature decision.
+
+Maintain an ordered root-session owner-question queue and ask one decision at a time. Whenever the owner answers, record and execute that answer immediately, then present the next fully prepared question in the same root session if one exists. If no owner decision is ready, continue autonomous work and say no owner input is currently needed; never let an answered question leave the orchestrator idle.
 
 When the owner defers a decision, post a concise comment on the issue or PR recording the deferral, rationale, and concrete revisit condition unless the decision is private or security-sensitive. Read existing owner comments before asking again; never repeat a decision already recorded. Log the decision and full URL.
 
