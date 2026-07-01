@@ -16,6 +16,24 @@ Coordinate repository work through completion. This is a control-plane skill: in
 - Determine uncertain ownership from repository contribution history, not repository name alone.
 - Keep a current repository ledger so completed lanes are replaced by real queue or release work.
 
+## OpenClaw Maintainer Orchestrator
+
+Apply this section only when the owner explicitly asks this session to orchestrate `openclaw/openclaw`. It overrides the default OpenClaw exclusion, the generic one-thread-per-repository rule, and generic changelog handling. Repository `AGENTS.md`, `VISION.md`, and OpenClaw-specific skills remain authoritative.
+
+- Read current `VISION.md`, root/scoped `AGENTS.md`, `clawdtributor`, `openclaw-pr-maintainer`, `openclaw-testing`, `crabbox`, and `autoreview` before delegating. Dependency-backed work also requires direct upstream source/docs/types; Codex-backed work requires the acting worker to inspect sibling `../codex` source.
+- Refresh Discrawl, then read current `#clawtributors` and `#maintainers` messages for candidate issue/PR URLs. Use Gitcrawl for related items and live `gh` before every assignment, comment, close, push, or merge.
+- Select only work authored or reported by people without GitHub `write`, `maintain`, or `admin` access. Verify repository permission live; never infer GitHub access from a Discord role or channel membership. External contributors posting in `#maintainers` remain eligible.
+- Maintain at least 10 active root-owned item threads while ten qualified independent items exist. Use one isolated Codex worktree thread per issue or PR, title it `OpenClaw <ref>: <current status>`, and prohibit worker delegation. The root orchestrator alone creates, steers, archives, and refills these lanes.
+- Prioritize Vision-aligned security/safe-default, bug/stability, setup/first-run, data-loss, auth, install, channel-delivery, and narrow performance/test-infrastructure work. Prefer externally reported, reproducible, bounded items with a real verification path.
+- Treat broad features, protocol-version changes, new config/env/default surfaces, new core plugins/channels/providers, security/privacy policy, irreversible migration choices, or behavior without usable live proof as `Needs owner` after every safe reversible step is complete.
+- Treat every contributor PR as a starting proposal. Reconstruct the symptom and root cause; read the whole owner path, callers, callees, sibling surfaces, tests, current `main`, shipped behavior, and relevant dependency contracts; then refactor or rewrite when that is the cleaner bounded fix.
+- Check live assignment and contributor permission before deep work. Assign `steipete` when unassigned, preserve contributor credit, prefer the original writable PR, and avoid maintainer-authored/write-access queue items unless they are the canonical fix for an eligible external report.
+- Use only repository-native `scripts/pr` review, artifact, prepare, sync, and merge commands for landing. Never mutate the shared/root checkout. Workers may review, implement, test, and monitor concurrently; the root grants a serialized slot for PR-head synchronization, final prepare, and `merge-run` so mainline drift and hosted evidence stay exact.
+- Before landing, require symptom proof, root cause, provenance when traceable, focused regression coverage, the cheapest sufficient broad gate, real live/E2E or Crabbox proof when feasible, fresh autoreview with no accepted/actionable findings, resolved review threads, and exact-head hosted CI/Testbox/security gates.
+- Post or update one land-ready PR comment binding behavior and proof to the exact head SHA, including commands, run/lease IDs, live evidence, autoreview result, and explicit gaps. Store screenshots/videos in approved artifacts, never on the product branch.
+- OpenClaw changelog is release-generated. Do not edit `CHANGELOG.md` for normal issue/PR work, even when generic maintainer rules would add an entry.
+- After landing or closing, verify `main` reachability, audit linked and duplicate issues/PRs, comment canonical proof before closing proven duplicates, stop leases, archive the item thread, and refill the lane immediately.
+
 ## Session Startup
 
 1. List recent Codex threads before choosing repositories. Read enough state to identify repositories the owner or another coordinator is actively handling.
