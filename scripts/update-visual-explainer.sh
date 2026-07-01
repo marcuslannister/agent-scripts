@@ -3,11 +3,12 @@ set -euo pipefail
 
 # Install/update the visual-explainer plugin for Codex.
 # Keeps a persistent clone under ~/Projects (no /tmp), then links the skill into
-# ~/.codex with a relative symlink so it tracks pulls, and copies prompt
+# ~/.codex/skills with a relative symlink so it tracks pulls, and copies prompt
 # templates into ~/.codex/prompts. Re-runnable; exits non-zero on failure.
 #
-# ~/.codex is itself a symlink into ~/Projects, so the relative target
-# ../visual-explainer/plugins/visual-explainer resolves to the ~/Projects clone.
+# ~/.codex/skills resolves (via symlinks) to ~/Projects/agent-scripts/skills, so
+# the relative target ../../visual-explainer/plugins/visual-explainer reaches the
+# ~/Projects clone.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;33m>>> %s\033[0m\n' "$*"; }
@@ -16,8 +17,8 @@ warn()    { printf '\033[0;31m!!!\033[0m %s\n' "$*"; }
 REPO_URL="https://github.com/nicobailon/visual-explainer.git"
 CLONE_DIR="${HOME}/Projects/visual-explainer"
 PLUGIN_DIR="${CLONE_DIR}/plugins/visual-explainer"
-SKILL_LINK="${HOME}/.codex/visual-explainer"
-SKILL_TARGET="../visual-explainer/plugins/visual-explainer"
+SKILL_LINK="${HOME}/.codex/skills/visual-explainer"
+SKILL_TARGET="../../visual-explainer/plugins/visual-explainer"
 PROMPT_DEST="${HOME}/.codex/prompts"
 
 section "Repo (nicobailon/visual-explainer)"
