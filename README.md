@@ -59,7 +59,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-codex-plugins.sh`, then `update-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-codex-plugins.sh`, `update-skills.sh`, then `update-visual-explainer.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/update-agents.sh`
@@ -74,6 +74,9 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 `scripts/update-skills.sh`
 - Updates skills.sh-managed agent skills; bootstraps Waza (`tw93/Waza`) if missing, then `npx skills update --global`.
+
+`scripts/update-visual-explainer.sh`
+- Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, symlinks the skill into `~/.codex/skills`, and copies its prompt templates into `~/.codex/prompts`.
 
 `scripts/committer`
 - Stages exactly the listed files.
