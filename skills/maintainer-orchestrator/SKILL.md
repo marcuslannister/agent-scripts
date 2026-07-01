@@ -1,6 +1,6 @@
 ---
 name: maintainer-orchestrator
-description: "Delegated maintainer ops: decision-ready PRs, worker monitoring, queue cleanup, releases."
+description: "Open-source maintainer orchestration: repo workers, work recovery, dependencies, vision, releases."
 ---
 
 # Maintainer Orchestrator
@@ -9,21 +9,42 @@ Coordinate repository work through completion. This is a control-plane skill: in
 
 ## Repository Scope
 
-- Own repositories where Peter is the majority commit author, regardless of GitHub owner.
-- Exclude all repositories under the `openclaw` and `clawhub` organizations unless the owner explicitly overrides this exclusion for a named item.
+- Scan the `steipete` and `openclaw` owners, plus any other repository where Peter is the majority commit author. Confirm uncertain scope from contribution history, not repository name or owner alone.
+- Exclude the large OpenClaw and ClawHub projects, currently `openclaw/openclaw` and `openclaw/clawhub`. Do not exclude the rest of the `openclaw` owner.
 - Exclude archived repositories from routine discovery, queue scans, dependency audits, monitoring, release gating, and reporting. Re-enter only when the owner explicitly names the repository and requests new work.
 - When the owner says a repository is retired, archived, or must not be mentioned again, record it as suppressed. Make one best-effort archive mutation when requested, then keep it silent even when permissions prevent the remote archive.
 - Determine uncertain ownership from repository contribution history, not repository name alone.
 - Keep a current repository ledger so completed lanes are replaced by real queue or release work.
 
+## Session Startup
+
+1. List recent Codex threads before choosing repositories. Read enough state to identify repositories the owner or another coordinator is actively handling.
+2. Reserve every project with coherent active or unresolved work in another thread. Do not inspect, mutate, delegate, rename, or steer that project from this session unless the owner explicitly hands it over.
+3. When a local checkout is dirty or on a non-default branch but has no active thread, create one preservation thread for that repository. Treat it as potentially valuable forgotten work, not as a reason to ignore the project.
+4. Use RepoBar for the broad queue map. Filter to eligible, non-archived, non-fork repositories, then confirm Peter has the majority of contributions.
+5. Prefer the smallest non-empty effective queues first. Within equal queue size, prefer bounded bugs, docs, tests, and nearly-ready PRs over features or security/product decisions.
+6. Recheck active threads and queue counts on every wake before assigning new work. A newly active project becomes reserved immediately.
+
+## Repository Synchronization
+
+Before any repository investigation or implementation:
+
+1. Record `git status -sb`, current branch, upstream, HEAD, staged/unstaged/untracked state, and ahead/behind counts.
+2. Fetch current remote refs. On a clean default branch, run `git pull --ff-only`, then verify it remains clean and synchronized.
+3. Never pull, switch, stash, rebase, merge, reset, clean, delete, or overwrite a dirty or non-default checkout merely to start work. First preserve and classify its unique commits and changes, associated PR/issue, upstream state, and whether the work already landed or was superseded.
+4. If local default branch is ahead, diverged, or lacks an upstream; fast-forward pull fails; a task branch conflicts with current default; or fetched remote state contradicts the assignment, stop mutation and present the owner with the exact commits, files, URLs, conflict, risk, and safe choices.
+5. Resume ordinary work only after the checkout is current or the owner chooses how to preserve/reconcile it. Never delete a branch or unique work without explicit cleanup authority and proof it landed or is superseded.
+
+Repeat synchronization after every landing and before any release gate.
+
 ## Operating Model
 
-1. Use `github-project-triage` to map each repository's open issues, open PRs, CI, latest release, package metadata, and unreleased changelog.
+1. Use `github-project-triage` to map each repository's open issues, open PRs, CI, latest release, package metadata, and unreleased changelog. Read `VISION.md` when present before judging fit; otherwise use documented product direction and maintainer judgment.
 2. Classify every queue item:
    - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work.
-3. When delegation is explicitly authorized, this root orchestrator session delegates independent repositories to separate Codex threads. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Keep work for one repository in its existing thread. Do not set or request a custom model; omit model selection and inherit the platform default.
+3. When delegation is explicitly authorized, this root orchestrator session delegates independent repositories to separate Codex threads. Keep exactly one orchestrator-owned worker thread per repository; never split one repository across several workers. Whenever assigning or materially changing work, rename the worker thread to `<Project>: <short current task>`. Reuse its existing thread for later queue items. Do not set or request a custom model; omit model selection and inherit the platform default.
 4. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository thread, then monitor by reading current state.
 5. Monitor workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
 6. Continue until each autonomous item is merged/closed with proof, each decision item has a mergeable PR ready for owner land/delete choice, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
@@ -34,6 +55,7 @@ Do not treat ordinary draft, stale, difficult, or platform-specific items as ign
 
 - Only this root orchestrator session may create, reuse, fork, assign, rename, archive, or steer worker threads.
 - Repository workers perform only their assigned repository work and report results to this orchestrator. They must not create subworkers, delegate work, or manage other chats.
+- Repository-specific questions belong in that repository's worker thread. Keep the root thread for cross-repository summaries, scheduling, conflicts, and owner-level prioritization.
 - Put the no-subdelegation rule in every worker prompt.
 - Do not delegate portfolio triage, thread creation, or worker management to another worker.
 - Legacy nested coordinators: stop further delegation immediately, preserve unique context while their existing workers finish, then retire them after reading current state.
@@ -42,6 +64,8 @@ Do not treat ordinary draft, stale, difficult, or platform-specific items as ign
 
 Do not ask the owner to decide from an unprepared issue or rough contributor branch.
 
+- Treat every incoming PR as a recommendation, not an accepted design. Check it against `VISION.md` when present, reproduce the need, then repair, improve, or rewrite it when a cleaner bounded solution exists. Do not ask contributors to perform repair work.
+- Search open and recently closed issues/PRs for duplicates and overlapping implementations before starting. Select the strongest evidence and implementation base, preserve useful contributor credit, and prepare supersede/close comments linking the canonical item when authorized.
 - Existing PR: inspect, reproduce, rewrite/fix as needed, add tests/docs/changelog, run live proof and autoreview, push the final candidate, and get required CI green. Ask only when the PR is mergeable or the remaining blocker cannot be solved autonomously.
 - Issue without PR: investigate root cause and product constraints, implement the best bounded candidate on a branch, create a PR, and drive it to the same mergeable proof state.
 - Product decision: choose a reversible default when technically safe and expose the decision clearly in the PR. Prepare alternatives in the PR description when useful.
@@ -67,6 +91,18 @@ Every owner decision request must include:
 - the exact choices available and what each choice does.
 
 When several decisions are grouped, give each item its own brief. Keep the recommendation opinionated; do not offload technical analysis to the owner. If autonomous work remains, do that work first and report the item as active rather than asking for a premature decision.
+
+When the owner defers a decision and public-comment permission exists, post a concise comment on the issue or PR recording the deferral, rationale, and concrete revisit condition. Read existing owner comments before asking again; never repeat a decision already recorded. Log the decision and full URL.
+
+## Product Policy Capture
+
+After every meaningful issue or PR decision, decide whether the rationale is a durable product rule that would prevent repeated questions. If so:
+
+1. Read the repository's current `VISION.md` and related product docs.
+2. Keep ticket-specific outcomes in the issue/PR; put only reusable product boundaries, priorities, and decision principles in `VISION.md`.
+3. Own the policy judgment and exact wording in this root orchestrator. Direct the repository worker to apply and validate the edit only when repository mutation is authorized, preserving single-thread checkout ownership.
+4. If no `VISION.md` exists, create one only when several future decisions would benefit; do not create policy scaffolding for a one-off call.
+5. Link the source issue/PR and record the policy decision in the orchestrator log.
 
 ## Monitoring Protocol
 
@@ -102,7 +138,7 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 ## Persistent Log
 
 - This root orchestrator owns `~/oss-orchestrator.md`; workers do not edit it.
-- Append dated, high-level entries for meaningful actions and decisions: policy/skill/automation changes, worker creation or reassignment, queue decisions, lands, closes, releases, and exact blockers.
+- Maintain one `## YYYY-MM-DD` heading per day. Append terse, high-level entries for meaningful actions and decisions: policy/skill/automation changes, worker creation or reassignment, queue decisions, lands, closes, releases, and exact blockers.
 - Include full canonical issue/PR URLs when relevant.
 - Never record secrets or routine polling.
 
@@ -118,6 +154,8 @@ An idle or completed repository thread must not remain a polling-only lane. Afte
 Do not keep completed threads merely to satisfy a lane count. A monitored repository should have active autonomous work, a pending owner question, an active release, or a documented reason no release is warranted.
 
 Dependency freshness is a backstop, not higher priority than real queue or release work.
+
+Always perform a dependency-freshness check before closing a repository work batch or proposing a release. Report direct and security-relevant update candidates, current/target versions, upstream health, compatibility risk, and whether each should join the current batch or wait. Do not silently skip the check because queue work existed.
 
 ## Authorization
 
@@ -161,10 +199,14 @@ Every delegated implementation thread, within its explicit authorization, must:
 - when CI rerun/fix is authorized, rerun required checks and repair failures until green;
 - when CI rerun/fix is not authorized and checks fail, stop with the exact failure and requested permission;
 - when merge/close is authorized, merge or close the queue item with an exact proof comment;
-- after authorized landing, return to updated, clean `main`.
+- after authorized landing, return to updated, clean `main`;
+- update the changelog for user-visible changes; within the active unreleased/release section, order entries from most to least interesting to users and keep the repository's established format;
+- after the assigned queue work, audit dependency freshness and report actionable updates even when none are taken;
+- report every candidate and completed change with full clickable URLs, files changed, insertions, deletions, low/medium/high risk with rationale, proof state, and recommendation;
+- ask repository-specific questions only in this worker thread.
 
 Prefer repairing the contributor PR. Preserve contributor credit and follow the workspace PR rules.
-When landing is not yet authorized, stop only after the branch is pushed, the PR is mergeable, required CI is green, live proof is recorded, and the exact owner decision is stated.
+When landing is not authorized but push is authorized, stop after the branch is pushed, the PR is mergeable, required CI is green, live proof is recorded, and the exact owner decision is stated. Without push permission, stop at the last authorized local boundary.
 
 ## Live Proof Gate
 
@@ -192,6 +234,21 @@ Before any push, public PR update, merge, or release involving model-bearing cod
 - Return an explicit `PASS` or `BLOCKED` report covering every audited surface. Any new candidate diff, generated artifact, log/proof text, or model-bearing change invalidates the pass and requires re-audit.
 
 No push, public mutation, merge, or release may proceed while this gate is blocked.
+
+## Release Proposals
+
+Propose a release when either all effective repository tasks are complete or a meaningful user-visible batch has accumulated. Judge meaningfulness by user impact and coherence, not a fixed item count. Do not wait for a perfectly empty queue when a coherent release is already valuable; unrelated backlog does not block a release.
+
+Every proposal must include:
+
+- recommended version and SemVer rationale;
+- `Highlights`: two to five most valuable user outcomes, strongest first;
+- full ordered changelog, most to least interesting to users, with full issue/PR URLs;
+- dependency-freshness result and any update deliberately deferred;
+- exact-head CI, tests, live proof, artifacts, and release-gate state;
+- remaining backlog, actual release-specific blockers, residual risk, and one exact release/hold choice.
+
+Match repository changelog style. For a meaningful release, add or maintain a `Highlights` subsection in the target changelog section when compatible; otherwise lead the target section with the highlight bullets before the full ordered entries. Do not reorder historical released sections. A proposal never authorizes version bumps, tags, publishing, GitHub Releases, or pushes.
 
 ## Release Gate
 
@@ -229,6 +286,7 @@ Use the repository's release docs and matching skill:
 Before release:
 
 - reconcile changelog history with existing tags/releases;
+- ensure the target changelog section starts with the strongest user-facing highlights and orders remaining entries from most to least interesting;
 - default to patch for compatible fixes, maintenance, refactors, docs, CI, and small behavior improvements;
 - select minor only for substantial additive functionality, a meaningful new feature set, or a new backward-compatible public API;
 - never use minor merely because several fixes accumulated; major requires explicit approval;
@@ -252,8 +310,13 @@ Keep one compact cross-repo ledger:
 - `Intervened`: exact risk and instruction sent.
 - `Needs owner`: exact decision/access required; no vague "needs review".
 - `Ignored`: exact item and owner-granted exception.
+- `Vision`: durable product rule proposed or updated, with source item URL.
+- `Dependencies`: actionable updates or explicit current/no-update result.
+- `Release proposed`: version, highlights, ordered changelog, gates, risk, and exact release/hold choice.
 - `Released`: version, tag/registry verification, closeout commit.
 - `Ready next`: release-specific blockers clear, CI green, recommended patch/minor version and rationale.
+
+For each active, decision-ready, or landed code change, include `files / +insertions / -deletions` and a low/medium/high risk estimate with one-line rationale. Summaries must be self-contained; never assume the owner opened the linked issue, PR, or worker thread.
 
 Omit archived and owner-suppressed repositories entirely. Do not list them as ignored, blocked, stale, or available work.
 
