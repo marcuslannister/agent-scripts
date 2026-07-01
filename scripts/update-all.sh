@@ -19,6 +19,7 @@ agents_status=0
 plugins_status=0
 codex_plugins_status=0
 skills_status=0
+visual_explainer_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -32,11 +33,15 @@ section "Updating Codex plugin marketplaces"
 section "Updating agent skills"
 "$SCRIPT_DIR/update-skills.sh" || skills_status=$?
 
+section "Updating visual-explainer"
+"$SCRIPT_DIR/update-visual-explainer.sh" || visual_explainer_status=$?
+
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "Claude plugins" "$plugins_status"
 status_line "Codex plugin marketplaces" "$codex_plugins_status"
 status_line "agent skills" "$skills_status"
+status_line "visual-explainer" "$visual_explainer_status"
 
-(( agents_status != 0 || plugins_status != 0 || codex_plugins_status != 0 || skills_status != 0 )) && exit 1
+(( agents_status != 0 || plugins_status != 0 || codex_plugins_status != 0 || skills_status != 0 || visual_explainer_status != 0 )) && exit 1
 exit 0
