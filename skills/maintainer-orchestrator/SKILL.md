@@ -51,6 +51,13 @@ Repeat synchronization after every landing and before any release gate.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
 
+## Immediate Noise Closeout
+
+- Close an issue immediately and silently as not planned/spam when its content is clearly spam, incoherent or nonsensical, unrelated outreach, recruiting, sales, promotion, a scam, or contains no coherent repository request. Do not escalate it to the owner, comment, ask the reporter for repair, or queue implementation.
+- Language alone is never a spam signal. Translate and understand foreign-language reports before classifying their content.
+- Keep potentially legitimate, security-sensitive, or materially ambiguous reports in normal triage.
+- This standing authority is the only routine exception to per-item close authorization. It authorizes the issue close only, not code, branch, PR, comment, or release mutations.
+
 ## Control-Plane Ownership
 
 - Only this root orchestrator session may create, reuse, fork, assign, rename, archive, or steer worker threads.
@@ -167,6 +174,7 @@ Treat triage, monitoring, implementation, public mutation, and release as separa
 - Push permission does not imply merge or close permission.
 - CI rerun and CI-fix permission must be explicit; a push alone does not authorize additional repair commits or workflow mutations.
 - Merge/close permission must be explicit for the affected work.
+- Clearly qualifying noise under `Immediate Noise Closeout` has standing silent-close authority and does not require per-item escalation.
 - Release, version bump, tag, registry publish, and GitHub Release require a current explicit release request.
 - Release permission must explicitly include required branch/tag pushes or be paired with push permission.
 
