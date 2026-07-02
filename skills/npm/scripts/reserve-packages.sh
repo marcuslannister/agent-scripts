@@ -80,15 +80,15 @@ need_bin() {
 }
 
 need_bin op
-need_bin jq
 need_bin node
 need_bin npm
 
 WORK="$(mktemp -d /tmp/npm-reserve.XXXXXX)"
 NPMRC="/tmp/npm-reserve-npmrc.$$"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cleanup() {
   rm -rf "$WORK" "$NPMRC"
-  unset NPM_USER NPM_PASS NPM_OTP NPMRC REGISTRY
+  unset ITEM_JSON NPM_OTP NPMRC REGISTRY SA_TOKEN
 }
 trap cleanup EXIT
 
@@ -96,20 +96,26 @@ redact() {
   sed -E 's/(npm_[A-Za-z0-9_]+)/npm_REDACTED/g; s/[0-9]{6}/OTP_REDACTED/g'
 }
 
-op signin --account "$ACCOUNT" >/dev/null
-op whoami --account "$ACCOUNT" >/dev/null
-echo "op auth ok; reading npm item once: $ITEM"
-ITEM_JSON="$(op item get "$ITEM" --account "$ACCOUNT" --format json)"
-
-NPM_USER="$(printf "%s" "$ITEM_JSON" | jq -r '.fields[]? | select((.purpose // "") == "USERNAME" or (.id // "") == "username" or (.label // "" | ascii_downcase) == "name") | .value // ""' | head -1)"
-NPM_PASS="$(printf "%s" "$ITEM_JSON" | jq -r '.fields[]? | select((.purpose // "") == "PASSWORD" or (.id // "") == "password") | .value // ""' | head -1)"
-if [ -z "${NPM_USER:-}" ] || [ -z "${NPM_PASS:-}" ]; then
-  echo "$ITEM is missing username or password fields" >&2
-  exit 2
+SA_TOKEN="${OP_SERVICE_ACCOUNT_TOKEN:-${MOLTY_OP_SERVICE_ACCOUNT_TOKEN:-}}"
+AUTH_MODE="desktop"
+if [ -n "$SA_TOKEN" ] && ITEM_JSON="$(OP_SERVICE_ACCOUNT_TOKEN="$SA_TOKEN" op item get "$ITEM" --vault Molty --format json 2>/dev/null)"; then
+  AUTH_MODE="service"
+  echo "1Password access: service account"
+else
+  unset OP_SERVICE_ACCOUNT_TOKEN MOLTY_OP_SERVICE_ACCOUNT_TOKEN SA_TOKEN
+  op signin --account "$ACCOUNT" >/dev/null
+  op whoami --account "$ACCOUNT" >/dev/null
+  ITEM_JSON="$(op item get "$ITEM" --account "$ACCOUNT" --format json)"
+  echo "1Password access: desktop"
 fi
+echo "op auth ok; reading npm item once: $ITEM"
 
 current_otp() {
-  op item get "$ITEM" --account "$ACCOUNT" --otp 2>/dev/null | tr -d '[:space:]' || true
+  if [ "$AUTH_MODE" = "service" ]; then
+    OP_SERVICE_ACCOUNT_TOKEN="$SA_TOKEN" op item get "$ITEM" --vault Molty --otp 2>/dev/null | tr -d '[:space:]' || true
+  else
+    op item get "$ITEM" --account "$ACCOUNT" --otp 2>/dev/null | tr -d '[:space:]' || true
+  fi
 }
 
 NPM_OTP="$(current_otp)"
@@ -125,60 +131,15 @@ case "$NPM_OTP" in
     ;;
 esac
 
-export NPM_USER NPM_PASS NPM_OTP NPMRC REGISTRY
 login_log="$WORK/npm-login.log"
-node >"$login_log" 2>&1 <<'NODE' || {
-const fs = require('node:fs')
-const { execFileSync } = require('node:child_process')
-
-function candidates () {
-  const roots = []
-  try {
-    roots.push(execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim())
-  } catch {}
-  roots.push('/opt/homebrew/lib/node_modules', '/usr/local/lib/node_modules')
-  return roots.flatMap(root => [
-    `${root}/npm/node_modules/npm-profile`,
-    `${root}/npm-profile`,
-  ])
-}
-
-let loginCouch
-for (const candidate of candidates()) {
-  try {
-    loginCouch = require(candidate).loginCouch
-    break
-  } catch {}
-}
-if (!loginCouch) {
-  throw new Error('could not load npm-profile loginCouch from npm installation')
-}
-
-async function main () {
-  const res = await loginCouch(process.env.NPM_USER, process.env.NPM_PASS, {
-    registry: process.env.REGISTRY,
-    otp: process.env.NPM_OTP,
-  })
-  if (!res || !res.token) {
-    throw new Error('registry did not return an npm token')
-  }
-  const authHost = new URL(process.env.REGISTRY).host
-  fs.writeFileSync(process.env.NPMRC, `//${authHost}/:_authToken=${res.token}\n`, { mode: 0o600 })
-  console.log(`npm registry session created for ${res.username || process.env.NPM_USER}`)
-}
-
-main().catch(err => {
-  console.error(err && err.code ? `${err.code}: ${err.message}` : err)
-  if (err && err.body) {
-    console.error(String(err.body).replace(/[0-9]{6}/g, 'OTP_REDACTED'))
-  }
-  process.exit(1)
-})
-NODE
+printf "%s" "$ITEM_JSON" |
+  NPM_OTP="$NPM_OTP" NPMRC="$NPMRC" REGISTRY="$REGISTRY" \
+  node "$SCRIPT_DIR/npm-auth-login.mjs" >"$login_log" 2>&1 || {
   echo "npm registry login failed" >&2
   redact <"$login_log" >&2
   exit 3
 }
+unset ITEM_JSON
 redact <"$login_log"
 
 who="$(NPM_CONFIG_USERCONFIG="$NPMRC" npm whoami 2>"$WORK/npm-whoami.log" || true)"

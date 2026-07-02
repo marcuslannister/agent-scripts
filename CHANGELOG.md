@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-02 — npm Credential Field Safety
+- Added a reusable npm publish helper that prefers canonical 1Password field IDs, rejects ambiguous duplicate labels, verifies registry publication, and shares the hardened login path with package reservation.
+
 ## 2026-07-02 — UTF-8 Skill Validation
 - Made skill validation explicitly read UTF-8 so C locales accept non-ASCII skill front matter. Thanks @chaochaoweb3.
 

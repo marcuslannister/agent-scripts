@@ -18,11 +18,23 @@ Use for npm registry/account tasks: `npm whoami`, package availability, package 
 - Still stop and ask if the `npmjs` item is missing, the account/vault is ambiguous, credentials are malformed, npm denies package access, or the requested package/version does not match the repo release target.
 - Run npm auth work inside one persistent tmux session. Reuse it on failure.
 - Keep npm auth in a temp npmrc; delete it after the command.
-- If hand-rolling, read `npmjs` once, keep secrets in shell variables, require a six-digit `op item get npmjs --account my.1password.com --otp`, write a temp npmrc, run all npm commands with `NPM_CONFIG_USERCONFIG`, then delete the npmrc and unset variables.
+- For normal package releases, run `scripts/publish-package.sh` from the package root inside that tmux session. Do not hand-roll field extraction or registry login.
+- Credential selection must prefer canonical field `id`, then `purpose`, then a unique label. Reject duplicate label-only matches; `npmjs` can retain legacy fields with the same label.
+- If hand-rolling is unavoidable, use `scripts/npm-auth-login.mjs` for field selection and registry login. Read `npmjs` once, require a six-digit OTP, keep auth in a temp npmrc, then delete it and unset variables.
 - npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy`.
 - Avoid `expect` for npm login unless necessary; logs can echo prompts and are easy to get wrong.
 - Prefer the helper's registry API login path (`npm-profile` `loginCouch`) for automation.
 - If auth shape is ambiguous or `npm whoami` fails, stop and ask for the exact field label / credential fix. Do not probe more 1Password items or start another tmux session.
+
+## Package Publishing
+
+From the package root, inside the same auth tmux session:
+
+```bash
+/Users/steipete/Projects/agent-scripts/skills/npm/scripts/publish-package.sh
+```
+
+The helper verifies identity, refuses an existing package version, publishes with a fresh OTP, retries one expired OTP, verifies registry visibility, and cleans auth files.
 
 ## Package Reservation
 
