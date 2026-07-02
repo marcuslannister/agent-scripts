@@ -32,9 +32,6 @@ jobs:
           python3 -m pip install --quiet pyyaml
           scripts/validate-skills
 
-      - name: Test codex plugin updater
-        run: bash tests/update-codex-plugins-test.sh
-
       - name: Install video transcript downloader dependencies
         working-directory: skills/video-transcript-downloader
         run: npm ci

@@ -12,14 +12,16 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Added `scripts/update-khazix-skills.sh`: clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink so it follows pulls. Wired it into `scripts/update-all.sh` with its own summary line.
 
 ## 2026-07-03 — CI Gates + Broken Skill Symlink
-- CI now runs `scripts/validate-skills` (skill front matter) and `tests/update-codex-plugins-test.sh` alongside the existing shell-syntax and transcript smokes.
+- CI now runs `scripts/validate-skills` (skill front matter) alongside the existing shell-syntax and transcript smokes.
 - Removed the broken `skills/video-use` symlink; its target repo (`~/Projects/video-use`) no longer exists. Dropped it from the README skill list.
+
+## 2026-07-02 — Remove Codex Plugin Marketplace Updater
+- Removed the obsolete Codex plugin marketplace updater, its `update-all` step, and its test because Codex should not refresh Claude plugin marketplaces as if those plugins were directly usable.
 
 ## 2026-07-01 — visual-explainer Updater
 - Added `scripts/update-visual-explainer.sh`: clones/pulls `nicobailon/visual-explainer` under `~/Projects` (no `/tmp`), links the skill into `~/.codex/skills` with a relative symlink so it tracks pulls, and copies its prompt templates into `~/.codex/prompts`. Wired it into `scripts/update-all.sh` with its own summary line.
 
-## 2026-06-20 — Codex Plugin Marketplace Updater
-- Added `scripts/update-codex-plugins.sh` to refresh configured Codex plugin marketplace snapshots with `codex plugin marketplace upgrade --json`, wired it into `scripts/update-all.sh`, and added a focused shell test for the fallback Codex binary path and JSON summary.
+## 2026-06-20 — Video Use Skill Symlink
 - Added `skills/video-use` as a tracked repo-owned skill symlink.
 
 ## 2026-06-19 — Agent Skills Updater
