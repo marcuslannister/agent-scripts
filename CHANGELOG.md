@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-02 — Orchestrator Ownership
+- Kept `maintainer-orchestrator` skill maintenance in the root orchestration session and enforced exactly one Codex app thread per project, removing project-to-task thread fan-out including the OpenClaw exception.
+
 ## 2026-07-01 — Isolated Skill Audits
 - Added `skill-cleaner --root-only` for auditing only explicitly supplied skill roots without Codex inventory noise. Thanks @its-How.
 
