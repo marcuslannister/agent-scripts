@@ -6,8 +6,11 @@ metadata = File.read(File.expand_path("../skills/maintainer-orchestrator/agents/
 
 requirements = {
   "Codex app workers only" => "a worker is an owned Codex app thread, never a collaboration subagent",
+  "one project thread per repository" => "Use exactly one owned Codex app project thread per repository",
+  "root-owned skill maintenance" => "Maintain this canonical `maintainer-orchestrator` skill in the current root orchestrator session, never in a project thread or collaboration subagent.",
+  "no project task fan-out" => "project threads never create task threads",
   "pre-spawn classification" => "Before spawning a collaboration subagent, classify the task",
-  "mutating work routing" => "Any task that can mutate repository, GitHub, or external state",
+  "mutating work routing" => "Any repository task that can mutate repository, GitHub, or external state",
   "support-only subagents" => "Use collaboration subagents only for orchestration support",
   "subagent mutation ban" => "Collaboration subagents must never edit repository files, create commits, run implementation proof as the owner, push, mutate PRs/issues, approve workflows, merge, release, deploy, or perform live product/account proof.",
   "preservation-first recovery" => "Snapshot and preserve its state, patches, refs, logs, and evidence; hand them to the proper Codex app thread; reconcile ownership; never discard work.",
@@ -16,15 +19,23 @@ requirements = {
   "permission propagation check" => "verify its effective permission profile",
   "no repeated permission prompts" => "Do not retry the same denied action or repeatedly prompt the owner.",
   "single heartbeat inspection" => "inspect the existing heartbeat first",
-  "private concurrency invariant" => "Hard concurrency invariant: private investigation, implementation, current-main replay, testing, proof, and review continue independently",
-  "single public mutation slot" => "Exactly one worker at a time may mutate a public PR head",
+  "private concurrency invariant" => "Hard concurrency invariant: private investigation, implementation, current-main replay, testing, proof, and review continue independently across qualified project threads for distinct repositories.",
+  "single public mutation slot" => "Exactly one project thread at a time may mutate a public PR head",
   "frozen means public only" => "means public-mutation-frozen unless the instruction explicitly freezes all private work",
-  "decision wait does not idle" => "Keep all other qualified private lanes active while that answer is pending.",
+  "decision wait does not idle" => "Keep all other qualified private project lanes active while that answer is pending.",
 }
 
 missing = requirements.reject { |_label, text| skill.include?(text) }
 abort "Missing maintainer-orchestrator policy: #{missing.keys.join(', ')}" unless missing.empty?
 abort "Ambiguous task subthread terminology" if skill.match?(/\bsubthreads?\b/i)
-abort "Stale maintainer-orchestrator default prompt" unless metadata.include?("dedicated Codex app threads") && metadata.include?("collaboration subagents read-only and support-only")
+forbidden_fan_out = [
+  "may create direct Codex app task threads",
+  "A project thread may create",
+  "Use one isolated Codex worktree thread per selected task",
+  "root → project → task",
+  "Workers may review, implement, test, and monitor concurrently",
+]
+abort "Task-thread fan-out remains" if forbidden_fan_out.any? { |text| skill.include?(text) }
+abort "Stale maintainer-orchestrator default prompt" unless metadata.include?("one Codex app thread per project") && metadata.include?("skill maintenance in the root session") && metadata.include?("collaboration subagents read-only and support-only")
 
 puts "Validated maintainer-orchestrator worker boundary."

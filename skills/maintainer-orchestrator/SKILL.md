@@ -9,21 +9,22 @@ Coordinate repository work through completion. This is a control-plane skill: in
 
 ## Worker Boundary — Hard Rule
 
-- Use dedicated Codex app threads as all implementation and execution workers. Prefer an existing owned thread/worktree when it already owns relevant state; otherwise create the proper project or task thread.
-- Before spawning a collaboration subagent, classify the task. Any task that can mutate repository, GitHub, or external state, or that owns a deliverable, implementation proof, landing, release, or deployment, must go to a Codex app thread.
+- Use exactly one owned Codex app project thread per repository for implementation and execution. Reuse it for the full repository queue; project threads never create task threads.
+- Maintain this canonical `maintainer-orchestrator` skill in the current root orchestrator session, never in a project thread or collaboration subagent. Skill policy defines the control plane and is the sole implementation exception to project-thread execution.
+- Before spawning a collaboration subagent, classify the task. Any repository task that can mutate repository, GitHub, or external state, or that owns a deliverable, implementation proof, landing, release, or deployment, must go to that repository's single Codex app project thread.
 - Use collaboration subagents only for orchestration support: read-only inventory, CI/status monitoring, independent analysis, conflict/decision synthesis, or ledger/reconciliation evidence. They do not own worker lanes or count toward execution capacity.
 - Collaboration subagents must never edit repository files, create commits, run implementation proof as the owner, push, mutate PRs/issues, approve workflows, merge, release, deploy, or perform live product/account proof.
 - If an implementation subagent is discovered, interrupt it immediately. Snapshot and preserve its state, patches, refs, logs, and evidence; hand them to the proper Codex app thread; reconcile ownership; never discard work.
 - The root orchestrator coordinates app threads, reads evidence, sends GO/hold instructions, serializes exact-head landing, handles owner decisions, and cleans up the sidebar. Project execution remains owned and performed by its Codex app thread.
 - Thread prompts do not grant capabilities. Never treat text such as `full access`, `authorized`, or `you may run this` as changing the worker's effective sandbox, filesystem, network, or approval policy.
-- After creating, forking, handing off, or background-resuming a worker, verify its effective permission profile before assigning the first protected write, network, test, or publication action. If a worker that should inherit owner-selected full access instead reports managed/read-only or approval-gated permissions, stop the protected action, record one platform permission-propagation blocker, and route the task to a correctly configured Codex app thread. Do not retry the same denied action or repeatedly prompt the owner.
+- After creating, handing off, or background-resuming a project thread, verify its effective permission profile before assigning the first protected write, network, test, or publication action. If a worker that should inherit owner-selected full access instead reports managed/read-only or approval-gated permissions, stop the protected action, record one platform permission-propagation blocker, and route the task to a correctly configured Codex app project thread for that repository. Do not retry the same denied action or repeatedly prompt the owner.
 
 ## Activation Watch
 
 - On every activation, inspect the existing heartbeat first. Create one active five-minute heartbeat automation attached to the current root orchestrator thread only when none exists; update it only when its configuration or portfolio instructions materially changed. Name it `Maintainer Orchestrator Watch`; never create duplicates or emit repeated no-op update cards.
 - The heartbeat prompt must re-enter this skill, read the latest state and newest instructions in every owned Codex app worker, apply the Monitoring Protocol, coordinate serialized landing/release gates, root-triage and refill qualified execution work to the current concurrency target, check CI/leases/memory/disk, maintain the persistent log, and surface only prepared owner decisions.
 - Keep the heartbeat active while any worker, owner decision, release, CI wait, or qualified refill work remains. Disable it only when the owner explicitly stops orchestration or the monitored portfolio is genuinely complete.
-- A heartbeat wake is a continuation of this root session, not a discovery worker. Keep portfolio triage and owner questions here; create repository/worktree threads only for concrete execution.
+- A heartbeat wake is a continuation of this root session, not a discovery worker. Keep portfolio triage, owner questions, and maintenance of this skill here; create one project thread per repository only for concrete execution.
 
 ## Repository Scope
 
@@ -39,31 +40,30 @@ Coordinate repository work through completion. This is a control-plane skill: in
 
 ## OpenClaw Maintainer Orchestrator
 
-Apply this section only when the owner explicitly asks this session to orchestrate `openclaw/openclaw`. It overrides the default OpenClaw exclusion, the generic one-thread-per-repository rule, and generic changelog handling. Repository `AGENTS.md`, `VISION.md`, and OpenClaw-specific skills remain authoritative.
+Apply this section only when the owner explicitly asks this session to orchestrate `openclaw/openclaw`. It overrides the default OpenClaw exclusion and generic changelog handling; the one-thread-per-repository rule still applies. Repository `AGENTS.md`, `VISION.md`, and OpenClaw-specific skills remain authoritative.
 
 - Read current `VISION.md`, root/scoped `AGENTS.md`, `clawdtributor`, `openclaw-pr-maintainer`, `openclaw-testing`, `crabbox`, and `autoreview` before delegating. Dependency-backed work also requires direct upstream source/docs/types; Codex-backed work requires the acting worker to inspect sibling `../codex` source.
 - Keep all discovery and triage in the root orchestrator session. Refresh Discrawl; read current `#clawtributors` and `#maintainers` messages; inspect candidate issue/PR URLs, related items, current `main`, author permissions, duplicates, blast radius, and verification feasibility; then make the go/no-go and autonomy classification before creating a worker. Use Gitcrawl for related items and live `gh` before every assignment, comment, close, push, or merge.
 - Select only work authored or reported by people without GitHub `write`, `maintain`, or `admin` access. Verify repository permission live; never infer GitHub access from a Discord role or channel membership. External contributors posting in `#maintainers` remain eligible.
 - At startup, read and adopt existing OpenClaw work threads the owner asks this session to maintain. Preserve unique progress, avoid duplicate lanes, and monitor or steer them under the newest thread-local instruction.
-- Maintain a target of 30 active root-owned implementation Codex app threads while 30 qualified independent tasks exist. Create a thread only for concrete execution after root triage has selected an issue or PR and defined the actual fix, review-and-land, live-proof, CI-repair, or close-with-proof objective. Never create discovery, queue-scan, permission-check, candidate-review, ranking, or general triage threads. Use one isolated Codex worktree thread per selected task, title it `OC <ref>: <current status>`, and prohibit worker delegation. The root orchestrator alone creates, steers, archives, and refills these lanes.
-- Hard concurrency invariant: private investigation, implementation, current-main replay, testing, proof, and review continue independently across qualified workers. Exactly one worker at a time may mutate a public PR head or run final `prepare-sync-head`, `prepare-run`, or `merge-run`. Asking the owner what to land next reserves only that public slot; it never pauses other useful private lanes. `Frozen`, `parked`, or `held` means public-mutation-frozen unless the instruction explicitly freezes all private work.
+- Use one root-owned OpenClaw project thread for all selected execution, processed serially in root-prioritized order. Never create per-item or task threads. The root orchestrator alone triages, steers the project thread, serializes final preparation/landing, and advances it to the next selected item.
 - Keep owner questions in the root orchestrator chat. Workers report exact blockers upward and do not ask the owner directly unless the root explicitly delegates that interaction.
 - Prioritize Vision-aligned security/safe-default, bug/stability, setup/first-run, data-loss, auth, install, channel-delivery, and narrow performance/test-infrastructure work. Prefer externally reported, reproducible, bounded items with a real verification path.
 - Treat broad features, protocol-version changes, new config/env/default surfaces, new core plugins/channels/providers, security/privacy policy, irreversible migration choices, or behavior without usable live proof as `Needs owner` after every safe reversible step is complete.
 - Treat every contributor PR as a starting proposal. Reconstruct the symptom and root cause; read the whole owner path, callers, callees, sibling surfaces, tests, current `main`, shipped behavior, and relevant dependency contracts; then refactor or rewrite when that is the cleaner bounded fix.
 - Check live assignment and contributor permission before deep work. Assign `steipete` when unassigned, preserve contributor credit, prefer the original writable PR, and avoid maintainer-authored/write-access queue items unless they are the canonical fix for an eligible external report.
-- Use only repository-native `scripts/pr` review, artifact, prepare, sync, and merge commands for landing. Never mutate the shared/root checkout. Workers may review, implement, test, and monitor concurrently; the root grants a serialized slot for PR-head synchronization, final prepare, and `merge-run` so mainline drift and hosted evidence stay exact.
+- Use only repository-native `scripts/pr` review, artifact, prepare, sync, and merge commands for landing. Never mutate the shared/root checkout. The single OpenClaw project thread reviews, implements, tests, and monitors one selected item at a time; the root grants its serialized slot for PR-head synchronization, final prepare, and `merge-run` so mainline drift and hosted evidence stay exact.
 - Before landing, require symptom proof, root cause, provenance when traceable, focused regression coverage, the cheapest sufficient broad gate, real live/E2E or Crabbox proof when feasible, fresh autoreview with no accepted/actionable findings, resolved review threads, and exact-head hosted CI/Testbox/security gates.
 - Post or update one land-ready PR comment binding behavior and proof to the exact head SHA, including commands, run/lease IDs, live evidence, autoreview result, and explicit gaps. Store screenshots/videos in approved artifacts, never on the product branch.
 - OpenClaw changelog is release-generated. Do not edit `CHANGELOG.md` for normal issue/PR work, even when generic maintainer rules would add an entry.
-- After landing or closing, verify `main` reachability, audit linked and duplicate issues/PRs, comment canonical proof before closing proven duplicates, stop leases, archive the item thread, and refill the lane immediately.
+- After landing or closing, verify `main` reachability, audit linked and duplicate issues/PRs, comment canonical proof before closing proven duplicates, stop leases, then advance the same project thread to the next selected item.
 
 ## Session Startup
 
 1. Create or update the required `Maintainer Orchestrator Watch` heartbeat before queue work.
 2. List recent Codex app threads before choosing repositories. Read enough state to identify repositories the owner or another coordinator is actively handling.
 3. Reserve every project with coherent active or unresolved work in another thread. Do not inspect, mutate, delegate, rename, or steer that project from this session unless the owner explicitly hands it over.
-4. When a local checkout is dirty or on a non-default branch but has no active thread, create one preservation thread for that repository. Treat it as potentially valuable forgotten work, not as a reason to ignore the project.
+4. When a local checkout is dirty or on a non-default branch but has no active thread, create that repository's single project thread in preservation mode. Treat it as potentially valuable forgotten work, not as a reason to ignore the project.
 5. Use RepoBar for the broad queue map. Filter to eligible, non-archived, non-fork repositories, then confirm Peter has the majority of contributions.
 6. Prefer the smallest non-empty effective queues first. Within equal queue size, prefer bounded bugs, docs, tests, and nearly-ready PRs over features or security/product decisions.
 7. Recheck active threads and queue counts on every wake before assigning new work. A newly active project becomes reserved immediately.
@@ -87,11 +87,12 @@ Repeat synchronization after every landing and before any release gate.
    - `Autonomous`: clear fit, reproducible, bounded implementation, and usable verification path.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work.
-3. Delegate each independent repository to one root-owned Codex app project thread. Reuse it for later queue items and update its `<Project>: <current status>` title whenever work materially changes. The project thread handles its queue serially by default. Only when at least four substantial, genuinely independent tasks would make serial execution meaningfully slow may it create direct Codex app task threads in isolated checkouts. Never fan out two or three items, intertwined work, or trivial tasks. Task threads cannot delegate further; depth stops at root → project → task. Omit model selection and inherit the platform default.
-4. Maintain a target of 30 concurrent eligible root-owned Codex app project threads. After active-thread reservation and repository-state checks, refill immediately from the smallest eligible majority-authored queue whenever a lane completes, becomes durably blocked, or otherwise stops useful work.
-5. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository Codex app thread, then monitor by reading current state.
-6. Monitor Codex app workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
-7. Continue until each autonomous item is merged/closed with proof, each true decision item has every safe reversible step complete and one exact owner choice remaining, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
+3. Delegate each independent repository to exactly one root-owned Codex app project thread. Reuse it for the full queue and update its `<Project>: <current status>` title whenever work materially changes. The project thread handles its queue serially and never creates or manages other threads. Omit model selection and inherit the platform default.
+4. Maintain a target of 30 concurrent eligible root-owned Codex app project threads across distinct repositories. After active-thread reservation and repository-state checks, refill immediately from the smallest eligible majority-authored queue whenever a lane completes, becomes durably blocked, or otherwise stops useful work.
+5. Hard concurrency invariant: private investigation, implementation, current-main replay, testing, proof, and review continue independently across qualified project threads for distinct repositories. Exactly one project thread at a time may mutate a public PR head or run a final preparation, synchronization, merge, release, or publication gate. Asking the owner what to land next reserves only that public slot; it never pauses useful private work in other project threads. `Frozen`, `parked`, or `held` means public-mutation-frozen unless the instruction explicitly freezes all private work.
+6. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository Codex app thread, then monitor by reading current state.
+7. Monitor Codex app workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
+8. Continue until each autonomous item is merged/closed with proof, each true decision item has every safe reversible step complete and one exact owner choice remaining, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
 
@@ -105,10 +106,9 @@ Do not treat ordinary draft, stale, difficult, or platform-specific items as ign
 ## Control-Plane Ownership
 
 - Only this root orchestrator may create, reuse, archive, or steer project Codex app threads. Each project worker owns its thread title so the title follows the freshest repository state without a root-poll race.
-- A project thread may create, assign, monitor, and retire only its own direct Codex app task threads under the threshold above. It owns their integration and reports one coherent repository result to the root.
-- Task threads must not create workers, delegate, or manage other chats. No grandchildren.
+- Project threads must not create, assign, steer, monitor, or retire other threads. The hierarchy stops at root orchestrator → one project thread per repository.
 - Repository-specific questions belong in that repository's worker thread. Keep the root thread for cross-repository summaries, scheduling, conflicts, and owner-level prioritization.
-- Put the one-level limit in every project prompt and the no-subdelegation rule in every task-thread prompt.
+- Put the one-project-thread rule and no-thread-delegation rule in every project prompt.
 - Do not delegate portfolio triage or cross-repository thread management.
 - Legacy nested coordinators: stop further delegation immediately, preserve unique context while their existing workers finish, then retire them after reading current state.
 
@@ -147,7 +147,7 @@ When several decisions are grouped, give each item its own brief. Keep the recom
 
 Maintain an ordered root-session owner-question queue and ask one decision at a time. Whenever the owner answers, record and execute that answer immediately, then present the next fully prepared question in the same root session if one exists. If no owner decision is ready, continue autonomous work and say no owner input is currently needed; never let an answered question leave the orchestrator idle.
 
-After each land, exact post-merge proof, cleanup, and thread-archive cycle, ask which decision-ready candidate should receive the next public slot. Keep all other qualified private lanes active while that answer is pending.
+After each land, exact post-merge proof, cleanup, and project-thread status cycle, ask which decision-ready candidate should receive the next public slot. Keep all other qualified private project lanes active while that answer is pending.
 
 When the owner defers a decision, post a concise comment on the issue or PR recording the deferral, rationale, and concrete revisit condition unless the decision is private or security-sensitive. Read existing owner comments before asking again; never repeat a decision already recorded. Log the decision and full URL.
 
@@ -237,7 +237,7 @@ This standing authority does not include:
 - material product, security, privacy, legal, credential-sharing, or irreversible choices that lack a safe reversible default;
 - external-system mutations beyond the repository/GitHub workflow unless separately authorized.
 
-Clearly qualifying noise retains standing silent-close authority. A newer owner instruction may narrow any project. Record standing authority and exceptions in every project/task prompt; stop only at the exact remaining exception or hard blocker.
+Clearly qualifying noise retains standing silent-close authority. A newer owner instruction may narrow any project. Record standing authority and exceptions in every project prompt; stop only at the exact remaining exception or hard blocker.
 
 ## Credential Access
 
