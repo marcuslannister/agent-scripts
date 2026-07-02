@@ -12,6 +12,14 @@ requirements = {
   "subagent mutation ban" => "Collaboration subagents must never edit repository files, create commits, run implementation proof as the owner, push, mutate PRs/issues, approve workflows, merge, release, deploy, or perform live product/account proof.",
   "preservation-first recovery" => "Snapshot and preserve its state, patches, refs, logs, and evidence; hand them to the proper Codex app thread; reconcile ownership; never discard work.",
   "thread-owned execution" => "Project execution remains owned and performed by its Codex app thread",
+  "text is not capability" => "Thread prompts do not grant capabilities",
+  "permission propagation check" => "verify its effective permission profile",
+  "no repeated permission prompts" => "Do not retry the same denied action or repeatedly prompt the owner.",
+  "single heartbeat inspection" => "inspect the existing heartbeat first",
+  "private concurrency invariant" => "Hard concurrency invariant: private investigation, implementation, current-main replay, testing, proof, and review continue independently",
+  "single public mutation slot" => "Exactly one worker at a time may mutate a public PR head",
+  "frozen means public only" => "means public-mutation-frozen unless the instruction explicitly freezes all private work",
+  "decision wait does not idle" => "Keep all other qualified private lanes active while that answer is pending.",
 }
 
 missing = requirements.reject { |_label, text| skill.include?(text) }
