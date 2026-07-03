@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-03 — khazix-skills Updater
+- Added `scripts/update-khazix-skills.sh`: clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink so it follows pulls. Wired it into `scripts/update-all.sh` with its own summary line.
+
 ## 2026-07-03 — CI Gates + Broken Skill Symlink
 - CI now runs `scripts/validate-skills` (skill front matter) and `tests/update-codex-plugins-test.sh` alongside the existing shell-syntax and transcript smokes.
 - Removed the broken `skills/video-use` symlink; its target repo (`~/Projects/video-use`) no longer exists. Dropped it from the README skill list.

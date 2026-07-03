@@ -59,7 +59,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-codex-plugins.sh`, `update-skills.sh`, then `update-visual-explainer.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-codex-plugins.sh`, `update-skills.sh`, `update-visual-explainer.sh`, then `update-khazix-skills.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/update-agents.sh`
@@ -77,6 +77,9 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 `scripts/update-visual-explainer.sh`
 - Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, links the skill into `~/.codex/skills` with a relative symlink (`../../visual-explainer/plugins/visual-explainer`), and copies its prompt templates into `~/.codex/prompts`.
+
+`scripts/update-khazix-skills.sh`
+- Clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink (`../../khazix-skills/neat-freak`).
 
 `scripts/committer`
 - Stages exactly the listed files.
