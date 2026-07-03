@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-03 — claude-mem Updater
+- Added `scripts/update-claude-mem.sh`: installs/updates `thedotmack/claude-mem` for both Claude Code (marketplace `thedotmack`, `claude plugin marketplace add/update` + `claude plugin install/update`) and Codex (marketplace `claude-mem-local`, `codex plugin marketplace add/upgrade` + `codex plugin add`) purely via each CLI's plugin marketplace — no npx installer. Wired it into `scripts/update-all.sh` with its own summary line.
+
 ## 2026-07-03 — anthropic-skills Updater
 - Added `scripts/update-anthropic-skills.sh`: clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills` and links `frontend-design`, `docx`, `xlsx`, `pdf`, `pptx`, and `skill-creator` into `skills/` with tracked relative symlinks so they follow pulls. Wired it into `scripts/update-all.sh` with its own summary line.
 - `frontend-design` and `skill-creator` now link into `~/.agents/skills` (Codex-only, visual-explainer style): Claude Code ships both via plugins and reads only the shared `skills/` dir, while Codex reads `~/.agents/skills` directly, so Codex tracks the upstream clone without duplicating the plugins.

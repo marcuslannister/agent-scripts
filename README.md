@@ -81,6 +81,9 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 `scripts/update-anthropic-skills.sh`
 - Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, links `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` with tracked relative symlinks (`../../anthropic-skills/skills/<name>`), and links `frontend-design` + `skill-creator` into `~/.agents/skills` (Codex-only, `../../Projects/anthropic-skills/skills/<name>`): Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
 
+`scripts/update-claude-mem.sh`
+- Installs/updates `thedotmack/claude-mem` for Claude Code (marketplace `thedotmack`) and Codex (marketplace `claude-mem-local`) via each CLI's plugin marketplace commands; no npx installer. Both tools share one claude-mem worker and database under `~/.claude-mem`.
+
 `scripts/committer`
 - Stages exactly the listed files.
 - Enforces a non-empty commit message.
