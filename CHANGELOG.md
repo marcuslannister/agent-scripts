@@ -6,7 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## 2026-07-03 — anthropic-skills Updater
 - Added `scripts/update-anthropic-skills.sh`: clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills` and links `frontend-design`, `docx`, `xlsx`, `pdf`, `pptx`, and `skill-creator` into `skills/` with tracked relative symlinks so they follow pulls. Wired it into `scripts/update-all.sh` with its own summary line.
-- Moved `frontend-design` and `skill-creator` links out of the tracked repo skills into `~/Projects/codex-settings/skills` (Claude already ships both via plugins); gitignored their `skills/` paths since `codex-settings/skills` symlinks back to this repo's `skills/`.
+- Dropped the `frontend-design` and `skill-creator` links again: Claude Code ships both via plugins, and `codex-settings/skills` symlinks back to this repo's `skills/`, so personal copies only duplicated the plugins.
 
 ## 2026-07-03 — khazix-skills Updater
 - Added `scripts/update-khazix-skills.sh`: clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink so it follows pulls. Wired it into `scripts/update-all.sh` with its own summary line.
