@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install/update the visual-explainer plugin for Codex.
-# Keeps a persistent clone under ~/Projects (no /tmp), then links the skill into
-# ~/.codex/skills with a relative symlink so it tracks pulls, and copies prompt
-# templates into ~/.codex/prompts. Re-runnable; exits non-zero on failure.
-#
-# ~/.codex/skills resolves (via symlinks) to ~/Projects/agent-scripts/skills, so
-# the relative target ../../visual-explainer/plugins/visual-explainer reaches the
-# ~/Projects clone.
+# Install/update visual-explainer for Codex only.
+# Keeps a persistent clone under ~/Projects (no /tmp), then links it into
+# Codex's user skill root so it does not pass through Claude Code.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;33m>>> %s\033[0m\n' "$*"; }
@@ -17,9 +12,11 @@ warn()    { printf '\033[0;31m!!!\033[0m %s\n' "$*"; }
 REPO_URL="https://github.com/nicobailon/visual-explainer.git"
 CLONE_DIR="${HOME}/Projects/visual-explainer"
 PLUGIN_DIR="${CLONE_DIR}/plugins/visual-explainer"
-SKILL_LINK="${HOME}/.codex/skills/visual-explainer"
-SKILL_TARGET="../../visual-explainer/plugins/visual-explainer"
-PROMPT_DEST="${HOME}/.codex/prompts"
+CODEX_SKILLS_DIR="${HOME}/.agents/skills"
+CODEX_LINK="${CODEX_SKILLS_DIR}/visual-explainer"
+CODEX_TARGET="../../Projects/visual-explainer/plugins/visual-explainer"
+OLD_CODEX_LINK="${HOME}/.codex/visual-explainer"
+OLD_CODEX_TARGET="../Projects/visual-explainer/plugins/visual-explainer"
 
 section "Repo (nicobailon/visual-explainer)"
 if [ -d "${CLONE_DIR}/.git" ]; then
@@ -35,17 +32,14 @@ if [ ! -d "$PLUGIN_DIR" ]; then
   exit 1
 fi
 
-section "Installing skill"
-ln -snf "$SKILL_TARGET" "$SKILL_LINK"
-info "skill -> $SKILL_LINK -> $SKILL_TARGET"
-
-section "Installing prompt templates"
-mkdir -p "$PROMPT_DEST"
-if compgen -G "${PLUGIN_DIR}/commands/*.md" >/dev/null; then
-  cp "${PLUGIN_DIR}"/commands/*.md "$PROMPT_DEST"/
-  info "prompts -> $PROMPT_DEST"
-else
-  info "no command templates to copy"
+section "Installing Codex symlink"
+if [ -L "$OLD_CODEX_LINK" ] && [ "$(readlink "$OLD_CODEX_LINK")" = "$OLD_CODEX_TARGET" ]; then
+  unlink "$OLD_CODEX_LINK"
+  info "removed stale $OLD_CODEX_LINK"
 fi
+
+mkdir -p "$CODEX_SKILLS_DIR"
+ln -snf "$CODEX_TARGET" "$CODEX_LINK"
+info "visual-explainer -> $CODEX_LINK -> $CODEX_TARGET"
 
 section "visual-explainer done"

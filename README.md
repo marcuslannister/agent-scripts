@@ -73,7 +73,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Updates skills.sh-managed agent skills; bootstraps Waza (`tw93/Waza`) if missing, then `npx skills update --global`.
 
 `scripts/update-visual-explainer.sh`
-- Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, links the skill into `~/.codex/skills` with a relative symlink (`../../visual-explainer/plugins/visual-explainer`), and copies its prompt templates into `~/.codex/prompts`.
+- Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then links it at `~/.agents/skills/visual-explainer`, Codex's user skill root. Avoids shared Claude/Codex skill dirs.
 
 `scripts/update-khazix-skills.sh`
 - Clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink (`../../khazix-skills/neat-freak`).

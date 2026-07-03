@@ -15,6 +15,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - CI now runs `scripts/validate-skills` (skill front matter) alongside the existing shell-syntax and transcript smokes.
 - Removed the broken `skills/video-use` symlink; its target repo (`~/Projects/video-use`) no longer exists. Dropped it from the README skill list.
 
+## 2026-07-02 — Codex-only visual-explainer Link
+- Updated `scripts/update-visual-explainer.sh` to link visual-explainer under Codex's user skill root, `~/.agents/skills/visual-explainer`, and stop copying prompts or touching Claude Code.
+
 ## 2026-07-02 — Remove Codex Plugin Marketplace Updater
 - Removed the obsolete Codex plugin marketplace updater, its `update-all` step, and its test because Codex should not refresh Claude plugin marketplaces as if those plugins were directly usable.
 
