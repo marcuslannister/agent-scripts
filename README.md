@@ -37,7 +37,7 @@ skills/autoreview -> ../../agent-skills/skills/autoreview
 skills/discrawl -> ../../discrawl/.agents/skills/discrawl
 ```
 
-Current symlinked repo-owned skills include `birdclaw`, `discrawl`, `gog`, `imsg`, `slacrawl`, `video-use`, `wacli`, and `wacrawl`.
+Current symlinked repo-owned skills include `birdclaw`, `discrawl`, `gog`, `imsg`, `slacrawl`, `wacli`, and `wacrawl`.
 
 ## Agent Instructions
 

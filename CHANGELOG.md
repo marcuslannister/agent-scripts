@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-03 — CI Gates + Broken Skill Symlink
+- CI now runs `scripts/validate-skills` (skill front matter) and `tests/update-codex-plugins-test.sh` alongside the existing shell-syntax and transcript smokes.
+- Removed the broken `skills/video-use` symlink; its target repo (`~/Projects/video-use`) no longer exists. Dropped it from the README skill list.
+
 ## 2026-07-01 — visual-explainer Updater
 - Added `scripts/update-visual-explainer.sh`: clones/pulls `nicobailon/visual-explainer` under `~/Projects` (no `/tmp`), links the skill into `~/.codex/skills` with a relative symlink so it tracks pulls, and copies its prompt templates into `~/.codex/prompts`. Wired it into `scripts/update-all.sh` with its own summary line.
 
