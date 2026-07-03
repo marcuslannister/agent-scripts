@@ -79,7 +79,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink (`../../khazix-skills/neat-freak`).
 
 `scripts/update-anthropic-skills.sh`
-- Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills` and links `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` with tracked relative symlinks (`../../anthropic-skills/skills/<name>`). `frontend-design` and `skill-creator` are intentionally skipped: Claude Code ships both via plugins, and `codex-settings/skills` symlinks back to this `skills/` dir, so personal copies would duplicate them.
+- Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, links `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` with tracked relative symlinks (`../../anthropic-skills/skills/<name>`), and links `frontend-design` + `skill-creator` into `~/.agents/skills` (Codex-only, `../../Projects/anthropic-skills/skills/<name>`): Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
 
 `scripts/committer`
 - Stages exactly the listed files.
