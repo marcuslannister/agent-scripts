@@ -21,6 +21,7 @@ codex_plugins_status=0
 skills_status=0
 visual_explainer_status=0
 khazix_skills_status=0
+anthropic_skills_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -40,6 +41,9 @@ section "Updating visual-explainer"
 section "Updating khazix-skills"
 "$SCRIPT_DIR/update-khazix-skills.sh" || khazix_skills_status=$?
 
+section "Updating anthropic-skills"
+"$SCRIPT_DIR/update-anthropic-skills.sh" || anthropic_skills_status=$?
+
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "Claude plugins" "$plugins_status"
@@ -47,6 +51,7 @@ status_line "Codex plugin marketplaces" "$codex_plugins_status"
 status_line "agent skills" "$skills_status"
 status_line "visual-explainer" "$visual_explainer_status"
 status_line "khazix-skills" "$khazix_skills_status"
+status_line "anthropic-skills" "$anthropic_skills_status"
 
-(( agents_status != 0 || plugins_status != 0 || codex_plugins_status != 0 || skills_status != 0 || visual_explainer_status != 0 || khazix_skills_status != 0 )) && exit 1
+(( agents_status != 0 || plugins_status != 0 || codex_plugins_status != 0 || skills_status != 0 || visual_explainer_status != 0 || khazix_skills_status != 0 || anthropic_skills_status != 0 )) && exit 1
 exit 0
