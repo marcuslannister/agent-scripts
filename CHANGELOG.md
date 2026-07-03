@@ -17,6 +17,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## 2026-07-03 — CI Gates + Broken Skill Symlink
 - CI now runs `scripts/validate-skills` (skill front matter) alongside the existing shell-syntax and transcript smokes.
 - Removed the broken `skills/video-use` symlink; its target repo (`~/Projects/video-use`) no longer exists. Dropped it from the README skill list.
+- Removed the broken `skills/improve-claude-md` symlink; its target (`~/.agents/skills/improve-claude-md`) no longer exists (superseded by the `review-claudemd` skill).
 
 ## 2026-07-02 — Codex-only visual-explainer Link
 - Updated `scripts/update-visual-explainer.sh` to link visual-explainer under Codex's user skill root, `~/.agents/skills/visual-explainer`, and stop copying prompts or touching Claude Code.
