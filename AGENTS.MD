@@ -67,7 +67,7 @@ Personal global rules. Apply to every task unless explicitly overridden. Bias: c
 
 ## Pull requests, issues, CI
 
-- GitHub broad reads: prefer shimmed `gh` / `gitcrawl gh` first. Raw `gh api search/* -f ...` needs `--method GET`; gitcrawl shim sanitizes this.
+- GitHub broad reads: raw `gh api search/* -f ...` needs `--method GET`.
 - Pasted GitHub issue/PR: first `git status -sb`; if dirty, yell; then `git push` + `git pull --ff-only`.
 - PR refs: use `gh pr view/diff`, not web search.
 - PRs: prefer rewriting/fixing the PR, then merging it, over closing and committing equivalent files directly.

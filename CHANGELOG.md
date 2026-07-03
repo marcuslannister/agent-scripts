@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-03 — Rules Cleanup
+- Removed the dead `gitcrawl gh` shim reference from `AGENTS.MD` (tool no longer exists on this machine); kept the standalone `gh api search/* --method GET` rule. Synced the same edit into `codex-settings/AGENTS.md`.
+
 ## 2026-07-03 — claude-mem Updater
 - Added `scripts/update-claude-mem.sh`: installs/updates `thedotmack/claude-mem` for both Claude Code (marketplace `thedotmack`, `claude plugin marketplace add/update` + `claude plugin install/update`) and Codex (marketplace `claude-mem-local`, `codex plugin marketplace add/upgrade` + `codex plugin add`) purely via each CLI's plugin marketplace — no npx installer. Wired it into `scripts/update-all.sh` with its own summary line.
 
