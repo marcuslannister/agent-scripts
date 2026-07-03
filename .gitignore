@@ -7,3 +7,5 @@ bin/*
 !bin/git
 !bin/rm
 skills/.system/
+skills/frontend-design
+skills/skill-creator
