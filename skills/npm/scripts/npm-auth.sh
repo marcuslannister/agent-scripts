@@ -32,6 +32,9 @@ resolve_op_item() {
     op_item_get() {
       env -u OP_SERVICE_ACCOUNT_TOKEN op item get "$ITEM" --account "$ACCOUNT" "$@"
     }
+    op_item_edit_json() {
+      env -u OP_SERVICE_ACCOUNT_TOKEN op item edit "$ITEM" --account "$ACCOUNT" >/dev/null
+    }
     echo "1Password access: desktop ($ACCOUNT)"
   else
     if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
@@ -42,9 +45,30 @@ resolve_op_item() {
     op_item_get() {
       op item get "$ITEM" --vault "$VAULT" "$@"
     }
+    op_item_edit_json() {
+      op item edit "$ITEM" --vault "$VAULT" >/dev/null
+    }
     echo "1Password access: service account"
   fi
   echo "op auth ok; reading npm item once: $ITEM"
+}
+
+# Persist a newly created registry session through an all-JSON pipeline. The
+# token stays out of argv, logs, and extra files; a failed cache write does not
+# invalidate the already-authenticated command.
+persist_registry_token() {
+  if ! printf '%s' "$ITEM_JSON" |
+    node "$SCRIPT_DIR/npm-auth-cache.mjs" update "$NPMRC" "$REGISTRY" |
+    op_item_edit_json; then
+    echo "warning: npm auth works, but registry session cache update failed" >&2
+    return 1
+  fi
+  if ! op_item_get --format json |
+    node "$SCRIPT_DIR/npm-auth-cache.mjs" verify "$NPMRC" "$REGISTRY"; then
+    echo "warning: npm auth works, but registry session cache verification failed" >&2
+    return 1
+  fi
+  echo "npm auth: cached registry session in 1Password"
 }
 
 # Writes an authenticated NPMRC. Reuses the stored registry_token session when
@@ -82,6 +106,7 @@ ensure_npm_auth() {
   }
   redact <"$login_log"
   LOGIN_USED_OTP=1
+  persist_registry_token || true
 }
 
 # npm publish rejects the TOTP already consumed by loginCouch; wait out the

@@ -18,7 +18,7 @@ Use for npm registry/account tasks: `npm whoami`, package availability, package 
 - Stop and ask if the item is missing, the account/vault is ambiguous, credentials are malformed, npm denies package access, or the requested package/version does not match the repo release target.
 - Run npm auth work inside one persistent tmux session. Reuse it on failure.
 - Keep npm auth in a temp npmrc; delete it after the command.
-- All helpers share `scripts/npm-auth.sh`: stored `registry_token` session first, then `scripts/npm-auth-login.mjs` registry login with a fresh six-digit OTP. Do not hand-roll field extraction or registry login.
+- All helpers share `scripts/npm-auth.sh`: stored `registry_token` session first, then `scripts/npm-auth-login.mjs` registry login with a fresh six-digit OTP; successful fallback sessions are cached back to the same item. Do not hand-roll field extraction, registry login, or cache writes.
 - Credential selection prefers canonical field `id`, then `purpose`, then a unique label; duplicate label-only matches are rejected (legacy `npmjs` may retain same-label fields).
 - For ad-hoc authenticated registry commands, use `scripts/npm-service.sh -- <npm args...>`; use `publish-package.sh` for a local package.
 - npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy`.

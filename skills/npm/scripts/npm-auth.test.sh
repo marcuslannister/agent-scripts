@@ -37,4 +37,20 @@ result="$(
 )"
 test "$result" = "steipete"
 
+ITEM_JSON='{"fields":[{"label":"username","value":"owner"},{"label":"registry_token","type":"CONCEALED","value":"stale-token"}]}'
+op_item_edit_json() {
+  cat >"$TEST_ROOT/updated-item.json"
+}
+op_item_get() {
+  cat "$TEST_ROOT/updated-item.json"
+}
+cache_output="$(persist_registry_token)"
+test "$cache_output" = "npm auth: cached registry session in 1Password"
+node -e '
+const fs = require("fs");
+const item = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+const token = item.fields.find(field => field.label === "registry_token");
+if (token?.value !== "fresh-token" || token?.type !== "CONCEALED") process.exit(1);
+' "$TEST_ROOT/updated-item.json"
+
 echo "npm auth isolation and token handling: ok"

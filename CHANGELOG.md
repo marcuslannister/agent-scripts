@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-04 — npm Session Cache
+- Cached newly created npm registry sessions back to the Molty 1Password item through a verified JSON-only update, eliminating repeated TOTP logins across Macs without exposing the token in arguments or logs.
+
 ## 2026-07-04 — Shared Skill Exposure
 - Exposed the remaining public `agent-skills` skills (`behavior-validator`, `session-viewer`) as tracked symlinks so the per-machine mirror serves them alongside `crabbox`.
 
