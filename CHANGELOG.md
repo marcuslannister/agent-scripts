@@ -11,7 +11,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Made the maintainer-orchestrator public gate forward-looking (never preemptive), moved worker thread titles to root-only mutation with explicit thread ids, and refreshed the non-majority repository snapshot.
 
 ## 2026-07-03 — Canonical Test Email
-- Fixed the shared test email to `clawdbot@gmail.com`; the `gog+clawdbot@gmail.com` alias never existed.
+- Fixed the shared test email to `clawdbot@gmail.com`; the previous `gog+` alias never existed.
 
 ## 2026-07-03 — Claude Skill Mirror
 - Added `scripts/sync-skills`: builds the per-machine skill mirror (Codex whole-root links, flat per-skill Claude links with agent-scripts > manager > codex-local priority, shared `AGENTS.MD` pointers) since Claude Code only scans `~/.claude/skills` one level deep; documented the layout in the README.
