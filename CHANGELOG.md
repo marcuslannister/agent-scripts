@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-04 — Crabbox Skill Mirror Exposure
+- Exposed the shared `crabbox` skill as a tracked symlink (`skills/crabbox -> ../../agent-skills/skills/crabbox`) so the per-machine mirror serves `$crabbox` again; the link was never added when the skill landed in `agent-skills`, and the 2026-07-04 sync-skills mirror rebuild made the gap user-visible.
+
 ## 2026-07-03 — npm Service-Account Auth
 - Unified the npm helpers on a shared `npm-auth.sh`: Molty service-account item by default with stored registry-session reuse, hardened `npm-auth-login.mjs` login fallback, explicit `--account` desktop fallback, and a generic `npm-service.sh` wrapper for authenticated npm commands.
 
