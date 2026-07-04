@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-04 — Engineering Skills Config
+- Ran `/setup-matt-pocock-skills`: added project-scoped `CLAUDE.md` (root `AGENTS.MD` stays global-only) with the `## Agent skills` pointer block, plus `docs/agents/{issue-tracker,triage-labels,domain}.md` — GitHub Issues via `gh` (external PRs not a triage surface), default five-label triage vocabulary, single-context domain docs.
+
 ## 2026-07-03 — Rules Cleanup
 - Removed the dead `gitcrawl gh` shim reference from `AGENTS.MD` (tool no longer exists on this machine); kept the standalone `gh api search/* --method GET` rule. Synced the same edit into `codex-settings/AGENTS.md`.
 
