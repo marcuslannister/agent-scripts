@@ -70,7 +70,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Updates all Claude Code marketplaces and installed plugins.
 
 `scripts/update-skills.sh`
-- Updates skills.sh-managed agent skills; bootstraps Waza (`tw93/Waza`) if missing, then `npx skills update --global`.
+- Updates skills.sh-managed agent skills; bootstraps Waza (`tw93/Waza`) and Matt Pocock's skills (`mattpocock/skills`, `--agent codex` only) if missing, then `npx skills update --global`. Claude Code gets a curated subset of Matt's skills via tracked symlinks in `skills/` instead of blanket CLI links, so built-in/Waza equivalents aren't duplicated.
 
 `scripts/update-visual-explainer.sh`
 - Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then links it at `~/.agents/skills/visual-explainer`, Codex's user skill root. Avoids shared Claude/Codex skill dirs.
