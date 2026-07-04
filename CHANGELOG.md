@@ -8,6 +8,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Replaced the repo's own `handoff` skill with a symlink to Matt Pocock's `handoff` (`~/.agents/skills/handoff`, installed by the skills CLI); the old version remains in git history.
 - Ran `/setup-matt-pocock-skills`: added project-scoped `CLAUDE.md` (root `AGENTS.MD` stays global-only) with the `## Agent skills` pointer block, plus `docs/agents/{issue-tracker,triage-labels,domain}.md` — GitHub Issues via `gh` (external PRs not a triage surface), default five-label triage vocabulary, single-context domain docs.
 
+## 2026-07-04 — Windows Update Script Fixes
+- Updated Claude plugin refresh to parse installed plugins with `jq`; added a shared link helper for update-all skill refreshes that uses tracked Git symlink entries for repo skills and guarded copy fallback for Codex-only skill links; skipped Codex npm/plugin reinstalls when the installed version already matches; retried transient Codex marketplace refresh failures.
+
 ## 2026-07-03 — Rules Cleanup
 - Removed the dead `gitcrawl gh` shim reference from `AGENTS.MD` (tool no longer exists on this machine); kept the standalone `gh api search/* --method GET` rule. Synced the same edit into `codex-settings/AGENTS.md`.
 

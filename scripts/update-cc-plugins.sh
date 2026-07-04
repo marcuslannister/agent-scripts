@@ -19,42 +19,56 @@ info "All marketplaces updated"
 
 # 2. Update all installed plugins
 section "Updating plugins"
-python3 - <<'EOF'
-import json, subprocess, sys
-from pathlib import Path
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required to parse $PLUGINS_JSON" >&2
+  exit 1
+fi
+if [ ! -f "$PLUGINS_JSON" ]; then
+  echo "plugins file missing: $PLUGINS_JSON" >&2
+  exit 1
+fi
 
-plugins_file = Path.home() / ".claude/plugins/installed_plugins.json"
-data = json.loads(plugins_file.read_text())
+plugin_list="$(jq -r '.plugins // {} | keys[]' "$PLUGINS_JSON")"
+plugin_keys=()
+if [ -n "$plugin_list" ]; then
+  while IFS= read -r plugin_key; do
+    plugin_keys+=("$plugin_key")
+  done <<< "$plugin_list"
+fi
 
-ok, not_found, failed = [], [], []
-for plugin_key in data["plugins"]:
-    print(f"  Updating {plugin_key}...", end=" ", flush=True)
-    result = subprocess.run(
-        ["claude", "plugin", "update", plugin_key],
-        capture_output=True, text=True
-    )
-    if result.returncode == 0:
-        print("ok")
-        ok.append(plugin_key)
-    else:
-        msg = (result.stderr or result.stdout).strip()
-        if "not found" in msg.lower():
-            print("skipped (not found in marketplace)")
-            not_found.append((plugin_key, msg))
-        else:
-            print(f"FAILED ({msg})")
-            failed.append((plugin_key, msg))
+ok=0
+not_found=()
+failed=()
+for plugin_key in "${plugin_keys[@]}"; do
+  printf '  Updating %s... ' "$plugin_key"
+  if output="$(claude plugin update "$plugin_key" 2>&1)"; then
+    printf 'ok\n'
+    ok=$((ok + 1))
+  else
+    msg="${output//$'\r'/}"
+    if printf '%s' "$msg" | grep -qi 'not found'; then
+      printf 'skipped (not found in marketplace)\n'
+      not_found+=("$plugin_key")
+    else
+      printf 'FAILED (%s)\n' "$msg"
+      failed+=("$plugin_key"$'\t'"$msg")
+    fi
+  fi
+done
 
-print(f"\nResults: {len(ok)} updated, {len(not_found)} skipped, {len(failed)} failed")
-if not_found:
-    print("Skipped (no longer in marketplace — consider uninstalling):")
-    for name, _ in not_found:
-        print(f"  - {name}")
-if failed:
-    print("Failed:")
-    for name, msg in failed:
-        print(f"  - {name}: {msg}")
-    sys.exit(1)
-EOF
+printf '\nResults: %d updated, %d skipped, %d failed\n' "$ok" "${#not_found[@]}" "${#failed[@]}"
+if [ "${#not_found[@]}" -gt 0 ]; then
+  printf 'Skipped (no longer in marketplace — consider uninstalling):\n'
+  for plugin_key in "${not_found[@]}"; do
+    printf '  - %s\n' "$plugin_key"
+  done
+fi
+if [ "${#failed[@]}" -gt 0 ]; then
+  printf 'Failed:\n'
+  for entry in "${failed[@]}"; do
+    printf '  - %s: %s\n' "${entry%%$'\t'*}" "${entry#*$'\t'}"
+  done
+  exit 1
+fi
 
 section "Done — restart Claude Code to apply updates"

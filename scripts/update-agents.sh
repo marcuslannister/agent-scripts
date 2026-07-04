@@ -20,8 +20,16 @@ else
 fi
 
 section "Codex CLI"
-info "current: $(codex --version 2>/dev/null || echo unknown)"
-if npm install -g @openai/codex; then
+current_codex="$(codex --version 2>/dev/null || echo unknown)"
+current_codex_version="${current_codex##* }"
+latest_codex_version="$(npm view @openai/codex version 2>/dev/null || true)"
+latest_codex_version="${latest_codex_version//$'\r'/}"
+info "current: $current_codex"
+if [ -n "$latest_codex_version" ] && [ "$current_codex_version" = "$latest_codex_version" ]; then
+  info "latest:  $latest_codex_version"
+  info "codex already up to date; skipping npm install"
+  info "now:     $(codex --version 2>/dev/null || echo unknown)"
+elif npm install -g @openai/codex; then
   info "now:     $(codex --version 2>/dev/null || echo unknown)"
 else
   warn "codex update failed"

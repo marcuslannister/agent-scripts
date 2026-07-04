@@ -18,9 +18,13 @@ info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;33m>>> %s\033[0m\n' "$*"; }
 warn()    { printf '\033[0;31m!!!\033[0m %s\n' "$*"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/lib-links.sh"
+
 REPO_URL="https://github.com/anthropics/skills.git"
 CLONE_DIR="${HOME}/Projects/anthropic-skills"
-SKILLS_DIR="$(cd "$(dirname "$0")/../skills" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SKILLS_DIR="${REPO_ROOT}/skills"
 SKILLS=(docx xlsx pdf pptx)
 AGENTS_SKILLS_DIR="${HOME}/.agents/skills"
 AGENTS_SKILLS=(frontend-design skill-creator)
@@ -42,7 +46,7 @@ for skill in "${SKILLS[@]}"; do
     failed=1
     continue
   fi
-  ln -snf "../../anthropic-skills/skills/${skill}" "${SKILLS_DIR}/${skill}"
+  install_tracked_repo_symlink "$REPO_ROOT" "${SKILLS_DIR}/${skill}" "../../anthropic-skills/skills/${skill}"
   info "skill -> ${SKILLS_DIR}/${skill} -> ../../anthropic-skills/skills/${skill}"
 done
 
@@ -54,14 +58,19 @@ for skill in "${AGENTS_SKILLS[@]}"; do
     failed=1
     continue
   fi
+  source_dir="${CLONE_DIR}/skills/${skill}"
+  target="../../Projects/anthropic-skills/skills/${skill}"
   link="${AGENTS_SKILLS_DIR}/${skill}"
-  if [ -e "$link" ] && [ ! -L "$link" ]; then
-    warn "not a symlink, refusing to replace: $link"
-    failed=1
-    continue
+  if install_external_skill_link "$source_dir" "$target" "$link"; then
+    info "skill -> $link -> $target"
+  else
+    install_status=$?
+    if [ "$install_status" -eq 2 ]; then
+      info "skill -> $link (copied from $source_dir; symlink unavailable)"
+    else
+      failed=1
+    fi
   fi
-  ln -snf "../../Projects/anthropic-skills/skills/${skill}" "$link"
-  info "skill -> $link -> ../../Projects/anthropic-skills/skills/${skill}"
 done
 
 [ "$failed" -eq 0 ] || exit 1

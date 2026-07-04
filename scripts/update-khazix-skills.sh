@@ -13,9 +13,13 @@ info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;33m>>> %s\033[0m\n' "$*"; }
 warn()    { printf '\033[0;31m!!!\033[0m %s\n' "$*"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/lib-links.sh"
+
 REPO_URL="https://github.com/KKKKhazix/khazix-skills.git"
 CLONE_DIR="${HOME}/Projects/khazix-skills"
-SKILLS_DIR="$(cd "$(dirname "$0")/../skills" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SKILLS_DIR="${REPO_ROOT}/skills"
 SKILL_LINK="${SKILLS_DIR}/neat-freak"
 SKILL_TARGET="../../khazix-skills/neat-freak"
 
@@ -34,7 +38,7 @@ if [ ! -f "${CLONE_DIR}/neat-freak/SKILL.md" ]; then
 fi
 
 section "Installing skill"
-ln -snf "$SKILL_TARGET" "$SKILL_LINK"
+install_tracked_repo_symlink "$REPO_ROOT" "$SKILL_LINK" "$SKILL_TARGET"
 info "skill -> $SKILL_LINK -> $SKILL_TARGET"
 
 section "khazix-skills done"
