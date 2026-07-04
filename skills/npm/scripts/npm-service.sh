@@ -8,9 +8,11 @@ usage() {
 Usage:
   npm-service.sh [--vault VAULT] [--item ITEM] [--account ACCOUNT] -- <npm args...>
 
-Runs one authenticated npm command with credentials from 1Password. Defaults to
-the Molty service-account item. --account opts into an interactive desktop-vault
-fallback.
+Runs one authenticated npm registry command with credentials from 1Password.
+Commands run from an isolated temporary directory so caller-local npm config
+cannot override auth. Use publish-package.sh for publishing a local package.
+Defaults to the Molty service-account item. --account opts into an interactive
+desktop-vault fallback.
 
 Defaults:
   vault:    Molty
@@ -96,7 +98,7 @@ resolve_op_item
 ensure_npm_auth
 unset ITEM_JSON
 
-who="$(NPM_CONFIG_USERCONFIG="$NPMRC" npm whoami --registry "$REGISTRY" 2>"$WORK/npm-whoami.log" || true)"
+who="$(npm_auth_whoami 2>"$WORK/npm-whoami.log" || true)"
 if [ -z "$who" ]; then
   echo "npm auth check failed" >&2
   redact <"$WORK/npm-whoami.log" >&2
@@ -106,10 +108,10 @@ echo "npm auth ok as $who"
 
 COMMAND_OTP="$(fresh_command_otp)"
 if [[ "$COMMAND_OTP" =~ ^[0-9]{6}$ ]]; then
-  NPM_CONFIG_USERCONFIG="$NPMRC" NPM_CONFIG_OTP="$COMMAND_OTP" npm --registry "$REGISTRY" "${ARGS[@]}"
+  NPM_CONFIG_OTP="$COMMAND_OTP" npm_authenticated "${ARGS[@]}"
 elif [ "$LOGIN_USED_OTP" -eq 1 ]; then
   echo "could not obtain a fresh npm OTP after registry login" >&2
   exit 5
 else
-  NPM_CONFIG_USERCONFIG="$NPMRC" npm --registry "$REGISTRY" "${ARGS[@]}"
+  npm_authenticated "${ARGS[@]}"
 fi

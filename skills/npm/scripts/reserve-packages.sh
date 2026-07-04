@@ -111,7 +111,7 @@ resolve_op_item
 ensure_npm_auth
 unset ITEM_JSON
 
-who="$(NPM_CONFIG_USERCONFIG="$NPMRC" npm whoami 2>"$WORK/npm-whoami.log" || true)"
+who="$(npm_auth_whoami 2>"$WORK/npm-whoami.log" || true)"
 if [ -z "$who" ]; then
   echo "npm auth check failed" >&2
   redact <"$WORK/npm-whoami.log" >&2
@@ -129,11 +129,11 @@ EOF
 
 reserve_pkg() {
   local name="$1"
-  if NPM_CONFIG_USERCONFIG="$NPMRC" npm view "$name" version >/dev/null 2>&1; then
+  if npm_authenticated view "$name" version >/dev/null 2>&1; then
     echo "already taken: $name"
     return 0
   fi
-  if NPM_CONFIG_USERCONFIG="$NPMRC" npm access get status "$name" >/dev/null 2>&1; then
+  if npm_authenticated access get status "$name" >/dev/null 2>&1; then
     echo "already reserved: $name"
     return 0
   fi
@@ -161,7 +161,7 @@ EOF
   local log="$WORK/npm-publish-$safe_name.log"
   local otp
   otp="$(current_otp)"
-  if [ -n "$otp" ] && (cd "$dir" && NPM_CONFIG_USERCONFIG="$NPMRC" NPM_CONFIG_OTP="$otp" npm publish --access public >"$log" 2>&1); then
+  if [ -n "$otp" ] && NPM_CONFIG_OTP="$otp" npm_authenticated publish "$dir" --access public >"$log" 2>&1; then
     echo "published: $name"
     return 0
   fi
@@ -170,7 +170,7 @@ EOF
     echo "publish needs/failed OTP for $name; retrying once with fresh OTP" >&2
     sleep 31
     otp="$(current_otp)"
-    if [ -n "$otp" ] && (cd "$dir" && NPM_CONFIG_USERCONFIG="$NPMRC" NPM_CONFIG_OTP="$otp" npm publish --access public >"$log" 2>&1); then
+    if [ -n "$otp" ] && NPM_CONFIG_OTP="$otp" npm_authenticated publish "$dir" --access public >"$log" 2>&1; then
       echo "published: $name"
       return 0
     fi

@@ -13,6 +13,16 @@ current_otp() {
   op_item_get --otp 2>/dev/null | tr -d '[:space:]' || true
 }
 
+# Run registry operations away from caller-local npm config. The token stays in
+# the temporary npmrc instead of entering argv or the lifecycle environment.
+npm_authenticated() {
+  (cd "$WORK" && NPM_CONFIG_USERCONFIG="$NPMRC" npm --registry "$REGISTRY" "$@")
+}
+
+npm_auth_whoami() {
+  npm_authenticated whoami
+}
+
 # Reads the item JSON exactly once and defines op_item_get for OTP refreshes.
 # env -u keeps the service token out of desktop op calls.
 resolve_op_item() {
@@ -50,7 +60,7 @@ ensure_npm_auth() {
     local auth_host="${REGISTRY#*://}"
     auth_host="${auth_host%%/*}"
     printf '//%s/:_authToken=%s\n' "$auth_host" "$token" >"$NPMRC"
-    if NPM_CONFIG_USERCONFIG="$NPMRC" npm whoami --registry "$REGISTRY" >/dev/null 2>&1; then
+    if npm_auth_whoami >/dev/null 2>&1; then
       echo "npm auth: reused stored registry session"
       return 0
     fi

@@ -54,6 +54,7 @@ done
 test -f package.json || { echo "package.json not found in current directory" >&2; exit 2; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$PWD"
 WORK="$(mktemp -d /tmp/npm-publish.XXXXXX)"
 NPMRC="$WORK/npmrc"
 # shellcheck disable=SC2329 # invoked via trap EXIT
@@ -77,7 +78,7 @@ resolve_op_item
 ensure_npm_auth
 unset ITEM_JSON
 
-who="$(NPM_CONFIG_USERCONFIG="$NPMRC" npm whoami 2>"$WORK/npm-whoami.log" || true)"
+who="$(npm_auth_whoami 2>"$WORK/npm-whoami.log" || true)"
 if [ -z "$who" ]; then
   echo "npm auth check failed" >&2
   redact <"$WORK/npm-whoami.log" >&2
@@ -87,12 +88,12 @@ echo "npm auth ok as $who"
 
 publish_log="$WORK/npm-publish.log"
 otp="$(fresh_command_otp)"
-if ! NPM_CONFIG_USERCONFIG="$NPMRC" NPM_CONFIG_OTP="$otp" npm publish --access "$ACCESS" --tag "$TAG" >"$publish_log" 2>&1; then
+if ! NPM_CONFIG_OTP="$otp" npm_authenticated publish "$PACKAGE_DIR" --access "$ACCESS" --tag "$TAG" >"$publish_log" 2>&1; then
   if grep -qiE 'otp|one-time|two-factor|2fa|EOTP' "$publish_log"; then
     echo "publish OTP expired; retrying once with a fresh OTP" >&2
     sleep 31
     otp="$(current_otp)"
-    NPM_CONFIG_USERCONFIG="$NPMRC" NPM_CONFIG_OTP="$otp" npm publish --access "$ACCESS" --tag "$TAG" >"$publish_log" 2>&1 || {
+    NPM_CONFIG_OTP="$otp" npm_authenticated publish "$PACKAGE_DIR" --access "$ACCESS" --tag "$TAG" >"$publish_log" 2>&1 || {
       redact <"$publish_log" >&2
       exit 6
     }

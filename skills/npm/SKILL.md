@@ -20,7 +20,7 @@ Use for npm registry/account tasks: `npm whoami`, package availability, package 
 - Keep npm auth in a temp npmrc; delete it after the command.
 - All helpers share `scripts/npm-auth.sh`: stored `registry_token` session first, then `scripts/npm-auth-login.mjs` registry login with a fresh six-digit OTP. Do not hand-roll field extraction or registry login.
 - Credential selection prefers canonical field `id`, then `purpose`, then a unique label; duplicate label-only matches are rejected (legacy `npmjs` may retain same-label fields).
-- For ad-hoc authenticated npm commands, use `scripts/npm-service.sh -- <npm args...>`.
+- For ad-hoc authenticated registry commands, use `scripts/npm-service.sh -- <npm args...>`; use `publish-package.sh` for a local package.
 - npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy`.
 - Avoid `expect` for npm login unless necessary; logs can echo prompts and are easy to get wrong.
 - Prefer the helper's registry API login path (`npm-profile` `loginCouch`) for automation.
