@@ -234,9 +234,20 @@ Dependency freshness is a backstop, not higher priority than real queue or relea
 
 Always perform a dependency-freshness check before closing a repository work batch or proposing a release. Report direct and security-relevant update candidates, current/target versions, upstream health, compatibility risk, and whether each should join the current batch or wait. Do not silently skip the check because queue work existed.
 
+## Dependency Autonomy
+
+- Treat dependency updates and dependency PRs as autonomous maintenance. Never ask the owner whether to adopt, repair, publish, or land an otherwise supported dependency update.
+- Prefer the latest stable direct and security-relevant transitive dependencies, GitHub Actions, runtimes, and toolchains compatible with the repository. Major updates are normal technical work: inspect upstream source, release notes, migration requirements, and health; make required compatibility changes; prove behavior; and land when supported.
+- Preserve an established prerelease, nightly, or pinned-channel policy. Do not introduce a prerelease channel into a stable repository merely because it is newer, and honor explicit repository stabilization or compatibility constraints.
+- Prefer repairing and landing existing contributor or dependency-bot PRs with credit intact. Combine related updates only when one coherent candidate materially improves compatibility or proof.
+- Run repository-native tests, built/live proof appropriate to the changed boundary, dependency/security audit, AutoReview, exact-head CI, and the Public Model Identifier Gate when applicable. Fix failures autonomously and continue through merge and clean synchronized `main`.
+- Escalate only a remaining non-dependency exception: destructive unique-work handling, unavailable required credential/live target, release/version/tag/publish authority, or a material product/security/privacy/irreversible choice with no safe reversible default. Dependency age, major-version status, migration effort, or a failing first attempt are not owner decisions.
+
 ## Authorization
 
 The owner grants standing autonomous authority for in-scope repository queue work coordinated by this session. Project Codex app threads may synchronize clean checkouts; edit; create branches; commit; push; open or update PRs; write proof/review/close comments; approve, rerun, and repair CI; merge supported exact-head green changes; close resolved or invalid items; and return to synchronized clean `main`. Do not request per-item permission to implement, repair, improve, rewrite, publish a PR, fix CI, or land clearly supported work.
+
+This standing authority explicitly includes dependency PRs and proactive dependency updates, including compatible major-version migrations and related code/test/documentation repairs. Default to the latest stable compatible versions and do not route dependency adoption or landing through the owner-decision queue.
 
 This standing authority does not include:
 
