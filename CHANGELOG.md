@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-04 — Matt Skills as Untracked Copies
+- Reworked Matt Pocock skill distribution: dropped the 22 tracked symlinks from `skills/`; new `scripts/update-mattpocock-skills.sh` (wired into `update-all.sh`) bootstraps `mattpocock/skills` with `--agent codex` and rsyncs all its entries (34, per the CLI lock file) from `~/.agents/skills` into `skills/` as gitignored copies for Claude Code, regenerating a `# matt-skills` block in `.gitignore` each run. Only `code-review` stays Codex-only (collides with Claude's built-in `/code-review`); `update-skills.sh` was renamed to `update-waza-skills.sh` and is back to Waza bootstrap + global update only.
+
 ## 2026-07-04 — Engineering Skills Config
 - `update-skills.sh` now bootstraps `mattpocock/skills` (Codex-only via `--agent codex`): canonical copies in `~/.agents/skills` serve Codex; the CLI no longer writes Claude links (the 37 blanket links were removed). Claude Code instead gets a curated set of 21 tracked symlinks in `skills/` — the full engineering suite plus `tdd`, `teach`, `wizard`, `ask-matt`, `claude-handoff` — while the rest stay Codex-only: `code-review` (built-in clash), `obsidian-vault` (vs `obsidian`), `edit-article`/`writing-*` (vs Waza `write`), `grilling`/`grill-*` (vs Waza `think`), `research` (vs Waza `learn`), `loop-me` (vs built-in `loop`), `writing-great-skills` (vs `skill-creator`), `git-guardrails-claude-code` (repo has its own guardrails), and the TypeScript-course-specific `scaffold-exercises`/`migrate-to-shoehorn`/`setup-pre-commit`.
 - Replaced the repo's own `handoff` skill with a symlink to Matt Pocock's `handoff` (`~/.agents/skills/handoff`, installed by the skills CLI); the old version remains in git history.

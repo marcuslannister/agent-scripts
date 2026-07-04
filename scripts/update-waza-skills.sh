@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Update skills.sh-managed agent skills (Waza, Matt Pocock, et al.).
-# Bootstraps missing packages, then refreshes all global skills.
-# mattpocock/skills installs with --agent codex only: the canonical copies in
-# ~/.agents/skills serve Codex directly, and Claude Code is skipped on purpose
-# (it already ships overlapping skills — built-in code-review, obsidian, the
-# Waza write suite — so blanket links would duplicate them).
+# Update Waza and refresh all skills.sh-managed agent skills.
+# Bootstraps the Waza package (tw93/Waza) if missing, then runs the CLI's
+# global update — which refreshes every skills.sh-managed package, including
+# mattpocock/skills' canonical copies (its bootstrap and Claude-side copy sync
+# live in update-mattpocock-skills.sh, which must run after this).
 # Exits non-zero if any step fails.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
@@ -39,19 +38,6 @@ else
   fi
 fi
 
-section "Matt Pocock skills (mattpocock/skills, Codex-only)"
-if [ -f "$LOCK" ] && grep -q 'mattpocock/skills' "$LOCK"; then
-  info "already installed"
-else
-  info "installing"
-  if run_skills add mattpocock/skills --skill '*' --agent codex --global --yes; then
-    info "mattpocock/skills installed"
-  else
-    warn "mattpocock/skills install failed"
-    fail=1
-  fi
-fi
-
 section "Updating global skills"
 if run_skills update --global --yes; then
   info "skills updated"
@@ -60,5 +46,5 @@ else
   fail=1
 fi
 
-section "Agent skills done"
+section "waza-skills done"
 exit $fail

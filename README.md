@@ -59,7 +59,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, then `update-anthropic-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-waza-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, then `update-mattpocock-skills.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/update-agents.sh`
@@ -69,8 +69,11 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 `scripts/update-cc-plugins.sh`
 - Updates all Claude Code marketplaces and installed plugins.
 
-`scripts/update-skills.sh`
-- Updates skills.sh-managed agent skills; bootstraps Waza (`tw93/Waza`) and Matt Pocock's skills (`mattpocock/skills`, `--agent codex` only) if missing, then `npx skills update --global`. Claude Code gets a curated subset of Matt's skills via tracked symlinks in `skills/` instead of blanket CLI links, so built-in/Waza equivalents aren't duplicated.
+`scripts/update-waza-skills.sh`
+- Bootstraps Waza (`tw93/Waza`) if missing, then `npx skills update --global` — which refreshes every skills.sh-managed package, including Matt Pocock's canonical copies.
+
+`scripts/update-mattpocock-skills.sh`
+- Installs/updates Matt Pocock's skills: bootstraps `mattpocock/skills` (`--agent codex`, canonical copies in `~/.agents/skills` for Codex) if missing, then rsyncs every Matt skill into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in) and regenerates a marker-delimited `# matt-skills` block in `.gitignore` so the copies never enter the repo. Runs after `update-waza-skills.sh`, which refreshes the canonical copies.
 
 `scripts/update-visual-explainer.sh`
 - Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then links it at `~/.agents/skills/visual-explainer`, Codex's user skill root. Avoids shared Claude/Codex skill dirs.
