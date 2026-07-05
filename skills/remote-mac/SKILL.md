@@ -17,7 +17,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `megaclaw`, `Molty`, 
   - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
 - Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
 - Molty: runs on Mac Studio when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
-- `megaclaw`: alternate OpenClaw Mac node, replaced retired `moltymac` (2026-07-05). Tailscale/SSH `steipete@megaclaw`. OpenClaw config present but gateway not running/paired as of 2026-07-05; not the live Molty runtime.
+- `megaclaw`: alternate Mac node, replaced retired `moltymac` (2026-07-05). Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
 
 Manager repo source of truth:
 
