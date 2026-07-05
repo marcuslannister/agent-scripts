@@ -1,11 +1,11 @@
 ---
 name: remote-mac
-description: "Remote Macs: MacBook, Mac Studio, clawmac, Tailscale, SSH, OpenClaw."
+description: "Remote Macs: MacBook, Mac Studio, clawmac, megaclaw, Tailscale, SSH, OpenClaw."
 ---
 
 # Remote Mac
 
-Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `moltymac`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
+Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `megaclaw`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
 
 ## Peter's Topology
 
@@ -16,8 +16,8 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `moltymac`, `Molty`, 
   - `corporate`: Peter's work-managed environment. Treat Mac Studio as the main remote Mac to configure and inspect there.
   - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
 - Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
-- Molty: runs on Mac Studio, not `moltymac`, when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
-- `moltymac`: old/alternate node. If Tailscale shows it offline or SSH times out, do not treat it as the live Molty runtime.
+- Molty: runs on Mac Studio when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
+- `megaclaw`: alternate OpenClaw Mac node, replaced retired `moltymac` (2026-07-05). Tailscale/SSH `steipete@megaclaw`. OpenClaw config present but gateway not running/paired as of 2026-07-05; not the live Molty runtime.
 
 Manager repo source of truth:
 
