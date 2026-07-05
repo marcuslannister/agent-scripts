@@ -88,7 +88,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, rsyncs `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` as untracked copies behind an `# anthropic-skills` block in `.gitignore`, and copies `frontend-design` + `skill-creator` into `~/.agents/skills` (Codex-only): Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
 
 `scripts/update-claude-mem.sh`
-- Installs/updates `thedotmack/claude-mem` for Claude Code (marketplace `thedotmack`) and Codex (marketplace `claude-mem-local`) via each CLI's plugin marketplace commands; no npx installer. Both tools share one claude-mem worker and database under `~/.claude-mem`.
+- Requires runnable Bun and Astral `uv` first because claude-mem hooks run through `bun-runner.js` and vector search uses `uvx`; checks Scoop, `~/.bun`, Homebrew, and PATH locations, then fails before install/update if either dependency is missing or broken. Installs/updates `thedotmack/claude-mem` for Claude Code (marketplace `thedotmack`) and Codex (marketplace `claude-mem-local`) via each CLI's plugin marketplace commands; no npx installer. Both tools share one claude-mem worker and database under `~/.claude-mem`.
 
 `scripts/committer`
 - Stages exactly the listed files.

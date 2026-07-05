@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-05 — Claude Mem Bun Guard
+- `update-claude-mem.sh` now checks that Bun and Astral `uv` are installed/discoverable and runnable before installing or updating claude-mem, including Scoop installs whose shims may be broken, because its hooks and vector search depend on those tools.
+
 ## 2026-07-05 — CLI Skills Cleanup Fix
 - Fixed `update-cli-skills.sh` legacy Waza removal on current `skills@latest`, which rejects `--agent '*'`; the cleanup now targets the shared Codex/global skill store and has a regression check.
 
