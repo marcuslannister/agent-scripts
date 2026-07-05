@@ -49,11 +49,13 @@ mac_release_tmux_quote() {
 
 mac_release_load_1password_env() {
   set +vx
-  local mode=${1:-all}
+  local mode=${1:-all} codesign_passwordless=${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}
   local primary_missing=0 codesign_missing=0 release_op_field
   [[ "$mode" == "all" || "$mode" == "codesign-only" ]] ||
     mac_release_die "Unknown 1Password load mode: $mode"
-  if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
+  if [[ "$codesign_passwordless" == "1" ]]; then
+    unset MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  elif [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
     export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   fi
   if [[ "$mode" == "all" && -n "${MAC_RELEASE_OP_ITEM:-}" ]]; then
@@ -64,7 +66,9 @@ mac_release_load_1password_env() {
   fi
   if [[ -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
     [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || codesign_missing=1
-    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || codesign_missing=1
+    if [[ "$codesign_passwordless" != "1" ]]; then
+      [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || codesign_missing=1
+    fi
   fi
   if [[ "$primary_missing" != "1" && "$codesign_missing" != "1" ]]; then
     if [[ "$mode" == "all" ]]; then
@@ -126,6 +130,7 @@ codesign_account=${MAC_RELEASE_CODESIGN_OP_ACCOUNT:-$account}
 codesign_vault=${MAC_RELEASE_CODESIGN_OP_VAULT-$vault}
 codesign_path_field=${MAC_RELEASE_CODESIGN_OP_PATH_FIELD:-keychain_path}
 codesign_password_field=${MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD:-keychain_password}
+codesign_passwordless=${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}
 read_codesign=${MAC_RELEASE_CODESIGN_OP_READ:-0}
 env_file=${MAC_RELEASE_OP_ENV_FILE:?}
 log_file=${MAC_RELEASE_OP_LOG_FILE:?}
@@ -178,6 +183,7 @@ if [[ "$read_codesign" == "1" ]]; then
   read_item "$codesign_item" "$codesign_account" "$codesign_vault" "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT:-0}" "$codesign_json_file"
   MAC_RELEASE_CODESIGN_OP_PATH_FIELD="$codesign_path_field" \
     MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD="$codesign_password_field" \
+    MAC_RELEASE_CODESIGN_PASSWORDLESS="$codesign_passwordless" \
     node - "$codesign_json_file" >>"$env_file" 2>>"$log_file" <<'NODE'
 const fs = require("fs");
 const path = process.argv[2];
@@ -185,17 +191,22 @@ const item = JSON.parse(fs.readFileSync(path, "utf8"));
 const values = new Map((item.fields || []).map((field) => [field.label || field.id, field.value || ""]));
 const pathField = process.env.MAC_RELEASE_CODESIGN_OP_PATH_FIELD;
 const passwordField = process.env.MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD;
+const passwordless = process.env.MAC_RELEASE_CODESIGN_PASSWORDLESS === "1";
 const keychainPath = values.get(pathField);
 const keychainPassword = values.get(passwordField);
 function quote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 if (!keychainPath) throw new Error(`missing 1Password field: ${pathField}`);
-if (!keychainPassword) throw new Error(`missing 1Password field: ${passwordField}`);
+if (!passwordless && !keychainPassword) throw new Error(`missing 1Password field: ${passwordField}`);
 process.stdout.write(`export MAC_RELEASE_CODESIGN_KEYCHAIN=${quote(keychainPath)}\n`);
-process.stdout.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD=${quote(keychainPassword)}\n`);
+if (!passwordless) {
+  process.stdout.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD=${quote(keychainPassword)}\n`);
+}
 process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN: len=${keychainPath.length}\n`);
-process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD: len=${keychainPassword.length}\n`);
+if (!passwordless) {
+  process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD: len=${keychainPassword.length}\n`);
+}
 NODE
 fi
 
@@ -219,6 +230,7 @@ SCRIPT
     printf 'export MAC_RELEASE_CODESIGN_OP_VAULT=%q\n' "${MAC_RELEASE_CODESIGN_OP_VAULT-$vault}"
     printf 'export MAC_RELEASE_CODESIGN_OP_PATH_FIELD=%q\n' "${MAC_RELEASE_CODESIGN_OP_PATH_FIELD:-keychain_path}"
     printf 'export MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD=%q\n' "${MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD:-keychain_password}"
+    printf 'export MAC_RELEASE_CODESIGN_PASSWORDLESS=%q\n' "$codesign_passwordless"
     printf 'export MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT=%q\n' "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT-${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}}"
     printf 'export MAC_RELEASE_CODESIGN_OP_READ=%q\n' "$codesign_missing"
     printf 'export MAC_RELEASE_OP_ENV_FILE=%q\n' "$env_file"
@@ -266,7 +278,9 @@ SCRIPT
   if [[ -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
     export MAC_RELEASE_CODESIGN_KEYCHAIN
     [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || mac_release_die "1Password did not populate MAC_RELEASE_CODESIGN_KEYCHAIN"
-    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "1Password did not populate MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD"
+    if [[ "$codesign_passwordless" != "1" ]]; then
+      [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "1Password did not populate MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD"
+    fi
   fi
   sed -n '1,80p' "$log_file" >&2 || true
   cleanup_1password_env
@@ -1018,10 +1032,11 @@ MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP=0
 MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT=
 MAC_RELEASE_CODESIGN_LOCK_FILE=
 MAC_RELEASE_CODESIGN_LOCK_HELD=0
+MAC_RELEASE_CODESIGN_PASSWORDLESS_ACTIVE=0
 
 mac_release_security_with_password() {
   set +vx
-  local password=${1:?"password required"}
+  local password=${1-}
   shift
   expect -f /dev/stdin "$@" 3< <(printf '%s' "$password") <<'EXPECT'
 set timeout 30
@@ -1149,7 +1164,10 @@ mac_release_restore_codesign_keychains() {
       return 1
     fi
   fi
-  if [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" ]]; then
+  if [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" && "${MAC_RELEASE_CODESIGN_PASSWORDLESS_ACTIVE:-0}" == "1" ]]; then
+    MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=
+    MAC_RELEASE_CODESIGN_PASSWORDLESS_ACTIVE=0
+  elif [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" ]]; then
     if security lock-keychain "$MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN" >/dev/null 2>&1; then
       MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=
     else
@@ -1172,7 +1190,11 @@ mac_release_prepare_codesign_keychain() {
   [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" || -n "${MAC_RELEASE_CODESIGN_IDENTITY:-}" ]] || return 0
   [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN with MAC_RELEASE_CODESIGN_IDENTITY"
   [[ -n "${MAC_RELEASE_CODESIGN_IDENTITY:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_IDENTITY with MAC_RELEASE_CODESIGN_KEYCHAIN"
-  [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD or MAC_RELEASE_CODESIGN_OP_ITEM"
+  [[ "${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}" == "0" || "${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}" == "1" ]] ||
+    mac_release_die "MAC_RELEASE_CODESIGN_PASSWORDLESS must be 0 or 1"
+  if [[ "${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}" != "1" ]]; then
+    [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD or MAC_RELEASE_CODESIGN_OP_ITEM"
+  fi
   [[ "${MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED:-0}" == "1" ]] ||
     mac_release_die "Set MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED=1 for a dedicated automation-owned keychain"
   require_bin security codesign shlock stat expect node python3
@@ -1183,7 +1205,12 @@ mac_release_prepare_codesign_keychain() {
   local signing_search=() keychain_records=()
   keychain=$(mac_release_expand_home_path "$MAC_RELEASE_CODESIGN_KEYCHAIN")
   identity=$MAC_RELEASE_CODESIGN_IDENTITY
-  password=$MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  if [[ "${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}" == "1" ]]; then
+    password=
+    unset MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  else
+    password=$MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  fi
   [[ -f "$keychain" ]] || mac_release_die "Developer ID keychain not found: $keychain"
   default_keychain=$(security default-keychain -d user | sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//')
   keychain_file_id=$(stat -L -f '%d:%i' "$keychain")
@@ -1221,6 +1248,7 @@ mac_release_prepare_codesign_keychain() {
   fi
 
   MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN=$keychain
+  MAC_RELEASE_CODESIGN_PASSWORDLESS_ACTIVE=${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}
   # security marks -p/-k as insecure. Drive its CLI prompt through an isolated
   # PTY while the password arrives on fd 3, never argv, env, logs, or a GUI.
   if ! mac_release_security_with_password "$password" security unlock-keychain "$keychain"; then
@@ -1232,18 +1260,25 @@ mac_release_prepare_codesign_keychain() {
     mac_release_restore_codesign_keychains
     mac_release_die "Developer ID automation requires a dedicated keychain with exactly one signing private key"
   fi
-  if ! keychain_settings=$(security show-keychain-info "$keychain" 2>&1); then
-    mac_release_restore_codesign_keychains
-    mac_release_die "Could not read Developer ID keychain lock settings"
-  fi
-  [[ "$keychain_settings" == *lock-on-sleep* ]] && MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP=1
-  if [[ "$keychain_settings" =~ timeout=([0-9]+)s ]]; then
-    MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT=${BASH_REMATCH[1]}
-  fi
-  MAC_RELEASE_CODESIGN_SETTINGS_PREPARED=1
-  if ! security set-keychain-settings -ut "${MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT:-21600}" "$keychain"; then
-    mac_release_restore_codesign_keychains
-    mac_release_die "Could not configure Developer ID keychain timeout"
+  if [[ "${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}" == "1" ]]; then
+    if ! security set-keychain-settings "$keychain"; then
+      mac_release_restore_codesign_keychains
+      mac_release_die "Could not configure passwordless Developer ID keychain to remain unlocked"
+    fi
+  else
+    if ! keychain_settings=$(security show-keychain-info "$keychain" 2>&1); then
+      mac_release_restore_codesign_keychains
+      mac_release_die "Could not read Developer ID keychain lock settings"
+    fi
+    [[ "$keychain_settings" == *lock-on-sleep* ]] && MAC_RELEASE_CODESIGN_ORIGINAL_LOCK_ON_SLEEP=1
+    if [[ "$keychain_settings" =~ timeout=([0-9]+)s ]]; then
+      MAC_RELEASE_CODESIGN_ORIGINAL_TIMEOUT=${BASH_REMATCH[1]}
+    fi
+    MAC_RELEASE_CODESIGN_SETTINGS_PREPARED=1
+    if ! security set-keychain-settings -ut "${MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT:-21600}" "$keychain"; then
+      mac_release_restore_codesign_keychains
+      mac_release_die "Could not configure Developer ID keychain timeout"
+    fi
   fi
   # This keychain is explicitly automation-owned. Keep its private-key ACL
   # normalized so unattended codesign never falls back to SecurityAgent.
@@ -1341,6 +1376,7 @@ mac_release_load_codesign_config() {
     mac_release_die "codesign-run requires a managed keychain or MAC_RELEASE_CODESIGN_OP_ITEM"
   export MAC_RELEASE_CODESIGN_IDENTITY
   export MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED
+  export MAC_RELEASE_CODESIGN_PASSWORDLESS
   [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT:-}" ]] || export MAC_RELEASE_CODESIGN_KEYCHAIN_TIMEOUT
   [[ -z "${MAC_RELEASE_CODESIGN_CANARY_TIMEOUT:-}" ]] || export MAC_RELEASE_CODESIGN_CANARY_TIMEOUT
   CODESIGN_IDENTITY=$MAC_RELEASE_CODESIGN_IDENTITY
@@ -1417,7 +1453,7 @@ mac_release_release() {
       sleep 1
       if ! mac_release_restore_codesign_keychains; then
         echo "ERROR: Developer ID keychain cleanup failed after retry" >&2
-        if [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" ]]; then
+        if [[ -n "${MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN:-}" && "${MAC_RELEASE_CODESIGN_PASSWORDLESS_ACTIVE:-0}" != "1" ]]; then
           security lock-keychain "$MAC_RELEASE_ACTIVE_CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
         fi
       fi
