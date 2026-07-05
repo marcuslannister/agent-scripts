@@ -15,3 +15,12 @@ Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Plugin & skill update rules
+
+Destination principle: skills both agents need → repo `skills/` (shared surface); skills only Codex needs → `~/.agents/skills` (Codex-only surface). A skill Claude Code already gets as a plugin is Codex-only.
+
+1. Ships both Claude Code and Codex plugins (claude-mem, Waza) → each CLI's native plugin marketplace commands; no entries in `skills/`.
+2. Ships a Claude Code plugin but no Codex plugin (visual-explainer) → Claude via plugin; Codex via the project's npx installer if it has one, otherwise clone under `~/Projects` and rsync a copy into `~/.agents/skills`; no entries in `skills/`.
+3. npx-only skill repos (mattpocock/skills) → `npx skills add … --agent codex|claude`; Claude-side copies stay gitignored, never tracked in `skills/`.
+4. Source-only skill repos (khazix-skills, anthropics/skills) → clone under `~/Projects`, then rsync COPIES into the destination surface — never symlinks. Copies in `skills/` stay untracked via marker-delimited `.gitignore` blocks.
