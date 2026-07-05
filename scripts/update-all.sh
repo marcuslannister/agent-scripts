@@ -17,11 +17,12 @@ status_line() { # name code
 
 agents_status=0
 plugins_status=0
-skills_status=0
+cli_skills_status=0
 visual_explainer_status=0
 khazix_skills_status=0
 anthropic_skills_status=0
 claude_mem_status=0
+waza_status=0
 mattpocock_skills_status=0
 
 section "Updating agent CLIs"
@@ -30,8 +31,8 @@ section "Updating agent CLIs"
 section "Updating Claude Code plugins"
 "$SCRIPT_DIR/update-cc-plugins.sh" || plugins_status=$?
 
-section "Updating waza-skills"
-"$SCRIPT_DIR/update-waza-skills.sh" || skills_status=$?
+section "Updating cli-skills"
+"$SCRIPT_DIR/update-cli-skills.sh" || cli_skills_status=$?
 
 section "Updating visual-explainer"
 "$SCRIPT_DIR/update-visual-explainer.sh" || visual_explainer_status=$?
@@ -45,18 +46,22 @@ section "Updating anthropic-skills"
 section "Updating claude-mem"
 "$SCRIPT_DIR/update-claude-mem.sh" || claude_mem_status=$?
 
+section "Updating waza"
+"$SCRIPT_DIR/update-waza.sh" || waza_status=$?
+
 section "Updating mattpocock-skills"
 "$SCRIPT_DIR/update-mattpocock-skills.sh" || mattpocock_skills_status=$?
 
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "Claude plugins" "$plugins_status"
-status_line "waza-skills" "$skills_status"
+status_line "cli-skills" "$cli_skills_status"
 status_line "visual-explainer" "$visual_explainer_status"
 status_line "khazix-skills" "$khazix_skills_status"
 status_line "anthropic-skills" "$anthropic_skills_status"
 status_line "claude-mem" "$claude_mem_status"
+status_line "waza" "$waza_status"
 status_line "mattpocock-skills" "$mattpocock_skills_status"
 
-(( agents_status != 0 || plugins_status != 0 || skills_status != 0 || visual_explainer_status != 0 || khazix_skills_status != 0 || anthropic_skills_status != 0 || claude_mem_status != 0 || mattpocock_skills_status != 0 )) && exit 1
+(( agents_status != 0 || plugins_status != 0 || cli_skills_status != 0 || visual_explainer_status != 0 || khazix_skills_status != 0 || anthropic_skills_status != 0 || claude_mem_status != 0 || waza_status != 0 || mattpocock_skills_status != 0 )) && exit 1
 exit 0
