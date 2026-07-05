@@ -59,7 +59,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-waza-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, then `update-mattpocock-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, `update-waza.sh`, then `update-mattpocock-skills.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/update-agents.sh`
@@ -69,20 +69,23 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 `scripts/update-cc-plugins.sh`
 - Updates all Claude Code marketplaces and installed plugins.
 
-`scripts/update-waza-skills.sh`
-- Bootstraps Waza (`tw93/Waza`) if missing, then `npx skills update --global` — which refreshes every skills.sh-managed package, including Matt Pocock's canonical copies.
+`scripts/update-cli-skills.sh`
+- Removes legacy tw93/Waza skills-CLI installs (Waza is a marketplace plugin now), bootstraps `find-skills` (vercel-labs/skills) when missing, then runs `npx skills update --global`, refreshing every skills.sh-managed package, including Matt Pocock's canonical copies. Also rsyncs one-off npx skills both agents need (`find-skills`) into `skills/` as untracked copies behind a `# cli-skills` block in `.gitignore`.
+
+`scripts/update-waza.sh`
+- Installs/updates `tw93/Waza` for Claude Code and Codex via each CLI's plugin marketplace (marketplace `waza` on both sides). The umbrella `waza` plugin registers all eight skills namespaced as `/waza:think`, `/waza:check`, etc.; no entries in `skills/`.
 
 `scripts/update-mattpocock-skills.sh`
-- Installs/updates Matt Pocock's skills: bootstraps `mattpocock/skills` (`--agent codex`, canonical copies in `~/.agents/skills` for Codex) if missing, then rsyncs every Matt skill into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in) and regenerates a marker-delimited `# matt-skills` block in `.gitignore` so the copies never enter the repo. Runs after `update-waza-skills.sh`, which refreshes the canonical copies.
+- Installs/updates Matt Pocock's skills: bootstraps `mattpocock/skills` (`--agent codex`, canonical copies in `~/.agents/skills` for Codex) if missing, then rsyncs every Matt skill into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in) and regenerates a marker-delimited `# matt-skills` block in `.gitignore` so the copies never enter the repo. Runs after `update-cli-skills.sh`, which refreshes the canonical copies.
 
 `scripts/update-visual-explainer.sh`
-- Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then links it at `~/.agents/skills/visual-explainer`, Codex's user skill root. Avoids shared Claude/Codex skill dirs.
+- Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then rsyncs the plugin dir to `~/.agents/skills/visual-explainer` (Codex's user skill root) as a copy — never a symlink. Claude Code gets it as a marketplace plugin instead.
 
 `scripts/update-khazix-skills.sh`
-- Clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and links its `neat-freak` skill into `skills/` with a tracked relative symlink (`../../khazix-skills/neat-freak`).
+- Clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and rsyncs its `neat-freak` skill into `skills/` as an untracked copy behind a `# khazix-skills` block in `.gitignore`.
 
 `scripts/update-anthropic-skills.sh`
-- Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, links `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` with tracked relative symlinks (`../../anthropic-skills/skills/<name>`), and links `frontend-design` + `skill-creator` into `~/.agents/skills` (Codex-only, `../../Projects/anthropic-skills/skills/<name>`): Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
+- Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, rsyncs `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` as untracked copies behind an `# anthropic-skills` block in `.gitignore`, and copies `frontend-design` + `skill-creator` into `~/.agents/skills` (Codex-only): Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
 
 `scripts/update-claude-mem.sh`
 - Installs/updates `thedotmack/claude-mem` for Claude Code (marketplace `thedotmack`) and Codex (marketplace `claude-mem-local`) via each CLI's plugin marketplace commands; no npx installer. Both tools share one claude-mem worker and database under `~/.claude-mem`.
