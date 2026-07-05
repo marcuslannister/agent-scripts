@@ -1,6 +1,6 @@
 ---
 name: clickclack
-description: "ClickClack ops: chat app, Hetzner deploy, DNS/docs/app, Docker rollout."
+description: "ClickClack ops: chat app, Cloudflare Workers deploy, DNS/docs/app, container rollout."
 ---
 
 # ClickClack
@@ -12,74 +12,37 @@ Use this for ClickClack product/runtime ops, deploys, hosted app checks, and dom
 - Repo: `~/Projects/clickclack` / `https://github.com/openclaw/clickclack`
 - Product: self-hostable Slack-style chat for OpenClaw/community/agent workflows.
 - Surfaces:
-  - `https://clickclack.chat` product site
-  - `https://app.clickclack.chat` hosted app
+  - `https://clickclack.chat` product site (Cloudflare Worker custom domain)
+  - `https://www.clickclack.chat` (Worker custom domain, same worker)
+  - `https://app.clickclack.chat` hosted app (Worker custom domain)
   - `https://docs.clickclack.chat` GitHub Pages docs from `docs/`
 
-## Prod
+## Prod (Cloudflare, since 2026-07-05)
 
-- Hetzner: `clickclack-prod-01`
-- IPv4: `157.90.237.80`
-- IPv6: `2a01:4f8:1c1c:fb96::/64`
-- SSH: `root@157.90.237.80`
-- Labels: `app=clickclack`, `env=prod`
-- OS: Ubuntu 24.04, Caddy + Docker
-- Source on host: `/opt/clickclack-src` (clean export, not a git checkout)
-- Previous source: `/opt/clickclack-src.prev` plus timestamped older prev dirs
-- Data: `/var/lib/clickclack` bind-mounted to `/app/data`
-- Container: `clickclack`, port `127.0.0.1:8080->8080`
-- Caddy: `/etc/caddy/Caddyfile` proxies `clickclack.chat, app.clickclack.chat` to `127.0.0.1:8080`; `www` redirects to apex.
-- DNS truth: `~/Projects/manager/DOMAINS.md` and `~/Projects/manager/DNS.md`
+- Everything is one Cloudflare Worker `clickclack` in the OpenClaw account (`91b59577e757131d68d55a471fe32aca`) fronting a Cloudflare Container.
+- Worker + container config: `wrangler.jsonc` (routes are declarative `custom_domain` entries).
+- Container: Go binary + embedded SPA from `Dockerfile.cloudflare`; data in Supabase Postgres (`CLICKCLACK_DB` secret) and R2 uploads (`clickclack-uploads`).
+- Zone `clickclack.chat` id `e7f93ba1ec24d75ce60c468bbaba5cb5` (OpenClaw account). `docs` CNAME → `openclaw.github.io` stays DNS-only.
+- 1Password (OpenClaw vault): "Cloudflare ClickClack deploy token" (`api_token` field, workers-scoped; no DNS edit), "Cloudflare ClickClack R2 uploads".
+- Legacy Hetzner box `clickclack-prod-01` (157.90.237.80) no longer serves any DNS; decommission when confident. Old runbook in git history of this file.
 
 ## Deploy
 
-Golden path:
-
-1. Local refresh:
-   - `cd ~/Projects/clickclack`
-   - `git status --short --branch`
-   - `git fetch origin`
-   - If on `main` with no upstream: `git merge --ff-only origin/main`
-2. Decide deployed delta:
-   - Last known deploy may be the old local `HEAD` before pull; verify `/opt/clickclack-src/.deploy-commit` if present.
-   - `git log --oneline <old>..HEAD`
-   - `git diff --stat <old>..HEAD`
-3. Archive clean HEAD only:
-   - Do not rsync untracked local files.
-   - `short=$(git rev-parse --short=12 HEAD)`
-   - `git archive --format=tar HEAD | ssh root@157.90.237.80 "rm -rf /opt/clickclack-src.next && mkdir -p /opt/clickclack-src.next && tar -C /opt/clickclack-src.next -xf - && printf '%s\n' '$short' > /opt/clickclack-src.next/.deploy-commit"`
-4. Preserve env without printing secrets:
-   - `docker inspect clickclack --format '{{range .Config.Env}}{{println .}}{{end}}' > /root/clickclack.env.current`
-5. Backup before migrations:
-   - `mkdir -p /var/lib/clickclack/backups`
-   - `chown 1000:1000 /var/lib/clickclack/backups`
-   - `docker exec clickclack clickclack backup --data /app/data --out /app/data/backups/clickclack-before-$(date -u +%Y%m%dT%H%M%SZ).db`
-6. Build:
-   - `docker build --label org.opencontainers.image.revision="$short" -t clickclack:"$short" -t clickclack:latest /opt/clickclack-src.next`
-7. Replace container:
-   - `docker stop clickclack && docker rm clickclack`
-   - `docker run -d --name clickclack --restart unless-stopped --env-file /root/clickclack.env.current -p 127.0.0.1:8080:8080 -v /var/lib/clickclack:/app/data clickclack:latest serve --addr :8080 --data /app/data`
-8. Rotate source dirs:
-   - Move old `/opt/clickclack-src.prev` to timestamped backup.
-   - Move `/opt/clickclack-src` to `/opt/clickclack-src.prev`.
-   - Move `/opt/clickclack-src.next` to `/opt/clickclack-src`.
+1. `cd ~/Projects/clickclack && git pull --ff-only`
+2. Docker must run (OrbStack: `open -a OrbStack`).
+3. `pnpm deploy:cloudflare` (auth: `wrangler login` OAuth or the 1Password deploy token as `CLOUDFLARE_API_TOKEN`).
+4. **Rollout gotcha:** the running container instance is NOT replaced while it has traffic; `sleepAfter=10m` never fires on a public site. Bump `CLICKCLACK_CONTAINER_NAME` in `wrangler.jsonc` (dated, e.g. `prod-YYYYMMDD-open-org`) and redeploy to force a fresh instance on the new image. Container is stateless (Postgres/R2), so the swap is safe.
+5. Commit the `wrangler.jsonc` bump.
 
 ## Verify
 
-- Host:
-  - `docker ps --filter name=clickclack`
-  - `docker inspect clickclack --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'`
-  - `cat /opt/clickclack-src/.deploy-commit`
-  - `curl -fsS http://127.0.0.1:8080/ >/tmp/clickclack-root.html`
-  - `curl -fsS http://127.0.0.1:8080/app >/tmp/clickclack-app.html`
-- Public:
-  - `curl -I https://clickclack.chat`
-  - `curl -I https://app.clickclack.chat`
-  - `curl -I https://docs.clickclack.chat`
+- `curl -s https://clickclack.chat/ | grep -oE 'entry/app\.[A-Za-z0-9_-]+\.js'` — hash must match the freshly deployed build (compare against `https://clickclack.services-91b.workers.dev`).
+- Same check for `https://app.clickclack.chat` and `https://www.clickclack.chat`.
+- `pnpm exec wrangler containers info a03b3158-bcfd-4962-9a86-e75489f4e803` — health + image digest.
+- `curl -I https://docs.clickclack.chat`
 
 ## Guardrails
 
 - Do not print OAuth secrets or magic tokens.
-- Use a throwaway `UserKnownHostsFile` if local SSH host-key state is stale; confirm server identity with `hcloud server describe clickclack-prod-01` first.
-- `clickclack serve` runs migrations on boot; always back up SQLite before replacing the container.
-- Keep deploys from clean git archives, not dirty working trees.
+- The deploy token has no DNS scope; DNS record changes need the dashboard or a Zone.DNS token.
+- Keep deploys from clean git checkouts, not dirty working trees.
