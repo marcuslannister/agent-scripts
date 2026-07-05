@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-05 — CLI Skills Cleanup Fix
+- Fixed `update-cli-skills.sh` legacy Waza removal on current `skills@latest`, which rejects `--agent '*'`; the cleanup now targets the shared Codex/global skill store and has a regression check.
+
 ## 2026-07-04 — Copies Everywhere: Plugin/Skill Update Rules Enforced
 - Codified the plugin & skill update rules in `CLAUDE.md` (destination principle + four source classifications) and captured the vocabulary in a new `CONTEXT.md`.
 - Waza moved from the skills CLI to each CLI's plugin marketplace (umbrella `waza@waza` plugin on both Claude Code and Codex, skills namespaced `/waza:think` etc.) via new `scripts/update-waza.sh`; its 8 skills-CLI installs and 8 tracked `skills/` symlinks were removed. `update-waza-skills.sh` became `update-cli-skills.sh` — just the skills.sh global update plus untracked `find-skills` copy sync (its tracked symlink is gone too).

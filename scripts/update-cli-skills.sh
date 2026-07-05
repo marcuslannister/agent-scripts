@@ -23,6 +23,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/skills"
 AGENTS_SKILLS_DIR="${HOME}/.agents/skills"
 GITIGNORE="${REPO_ROOT}/.gitignore"
+SKILLS_CLI_AGENT=codex
 SHARED_SKILLS=(find-skills)
 SHARED_SKILLS_REPO="vercel-labs/skills"
 
@@ -44,7 +45,7 @@ if [ -f "$LOCK" ]; then
 fi
 if [ -n "$waza_list" ]; then
   # shellcheck disable=SC2086 — skill names are single words from the lock
-  if run_skills remove $waza_list --global --agent '*' --yes; then
+  if run_skills remove $waza_list --global --agent "$SKILLS_CLI_AGENT" --yes; then
     info "removed legacy Waza skills: $(printf '%s ' $waza_list)"
   else
     warn "failed to remove legacy Waza skills"
