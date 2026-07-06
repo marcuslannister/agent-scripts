@@ -19,9 +19,9 @@ requirements = {
   "permission propagation check" => "verify its effective permission profile",
   "no repeated permission prompts" => "Do not retry the same denied action or repeatedly prompt the owner.",
   "single heartbeat inspection" => "inspect the existing heartbeat first",
-  "private concurrency invariant" => "Hard concurrency invariant: private investigation, implementation, current-main replay, testing, proof, and review continue independently across qualified project threads for distinct repositories.",
-  "single public mutation slot" => "Exactly one project thread at a time may mutate a public PR head",
-  "frozen means public only" => "means public-mutation-frozen unless the instruction explicitly freezes all private work",
+  "private concurrency invariant" => "Private investigation, implementation, testing, proof, and review continue independently.",
+  "single public admission gate" => "admit no additional public action until the overlap clears",
+  "frozen means public only" => "means public-mutation-frozen only when that restriction existed before the worker crossed the public boundary",
   "decision wait does not idle" => "Keep all other qualified private project lanes active while that answer is pending.",
 }
 
