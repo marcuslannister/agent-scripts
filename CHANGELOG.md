@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-06 — Windows CRLF Fixes
+- Fixed `update-cc-plugins.sh` to strip Windows CRLF carriage returns from installed plugin keys before calling `claude plugin update`, preventing false "not found in marketplace" skips.
+- `update-mattpocock-skills.sh` now parses the skills lock with `jq` (with an explicit jq presence check) instead of Windows Python and strips CRLF from skill names before copying, preventing false missing-entry and missing-source warnings.
+
 ## 2026-07-06 — Matt Skills Block Refresh
 - Refreshed the `# matt-skills` `.gitignore` block for three new upstream skills (`migrate-to-shoehorn`, `scaffold-exercises`, `setup-pre-commit`) picked up by `update-mattpocock-skills.sh`.
 

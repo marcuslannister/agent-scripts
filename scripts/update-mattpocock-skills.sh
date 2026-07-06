@@ -50,13 +50,16 @@ else
 fi
 
 section "Syncing copies for Claude Code"
-matt_list="$(python3 -c "
-import json
-d = json.load(open('${LOCK}'))
-names = sorted(k for k, v in d.get('skills', {}).items()
-               if 'mattpocock/skills' in json.dumps(v))
-print('\n'.join(names))
-" 2>/dev/null)" || matt_list=""
+if ! command -v jq >/dev/null 2>&1; then
+  warn "jq is required to parse ${LOCK}"
+  exit 1
+fi
+matt_list="$(jq -r '[.skills // {} | to_entries[]
+    | select(.value | tostring | contains("mattpocock/skills")) | .key]
+  | sort | .[]' "$LOCK" 2>/dev/null)" || matt_list=""
+# Windows jq emits CRLF; a trailing \r in a name breaks the SKILL.md source
+# check and puts bad entries in the .gitignore block.
+matt_list="${matt_list//$'\r'/}"
 if [ -z "$matt_list" ]; then
   # Do not touch the .gitignore block: existing copies must stay ignored.
   warn "no mattpocock/skills entries found in ${LOCK}; skipping sync"

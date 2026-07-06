@@ -32,7 +32,9 @@ plugin_list="$(jq -r '.plugins // {} | keys[]' "$PLUGINS_JSON")"
 plugin_keys=()
 if [ -n "$plugin_list" ]; then
   while IFS= read -r plugin_key; do
-    plugin_keys+=("$plugin_key")
+    # Windows jq emits CRLF; a trailing \r makes `claude plugin update`
+    # report the plugin as not found in the marketplace.
+    plugin_keys+=("${plugin_key%$'\r'}")
   done <<< "$plugin_list"
 fi
 
