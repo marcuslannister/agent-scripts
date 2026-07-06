@@ -787,9 +787,19 @@ verify_enclosure() {
   fi
 }
 
+verify_distribution_policy() {
+  local app=${1:?"app bundle required"}
+  if command -v syspolicy_check >/dev/null 2>&1; then
+    syspolicy_check distribution "$app"
+  else
+    require_bin spctl
+    spctl --assess --type execute --verbose "$app"
+  fi
+}
+
 verify_codesign_from_enclosure() {
   local url=${1:?"enclosure URL required"}
-  require_bin curl ditto codesign spctl
+  require_bin curl ditto codesign
   local tmp_dir tmp_zip app
   tmp_dir=$(mktemp -d /tmp/sparkle-verify.XXXX)
   trap 'rm -rf "${tmp_dir:-}"' RETURN
@@ -799,11 +809,11 @@ verify_codesign_from_enclosure() {
   app=$(find "$tmp_dir" -maxdepth 2 -name "${APP_NAME}.app" -not -path "*/__MACOSX/*" | head -n 1)
   [[ -n "$app" ]] || mac_release_die "No ${APP_NAME}.app found in enclosure $url"
   codesign --verify --deep --strict --verbose=2 "$app"
-  spctl --assess --type execute --verbose "$app"
+  verify_distribution_policy "$app"
   if command -v stapler >/dev/null 2>&1; then
     stapler validate "$app"
   fi
-  echo "Codesign/spctl/stapler verification OK for $(basename "$app")"
+  echo "Codesign/system-policy/stapler verification OK for $(basename "$app")"
 }
 
 verify_appcast_entry() {
