@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-06 — Matt Skills Block Refresh
+- Refreshed the `# matt-skills` `.gitignore` block for three new upstream skills (`migrate-to-shoehorn`, `scaffold-exercises`, `setup-pre-commit`) picked up by `update-mattpocock-skills.sh`.
+
 ## 2026-07-05 — Claude Mem Bun Guard
 - `update-claude-mem.sh` now checks that Bun and Astral `uv` are installed/discoverable and runnable before installing or updating claude-mem, including Scoop installs whose shims may be broken, because its hooks and vector search depend on those tools.
 
