@@ -9,17 +9,30 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 marker_source() { sed -n '1p' "$1"; }  # line 1 = upstream source path
 marker_owner()  { sed -n '2p' "$1"; }   # line 2 = owning updater id
+marker_hash()   { sed -n '3p' "$1"; }    # line 3 = content hash at sync time
 
 mkdir -p "$TMPDIR/src/scripts"
 printf '%s\n' '---' 'name: t' '---' > "$TMPDIR/src/SKILL.md"
 printf 'x\n' > "$TMPDIR/src/scripts/run.sh"
 
-# Fresh copy: creates dir, content, and a two-line ownership marker.
+# Fresh copy: creates dir, content, and an ownership marker whose line 3 is the
+# content hash (equal to the copy's own hash right after an exact rsync).
 install_skill_copy "$TMPDIR/src" "$TMPDIR/dst/a" owner-a
 test -f "$TMPDIR/dst/a/SKILL.md"
 test -f "$TMPDIR/dst/a/scripts/run.sh"
 test "$(marker_source "$TMPDIR/dst/a/.agent-scripts-copy")" = "$TMPDIR/src"
 test "$(marker_owner "$TMPDIR/dst/a/.agent-scripts-copy")" = "owner-a"
+test -n "$(marker_hash "$TMPDIR/dst/a/.agent-scripts-copy")"
+test "$(marker_hash "$TMPDIR/dst/a/.agent-scripts-copy")" = "$(compute_copy_hash "$TMPDIR/dst/a")"
+
+# compute_copy_hash: ignores the marker (hidden) and is stable across identical
+# trees, but changes when tracked content changes.
+H_BEFORE="$(compute_copy_hash "$TMPDIR/dst/a")"
+printf 'note\n' > "$TMPDIR/dst/a/.agent-scripts-copy-extra"  # hidden -> ignored
+test "$(compute_copy_hash "$TMPDIR/dst/a")" = "$H_BEFORE"
+rm "$TMPDIR/dst/a/.agent-scripts-copy-extra"
+printf 'changed\n' >> "$TMPDIR/dst/a/SKILL.md"                # tracked -> differs
+test "$(compute_copy_hash "$TMPDIR/dst/a")" != "$H_BEFORE"
 
 # Re-run over an owned copy: syncs deletions and keeps the two-line marker.
 rm "$TMPDIR/src/scripts/run.sh"
@@ -183,5 +196,52 @@ if sync_skill_copies kf-owner "$KF/src" "$KF/surface" "$GI3" present vanished 2>
 fi
 grep -qx 'surface/present' "$GI3"
 grep -qx 'surface/vanished' "$GI3"   # copy on disk stays ignored despite the failure
+
+# ── check_skill_copy_updates: upstream / tamper / unstamped drift ──────────
+CK="$TMPDIR/check"
+mkdir -p "$CK/src/ok" "$CK/src/up" "$CK/src/tp" "$CK/surface"
+for s in ok up tp; do
+  printf '%s\n' '---' "name: $s" '---' > "$CK/src/$s/SKILL.md"
+done
+sync_skill_copies ck-owner "$CK/src" "$CK/surface" "" ok up tp
+
+# Right after sync everything is in sync -> returns 0.
+check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner ok up tp
+
+# Upstream advances: source edited, stored hash now stale -> non-zero.
+printf 'new upstream\n' >> "$CK/src/up/SKILL.md"
+if check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner up 2>/dev/null; then
+  echo "FAIL: missed an upstream change" >&2
+  exit 1
+fi
+
+# Local tamper: copy edited, source untouched -> non-zero.
+printf 'hand edit\n' >> "$CK/surface/tp/SKILL.md"
+if check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner tp 2>/dev/null; then
+  echo "FAIL: missed a tampered copy" >&2
+  exit 1
+fi
+
+# The untouched skill still reads clean on its own.
+check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner ok
+
+# Missing copy (no marker) -> non-zero.
+if check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner absent 2>/dev/null; then
+  echo "FAIL: passed a missing copy" >&2
+  exit 1
+fi
+
+# Legacy two-line marker (no hash line): unverifiable -> non-zero.
+printf '%s\n%s\n' "$CK/src/ok" ck-owner > "$CK/surface/ok/.agent-scripts-copy"
+if check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner ok 2>/dev/null; then
+  echo "FAIL: passed an unstamped legacy marker" >&2
+  exit 1
+fi
+
+# Empty name list: refuses, returns non-zero.
+if check_skill_copy_updates "$CK/src" "$CK/surface" ck-owner 2>/dev/null; then
+  echo "FAIL: check accepted an empty name list" >&2
+  exit 1
+fi
 
 echo "lib-copies tests passed"
