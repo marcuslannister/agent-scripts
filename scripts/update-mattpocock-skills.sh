@@ -68,9 +68,11 @@ if [ -z "$matt_list" ]; then
 fi
 
 copied=0
+sync_names=()
 ignore_entries=()
 for name in $matt_list; do
   [ "$name" = "$MATT_CLAUDE_DENY" ] && continue
+  sync_names+=("$name")
   if [ ! -f "${AGENTS_SKILLS_DIR}/${name}/SKILL.md" ]; then
     warn "missing source skill: ${AGENTS_SKILLS_DIR}/${name}"
     fail=1
@@ -86,6 +88,15 @@ for name in $matt_list; do
   fi
 done
 info "copied ${copied} skills into ${SKILLS_DIR} (deny: ${MATT_CLAUDE_DENY})"
+
+protected_names=()
+while IFS= read -r name; do
+  protected_names+=("$name")
+done < <(gitignore_block_skill_names "$GITIGNORE" "cli-skills")
+if ! cleanup_marked_skill_copies "$SKILLS_DIR" "$AGENTS_SKILLS_DIR" \
+  "${sync_names[@]}" "${protected_names[@]}"; then
+  fail=1
+fi
 
 regen_gitignore_block "$GITIGNORE" "matt-skills" "update-mattpocock-skills.sh" \
   ${ignore_entries[@]+"${ignore_entries[@]}"}

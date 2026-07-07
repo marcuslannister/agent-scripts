@@ -11,6 +11,10 @@ copy_warn() {
   printf '\033[0;31m!!!\033[0m %s\n' "$*" >&2
 }
 
+copy_info() {
+  printf '\033[0;32m==>\033[0m %s\n' "$*"
+}
+
 install_skill_copy() { # source_dir dest_dir
   local src="$1"
   local dst="$2"
@@ -50,6 +54,57 @@ install_skill_copy() { # source_dir dest_dir
     cp -R "${src}/." "${dst}/" || return 1
   fi
   printf '%s\n' "$src" > "$marker" || return 1
+}
+
+cleanup_marked_skill_copies() { # surface source_root keep_name...
+  local surface="$1"
+  local source_root="$2"
+  shift 2
+  local marker marker_source name keep keep_name failed=0
+
+  if [ "$#" -eq 0 ]; then
+    copy_warn "no current copy names for ${source_root}; refusing orphan cleanup under ${surface}"
+    return 1
+  fi
+
+  [ -d "$surface" ] || return 0
+  for marker in "$surface"/*/.agent-scripts-copy; do
+    [ -f "$marker" ] || continue
+    marker_source="$(sed -n '1p' "$marker")"
+    case "$marker_source" in "${source_root}"/*) ;; *) continue ;; esac
+
+    name="$(basename "$(dirname "$marker")")"
+    keep=0
+    for keep_name in "$@"; do
+      if [ "$name" = "$keep_name" ]; then
+        keep=1
+        break
+      fi
+    done
+    [ "$keep" -eq 0 ] || continue
+
+    if rm -rf "${surface:?}/${name}"; then
+      copy_info "removed orphaned copy: ${name}"
+    else
+      failed=1
+    fi
+  done
+  return "$failed"
+}
+
+gitignore_block_skill_names() { # gitignore_path marker
+  local gitignore="$1"
+  local marker="$2"
+
+  [ -f "$gitignore" ] || return 0
+  awk -v start="# ${marker} start" -v end="# ${marker} end" '
+    index($0, start) == 1 { in_block=1; next }
+    $0 == end { in_block=0; next }
+    in_block && $0 ~ /^skills\/[^/]+$/ {
+      sub(/^skills\//, "")
+      print
+    }
+  ' "$gitignore"
 }
 
 regen_gitignore_block() { # gitignore_path marker generator entry...

@@ -97,6 +97,15 @@ for name in "${SHARED_SKILLS[@]}"; do
     ignore_entries+=("skills/${name}")
   fi
 done
+protected_names=()
+while IFS= read -r name; do
+  protected_names+=("$name")
+done < <(gitignore_block_skill_names "$GITIGNORE" "matt-skills")
+if ! cleanup_marked_skill_copies "$SKILLS_DIR" "$AGENTS_SKILLS_DIR" \
+  "${SHARED_SKILLS[@]}" "${protected_names[@]}"; then
+  fail=1
+fi
+
 regen_gitignore_block "$GITIGNORE" "cli-skills" "update-cli-skills.sh" \
   ${ignore_entries[@]+"${ignore_entries[@]}"}
 info "regenerated cli-skills block in .gitignore"

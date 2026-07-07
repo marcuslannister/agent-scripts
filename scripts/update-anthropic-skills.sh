@@ -54,6 +54,9 @@ for skill in "${SKILLS[@]}"; do
     ignore_entries+=("skills/${skill}")
   fi
 done
+if ! cleanup_marked_skill_copies "$SKILLS_DIR" "${CLONE_DIR}/skills" "${SKILLS[@]}"; then
+  failed=1
+fi
 
 regen_gitignore_block "$GITIGNORE" "anthropic-skills" "update-anthropic-skills.sh" \
   ${ignore_entries[@]+"${ignore_entries[@]}"}
@@ -73,6 +76,9 @@ for skill in "${AGENTS_SKILLS[@]}"; do
   fi
   info "skill copied -> ${AGENTS_SKILLS_DIR}/${skill}"
 done
+if ! cleanup_marked_skill_copies "$AGENTS_SKILLS_DIR" "${CLONE_DIR}/skills" "${AGENTS_SKILLS[@]}"; then
+  failed=1
+fi
 
 [ "$failed" -eq 0 ] || exit 1
 section "anthropic-skills done"

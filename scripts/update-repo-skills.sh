@@ -170,22 +170,9 @@ for name in $tracked; do
 done
 info "copied ${copied} tracked skills into ${AGENTS_SKILLS_DIR}"
 
-# Marker-scoped orphan cleanup: a delete/rename in skills/ must also remove
-# the old copy on the Codex surface, or ghost skills accumulate there.
-# Markers prove the copy is ours; unmarked dirs (skills CLI installs,
-# hand-managed skills) are never touched.
-for marker in "$AGENTS_SKILLS_DIR"/*/.agent-scripts-copy; do
-  [ -f "$marker" ] || continue
-  case "$(cat "$marker")" in "${SKILLS_DIR}"/*) ;; *) continue ;; esac
-  name="$(basename "$(dirname "$marker")")"
-  if ! printf '%s\n' "$tracked" | grep -qxF "$name"; then
-    if rm -rf "${AGENTS_SKILLS_DIR:?}/${name}"; then
-      info "removed orphaned copy: ${name}"
-    else
-      fail=1
-    fi
-  fi
-done
+if ! cleanup_marked_skill_copies "$AGENTS_SKILLS_DIR" "$SKILLS_DIR" $tracked; then
+  fail=1
+fi
 
 if ! verify_one_root_codex_surface "$codex_skills" "$tracked"; then
   fail=1

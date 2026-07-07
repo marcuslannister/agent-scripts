@@ -38,6 +38,8 @@ section "Copying skill"
 install_skill_copy "${CLONE_DIR}/neat-freak" "${SKILLS_DIR}/neat-freak"
 info "skill copied -> ${SKILLS_DIR}/neat-freak"
 
+cleanup_marked_skill_copies "$SKILLS_DIR" "$CLONE_DIR" "neat-freak"
+
 regen_gitignore_block "$GITIGNORE" "khazix-skills" "update-khazix-skills.sh" \
   "skills/neat-freak"
 info "regenerated khazix-skills block in .gitignore"
