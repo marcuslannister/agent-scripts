@@ -30,6 +30,7 @@ Global discovery — one skills root per CLI:
 - Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
 - Codex: `~/.agents/skills` only; `scripts/update-repo-skills.sh` (part of `update-all.sh`) syncs the tracked skills in `skills/` there as marked copies. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill. If legacy entries reappear under `~/.codex/skills`, the updater moves every non-`.system` entry into `~/.codex/skills-migrated-<timestamp>`, leaves the active Codex surface untouched, then verifies the old root has no non-system entries and every tracked repo skill is present as a marked copy under `~/.agents/skills`.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
+- Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
 
 Shared personal skills live as real folders in `skills/`. Third-party skills arrive as untracked rsync copies behind marker-delimited `.gitignore` blocks (see the `scripts/update-*-skills.sh` updaters); `skills/` contains no symlinks.
 
