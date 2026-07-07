@@ -19,7 +19,16 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `megaclaw`, `Molty`, 
 - Molty: runs on Mac Studio when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
 - `megaclaw`: alternate Mac node, replaced retired `moltymac` (2026-07-05). Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
 
-Manager repo source of truth:
+Non-Mac fleet nodes (full detail in `computers.yaml`):
+
+- `gorillaclaw`: personal Linux node at GorillaServers (Los Angeles), Tailscale `100.93.99.79`. Tailscale-reachable but system SSH (TCP 22) is firewalled/off.
+- `steipetesurface`: Peter's personal Windows Surface, Tailscale `100.118.219.64` (often offline). Corporate Windows laptop `CPC-steip-11ENO` is separate and work-managed.
+
+Not Peter's Macs (do not configure/brand as his):
+
+- `crabhammer`: Scaleway M4-XL given to vince; on Peter's tailnet + billing but provisioned for vince (no SSH access). Listed under `handed_off:` in `computers.yaml`. The other Scaleway box `apple-silicon-lucid-allen` (M4-S) is Peter's but undocumented.
+
+Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac):
 
 - `/Users/steipete/Projects/manager/computers.yaml`
 - `/Users/steipete/Projects/manager/agents.yaml`
