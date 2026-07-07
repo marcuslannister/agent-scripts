@@ -192,4 +192,5 @@ tmux -S "$SOCKET" send-keys -t "$SESSION" -- "bash /tmp/op-debug.sh; rm -f /tmp/
 - If sign-in without app integration is needed, use `op account add`.
 - If a command returns "account is not signed in", re-run `op signin` inside tmux and authorize in the app.
 - Let the desktop 1Password unlock prompt request user interaction directly; do not add a separate chat permission round trip first.
+- Before any interactive op auth/unlock: pre-alert with context via `$nameplate-attention` (`nameplate attention "<why; no secret read>" --title "<agent> → 1Password"`); `sag` audible fallback if unanswered. op's own prompt carries no reason field.
 - Do not run `op` outside tmux; stop and ask if tmux is unavailable.
