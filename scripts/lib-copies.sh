@@ -41,7 +41,7 @@ install_skill_copy() { # source_dir dest_dir
     fi
   fi
   mkdir -p "$dst" || return 1
-  if command -v rsync >/dev/null 2>&1; then
+  if [ "${AGENT_SCRIPTS_DISABLE_RSYNC:-0}" != "1" ] && command -v rsync >/dev/null 2>&1; then
     rsync -a --delete "${src}/" "${dst}/" || return 1
   else
     # Git Bash on Windows ships no rsync; emulate --delete with a fresh copy.

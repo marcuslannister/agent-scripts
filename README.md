@@ -28,7 +28,7 @@ Rules:
 
 Global discovery — one skills root per CLI:
 - Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
-- Codex: `~/.agents/skills` only; `scripts/update-repo-skills.sh` (part of `update-all.sh`) syncs the tracked skills in `skills/` there as marked copies. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill.
+- Codex: `~/.agents/skills` only; `scripts/update-repo-skills.sh` (part of `update-all.sh`) syncs the tracked skills in `skills/` there as marked copies. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill. If legacy entries reappear under `~/.codex/skills`, the updater moves every non-`.system` entry into `~/.codex/skills-migrated-<timestamp>` and leaves the active Codex surface untouched.
 
 Shared personal skills live as real folders in `skills/`. Third-party skills arrive as untracked rsync copies behind marker-delimited `.gitignore` blocks (see the `scripts/update-*-skills.sh` updaters); `skills/` contains no symlinks.
 
@@ -52,7 +52,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, `update-waza.sh`, then `update-mattpocock-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, `update-waza.sh`, `update-mattpocock-skills.sh`, then `update-repo-skills.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/update-agents.sh`

@@ -10,6 +10,6 @@ Codex used to read both `~/.agents/skills` and the repo `skills/` dir (through a
 ## Consequences
 
 - Codex sees repo-skill edits only after an updater run (accepted staleness contract; Claude stays live).
-- A drift guard fails the run (the sync itself still completes) when the old `~/.codex/skills` symlink or user entries beside its `.system` dir reappear, so a machine in the old topology gets a loud red run instead of silent double-loading. Codex's own bundled system skills under `~/.codex/skills/.system` are tolerated — the CLI recreates that dir itself.
+- A drift migration moves the old `~/.codex/skills` symlink or any non-system entries beside its `.system` dir into `~/.codex/skills-migrated-<timestamp>`, so a machine in the old topology gets a reversible cleanup instead of silent double-loading. Codex's own bundled system skills under `~/.codex/skills/.system` are tolerated — the CLI recreates that dir itself.
 - Marker-scoped orphan cleanup removes Codex-surface copies whose tracked source was deleted or renamed.
 - CLI-specific skill forks are unified into one CLI-agnostic tracked skill rather than deny-listed (first case: `review-claudemd`).
