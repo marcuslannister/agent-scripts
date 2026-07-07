@@ -97,6 +97,51 @@ migrate_legacy_codex_skills() { # codex_skills
   [ "$blocked" -eq 0 ] || return 1
 }
 
+verify_one_root_codex_surface() { # codex_skills tracked_names
+  local codex_skills="$1"
+  local tracked_names="$2"
+  local entry name marker marker_source
+  local verified=0
+  local failed=0
+
+  if [ -L "$codex_skills" ] || { [ -e "$codex_skills" ] && [ ! -d "$codex_skills" ]; }; then
+    warn "legacy Codex skills root is still active and not a directory: ${codex_skills}"
+    failed=1
+  elif [ -d "$codex_skills" ]; then
+    while IFS= read -r -d '' entry; do
+      warn "legacy Codex skills root still has non-system entry: ${entry}"
+      failed=1
+    done < <(find "$codex_skills" -mindepth 1 -maxdepth 1 ! -name '.system' -print0 2>/dev/null)
+  fi
+
+  for name in $tracked_names; do
+    marker="${AGENTS_SKILLS_DIR}/${name}/.agent-scripts-copy"
+    if [ ! -f "${AGENTS_SKILLS_DIR}/${name}/SKILL.md" ]; then
+      warn "tracked skill missing from active Codex surface: ${AGENTS_SKILLS_DIR}/${name}"
+      failed=1
+      continue
+    fi
+    if [ ! -f "$marker" ]; then
+      warn "tracked skill missing Codex surface marker: ${AGENTS_SKILLS_DIR}/${name}"
+      failed=1
+      continue
+    fi
+    marker_source="$(cat "$marker")"
+    if [ "$marker_source" != "${SKILLS_DIR}/${name}" ]; then
+      warn "tracked skill marker mismatch for ${name}: ${marker_source}"
+      failed=1
+      continue
+    fi
+    verified=$((verified + 1))
+  done
+
+  if [ "$failed" -eq 0 ]; then
+    info "verified one-root Codex surface: ${codex_skills} has no non-system entries; ${verified} tracked marked copies active"
+    return 0
+  fi
+  return 1
+}
+
 section "Repo skills → ~/.agents/skills (Codex surface)"
 
 # Root-policy drift migration: non-system entries under ~/.codex/skills mean
@@ -141,6 +186,10 @@ for marker in "$AGENTS_SKILLS_DIR"/*/.agent-scripts-copy; do
     fi
   fi
 done
+
+if ! verify_one_root_codex_surface "$codex_skills" "$tracked"; then
+  fail=1
+fi
 
 [ "$fail" -eq 0 ] || exit 1
 section "repo-skills done"

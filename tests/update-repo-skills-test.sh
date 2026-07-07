@@ -98,7 +98,7 @@ printf 'active\n' > "$SURFACE/stray-skill/SKILL.md"
 mkdir -p "$FAKE_HOME/.codex/skills/stray-skill"
 ln -s "$REPO/skills/epsilon" "$FAKE_HOME/.codex/skills/linked-skill"
 printf '%s\n' "$REPO/skills/epsilon" > "$FAKE_HOME/.codex/skills/pointer-file"
-AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091502 run_sync >/dev/null
+AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091502 run_sync >"$TMPDIR/verified.out"
 BACKUP="$FAKE_HOME/.codex/skills-migrated-20260707-091502"
 test -d "$BACKUP/stray-skill"
 if [ ! -e "$BACKUP/linked-skill" ] && [ ! -L "$BACKUP/linked-skill" ]; then
@@ -111,6 +111,8 @@ if find "$FAKE_HOME/.codex/skills" -mindepth 1 -maxdepth 1 ! -name '.system' | g
   echo "FAIL: legacy root still has non-system entries after migration" >&2
   exit 1
 fi
+grep -F "verified one-root Codex surface: $FAKE_HOME/.codex/skills has no non-system entries; 1 tracked marked copies active" "$TMPDIR/verified.out" >/dev/null
+test "$(cat "$SURFACE/epsilon/.agent-scripts-copy")" = "$REPO/skills/epsilon"
 test "$(cat "$SURFACE/stray-skill/SKILL.md")" = "active"
 AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091503 run_sync >/dev/null
 test ! -e "$FAKE_HOME/.codex/skills-migrated-20260707-091503"
