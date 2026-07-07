@@ -24,6 +24,7 @@ anthropic_skills_status=0
 claude_mem_status=0
 waza_status=0
 mattpocock_skills_status=0
+repo_skills_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -52,6 +53,9 @@ section "Updating waza"
 section "Updating mattpocock-skills"
 "$SCRIPT_DIR/update-mattpocock-skills.sh" || mattpocock_skills_status=$?
 
+section "Updating repo-skills"
+"$SCRIPT_DIR/update-repo-skills.sh" || repo_skills_status=$?
+
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "Claude plugins" "$plugins_status"
@@ -62,6 +66,7 @@ status_line "anthropic-skills" "$anthropic_skills_status"
 status_line "claude-mem" "$claude_mem_status"
 status_line "waza" "$waza_status"
 status_line "mattpocock-skills" "$mattpocock_skills_status"
+status_line "repo-skills" "$repo_skills_status"
 
-(( agents_status != 0 || plugins_status != 0 || cli_skills_status != 0 || visual_explainer_status != 0 || khazix_skills_status != 0 || anthropic_skills_status != 0 || claude_mem_status != 0 || waza_status != 0 || mattpocock_skills_status != 0 )) && exit 1
+(( agents_status != 0 || plugins_status != 0 || cli_skills_status != 0 || visual_explainer_status != 0 || khazix_skills_status != 0 || anthropic_skills_status != 0 || claude_mem_status != 0 || waza_status != 0 || mattpocock_skills_status != 0 || repo_skills_status != 0 )) && exit 1
 exit 0

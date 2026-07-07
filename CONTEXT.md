@@ -6,13 +6,13 @@ Personal toolkit that installs and updates skills and plugins for multiple agent
 
 ### Distribution surfaces
 
-**Shared skills surface**:
-The repo `skills/` directory, read by both Claude Code and Codex (their user skill dirs point at it). Skills both agents need live here.
-_Avoid_: skills dir, shared folder
+**Claude surface**:
+The repo `skills/` directory, read only by Claude Code (its user skill dir points at it). Also the authoring home for repo-owned skills, from which the Codex surface is synced.
+_Avoid_: skills dir, shared folder, shared skills surface
 
-**Codex-only surface**:
-`~/.agents/skills` — read only by Codex. Holds skills Claude Code must not see (usually because Claude already gets them as a plugin).
-_Avoid_: agents dir
+**Codex surface**:
+`~/.agents/skills` — Codex's single skills root. Assembled from canonical installs, synced repo-owned skills, and Codex-only copies (skills Claude Code must not see, usually because Claude already gets them as a plugin).
+_Avoid_: agents dir, Codex-only surface
 
 ### Source classification
 

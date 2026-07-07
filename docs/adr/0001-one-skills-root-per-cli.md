@@ -1,0 +1,15 @@
+# One skills root per CLI
+
+Codex used to read both `~/.agents/skills` and the repo `skills/` dir (through a `~/.codex/skills` symlink), so every skill synced from the Codex surface into the Claude surface loaded twice. We decided each CLI reads exactly one root: Claude Code reads repo `skills/` via `~/.claude/skills`; Codex reads only `~/.agents/skills`, with `scripts/update-repo-skills.sh` syncing tracked repo skills there as marked copies (refreshed manually via `update-all.sh`).
+
+## Considered options
+
+- **Split the shared root**: keep `skills/` tracked-only and give Claude its own script-populated root. Rejected — Claude would read copies exactly where skills are authored, losing live-edit locality in the CLI used to iterate on them.
+- **Dedupe by deleting duplicates from `~/.agents/skills`**: rejected — that directory is the skills CLI's canonical store; deletions break its lock and are recreated on the next run.
+
+## Consequences
+
+- Codex sees repo-skill edits only after an updater run (accepted staleness contract; Claude stays live).
+- A drift guard fails the run (the sync itself still completes) when the old `~/.codex/skills` symlink or user entries beside its `.system` dir reappear, so a machine in the old topology gets a loud red run instead of silent double-loading. Codex's own bundled system skills under `~/.codex/skills/.system` are tolerated — the CLI recreates that dir itself.
+- Marker-scoped orphan cleanup removes Codex-surface copies whose tracked source was deleted or renamed.
+- CLI-specific skill forks are unified into one CLI-agnostic tracked skill rather than deny-listed (first case: `review-claudemd`).

@@ -26,18 +26,11 @@ Rules:
 - Validate after edits: `scripts/validate-skills`.
 - Quote `description` in front matter.
 
-Global discovery usually points here:
-- `~/.codex/skills -> ~/Projects/agent-scripts/skills`
-- `~/.claude/skills -> ~/Projects/agent-scripts/skills`
+Global discovery — one skills root per CLI:
+- Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
+- Codex: `~/.agents/skills` only; `scripts/update-repo-skills.sh` (part of `update-all.sh`) syncs the tracked skills in `skills/` there as marked copies. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill.
 
-Shared personal skills live as real folders in `skills/`. Public OpenClaw shared skills live in `../agent-skills` and are exposed here with tracked relative symlinks. Repo-owned skills stay canonical in their repo and are exposed here the same way, for example:
-
-```text
-skills/autoreview -> ../../agent-skills/skills/autoreview
-skills/discrawl -> ../../discrawl/.agents/skills/discrawl
-```
-
-Current symlinked repo-owned skills include `birdclaw`, `discrawl`, `gog`, `imsg`, `slacrawl`, `wacli`, and `wacrawl`.
+Shared personal skills live as real folders in `skills/`. Third-party skills arrive as untracked rsync copies behind marker-delimited `.gitignore` blocks (see the `scripts/update-*-skills.sh` updaters); `skills/` contains no symlinks.
 
 ## Agent Instructions
 
