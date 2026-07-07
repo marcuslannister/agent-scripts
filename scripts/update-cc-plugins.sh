@@ -34,7 +34,7 @@ if [ -n "$plugin_list" ]; then
   while IFS= read -r plugin_key; do
     # Windows jq emits CRLF; a trailing \r makes `claude plugin update`
     # report the plugin as not found in the marketplace.
-    plugin_keys+=("${plugin_key%$'\r'}")
+    plugin_keys+=("$(printf '%s' "$plugin_key" | tr -d '\r')")
   done <<< "$plugin_list"
 fi
 
