@@ -1,20 +1,26 @@
 ---
 name: review-claudemd
-description: Review recent conversations to find improvements for CLAUDE.md files.
+description: "Review recent conversations to find improvements for CLAUDE.md/AGENTS.md files."
 ---
 
-# Review CLAUDE.md from conversation history
+# Review agent instructions from conversation history
 
-Analyze recent conversations to improve both global (~/.claude/CLAUDE.md) and local (project) CLAUDE.md files.
+Analyze recent conversations to improve the global and local (project) instruction files for the CLI you are running in:
+
+- Claude Code: global `~/.claude/CLAUDE.md`, local `./CLAUDE.md`; history in `~/.claude/projects/`
+- Codex: global `~/.codex/AGENTS.md`, local `./AGENTS.md`; history in `~/.codex/projects/`
+
+Below, `$CLI_DIR` means `~/.claude` or `~/.codex` per the table above, and "instructions file" means the matching CLAUDE.md/AGENTS.md pair.
 
 ## Step 1: Find conversation history
 
-The project's conversation history is in `~/.claude/projects/`. The folder name is the project path with slashes replaced by dashes.
+The project's conversation history is in `$CLI_DIR/projects/`. The folder name is the project path with slashes replaced by dashes.
 
 ```bash
+CLI_DIR=~/.claude # running under Codex: CLI_DIR=~/.codex
 # Find the project folder (path with / replaced by -)
 PROJECT_PATH=${PWD//\//-}; PROJECT_PATH=${PROJECT_PATH#-}
-CONVO_DIR=~/.claude/projects/-${PROJECT_PATH}
+CONVO_DIR=$CLI_DIR/projects/-${PROJECT_PATH}
 eza -1 --sort=modified --reverse "$CONVO_DIR"/*.jsonl | head -20
 ```
 
@@ -44,10 +50,10 @@ done
 eza -1 --sort=size --reverse "$SCRATCH"
 ```
 
-## Step 3: Spin up Sonnet subagents
+## Step 3: Spin up subagents
 
-Launch parallel Sonnet subagents to analyze conversations. Each agent should read:
-- Global CLAUDE.md: `~/.claude/CLAUDE.md`
+Launch parallel subagents to analyze conversations. Each agent should read:
+- The global instructions file (`$CLI_DIR`)
 - Local agent config: `./CLAUDE.md`, or `./AGENTS.md` if that's what the repo uses (some repos have one, not both)
 - Batch of conversation files
 
@@ -55,14 +61,14 @@ Give each agent this prompt template:
 
 ```
 Read:
-1. Global CLAUDE.md: ~/.claude/CLAUDE.md
+1. Global instructions file: [global path]
 2. Local agent config: [project]/CLAUDE.md (or [project]/AGENTS.md if that's the one present)
 3. Conversations: [list of files]
 
 Analyze the conversations against BOTH config files. Find:
 1. Instructions that exist but were violated (need reinforcement or rewording)
 2. Patterns that should be added to the LOCAL file (project-specific)
-3. Patterns that should be added to GLOBAL CLAUDE.md (applies everywhere)
+3. Patterns that should be added to the GLOBAL file (applies everywhere)
 4. Anything in either file that seems outdated or unnecessary
 
 Be specific. Output bullet points only.
