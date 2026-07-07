@@ -18,7 +18,6 @@ REPO_URL="https://github.com/nicobailon/visual-explainer.git"
 CLONE_DIR="${HOME}/Projects/visual-explainer"
 PLUGIN_DIR="${CLONE_DIR}/plugins/visual-explainer"
 CODEX_SKILLS_DIR="${HOME}/.agents/skills"
-CODEX_DEST="${CODEX_SKILLS_DIR}/visual-explainer"
 OLD_CODEX_LINK="${HOME}/.codex/visual-explainer"
 OLD_CODEX_TARGET="../Projects/visual-explainer/plugins/visual-explainer"
 
@@ -45,8 +44,11 @@ elif [ -f "$OLD_CODEX_LINK" ] && [ "$(cat "$OLD_CODEX_LINK")" = "$OLD_CODEX_TARG
   info "removed stale $OLD_CODEX_LINK"
 fi
 
-mkdir -p "$CODEX_SKILLS_DIR"
-install_skill_copy "$PLUGIN_DIR" "$CODEX_DEST"
-info "visual-explainer copied -> $CODEX_DEST"
+# Codex surface has no .gitignore, so pass ""; owner-keyed cleanup now removes
+# the copy if the plugin dir is ever renamed or dropped upstream.
+if ! sync_skill_copies visual-explainer "${CLONE_DIR}/plugins" "$CODEX_SKILLS_DIR" "" \
+  visual-explainer; then
+  exit 1
+fi
 
 section "visual-explainer done"

@@ -81,34 +81,12 @@ else
 fi
 
 section "Syncing shared copies for Claude Code"
-ignore_entries=()
-for name in "${SHARED_SKILLS[@]}"; do
-  if [ ! -f "${AGENTS_SKILLS_DIR}/${name}/SKILL.md" ]; then
-    warn "missing source skill: ${AGENTS_SKILLS_DIR}/${name}"
-    fail=1
-  elif ! install_skill_copy "${AGENTS_SKILLS_DIR}/${name}" "${SKILLS_DIR}/${name}"; then
-    fail=1
-  else
-    info "skill copied -> ${SKILLS_DIR}/${name}"
-  fi
-  # Keep ignoring an existing copy even when this run's sync failed, so a
-  # transient failure can't surface third-party files as trackable.
-  if [ -d "${SKILLS_DIR}/${name}" ]; then
-    ignore_entries+=("skills/${name}")
-  fi
-done
-protected_names=()
-while IFS= read -r name; do
-  protected_names+=("$name")
-done < <(gitignore_block_skill_names "$GITIGNORE" "matt-skills")
-if ! cleanup_marked_skill_copies "$SKILLS_DIR" "$AGENTS_SKILLS_DIR" \
-  "${SHARED_SKILLS[@]}" "${protected_names[@]}"; then
+# find-skills is owned by cli-skills; sync_skill_copies keys orphan cleanup on
+# that owner, so mattpocock's copies in the same skills/ dir are left alone.
+if ! sync_skill_copies cli-skills "$AGENTS_SKILLS_DIR" "$SKILLS_DIR" "$GITIGNORE" \
+  "${SHARED_SKILLS[@]}"; then
   fail=1
 fi
-
-regen_gitignore_block "$GITIGNORE" "cli-skills" "update-cli-skills.sh" \
-  ${ignore_entries[@]+"${ignore_entries[@]}"}
-info "regenerated cli-skills block in .gitignore"
 
 section "cli-skills done"
 exit $fail

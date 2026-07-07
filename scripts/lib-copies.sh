@@ -4,8 +4,10 @@
 # Skills from source-only clones are rsynced into a surface as COPIES — never
 # symlinks. Copies landing in the repo's skills/ dir stay untracked via a
 # marker-delimited .gitignore block regenerated on every run.
-# Each copy carries a .agent-scripts-copy marker file so re-runs only ever
-# overwrite directories this tooling created.
+# Each copy carries a two-line .agent-scripts-copy marker: line 1 is the
+# upstream source path, line 2 is the owner — the id of the updater that owns
+# the copy. Orphan cleanup keys on the owner, so two updaters can share one
+# surface (and one source_root) without knowing anything about each other.
 
 copy_warn() {
   printf '\033[0;31m!!!\033[0m %s\n' "$*" >&2
@@ -15,9 +17,10 @@ copy_info() {
   printf '\033[0;32m==>\033[0m %s\n' "$*"
 }
 
-install_skill_copy() { # source_dir dest_dir
+install_skill_copy() { # source_dir dest_dir owner
   local src="$1"
   local dst="$2"
+  local owner="$3"
   local marker="${dst}/.agent-scripts-copy"
 
   if [ ! -d "$src" ]; then
@@ -53,25 +56,30 @@ install_skill_copy() { # source_dir dest_dir
     mkdir -p "$dst" || return 1
     cp -R "${src}/." "${dst}/" || return 1
   fi
-  printf '%s\n' "$src" > "$marker" || return 1
+  printf '%s\n%s\n' "$src" "$owner" > "$marker" || return 1
 }
 
-cleanup_marked_skill_copies() { # surface source_root keep_name...
+cleanup_marked_skill_copies() { # surface owner keep_name...
   local surface="$1"
-  local source_root="$2"
+  local owner="$2"
   shift 2
-  local marker marker_source name keep keep_name failed=0
+  local marker marker_owner name keep keep_name failed=0
 
   if [ "$#" -eq 0 ]; then
-    copy_warn "no current copy names for ${source_root}; refusing orphan cleanup under ${surface}"
+    copy_warn "no current copy names for owner ${owner}; refusing orphan cleanup under ${surface}"
     return 1
   fi
 
   [ -d "$surface" ] || return 0
   for marker in "$surface"/*/.agent-scripts-copy; do
     [ -f "$marker" ] || continue
-    marker_source="$(sed -n '1p' "$marker")"
-    case "$marker_source" in "${source_root}"/*) ;; *) continue ;; esac
+    marker_owner="$(sed -n '2p' "$marker")"
+    # Legacy single-line markers predate ownership. When several updaters share
+    # one surface their legacy copies are indistinguishable, so never delete an
+    # unowned copy — it gets an owner line the next time its own updater syncs
+    # it (install_skill_copy always writes one).
+    [ -n "$marker_owner" ] || continue
+    [ "$marker_owner" = "$owner" ] || continue
 
     name="$(basename "$(dirname "$marker")")"
     keep=0
@@ -90,21 +98,6 @@ cleanup_marked_skill_copies() { # surface source_root keep_name...
     fi
   done
   return "$failed"
-}
-
-gitignore_block_skill_names() { # gitignore_path marker
-  local gitignore="$1"
-  local marker="$2"
-
-  [ -f "$gitignore" ] || return 0
-  awk -v start="# ${marker} start" -v end="# ${marker} end" '
-    index($0, start) == 1 { in_block=1; next }
-    $0 == end { in_block=0; next }
-    in_block && $0 ~ /^skills\/[^/]+$/ {
-      sub(/^skills\//, "")
-      print
-    }
-  ' "$gitignore"
 }
 
 regen_gitignore_block() { # gitignore_path marker generator entry...
@@ -131,4 +124,53 @@ regen_gitignore_block() { # gitignore_path marker generator entry...
   sed "/^# ${marker} start/,/^# ${marker} end$/d" "$gitignore" > "${gitignore}.tmp"
   printf '%s\n' "$block" >> "${gitignore}.tmp"
   mv "${gitignore}.tmp" "$gitignore"
+}
+
+sync_skill_copies() { # owner source_root dest_surface gitignore|"" name...
+  local owner="$1"
+  local source_root="$2"
+  local surface="$3"
+  local gitignore="$4"
+  shift 4
+  local name failed=0
+  local names=("$@")
+  local ignore_entries=()
+
+  if [ "${#names[@]}" -eq 0 ]; then
+    copy_warn "no skill names given to sync_skill_copies for owner ${owner}"
+    return 1
+  fi
+
+  mkdir -p "$surface" || return 1
+  for name in "${names[@]}"; do
+    if [ ! -f "${source_root}/${name}/SKILL.md" ]; then
+      copy_warn "missing source skill: ${source_root}/${name}"
+      failed=1
+    elif ! install_skill_copy "${source_root}/${name}" "${surface}/${name}" "$owner"; then
+      failed=1
+    else
+      copy_info "skill copied -> ${surface}/${name}"
+    fi
+    # Keep ignoring an existing copy even when this run's sync failed, so a
+    # transient failure can't surface third-party files as trackable. The entry
+    # is relative to the .gitignore dir, which sits one level above the surface.
+    if [ -d "${surface}/${name}" ]; then
+      ignore_entries+=("$(basename "$surface")/${name}")
+    fi
+  done
+
+  # Orphan cleanup keys on the owner, so copies other updaters own in this same
+  # surface are left untouched — no cross-block reading needed.
+  if ! cleanup_marked_skill_copies "$surface" "$owner" "${names[@]}"; then
+    failed=1
+  fi
+
+  if [ -n "$gitignore" ]; then
+    if ! regen_gitignore_block "$gitignore" "$owner" "sync_skill_copies" \
+      ${ignore_entries[@]+"${ignore_entries[@]}"}; then
+      failed=1
+    fi
+  fi
+
+  return "$failed"
 }

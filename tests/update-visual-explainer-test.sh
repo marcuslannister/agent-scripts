@@ -28,7 +28,7 @@ HOME="$TMPDIR" PATH="$TMPDIR/bin:/usr/bin:/bin" "$REPO_ROOT/scripts/update-visua
 test ! -L "$TMPDIR/.agents/skills/visual-explainer"
 test -d "$TMPDIR/.agents/skills/visual-explainer/commands"
 test -f "$TMPDIR/.agents/skills/visual-explainer/SKILL.md"
-grep -F "visual-explainer copied -> $TMPDIR/.agents/skills/visual-explainer" "$TMPDIR/out" >/dev/null
+grep -F "skill copied -> $TMPDIR/.agents/skills/visual-explainer" "$TMPDIR/out" >/dev/null
 test ! -e "$TMPDIR/.codex/visual-explainer"
 test ! -e "$TMPDIR/.codex/skills"
 test ! -e "$TMPDIR/.codex/prompts"

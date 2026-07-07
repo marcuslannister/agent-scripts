@@ -67,40 +67,19 @@ if [ -z "$matt_list" ]; then
   exit $fail
 fi
 
-copied=0
+# code-review stays Codex-only (collides with Claude Code's built-in), so it is
+# filtered out before the sync; the rest are owned by matt-skills. Orphan
+# cleanup keys on that owner, leaving cli-skills' copies in skills/ untouched.
 sync_names=()
-ignore_entries=()
 for name in $matt_list; do
   [ "$name" = "$MATT_CLAUDE_DENY" ] && continue
   sync_names+=("$name")
-  if [ ! -f "${AGENTS_SKILLS_DIR}/${name}/SKILL.md" ]; then
-    warn "missing source skill: ${AGENTS_SKILLS_DIR}/${name}"
-    fail=1
-  elif ! install_skill_copy "${AGENTS_SKILLS_DIR}/${name}" "${SKILLS_DIR}/${name}"; then
-    fail=1
-  else
-    copied=$((copied + 1))
-  fi
-  # Keep ignoring an existing copy even when this run's sync failed, so a
-  # transient failure can't surface third-party files as trackable.
-  if [ -d "${SKILLS_DIR}/${name}" ]; then
-    ignore_entries+=("skills/${name}")
-  fi
 done
-info "copied ${copied} skills into ${SKILLS_DIR} (deny: ${MATT_CLAUDE_DENY})"
-
-protected_names=()
-while IFS= read -r name; do
-  protected_names+=("$name")
-done < <(gitignore_block_skill_names "$GITIGNORE" "cli-skills")
-if ! cleanup_marked_skill_copies "$SKILLS_DIR" "$AGENTS_SKILLS_DIR" \
-  "${sync_names[@]}" "${protected_names[@]}"; then
+if ! sync_skill_copies matt-skills "$AGENTS_SKILLS_DIR" "$SKILLS_DIR" "$GITIGNORE" \
+  ${sync_names[@]+"${sync_names[@]}"}; then
   fail=1
 fi
-
-regen_gitignore_block "$GITIGNORE" "matt-skills" "update-mattpocock-skills.sh" \
-  ${ignore_entries[@]+"${ignore_entries[@]}"}
-info "regenerated matt-skills block in .gitignore"
+info "synced mattpocock skills into ${SKILLS_DIR} (deny: ${MATT_CLAUDE_DENY})"
 
 [ "$fail" -eq 0 ] || exit 1
 section "mattpocock-skills done"

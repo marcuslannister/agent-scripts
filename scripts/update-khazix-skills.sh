@@ -29,19 +29,10 @@ else
   git clone --depth 1 "$REPO_URL" "$CLONE_DIR"
 fi
 
-if [ ! -f "${CLONE_DIR}/neat-freak/SKILL.md" ]; then
-  warn "skill missing: ${CLONE_DIR}/neat-freak/SKILL.md"
+section "Copying skill"
+# neat-freak sits at the clone root, so the clone dir is the source_root.
+if ! sync_skill_copies khazix-skills "$CLONE_DIR" "$SKILLS_DIR" "$GITIGNORE" neat-freak; then
   exit 1
 fi
-
-section "Copying skill"
-install_skill_copy "${CLONE_DIR}/neat-freak" "${SKILLS_DIR}/neat-freak"
-info "skill copied -> ${SKILLS_DIR}/neat-freak"
-
-cleanup_marked_skill_copies "$SKILLS_DIR" "$CLONE_DIR" "neat-freak"
-
-regen_gitignore_block "$GITIGNORE" "khazix-skills" "update-khazix-skills.sh" \
-  "skills/neat-freak"
-info "regenerated khazix-skills block in .gitignore"
 
 section "khazix-skills done"

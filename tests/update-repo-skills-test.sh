@@ -36,7 +36,7 @@ git -C "$REPO" commit -qm init
 make_skill gamma # left untracked on purpose
 run_sync >/dev/null
 test -f "$SURFACE/alpha/SKILL.md"
-test "$(cat "$SURFACE/alpha/.agent-scripts-copy")" = "$REPO/skills/alpha"
+test "$(sed -n '1p' "$SURFACE/alpha/.agent-scripts-copy")" = "$REPO/skills/alpha"
 test -f "$SURFACE/beta/SKILL.md"
 test ! -e "$SURFACE/gamma"
 
@@ -53,7 +53,7 @@ run_sync >/dev/null
 test ! -e "$SURFACE/alpha"
 test ! -e "$SURFACE/beta"
 test -f "$SURFACE/delta/SKILL.md"
-test "$(cat "$SURFACE/delta/.agent-scripts-copy")" = "$REPO/skills/delta"
+test "$(sed -n '1p' "$SURFACE/delta/.agent-scripts-copy")" = "$REPO/skills/delta"
 
 # Unmarked dirs on the surface (skills CLI installs, hand-managed skills)
 # survive every run untouched — including runs where cleanup fires.
@@ -112,7 +112,7 @@ if find "$FAKE_HOME/.codex/skills" -mindepth 1 -maxdepth 1 ! -name '.system' | g
   exit 1
 fi
 grep -F "verified one-root Codex surface: $FAKE_HOME/.codex/skills has no non-system entries; 1 tracked marked copies active" "$TMPDIR/verified.out" >/dev/null
-test "$(cat "$SURFACE/epsilon/.agent-scripts-copy")" = "$REPO/skills/epsilon"
+test "$(sed -n '1p' "$SURFACE/epsilon/.agent-scripts-copy")" = "$REPO/skills/epsilon"
 test "$(cat "$SURFACE/stray-skill/SKILL.md")" = "active"
 AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091503 run_sync >/dev/null
 test ! -e "$FAKE_HOME/.codex/skills-migrated-20260707-091503"
@@ -174,6 +174,6 @@ test ! -e "$SURFACE/epsilon"                        # ghost cleaned
 rm -rf "$SURFACE/zeta" # clear the collision; the next sync recreates it
 HOME="$FAKE_HOME" AGENT_SCRIPTS_DISABLE_RSYNC=1 "$REPO/scripts/update-repo-skills.sh" >/dev/null
 test -f "$SURFACE/zeta/SKILL.md"
-test "$(cat "$SURFACE/zeta/.agent-scripts-copy")" = "$REPO/skills/zeta"
+test "$(sed -n '1p' "$SURFACE/zeta/.agent-scripts-copy")" = "$REPO/skills/zeta"
 
 echo "update-repo-skills tests passed"

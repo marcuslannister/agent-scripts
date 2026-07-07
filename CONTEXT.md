@@ -37,5 +37,9 @@ The install treated as source of truth for a skill, from which other surfaces ar
 A skill directory rsynced into a surface and kept out of git by a marker-delimited `.gitignore` block. The repo tracks the script that produces it, not the content.
 _Avoid_: vendored copy, symlink
 
+**Owner**:
+The updater a copy belongs to, recorded on line 2 of the copy's `.agent-scripts-copy` marker (line 1 is the upstream source path). Orphan cleanup keys on the owner, so several updaters can share one surface without deleting each other's copies. A pre-owner copy with a single-line marker is left untouched until its own updater re-syncs it and stamps the owner.
+_Avoid_: source prefix, gitignore block (the pre-owner ways ownership was inferred)
+
 **Updater**:
 A per-source script in `scripts/` that brings one repo's skills/plugins to their desired state; `update-all.sh` orchestrates all of them.

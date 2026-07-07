@@ -37,47 +37,18 @@ else
   git clone --depth 1 "$REPO_URL" "$CLONE_DIR"
 fi
 
-section "Copying shared skills"
 failed=0
-ignore_entries=()
-for skill in "${SKILLS[@]}"; do
-  if [ ! -f "${CLONE_DIR}/skills/${skill}/SKILL.md" ]; then
-    warn "skill missing: ${CLONE_DIR}/skills/${skill}/SKILL.md"
-    failed=1
-  elif ! install_skill_copy "${CLONE_DIR}/skills/${skill}" "${SKILLS_DIR}/${skill}"; then
-    failed=1
-  else
-    info "skill copied -> ${SKILLS_DIR}/${skill}"
-  fi
-  # Keep ignoring an existing copy even when this run's sync failed, so a
-  # transient failure can't surface third-party files as trackable.
-  if [ -d "${SKILLS_DIR}/${skill}" ]; then
-    ignore_entries+=("skills/${skill}")
-  fi
-done
-if ! cleanup_marked_skill_copies "$SKILLS_DIR" "${CLONE_DIR}/skills" "${SKILLS[@]}"; then
+
+section "Copying shared skills (Claude surface)"
+if ! sync_skill_copies anthropic-skills "${CLONE_DIR}/skills" "$SKILLS_DIR" "$GITIGNORE" \
+  "${SKILLS[@]}"; then
   failed=1
 fi
 
-regen_gitignore_block "$GITIGNORE" "anthropic-skills" "update-anthropic-skills.sh" \
-  ${ignore_entries[@]+"${ignore_entries[@]}"}
-info "regenerated anthropic-skills block in .gitignore"
-
 section "Copying Codex surface skills"
-mkdir -p "$AGENTS_SKILLS_DIR"
-for skill in "${AGENTS_SKILLS[@]}"; do
-  if [ ! -f "${CLONE_DIR}/skills/${skill}/SKILL.md" ]; then
-    warn "skill missing: ${CLONE_DIR}/skills/${skill}/SKILL.md"
-    failed=1
-    continue
-  fi
-  if ! install_skill_copy "${CLONE_DIR}/skills/${skill}" "${AGENTS_SKILLS_DIR}/${skill}"; then
-    failed=1
-    continue
-  fi
-  info "skill copied -> ${AGENTS_SKILLS_DIR}/${skill}"
-done
-if ! cleanup_marked_skill_copies "$AGENTS_SKILLS_DIR" "${CLONE_DIR}/skills" "${AGENTS_SKILLS[@]}"; then
+# Same owner, second surface; the Codex surface has no .gitignore, so pass "".
+if ! sync_skill_copies anthropic-skills "${CLONE_DIR}/skills" "$AGENTS_SKILLS_DIR" "" \
+  "${AGENTS_SKILLS[@]}"; then
   failed=1
 fi
 

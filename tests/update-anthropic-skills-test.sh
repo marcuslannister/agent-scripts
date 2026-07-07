@@ -18,9 +18,9 @@ make_source() { # name
   printf '%s\n' '---' "name: $1" 'description: "test"' '---' > "$CLONE/skills/$1/SKILL.md"
 }
 
-make_marked_copy() { # surface name source_name
+make_marked_copy() { # surface name source_name owner
   mkdir -p "$1/$2"
-  printf '%s\n' "$CLONE/skills/$3" > "$1/$2/.agent-scripts-copy"
+  printf '%s\n%s\n' "$CLONE/skills/$3" "$4" > "$1/$2/.agent-scripts-copy"
   printf 'stale\n' > "$1/$2/SKILL.md"
 }
 
@@ -28,8 +28,8 @@ for skill in docx xlsx pdf pptx frontend-design skill-creator; do
   make_source "$skill"
 done
 
-make_marked_copy "$REPO/skills" old-doc old-doc
-make_marked_copy "$CODEX_SURFACE" old-doc old-doc
+make_marked_copy "$REPO/skills" old-doc old-doc anthropic-skills
+make_marked_copy "$CODEX_SURFACE" old-doc old-doc anthropic-skills
 mkdir -p "$REPO/skills/hand-made" "$CODEX_SURFACE/hand-made"
 printf 'mine\n' > "$REPO/skills/hand-made/SKILL.md"
 printf 'mine\n' > "$CODEX_SURFACE/hand-made/SKILL.md"
@@ -57,16 +57,17 @@ run_sync >/dev/null
 
 for skill in docx xlsx pdf pptx; do
   test -f "$REPO/skills/$skill/SKILL.md"
-  test "$(cat "$REPO/skills/$skill/.agent-scripts-copy")" = "$CLONE/skills/$skill"
+  test "$(sed -n '1p' "$REPO/skills/$skill/.agent-scripts-copy")" = "$CLONE/skills/$skill"
+  test "$(sed -n '2p' "$REPO/skills/$skill/.agent-scripts-copy")" = anthropic-skills
   test -f "$CODEX_SURFACE/$skill/SKILL.md"
-  test "$(cat "$CODEX_SURFACE/$skill/.agent-scripts-copy")" = "$CLONE/skills/$skill"
+  test "$(sed -n '1p' "$CODEX_SURFACE/$skill/.agent-scripts-copy")" = "$CLONE/skills/$skill"
   grep -Fx "skills/$skill" "$REPO/.gitignore" >/dev/null
 done
 
 for skill in frontend-design skill-creator; do
   test ! -e "$REPO/skills/$skill"
   test -f "$CODEX_SURFACE/$skill/SKILL.md"
-  test "$(cat "$CODEX_SURFACE/$skill/.agent-scripts-copy")" = "$CLONE/skills/$skill"
+  test "$(sed -n '1p' "$CODEX_SURFACE/$skill/.agent-scripts-copy")" = "$CLONE/skills/$skill"
 done
 
 test ! -e "$REPO/skills/old-doc"

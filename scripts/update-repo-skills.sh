@@ -126,7 +126,7 @@ verify_one_root_codex_surface() { # codex_skills tracked_names
       failed=1
       continue
     fi
-    marker_source="$(cat "$marker")"
+    marker_source="$(sed -n '1p' "$marker")"
     if [ "$marker_source" != "${SKILLS_DIR}/${name}" ]; then
       warn "tracked skill marker mismatch for ${name}: ${marker_source}"
       failed=1
@@ -162,7 +162,7 @@ fi
 mkdir -p "$AGENTS_SKILLS_DIR"
 copied=0
 for name in $tracked; do
-  if install_skill_copy "${SKILLS_DIR}/${name}" "${AGENTS_SKILLS_DIR}/${name}"; then
+  if install_skill_copy "${SKILLS_DIR}/${name}" "${AGENTS_SKILLS_DIR}/${name}" repo-skills; then
     copied=$((copied + 1))
   else
     fail=1
@@ -170,7 +170,7 @@ for name in $tracked; do
 done
 info "copied ${copied} tracked skills into ${AGENTS_SKILLS_DIR}"
 
-if ! cleanup_marked_skill_copies "$AGENTS_SKILLS_DIR" "$SKILLS_DIR" $tracked; then
+if ! cleanup_marked_skill_copies "$AGENTS_SKILLS_DIR" repo-skills $tracked; then
   fail=1
 fi
 
