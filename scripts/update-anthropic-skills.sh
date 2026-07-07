@@ -5,10 +5,11 @@ set -euo pipefail
 # Keeps a persistent clone under ~/Projects (dir renamed anthropic-skills since
 # the repo is just "skills"), then rsyncs selected skills into this repo's
 # skills/ as untracked COPIES (never symlinks); a marker-delimited block in
-# .gitignore keeps them out of the repo. frontend-design and skill-creator copy
-# into ~/.agents/skills instead (Codex-only, like visual-explainer): Claude
-# Code ships both via plugins and does not read ~/.agents/skills, so Codex
-# gets them without duplicating the plugins.
+# .gitignore keeps them out of the repo. The document skills also copy into
+# ~/.agents/skills so Codex can discover them from its single active surface.
+# frontend-design and skill-creator copy into ~/.agents/skills only: Claude
+# Code ships both via plugins and does not read ~/.agents/skills, so Codex gets
+# them without duplicating the plugins.
 # Re-runnable; exits non-zero on failure.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
@@ -25,7 +26,7 @@ SKILLS_DIR="${REPO_ROOT}/skills"
 GITIGNORE="${REPO_ROOT}/.gitignore"
 SKILLS=(docx xlsx pdf pptx)
 AGENTS_SKILLS_DIR="${HOME}/.agents/skills"
-AGENTS_SKILLS=(frontend-design skill-creator)
+AGENTS_SKILLS=("${SKILLS[@]}" frontend-design skill-creator)
 
 section "Repo (anthropics/skills)"
 if [ -d "${CLONE_DIR}/.git" ]; then
@@ -62,7 +63,7 @@ regen_gitignore_block "$GITIGNORE" "anthropic-skills" "update-anthropic-skills.s
   ${ignore_entries[@]+"${ignore_entries[@]}"}
 info "regenerated anthropic-skills block in .gitignore"
 
-section "Copying Codex-only skills"
+section "Copying Codex surface skills"
 mkdir -p "$AGENTS_SKILLS_DIR"
 for skill in "${AGENTS_SKILLS[@]}"; do
   if [ ! -f "${CLONE_DIR}/skills/${skill}/SKILL.md" ]; then
