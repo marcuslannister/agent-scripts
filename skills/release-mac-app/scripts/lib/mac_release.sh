@@ -1505,14 +1505,14 @@ mac_release_release() {
   local tag_args=() push_tag_args=()
   [[ "${MAC_RELEASE_TAG_FORCE:-1}" == "1" ]] && tag_args+=(-f) && push_tag_args+=(-f)
   if [[ "${MAC_RELEASE_TAG_SIGNED:-0}" == "1" ]]; then
-    git tag -s "${tag_args[@]}" -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
+    git tag -s ${tag_args[@]+"${tag_args[@]}"} -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
   elif [[ "${MAC_RELEASE_TAG_ANNOTATED:-1}" == "1" ]]; then
-    git tag "${tag_args[@]}" -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
+    git tag ${tag_args[@]+"${tag_args[@]}"} -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
   else
-    git tag "${tag_args[@]}" "$TAG"
+    git tag ${tag_args[@]+"${tag_args[@]}"} "$TAG"
   fi
   tag_created=1
-  git push "${push_tag_args[@]}" origin "$TAG"
+  git push ${push_tag_args[@]+"${push_tag_args[@]}"} origin "$TAG"
   tag_pushed=1
   gh release create "$TAG" --repo "$MAC_RELEASE_REPO" --title "${APP_NAME} ${MARKETING_VERSION}" --notes-file "$notes_md"
   release_created=1
