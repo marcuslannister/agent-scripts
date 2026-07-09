@@ -73,6 +73,8 @@ comments_json="$tmpdir/comments.json"
 closed_items_json="$tmpdir/closed-items.json"
 pulls_json="$tmpdir/pulls.json"
 jobs_jsonl="$tmpdir/jobs.jsonl"
+limits_json="$tmpdir/automation-limits.json"
+exact_queue_json="$tmpdir/exact-review-queue.json"
 
 activity_page_size=$((limit * 3))
 if [ "$activity_page_size" -lt 10 ]; then
@@ -165,13 +167,44 @@ gh pr list --repo "$target_repo" --state merged \
   --search "merged:>=${since} sort:updated-desc" --limit "$activity_page_size" \
   --json title,url,mergedAt,mergedBy,labels >"$pulls_json"
 
-in_progress_count="$(jq '[.workflow_runs[] | select(.status == "in_progress")] | length' "$runs_json")"
-job_probe_limit=40
+if ! gh api "repos/${clawsweeper_repo}/contents/config/automation-limits.json" \
+  -H "Accept: application/vnd.github.raw" \
+  >"$limits_json" 2>/dev/null || ! jq -e 'type == "object"' "$limits_json" >/dev/null; then
+  printf '{}\n' >"$limits_json"
+fi
+
+if command -v curl >/dev/null 2>&1 && \
+  curl --fail --silent --show-error --connect-timeout 3 --max-time 8 \
+    "${CLAWSWEEPER_EXACT_REVIEW_QUEUE_URL:-https://clawsweeper.openclaw.ai}/api/exact-review-queue" \
+    >"$exact_queue_json" 2>/dev/null && \
+  jq -e '
+    type == "object" and
+    (.pending | type == "number") and
+    (.dispatching | type == "number") and
+    (.leased | type == "number") and
+    (.target_stats | type == "array")
+  ' "$exact_queue_json" >/dev/null; then
+  exact_queue_available=true
+else
+  exact_queue_available=false
+  printf '{}\n' >"$exact_queue_json"
+fi
+
+active_count="$(jq '[.workflow_runs[]
+  | select(.status == "in_progress" or .status == "pending" or .status == "queued" or .status == "waiting" or .status == "requested")
+] | length' "$runs_json")"
+job_bearing_run_count="$(jq '[.workflow_runs[]
+  | select(.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "requested")
+] | length' "$runs_json")"
+job_probe_limit="$run_limit"
 active_ids="$(jq -r --argjson limit "$job_probe_limit" '[.workflow_runs[]
-  | select(.status == "in_progress")
-  | .id][0:$limit][]' "$runs_json")"
-if [ "$in_progress_count" -gt "$job_probe_limit" ]; then
-  unprobed_job_runs=$((in_progress_count - job_probe_limit))
+  | select(.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "requested")
+] | sort_by(if .status == "in_progress" then 0 else 1 end)
+  | .[0:$limit][]
+  | .id' "$runs_json")"
+probed_job_runs="$(printf '%s\n' "$active_ids" | awk 'NF { count += 1 } END { print count + 0 }')"
+if [ "$job_bearing_run_count" -gt "$probed_job_runs" ]; then
+  unprobed_job_runs=$((job_bearing_run_count - probed_job_runs))
 else
   unprobed_job_runs=0
 fi
@@ -182,11 +215,16 @@ job_batch_count=0
 while IFS= read -r run_id; do
   [ -n "$run_id" ] || continue
   (
+    run_name="$(jq -r --argjson run_id "$run_id" '.workflow_runs[]
+      | select(.id == $run_id)
+      | .name' "$runs_json")"
     if jobs="$(gh run view "$run_id" --repo "$clawsweeper_repo" --json jobs \
-      --jq '[.jobs[] | {name,status,conclusion}]' 2>/dev/null)"; then
-      jq -cn --argjson jobs "$jobs" '{jobs: $jobs, query_failed: false}'
+      --jq '[.jobs[] | {name,status,conclusion,steps: [.steps[]?.name]}]' 2>/dev/null)"; then
+      jq -cn --arg run_id "$run_id" --arg run_name "$run_name" --argjson jobs "$jobs" \
+        '{run_id: $run_id, run_name: $run_name, jobs: $jobs, query_failed: false}'
     else
-      jq -cn '{jobs: [], query_failed: true}'
+      jq -cn --arg run_id "$run_id" --arg run_name "$run_name" \
+        '{run_id: $run_id, run_name: $run_name, jobs: [], query_failed: true}'
     fi
   ) >"$tmpdir/jobs-${run_id}.json" &
   job_batch_count=$((job_batch_count + 1))
@@ -201,25 +239,42 @@ for job_file in "$tmpdir"/jobs-*.json; do
   cat "$job_file" >>"$jobs_jsonl"
 done
 
-active_count="$(jq '[.workflow_runs[] | select(.status == "in_progress" or .status == "pending" or .status == "queued" or .status == "waiting")] | length' "$runs_json")"
-queued_count="$(jq '[.workflow_runs[] | select(.status == "queued" or .status == "waiting")] | length' "$runs_json")"
+queued_count="$(jq '[.workflow_runs[] | select(.status == "queued" or .status == "waiting" or .status == "requested")] | length' "$runs_json")"
+concurrency_waiters="$(jq '[.workflow_runs[] | select(.status == "pending")] | length' "$runs_json")"
 bad_count="$(jq '[.workflow_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")] | length' "$runs_json")"
 
-codex_running="$(jq -s '[.[].jobs[]?
+codex_job_regex='^Review shard|^Review, comment, and apply event item$|^Review commit|^Plan and review cluster$|^Run worker|^Execute credited fix|^Execute and apply cluster actions$|^assist$|^Generate and publish maintainer reports$'
+codex_running="$(jq -s --arg regex "$codex_job_regex" '
+def codex_job:
+  (((.steps // []) | map(test("setup-codex"; "i")) | any) or
+   ((.name // "") | test($regex; "i")) or
+   (((.name // "") == "intake") and ((.run_name // "") | test("^repair commit finding intake$"; "i"))));
+[.[] as $run
+  | $run.jobs[]?
+  | . + {run_name: $run.run_name}
   | select(.status == "in_progress")
-  | select(.name | test("Review shard|Review, comment|Review commit|Plan and review|Run worker|Execute credited fix|Codex"; "i"))
+  | select(codex_job)
 ] | length' "$jobs_jsonl")"
-codex_queued="$(jq -s '[.[].jobs[]?
-  | select(.status == "queued" or .status == "waiting" or .status == "pending")
-  | select(.name | test("Review shard|Review, comment|Review commit|Plan and review|Run worker|Execute credited fix|Codex"; "i"))
+codex_queued="$(jq -s --arg regex "$codex_job_regex" '
+def codex_job:
+  (((.steps // []) | map(test("setup-codex"; "i")) | any) or
+   ((.name // "") | test($regex; "i")) or
+   (((.name // "") == "intake") and ((.run_name // "") | test("^repair commit finding intake$"; "i"))));
+[.[] as $run
+  | $run.jobs[]?
+  | . + {run_name: $run.run_name}
+  | select(.status == "queued" or .status == "waiting" or .status == "pending" or .status == "requested")
+  | select(codex_job)
 ] | length' "$jobs_jsonl")"
 job_query_failures="$(jq -s '[.[] | select(.query_failed)] | length' "$jobs_jsonl")"
 job_query_failures=$((job_query_failures + unprobed_job_runs))
-queued_codex_workflows="$(jq '[.workflow_runs[]
-  | select(.status == "queued" or .status == "waiting" or .status == "pending")
-  | select(.name | test("Review|repair|Run worker|Execute credited fix|Codex"; "i"))
-] | length' "$runs_json")"
-codex_queued=$((codex_queued + queued_codex_workflows))
+worker_capacity="$(jq -r '.workers.max | select(type == "number" and . > 0) // empty' "$limits_json")"
+exact_capacity="$(jq -r '.lanes.exact_review.max_concurrent | select(type == "number" and . > 0) // empty' "$limits_json")"
+exact_target_capacity="$(jq -r '.lanes.exact_review.target_max_concurrent | select(type == "number" and . > 0) // empty' "$limits_json")"
+codex_running_display="$codex_running"
+if [ -n "$worker_capacity" ]; then
+  codex_running_display="${codex_running}/${worker_capacity}"
+fi
 
 echo "# ClawSweeper status"
 echo
@@ -238,19 +293,47 @@ if [ "$run_query_failures" -gt 0 ] || [ "$run_query_truncated" -gt 0 ]; then
 else
   printf -- "- Queued/waiting workflow runs: %s\n" "$queued_count"
 fi
+if [ "$run_query_failures" -gt 0 ] || [ "$run_query_truncated" -gt 0 ]; then
+  printf -- "- Workflow concurrency waiters: at least %s\n" "$concurrency_waiters"
+else
+  printf -- "- Workflow concurrency waiters: %s\n" "$concurrency_waiters"
+fi
 printf -- "- Failed/timed-out/action-required recent runs: %s\n" "$bad_count"
 if [ "$job_query_failures" -gt 0 ] && { [ "$run_query_failures" -gt 0 ] || [ "$run_query_truncated" -gt 0 ]; }; then
-  printf -- "- Estimated active Codex jobs: at least %s running, %s queued/pending (%s job queries unavailable; workflow status may be incomplete)\n" "$codex_running" "$codex_queued" "$job_query_failures"
+  printf -- "- Active Codex jobs: at least %s running, at least %s queued (%s job queries unavailable; workflow status may be incomplete)\n" "$codex_running_display" "$codex_queued" "$job_query_failures"
 elif [ "$job_query_failures" -gt 0 ]; then
-  printf -- "- Estimated active Codex jobs: at least %s running, %s queued/pending (%s job queries unavailable)\n" "$codex_running" "$codex_queued" "$job_query_failures"
+  printf -- "- Active Codex jobs: at least %s running, at least %s queued (%s job queries unavailable)\n" "$codex_running_display" "$codex_queued" "$job_query_failures"
 elif [ "$run_query_failures" -gt 0 ] || [ "$run_query_truncated" -gt 0 ]; then
-  printf -- "- Estimated active Codex jobs: at least %s running, %s queued/pending (workflow status pages incomplete)\n" "$codex_running" "$codex_queued"
+  printf -- "- Active Codex jobs: at least %s running, at least %s queued (workflow status pages incomplete)\n" "$codex_running_display" "$codex_queued"
 else
-  printf -- "- Estimated active Codex jobs: %s running, %s queued/pending\n" "$codex_running" "$codex_queued"
+  printf -- "- Active Codex jobs: %s running, %s queued\n" "$codex_running_display" "$codex_queued"
+fi
+if [ "$exact_queue_available" = true ]; then
+  exact_active="$(jq '(.dispatching // 0) + (.leased // 0)' "$exact_queue_json")"
+  exact_pending="$(jq '.pending' "$exact_queue_json")"
+  exact_active_display="$exact_active"
+  if [ -n "$exact_capacity" ]; then
+    exact_active_display="${exact_active}/${exact_capacity}"
+  fi
+
+  target_exact_active="$(jq -r --arg target "$target_repo" '[.target_stats[]?
+    | select(.target_repo == $target)
+    | ((.dispatching // 0) + (.leased // 0))][0] // 0' "$exact_queue_json")"
+  target_exact_pending="$(jq -r --arg target "$target_repo" '[.target_stats[]?
+    | select(.target_repo == $target)
+    | (.pending // 0)][0] // 0' "$exact_queue_json")"
+  target_exact_active_display="$target_exact_active"
+  if [ -n "$exact_target_capacity" ]; then
+    target_exact_active_display="${target_exact_active}/${exact_target_capacity}"
+  fi
+  printf -- "- Exact-review queue: %s active, %s pending (target %s: %s active, %s pending)\n" \
+    "$exact_active_display" "$exact_pending" "$target_repo" "$target_exact_active_display" "$target_exact_pending"
+else
+  printf -- "- Exact-review queue: unavailable\n"
 fi
 echo
 jq -r '[.workflow_runs[]
-  | select(.status == "in_progress" or .status == "pending" or .status == "queued" or .status == "waiting")
+  | select(.status == "in_progress" or .status == "pending" or .status == "queued" or .status == "waiting" or .status == "requested")
 ] | group_by(.name) | sort_by(-length) | .[]
   | "- \((length))x \((.[0].name)): \((.[0].html_url))"' "$runs_json" | head -20
 

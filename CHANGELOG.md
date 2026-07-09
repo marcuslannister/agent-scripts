@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-09 — ClawSweeper Worker Capacity
+- Made `clawsweeper-status` report actual Codex job utilization against configured capacity, exact-review queue and target occupancy, and workflow concurrency waiters separately from queued jobs.
+
 ## 2026-07-04 — npm Session Cache
 - Cached newly created npm registry sessions back to the Molty 1Password item through a verified JSON-only update, eliminating repeated TOTP logins across Macs without exposing the token in arguments or logs.
 
