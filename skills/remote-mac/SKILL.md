@@ -21,12 +21,12 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `megaclaw`, `Molty`, 
 
 Non-Mac fleet nodes (full detail in `computers.yaml`):
 
-- `gorillaclaw`: personal Linux node at GorillaServers (Los Angeles), Tailscale `100.93.99.79`. Tailscale-reachable but system SSH (TCP 22) is firewalled/off.
-- `steipetesurface`: Peter's personal Windows Surface, Tailscale `100.118.219.64` (often offline). Corporate Windows laptop `CPC-steip-11ENO` is separate and work-managed.
+- `gorillaclaw`: personal Ubuntu Linux node at GorillaServers (Los Angeles), Tailscale `100.93.99.79`; SSH user `steipete`.
+- `steipetesurface`: Peter's personal Windows Surface, Tailscale `100.118.219.64`, SSH user `steip`. Corporate Windows laptop `CPC-steip-11ENO` is separate and work-managed.
 
 Not Peter's Macs (do not configure/brand as his):
 
-- `crabhammer`: Scaleway M4-XL given to vince; on Peter's tailnet + billing but provisioned for vince (no SSH access). Listed under `handed_off:` in `computers.yaml`. The other Scaleway box `apple-silicon-lucid-allen` (M4-S) is Peter's but undocumented.
+- `crabhammer`: Scaleway M4-XL given to vince; on Peter's tailnet + billing but provisioned for vince (no SSH access). Listed under `handed_off:` in `computers.yaml`.
 
 Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac):
 
