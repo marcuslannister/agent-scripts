@@ -63,7 +63,7 @@ case "$1 $2" in
     printf '%s\n' '{"workers":{"max":128},"lanes":{"exact_review":{"max_concurrent":28,"target_max_concurrent":24}}}'
     ;;
   "api graphql")
-    printf '%s\n' '{"data":{"search":{"nodes":[{"title":"Fixed issue","url":"https://github.test/issues/9","closedAt":"2099-01-01T00:00:00Z","timelineItems":{"nodes":[{"createdAt":"2099-01-01T00:00:00Z","actor":{"login":"clawsweeper"}}]}}]}}}'
+    printf '%s\n' '{"data":{"pulls":{"nodes":[{"title":"Closed pull request","url":"https://github.test/pull/9","closedAt":"2099-01-01T00:00:00Z","timelineItems":{"nodes":[{"createdAt":"2099-01-01T00:00:00Z","actor":{"login":"clawsweeper"}}]}}]},"issues":{"nodes":[{"title":"Fixed issue","url":"https://github.test/issues/9","closedAt":"2099-01-01T00:00:00Z","timelineItems":{"nodes":[{"createdAt":"2099-01-01T00:00:00Z","actor":{"login":"clawsweeper"}}]}}]}}}'
     ;;
   *)
     echo "unexpected gh call: $*" >&2
@@ -101,10 +101,13 @@ grep -Fq -- '- Active Codex jobs: 8/128 running, 2 queued' "$tmpdir/output"
 grep -Fq -- '- Exact-review queue: 8/28 active, 2 pending (target test/target: 6/24 active, 1 pending)' "$tmpdir/output"
 grep -Fq 'https://github.test/pull/7' "$tmpdir/output"
 grep -Fq 'https://github.test/comment/8' "$tmpdir/output"
+grep -Fq 'https://github.test/pull/9' "$tmpdir/output"
 grep -Fq 'https://github.test/issues/9' "$tmpdir/output"
 grep -Fq 'run list --repo test/sweeper --limit 12 --json' "$GH_TEST_LOG"
 grep -Fq 'issues/comments?sort=updated&direction=desc&per_page=20' "$GH_TEST_LOG"
 grep -Fq 'issues/comments?sort=updated&direction=desc&per_page=10' "$GH_TEST_LOG"
+grep -Fq 'pullSearchQuery=repo:test/target is:pr is:closed is:unmerged' "$GH_TEST_LOG"
+grep -Fq 'issueSearchQuery=repo:test/target is:issue is:closed' "$GH_TEST_LOG"
 grep -Fq 'api repos/test/sweeper/contents/config/automation-limits.json -H Accept: application/vnd.github.raw' "$GH_TEST_LOG"
 if grep -Fq 'run view 25' "$GH_TEST_LOG"; then
   echo "queue-backed exact-review workflow was not deduplicated against the queue" >&2

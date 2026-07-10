@@ -83,6 +83,13 @@ elif [ "$activity_page_size" -gt 20 ]; then
   activity_page_size=20
 fi
 
+closed_page_size=$((limit * 10))
+if [ "$closed_page_size" -lt 50 ]; then
+  closed_page_size=50
+elif [ "$closed_page_size" -gt 100 ]; then
+  closed_page_size=100
+fi
+
 normalize_runs='.[] | {
   id: .databaseId,
   name,
@@ -141,18 +148,13 @@ jq -s '
   }
 ' "$all_runs_jsonl" >"$runs_json"
 fetch_activity_page "repos/${target_repo}/issues/comments?sort=updated&direction=desc&per_page=__PAGE__&since=${since}" "$comments_json"
-closed_search="repo:${target_repo} is:closed closed:>=${since} sort:updated-desc"
+closed_pr_search="repo:${target_repo} is:pr is:closed is:unmerged closed:>=${since} sort:updated-desc"
+closed_issue_search="repo:${target_repo} is:issue is:closed closed:>=${since} sort:updated-desc"
 # GraphQL variable references must remain literal for gh to bind them.
 # shellcheck disable=SC2016
-closed_query='query($searchQuery: String!, $first: Int!) {
-  search(type: ISSUE, query: $searchQuery, first: $first) {
+closed_query='query($pullSearchQuery: String!, $issueSearchQuery: String!, $first: Int!) {
+  pulls: search(type: ISSUE, query: $pullSearchQuery, first: $first) {
     nodes {
-      ... on Issue {
-        title url closedAt
-        timelineItems(last: 1, itemTypes: [CLOSED_EVENT]) {
-          nodes { ... on ClosedEvent { createdAt actor { login } } }
-        }
-      }
       ... on PullRequest {
         title url closedAt
         timelineItems(last: 1, itemTypes: [CLOSED_EVENT]) {
@@ -161,9 +163,21 @@ closed_query='query($searchQuery: String!, $first: Int!) {
       }
     }
   }
+  issues: search(type: ISSUE, query: $issueSearchQuery, first: $first) {
+    nodes {
+      ... on Issue {
+        title url closedAt
+        timelineItems(last: 1, itemTypes: [CLOSED_EVENT]) {
+          nodes { ... on ClosedEvent { createdAt actor { login } } }
+        }
+      }
+    }
+  }
 }'
-gh api graphql -f query="$closed_query" -f searchQuery="$closed_search" \
-  -F first="$activity_page_size" >"$closed_items_json"
+gh api graphql -f query="$closed_query" \
+  -f pullSearchQuery="$closed_pr_search" \
+  -f issueSearchQuery="$closed_issue_search" \
+  -F first="$closed_page_size" >"$closed_items_json"
 gh pr list --repo "$target_repo" --state merged \
   --search "merged:>=${since} sort:updated-desc" --limit "$activity_page_size" \
   --json title,url,mergedAt,mergedBy,labels >"$pulls_json"
@@ -409,7 +423,7 @@ print_section "Recently commented" "$commented"
 closed="$(
   jq -r --arg bot "$bot_regex" --arg since "$since" --argjson limit "$limit" '
     def one_line: gsub("[\r\n\t]+"; " ") | gsub("  +"; " ") | .[0:160];
-    [.data.search.nodes[]
+    [((.data.pulls.nodes // []) + (.data.issues.nodes // []))[]
       | .timelineItems.nodes[0] as $event
       | select(.closedAt >= $since)
       | select(($event.actor.login // "") | test($bot; "i"))
