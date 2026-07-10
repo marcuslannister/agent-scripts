@@ -13,7 +13,7 @@ printf '%s\n' "$*" >>"${GH_TEST_LOG:?}"
 case "$1 $2" in
   "run list")
     if [[ " $* " == *" --status in_progress "* ]]; then
-      printf '%s\n' '[{"databaseId":21,"name":"ClawSweeper review","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/21"}]'
+      printf '%s\n' '[{"databaseId":21,"name":"ClawSweeper review","event":"workflow_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/21"},{"databaseId":25,"name":"Review event item test/target#25","event":"repository_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/25"},{"databaseId":26,"name":"Review event items test/target#26,27 [shards=2]","event":"workflow_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/26"}]'
     elif [[ " $* " == *" --status queued "* ]]; then
       printf '%s\n' '[{"databaseId":22,"name":"ClawSweeper review","status":"queued","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/22"}]'
     elif [[ " $* " == *" --status pending "* ]]; then
@@ -36,6 +36,12 @@ case "$1 $2" in
         ;;
       24)
         printf '%s\n' '[{"name":"intake","status":"requested","conclusion":null,"steps":[]}]'
+        ;;
+      25)
+        printf '%s\n' '[{"name":"Review, comment, and apply event item","status":"in_progress","conclusion":null,"steps":[]}]'
+        ;;
+      26)
+        printf '%s\n' '[{"name":"Review shard 1","status":"in_progress","conclusion":null,"steps":[]},{"name":"Review shard 2","status":"in_progress","conclusion":null,"steps":[]}]'
         ;;
       *)
         echo "unexpected run view: $*" >&2
@@ -87,11 +93,11 @@ PATH="$tmpdir:$PATH" "$script_dir/clawsweeper-status.sh" \
   --limit 8 \
   --run-limit 12 >"$tmpdir/output"
 
-grep -Fq -- '- Active workflow runs: 4' "$tmpdir/output"
+grep -Fq -- '- Active workflow runs: 6' "$tmpdir/output"
 grep -Fq -- '- Queued/waiting workflow runs: 2' "$tmpdir/output"
 grep -Fq -- '- Workflow concurrency waiters: 1' "$tmpdir/output"
 grep -Fq -- '- Failed/timed-out/action-required recent runs: 1' "$tmpdir/output"
-grep -Fq -- '- Active Codex jobs: 1/128 running, 2 queued' "$tmpdir/output"
+grep -Fq -- '- Active Codex jobs: 8/128 running, 2 queued' "$tmpdir/output"
 grep -Fq -- '- Exact-review queue: 8/28 active, 2 pending (target test/target: 6/24 active, 1 pending)' "$tmpdir/output"
 grep -Fq 'https://github.test/pull/7' "$tmpdir/output"
 grep -Fq 'https://github.test/comment/8' "$tmpdir/output"
@@ -100,6 +106,11 @@ grep -Fq 'run list --repo test/sweeper --limit 12 --json' "$GH_TEST_LOG"
 grep -Fq 'issues/comments?sort=updated&direction=desc&per_page=20' "$GH_TEST_LOG"
 grep -Fq 'issues/comments?sort=updated&direction=desc&per_page=10' "$GH_TEST_LOG"
 grep -Fq 'api repos/test/sweeper/contents/config/automation-limits.json -H Accept: application/vnd.github.raw' "$GH_TEST_LOG"
+if grep -Fq 'run view 25' "$GH_TEST_LOG"; then
+  echo "queue-backed exact-review workflow was not deduplicated against the queue" >&2
+  exit 1
+fi
+grep -Fq 'run view 26' "$GH_TEST_LOG"
 
 CURL_TEST_MODE=absent PATH="$tmpdir:$PATH" "$script_dir/clawsweeper-status.sh" \
   --repo test/target \

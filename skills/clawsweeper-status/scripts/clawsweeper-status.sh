@@ -86,6 +86,7 @@ fi
 normalize_runs='.[] | {
   id: .databaseId,
   name,
+  event,
   status,
   conclusion,
   created_at: .createdAt,
@@ -113,14 +114,14 @@ fetch_activity_page() {
 
 : >"$all_runs_jsonl"
 gh run list --repo "$clawsweeper_repo" --limit "$run_limit" \
-  --json databaseId,name,status,conclusion,createdAt,url \
+  --json databaseId,name,event,status,conclusion,createdAt,url \
   | jq -c "$normalize_runs" >>"$all_runs_jsonl"
 run_query_failures=0
 run_query_truncated=0
 for status in in_progress queued waiting pending requested; do
   status_runs_json="$tmpdir/runs-${status}.json"
   if gh run list --repo "$clawsweeper_repo" --status "$status" --limit "$run_limit" \
-    --json databaseId,name,status,conclusion,createdAt,url >"$status_runs_json"; then
+    --json databaseId,name,event,status,conclusion,createdAt,url >"$status_runs_json"; then
     jq -c "$normalize_runs" "$status_runs_json" >>"$all_runs_jsonl"
     status_run_count="$(jq 'length' "$status_runs_json")"
     if [ "$status_run_count" -ge "$run_limit" ]; then
@@ -193,12 +194,21 @@ fi
 active_count="$(jq '[.workflow_runs[]
   | select(.status == "in_progress" or .status == "pending" or .status == "queued" or .status == "waiting" or .status == "requested")
 ] | length' "$runs_json")"
-job_bearing_run_count="$(jq '[.workflow_runs[]
+if [ "$exact_queue_available" = true ]; then
+  exact_active_count="$(jq '(.dispatching // 0) + (.leased // 0)' "$exact_queue_json")"
+  exact_running_count="$(jq '.leased // 0' "$exact_queue_json")"
+else
+  exact_active_count=0
+  exact_running_count=0
+fi
+job_bearing_run_count="$(jq --argjson skip_exact "$exact_queue_available" '[.workflow_runs[]
   | select(.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "requested")
+  | select(($skip_exact | not) or (((.event == "repository_dispatch") and (.name | startswith("Review event item "))) | not))
 ] | length' "$runs_json")"
 job_probe_limit="$run_limit"
-active_ids="$(jq -r --argjson limit "$job_probe_limit" '[.workflow_runs[]
+active_ids="$(jq -r --argjson limit "$job_probe_limit" --argjson skip_exact "$exact_queue_available" '[.workflow_runs[]
   | select(.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "requested")
+  | select(($skip_exact | not) or (((.event == "repository_dispatch") and (.name | startswith("Review event item "))) | not))
 ] | sort_by(if .status == "in_progress" then 0 else 1 end)
   | .[0:$limit][]
   | .id' "$runs_json")"
@@ -255,6 +265,9 @@ def codex_job:
   | select(.status == "in_progress")
   | select(codex_job)
 ] | length' "$jobs_jsonl")"
+if [ "$exact_queue_available" = true ]; then
+  codex_running=$((codex_running + exact_running_count))
+fi
 codex_queued="$(jq -s --arg regex "$codex_job_regex" '
 def codex_job:
   (((.steps // []) | map(test("setup-codex"; "i")) | any) or
@@ -309,7 +322,7 @@ else
   printf -- "- Active Codex jobs: %s running, %s queued\n" "$codex_running_display" "$codex_queued"
 fi
 if [ "$exact_queue_available" = true ]; then
-  exact_active="$(jq '(.dispatching // 0) + (.leased // 0)' "$exact_queue_json")"
+  exact_active="$exact_active_count"
   exact_pending="$(jq '.pending' "$exact_queue_json")"
   exact_active_display="$exact_active"
   if [ -n "$exact_capacity" ]; then
