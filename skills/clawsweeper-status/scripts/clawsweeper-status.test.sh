@@ -12,19 +12,7 @@ printf '%s\n' "$*" >>"${GH_TEST_LOG:?}"
 
 case "$1 $2" in
   "run list")
-    if [[ " $* " == *" --status in_progress "* ]]; then
-      printf '%s\n' '[{"databaseId":21,"name":"ClawSweeper review","event":"workflow_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/21"},{"databaseId":25,"name":"Review event item test/target#25","event":"repository_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/25"},{"databaseId":26,"name":"Review event items test/target#26,27 [shards=2]","event":"workflow_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/26"}]'
-    elif [[ " $* " == *" --status queued "* ]]; then
-      printf '%s\n' '[{"databaseId":22,"name":"ClawSweeper review","status":"queued","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/22"}]'
-    elif [[ " $* " == *" --status pending "* ]]; then
-      printf '%s\n' '[{"databaseId":23,"name":"ClawSweeper review","status":"pending","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/23"}]'
-    elif [[ " $* " == *" --status requested "* ]]; then
-      printf '%s\n' '[{"databaseId":24,"name":"repair commit finding intake","status":"requested","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/24"}]'
-    elif [[ " $* " == *" --status "* ]]; then
-      printf '%s\n' '[]'
-    else
-      printf '%s\n' '[{"databaseId":11,"name":"Sweep","status":"completed","conclusion":"failure","createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/11"}]'
-    fi
+    printf '%s\n' '[{"databaseId":11,"name":"Sweep","status":"completed","conclusion":"failure","createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/11"}]'
     ;;
   "run view")
     case "$3" in
@@ -61,6 +49,24 @@ case "$1 $2" in
     ;;
   "api repos/test/sweeper/contents/config/automation-limits.json"*)
     printf '%s\n' '{"workers":{"max":128},"lanes":{"exact_review":{"max_concurrent":28,"target_max_concurrent":24}}}'
+    ;;
+  "api repos/test/sweeper/actions/runs?status=in_progress&per_page=12")
+    printf '%s\n' '[{"databaseId":21,"name":"ClawSweeper review","event":"workflow_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/21"},{"databaseId":25,"name":"Review event item test/target#25","event":"repository_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/25"},{"databaseId":26,"name":"Review event items test/target#26,27 [shards=2]","event":"workflow_dispatch","status":"in_progress","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/26"}]'
+    ;;
+  "api repos/test/sweeper/actions/runs?status=queued&per_page=12")
+    printf '%s\n' '[{"databaseId":22,"name":"ClawSweeper review","status":"queued","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/22"}]'
+    ;;
+  "api repos/test/sweeper/actions/runs?status=pending&per_page=12")
+    printf '%s\n' '[{"databaseId":23,"name":"ClawSweeper review","status":"pending","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/23"}]'
+    ;;
+  "api repos/test/sweeper/actions/runs?status=requested&per_page=12")
+    printf '%s\n' '[{"databaseId":24,"name":"repair commit finding intake","status":"requested","conclusion":null,"createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/24"}]'
+    ;;
+  "api repos/test/sweeper/actions/runs?status=failure&per_page=12")
+    printf '%s\n' '[{"databaseId":11,"name":"Sweep","status":"completed","conclusion":"failure","createdAt":"2099-01-01T00:00:00Z","url":"https://github.test/runs/11"}]'
+    ;;
+  "api repos/test/sweeper/actions/runs?status="*)
+    printf '%s\n' '[]'
     ;;
   "api graphql")
     printf '%s\n' '{"data":{"pulls":{"nodes":[{"title":"Closed pull request","url":"https://github.test/pull/9","closedAt":"2099-01-01T00:00:00Z","timelineItems":{"nodes":[{"createdAt":"2099-01-01T00:00:00Z","actor":{"login":"clawsweeper"}}]}}]},"issues":{"nodes":[{"title":"Fixed issue","url":"https://github.test/issues/9","closedAt":"2099-01-01T00:00:00Z","timelineItems":{"nodes":[{"createdAt":"2099-01-01T00:00:00Z","actor":{"login":"clawsweeper"}}]}}]}}}'
@@ -104,6 +110,7 @@ grep -Fq 'https://github.test/comment/8' "$tmpdir/output"
 grep -Fq 'https://github.test/pull/9' "$tmpdir/output"
 grep -Fq 'https://github.test/issues/9' "$tmpdir/output"
 grep -Fq 'run list --repo test/sweeper --limit 12 --json' "$GH_TEST_LOG"
+grep -Fq 'api repos/test/sweeper/actions/runs?status=failure&per_page=12 --jq' "$GH_TEST_LOG"
 grep -Fq 'issues/comments?sort=updated&direction=desc&per_page=20' "$GH_TEST_LOG"
 grep -Fq 'issues/comments?sort=updated&direction=desc&per_page=10' "$GH_TEST_LOG"
 grep -Fq 'pullSearchQuery=repo:test/target is:pr is:closed is:unmerged' "$GH_TEST_LOG"
@@ -133,7 +140,7 @@ if grep -Fq 'run view 23' "$GH_TEST_LOG"; then
   echo "workflow concurrency waiter was probed as a job-bearing run" >&2
   exit 1
 fi
-if grep -Eq 'actions/runs|per_page=100|pulls\?state=closed' "$GH_TEST_LOG"; then
+if grep -Eq 'actions/runs($| )|per_page=100|pulls\?state=closed' "$GH_TEST_LOG"; then
   echo "broad GitHub payload query detected" >&2
   exit 1
 fi

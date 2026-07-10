@@ -100,6 +100,27 @@ normalize_runs='.[] | {
   html_url: .url
 }'
 
+status_page_size="$run_limit"
+if [ "$status_page_size" -gt 50 ]; then
+  status_page_size=50
+fi
+
+fetch_runs_by_status() {
+  local run_status="$1"
+  local output="$2"
+
+  gh api "repos/${clawsweeper_repo}/actions/runs?status=${run_status}&per_page=${status_page_size}" \
+    --jq '.workflow_runs | map({
+      databaseId: .id,
+      name,
+      event,
+      status,
+      conclusion,
+      createdAt: .created_at,
+      url: .html_url
+    })' >"$output"
+}
+
 fetch_activity_page() {
   local endpoint_template="$1"
   local output="$2"
@@ -127,15 +148,28 @@ run_query_failures=0
 run_query_truncated=0
 for status in in_progress queued waiting pending requested; do
   status_runs_json="$tmpdir/runs-${status}.json"
-  if gh run list --repo "$clawsweeper_repo" --status "$status" --limit "$run_limit" \
-    --json databaseId,name,event,status,conclusion,createdAt,url >"$status_runs_json"; then
+  if fetch_runs_by_status "$status" "$status_runs_json"; then
     jq -c "$normalize_runs" "$status_runs_json" >>"$all_runs_jsonl"
     status_run_count="$(jq 'length' "$status_runs_json")"
-    if [ "$status_run_count" -ge "$run_limit" ]; then
+    if [ "$status_run_count" -ge "$status_page_size" ]; then
       run_query_truncated=$((run_query_truncated + 1))
     fi
   else
     run_query_failures=$((run_query_failures + 1))
+  fi
+done
+bad_run_query_failures=0
+bad_run_query_truncated=0
+for conclusion_status in failure timed_out action_required; do
+  conclusion_runs_json="$tmpdir/runs-${conclusion_status}.json"
+  if fetch_runs_by_status "$conclusion_status" "$conclusion_runs_json"; then
+    jq -c "$normalize_runs" "$conclusion_runs_json" >>"$all_runs_jsonl"
+    conclusion_run_count="$(jq 'length' "$conclusion_runs_json")"
+    if [ "$conclusion_run_count" -ge "$status_page_size" ]; then
+      bad_run_query_truncated=$((bad_run_query_truncated + 1))
+    fi
+  else
+    bad_run_query_failures=$((bad_run_query_failures + 1))
   fi
 done
 jq -s '
@@ -265,7 +299,7 @@ done
 
 queued_count="$(jq '[.workflow_runs[] | select(.status == "queued" or .status == "waiting" or .status == "requested")] | length' "$runs_json")"
 concurrency_waiters="$(jq '[.workflow_runs[] | select(.status == "pending")] | length' "$runs_json")"
-bad_count="$(jq '[.workflow_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")] | length' "$runs_json")"
+bad_count="$(jq --arg since "$since" '[.workflow_runs[] | select(.created_at >= $since) | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")] | length' "$runs_json")"
 
 codex_job_regex='^Review shard|^Review, comment, and apply event item$|^Review commit|^Plan and review cluster$|^Run worker|^Execute credited fix|^Execute and apply cluster actions$|^assist$|^Generate and publish maintainer reports$'
 codex_running="$(jq -s --arg regex "$codex_job_regex" '
@@ -325,7 +359,11 @@ if [ "$run_query_failures" -gt 0 ] || [ "$run_query_truncated" -gt 0 ]; then
 else
   printf -- "- Workflow concurrency waiters: %s\n" "$concurrency_waiters"
 fi
-printf -- "- Failed/timed-out/action-required recent runs: %s\n" "$bad_count"
+if [ "$bad_run_query_failures" -gt 0 ] || [ "$bad_run_query_truncated" -gt 0 ]; then
+  printf -- "- Failed/timed-out/action-required recent runs: at least %s (%s failed, %s truncated status queries)\n" "$bad_count" "$bad_run_query_failures" "$bad_run_query_truncated"
+else
+  printf -- "- Failed/timed-out/action-required recent runs: %s\n" "$bad_count"
+fi
 if [ "$job_query_failures" -gt 0 ] && { [ "$run_query_failures" -gt 0 ] || [ "$run_query_truncated" -gt 0 ]; }; then
   printf -- "- Active Codex jobs: at least %s running, at least %s queued (%s job queries unavailable; workflow status may be incomplete)\n" "$codex_running_display" "$codex_queued" "$job_query_failures"
 elif [ "$job_query_failures" -gt 0 ]; then
