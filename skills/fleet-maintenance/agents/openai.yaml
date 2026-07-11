@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fleet Maintenance"
+  short_description: "Safely maintain packages, repos, Xcode, and disks"
+  default_prompt: "Use $fleet-maintenance to audit and safely update my Mac fleet."
