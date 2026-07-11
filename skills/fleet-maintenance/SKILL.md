@@ -5,13 +5,14 @@ description: "Mac fleet upkeep: global packages, safe repo sync, Xcode, disk, Tr
 
 # Fleet Maintenance
 
-Maintain Peter's Macs without disturbing active coding agents or ambiguous local work. Use `$remote-mac` for inventory/SSH and `$xcode-sync` for all Xcode work.
+Maintain Peter's Macs while protecting ambiguous local work. Package updates are explicitly allowed during active sessions and may disrupt the software being upgraded. Use `$remote-mac` for inventory/SSH and `$xcode-sync` for all Xcode work.
 
 ## Safety contract
 
 - Read `~/Projects/manager/computers.yaml`; use live Tailscale state and deduplicate hosts by hardware UUID. Exclude handed-off and unknown machines.
-- Audit hosts in parallel; mutate one host at a time. Recheck agent activity immediately before every package, repo, or Xcode mutation.
-- Treat any user process whose cwd is inside a repo, Git lock, dirty worktree, or file modification within three days as active. Skip it.
+- Audit hosts in parallel; mutate one host at a time. Recheck agent activity immediately before every repo or Xcode mutation.
+- Treat any repository with a user process cwd inside it, Git lock, dirty worktree, or file modification within three days as active. Skip that repository.
+- Homebrew and global npm updates are allowed while agents/services are running. This can mix old in-memory code with replaced files, break later imports or child processes, and let Homebrew terminate/reopen cask GUI apps. Accept that package-update risk; never manually terminate or restart services. Verify health and report interruptions or pending restarts.
 - Never reset, clean, stash, rebase, switch branches, delete local work, push, install macOS updates, or reboot during routine maintenance.
 - Snapshot role-critical services before package updates. Do not restart OpenClaw gateways or other services unless explicitly authorized; verify them afterward using their owning skill.
 - Keep a per-host action log. An unreachable host is pending, never current.
@@ -20,7 +21,7 @@ Maintain Peter's Macs without disturbing active coding agents or ambiguous local
 
 1. Inventory and preflight.
 2. Sync eligible repos using the existing Git/toolchain.
-3. Update Homebrew and global npm packages on inactive hosts.
+3. Update Homebrew and global npm packages on every eligible, reachable host regardless of active agents/services.
 4. Verify each host's macOS stable/beta track.
 5. Sync Xcode through `$xcode-sync`.
 6. Empty Trash only when explicitly requested for this run; perform approved package cleanup.
@@ -55,6 +56,8 @@ git -C "$repo" fetch --prune
 git -C "$repo" rev-list --left-right --count HEAD...@{upstream}
 ```
 
+Run fetches noninteractively and bound each one (for example five minutes). On timeout, authentication failure, or network failure, terminate that fetch, mark the repo pending, and continue. Never let one stale/private mirror stall the host, rewrite its remote, or prompt for credentials during fleet maintenance.
+
 Interpret counts as `ahead behind`:
 
 - `0 0`: current; no action.
@@ -66,20 +69,19 @@ Do not infer that a stale local checkout should match a sibling checkout. Each v
 
 ## Homebrew
 
-Skip mutation if Homebrew is absent or the host/role is active. Otherwise:
+Skip only if Homebrew is absent. Running agents/services do not block package mutation:
 
 ```bash
 brew update
 brew outdated --json=v2
+brew upgrade
 brew services list
 brew doctor
 ```
 
-Classify every outdated formula/cask against running processes, Brew services, role-critical daemons, and active GUI apps. Build explicit safe lists; only when nonempty run `brew upgrade "${safe_formulae[@]}"` and `brew upgrade --cask "${safe_casks[@]}"`. Never use bare `brew upgrade` in fleet mode.
-
 Treat `brew doctor` as advisory; do not blindly apply its suggestions. Compare services before/after. Use `brew cleanup --prune=30` after successful verification; use more aggressive cleanup only for disk pressure and explicit approval.
 
-If an upgrade replaces Node, Git, Codex, or another executable used by an active agent/service, defer that formula rather than disrupting the process. Defer running casks. Do not change taps or uninstall packages automatically.
+If an upgrade replaces Node, Git, Codex, or another executable used by an active agent/service, accept that later imports or child processes may observe new files and report the risk. Allow Homebrew's controlled quit/reopen for cask GUI apps, including possible session termination; do not manually restart services, change taps, or uninstall packages automatically.
 
 ## Global npm packages
 
@@ -88,10 +90,10 @@ If an upgrade replaces Node, Git, Codex, or another executable used by an active
 1. Record `node --version`, `npm --version`, `npm prefix -g`, and `npm ls -g --depth=0 --json`.
 2. Run `npm outdated -g --depth=0 --json`; its nonzero exit can mean updates exist.
 3. Update each registry package to `name@latest`. Skip linked, file, Git, bundled, and ambiguous packages; report them.
-4. Let the owner update npm itself: Homebrew updates a Homebrew Node/npm; only use `npm install -g npm@latest` for a self-managed npm installation.
+4. Let the owner update npm itself: Homebrew updates a Homebrew Node/npm; only use `npm install -g npm@latest` for a self-managed npm installation. Verify the resulting `npm --version`.
 5. Re-run inventory and smoke-test the updated global CLIs. Use `$npm` and `$one-password` only if a private package actually requires registry authentication; never expose npm credentials.
 
-Major global-package updates are intended, but defer a package currently backing an active coding agent or service.
+Major global-package updates are intended even when the package currently backs an active coding agent or service. Accept the risk of mixed old/new files; do not restart the process. Smoke-test the newly installed CLI separately and report failures or pending restarts.
 
 ## macOS track
 
