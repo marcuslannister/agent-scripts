@@ -19,17 +19,25 @@ Maintain Peter's Macs while protecting ambiguous local work. Package updates are
 
 ## Run order
 
-1. Inventory and preflight.
+1. Inventory, package ownership, and preflight.
 2. Sync eligible repos using the existing Git/toolchain.
 3. Update Homebrew and global npm packages on every eligible, reachable host regardless of active agents/services.
 4. Verify each host's macOS stable/beta track.
 5. Sync Xcode through `$xcode-sync`.
 6. Empty Trash only when explicitly requested for this run; perform approved package cleanup.
-7. Re-audit disk, tools, repos, and role-critical services.
+7. Re-audit disk, tools, package ownership, repos, memory, and role-critical services.
 
 ## Preflight
 
-Record hostname, hardware UUID, macOS, architecture, uptime, Tailscale state, selected Xcode, free bytes/percent, Trash size, Homebrew prefix/version, Node/npm versions, running Brew services, and active coding-agent processes.
+Record hostname, hardware UUID, macOS, architecture, uptime, Tailscale state, selected Xcode, free bytes/percent, Trash size, Homebrew prefix/version, Node/npm versions, running Brew services, active coding-agent processes, and resident-memory outliers:
+
+```bash
+skills/fleet-maintenance/scripts/host-health-audit.sh 30
+ssh -o RequestTTY=no -o RemoteCommand=none HOST 'bash -s -- 30' \
+  < skills/fleet-maintenance/scripts/host-health-audit.sh
+```
+
+Report every process above 30 GiB resident memory. Do not alert on virtual size alone, sum related processes, or terminate a process automatically. Record PID, resident GiB, user, executable, role, and whether memory remains above the threshold on a second sample.
 
 Classify startup-disk space using both absolute and relative capacity:
 
@@ -82,6 +90,12 @@ brew doctor
 Treat `brew doctor` as advisory; do not blindly apply its suggestions. Compare services before/after. Use `brew cleanup --prune=30` after successful verification; use more aggressive cleanup only for disk pressure and explicit approval.
 
 If an upgrade replaces Node, Git, Codex, or another executable used by an active agent/service, accept that later imports or child processes may observe new files and report the risk. Allow Homebrew's controlled quit/reopen for cask GUI apps, including possible session termination; do not manually restart services, change taps, or uninstall packages automatically.
+
+## Package ownership
+
+Run `scripts/host-health-audit.sh` before and after package mutations. Investigate its ownership candidates plus duplicate launchd labels/listeners, executable version skew, and collisions across Homebrew formulae/casks, global npm, standalone apps, and app-bundled CLIs.
+
+For each candidate, resolve executable realpaths, package receipts, service definitions, listeners, running processes, dependents, versions, and intended host role. Prefer one canonical owner. Disable or uninstall a redundant owner only when its replacement is healthy, no installed package depends on it, and the current request authorizes the fix. Never infer a conflict from a shared name alone; formula/app pairs can be intentional.
 
 ## Global npm packages
 
