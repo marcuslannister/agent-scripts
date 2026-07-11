@@ -71,7 +71,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Installs/updates `tw93/Waza` for Claude Code and Codex via each CLI's plugin marketplace (marketplace `waza` on both sides). The umbrella `waza` plugin registers all eight skills namespaced as `/waza:think`, `/waza:check`, etc.; no entries in `skills/`.
 
 `scripts/update-mattpocock-skills.sh`
-- Installs/updates Matt Pocock's skills: bootstraps `mattpocock/skills` (`--agent codex`, canonical copies in `~/.agents/skills` for Codex) if missing, then rsyncs every Matt skill into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in) and regenerates a marker-delimited `# matt-skills` block in `.gitignore` so the copies never enter the repo. Runs after `update-cli-skills.sh`, which refreshes the canonical copies.
+- Reconciles Matt Pocock's complete upstream skill set into `~/.agents/skills` for Codex: updates changed skills, installs additions, and removes canonical directories deleted or renamed upstream. Then rsyncs the current set into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in), removing stale copies and regenerating the marker-delimited `# matt-skills` block in `.gitignore`.
 
 `scripts/update-visual-explainer.sh`
 - Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then rsyncs the plugin dir to `~/.agents/skills/visual-explainer` (Codex's user skill root) as a copy — never a symlink. Claude Code gets it as a marketplace plugin instead.

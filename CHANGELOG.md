@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-11 — Matt Skills Upstream Reconciliation
+- `update-mattpocock-skills.sh` now reconciles the full `mattpocock/skills` set on every run, installing new skills and removing canonical and Claude-side copies deleted or renamed upstream instead of only refreshing names already present in the skills lock.
+
 ## 2026-07-07 — Copy Drift Detection
 - `.agent-scripts-copy` markers gain a third line: the copy's content hash (deterministic SHA-256 over non-hidden files) stamped by `install_skill_copy` at sync time. Best-effort — a valid two-line marker is still written when no `sha256sum`/`shasum` is available. All marker readers are line-addressed, so existing two-line markers stay valid and are re-stamped on their next sync.
 - New `check_skill_copy_updates` in `lib-copies.sh` compares the stored hash against the current upstream source (→ upstream advanced since last sync) and the on-disk copy (→ copy hand-edited since install), reporting per skill and returning non-zero when a sync is warranted. It only reads.
