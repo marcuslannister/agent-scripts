@@ -302,6 +302,7 @@ Live proof is a pre-land requirement, not optional polish.
 - For external integrations, authenticated live calls are required. Docs, mocks, fixtures, protocol captures, route-existence checks, and CI supplement live proof; they do not replace it.
 - Redact secrets and private user data while retaining concrete evidence such as command, behavior, response class, artifact hash, or observed state transition.
 - If credentials, account state, hardware, platform access, or a safe live target are unavailable, finish all autonomous code, tests, review, and CI work, then stop before merge/close. Ask for the exact access, an explicit item-specific waiver, or a reject/close decision.
+- Before escalating a browser, desktop UI, or interactive automation blocker, try Peekaboo and any relevant configured mcporter-backed MCP route that can exercise the exact boundary. Verify their permissions and capabilities first; never claim GUI observation or an unrelated browser as equivalent when the contract requires a specific authenticated API, profile, device, or service mutation.
 - Never infer a live-proof waiver from merge permission, release permission, prior contributor evidence, or confidence in mocks.
 - Re-run live proof after any fix that changes the relevant runtime path.
 - Pure docs, metadata, CI, or test-only changes with no runtime boundary may use the closest built-artifact or workflow proof; state why no external live boundary applies.
