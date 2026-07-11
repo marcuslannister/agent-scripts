@@ -6,7 +6,7 @@ set -euo pipefail
 # --agent codex (Codex reads that dir directly); this script then rsyncs each
 # skill into the shared skills/ dir as COPIES so Claude Code sees them too.
 # The copies are deliberately NOT tracked by git — a marker-delimited block in
-# .gitignore (regenerated on every run) keeps them out of the repo.
+# the repo-local Git exclude file keeps them out without dirtying `.gitignore`.
 # code-review stays Codex-only: it would collide with Claude Code's built-in
 # /code-review.
 # Re-runnable; exits non-zero on failure.
@@ -22,7 +22,8 @@ LOCK="${HOME}/.agents/.skill-lock.json"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_DIR="${REPO_ROOT}/skills"
 AGENTS_SKILLS_DIR="${HOME}/.agents/skills"
-GITIGNORE="${REPO_ROOT}/.gitignore"
+TRACKED_GITIGNORE="${REPO_ROOT}/.gitignore"
+GIT_EXCLUDE="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path info/exclude)"
 MATT_CLAUDE_DENY="code-review"
 MATT_REPO="https://github.com/mattpocock/skills.git"
 
@@ -126,8 +127,11 @@ for name in $matt_list; do
   [ "$name" = "$MATT_CLAUDE_DENY" ] && continue
   sync_names+=("$name")
 done
-if ! sync_skill_copies matt-skills "$AGENTS_SKILLS_DIR" "$SKILLS_DIR" "$GITIGNORE" \
+if ! sync_skill_copies matt-skills "$AGENTS_SKILLS_DIR" "$SKILLS_DIR" "$GIT_EXCLUDE" \
   ${sync_names[@]+"${sync_names[@]}"}; then
+  fail=1
+fi
+if [ "$fail" -eq 0 ] && ! remove_gitignore_block "$TRACKED_GITIGNORE" matt-skills; then
   fail=1
 fi
 info "synced mattpocock skills into ${SKILLS_DIR} (deny: ${MATT_CLAUDE_DENY})"

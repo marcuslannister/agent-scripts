@@ -32,7 +32,7 @@ Global discovery — one skills root per CLI:
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
 
-Shared personal skills live as real folders in `skills/`. Third-party skills arrive as untracked rsync copies behind marker-delimited `.gitignore` blocks (see the `scripts/update-*-skills.sh` updaters); `skills/` contains no symlinks.
+Shared personal skills live as real folders in `skills/`. Third-party skills arrive as untracked rsync copies behind marker-delimited ignore blocks (tracked `.gitignore` or repo-local `.git/info/exclude`; see the `scripts/update-*-skills.sh` updaters); `skills/` contains no symlinks.
 
 ## Agent Instructions
 
@@ -71,7 +71,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Installs/updates `tw93/Waza` for Claude Code and Codex via each CLI's plugin marketplace (marketplace `waza` on both sides). The umbrella `waza` plugin registers all eight skills namespaced as `/waza:think`, `/waza:check`, etc.; no entries in `skills/`.
 
 `scripts/update-mattpocock-skills.sh`
-- Reconciles Matt Pocock's complete upstream skill set into `~/.agents/skills` for Codex: updates changed skills, installs additions, and removes canonical directories deleted or renamed upstream. Then rsyncs the current set into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in), removing stale copies and regenerating the marker-delimited `# matt-skills` block in `.gitignore`.
+- Reconciles Matt Pocock's complete upstream skill set into `~/.agents/skills` for Codex: updates changed skills, installs additions, and removes canonical directories deleted or renamed upstream. Then rsyncs the current set into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in), removing stale copies and regenerating a repo-local `# matt-skills` block in `.git/info/exclude` so upstream churn does not dirty tracked files.
 
 `scripts/update-visual-explainer.sh`
 - Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then rsyncs the plugin dir to `~/.agents/skills/visual-explainer` (Codex's user skill root) as a copy — never a symlink. Claude Code gets it as a marketplace plugin instead.

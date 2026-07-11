@@ -3,7 +3,7 @@
 # Shared copy installers for update scripts.
 # Skills from source-only clones are rsynced into a surface as COPIES — never
 # symlinks. Copies landing in the repo's skills/ dir stay untracked via a
-# marker-delimited .gitignore block regenerated on every run.
+# marker-delimited ignore block (`.gitignore` or `.git/info/exclude`).
 # Each copy carries a .agent-scripts-copy marker: line 1 is the upstream source
 # path, line 2 is the owner — the id of the updater that owns the copy — and
 # line 3 is the copy's content hash at sync time (best-effort; omitted when no
@@ -170,6 +170,28 @@ regen_gitignore_block() { # gitignore_path marker generator entry...
   fi
   sed "/^# ${marker} start/,/^# ${marker} end$/d" "$gitignore" > "${gitignore}.tmp"
   printf '%s\n' "$block" >> "${gitignore}.tmp"
+  mv "${gitignore}.tmp" "$gitignore"
+}
+
+remove_gitignore_block() { # gitignore_path marker
+  local gitignore="$1"
+  local marker="$2"
+  local start_count end_count start_line end_line
+
+  start_count="$(grep -c "^# ${marker} start" "$gitignore" || true)"
+  end_count="$(grep -c "^# ${marker} end$" "$gitignore" || true)"
+  [ "$start_count" -ne 0 ] || [ "$end_count" -ne 0 ] || return 0
+  if [ "$start_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    copy_warn "invalid '# ${marker}' block in ${gitignore}; fix it by hand, not rewriting"
+    return 1
+  fi
+  start_line="$(grep -n "^# ${marker} start" "$gitignore" | cut -d: -f1)"
+  end_line="$(grep -n "^# ${marker} end$" "$gitignore" | cut -d: -f1)"
+  if [ "$start_line" -ge "$end_line" ]; then
+    copy_warn "misordered '# ${marker}' block in ${gitignore}; fix it by hand, not rewriting"
+    return 1
+  fi
+  sed "${start_line},${end_line}d" "$gitignore" > "${gitignore}.tmp"
   mv "${gitignore}.tmp" "$gitignore"
 }
 

@@ -34,7 +34,7 @@ A skill repo with no installer or plugin manifest; cloned under `~/Projects` and
 The install treated as source of truth for a skill, from which other surfaces are synced.
 
 **Untracked copy**:
-A skill directory rsynced into a surface and kept out of git by a marker-delimited `.gitignore` block. The repo tracks the script that produces it, not the content.
+A skill directory rsynced into a surface and kept out of git by a marker-delimited ignore block (`.gitignore` or repo-local `.git/info/exclude`). The repo tracks the script that produces it, not the content.
 _Avoid_: vendored copy, symlink
 
 **Owner**:

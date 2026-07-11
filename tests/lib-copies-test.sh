@@ -197,6 +197,20 @@ fi
 grep -qx 'surface/present' "$GI3"
 grep -qx 'surface/vanished' "$GI3"   # copy on disk stays ignored despite the failure
 
+# Block removal preserves trailing rules and refuses misordered markers.
+RB="$TMPDIR/remove-block"
+mkdir -p "$RB"
+printf '%s\n' before '# owner start (generated)' ignored '# owner end' after > "$RB/valid"
+remove_gitignore_block "$RB/valid" owner
+printf '%s\n' before after | cmp -s - "$RB/valid"
+printf '%s\n' before '# owner end' after '# owner start (generated)' trailing > "$RB/misordered"
+cp "$RB/misordered" "$RB/expected"
+if remove_gitignore_block "$RB/misordered" owner 2>/dev/null; then
+  echo "FAIL: removed a misordered ignore block" >&2
+  exit 1
+fi
+cmp -s "$RB/expected" "$RB/misordered"
+
 # ── check_skill_copy_updates: upstream / tamper / unstamped drift ──────────
 CK="$TMPDIR/check"
 mkdir -p "$CK/src/ok" "$CK/src/up" "$CK/src/tp" "$CK/surface"

@@ -8,7 +8,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 FAKE_HOME="$TMPDIR/home"
 REPO="$TMPDIR/repo"
 
-mkdir -p "$REPO/scripts" "$REPO/skills" "$FAKE_HOME/.agents/skills" "$TMPDIR/bin"
+mkdir -p "$REPO/scripts" "$REPO/skills" "$REPO/.git/info" "$FAKE_HOME/.agents/skills" "$TMPDIR/bin"
 cp "$REPO_ROOT/scripts/update-mattpocock-skills.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$REPO/scripts/"
 
 make_source() { # name
@@ -31,11 +31,14 @@ printf '%s\n' \
   'else' \
   '  mkdir -p "$HOME/.agents/skills/gamma"' \
   '  printf "%s\n" "---" "name: gamma" "description: test" "---" > "$HOME/.agents/skills/gamma/SKILL.md"' \
-  '  printf '\''{"skills":{"alpha":"mattpocock/skills","beta":"mattpocock/skills","old-name":"mattpocock/skills","gamma":"mattpocock/skills","code-review":"mattpocock/skills"}}\n'\'' > "$HOME/.agents/.skill-lock.json"' \
+  '  if grep -q '\''"beta"'\'' "$HOME/.agents/.skill-lock.json"; then' \
+  '    printf '\''{"skills":{"alpha":"mattpocock/skills","beta":"mattpocock/skills","old-name":"mattpocock/skills","gamma":"mattpocock/skills","code-review":"mattpocock/skills"}}\n'\'' > "$HOME/.agents/.skill-lock.json"' \
+  '  fi' \
   'fi' \
   'exit 0' > "$TMPDIR/bin/npx"
 printf '%s\n' \
   '#!/usr/bin/env bash' \
+  'if [[ " $* " == *" rev-parse --path-format=absolute --git-path info/exclude "* ]]; then printf "%s/.git/info/exclude\n" "$2"; exit 0; fi' \
   'dest="${@: -1}"' \
   'for name in alpha gamma code-review; do' \
   '  mkdir -p "$dest/skills/test/$name"' \
@@ -70,12 +73,16 @@ test ! -e "$REPO/skills/old-name"
 test ! -e "$REPO/skills/code-review"
 test ! -e "$REPO/skills/old-matt"
 test -d "$REPO/skills/find-skills"
-grep -Fx 'skills/alpha' "$REPO/.gitignore" >/dev/null
-grep -Fx 'skills/gamma' "$REPO/.gitignore" >/dev/null
+! grep -F '# matt-skills ' "$REPO/.gitignore" >/dev/null
+grep -Fx 'skills/alpha' "$REPO/.git/info/exclude" >/dev/null
+grep -Fx 'skills/gamma' "$REPO/.git/info/exclude" >/dev/null
 grep -F 'add mattpocock/skills --skill * --agent codex --global --yes' "$FAKE_HOME/npx-args" >/dev/null
 grep -F 'remove beta old-name --global --agent codex --yes' "$FAKE_HOME/npx-args" >/dev/null
-! grep -Fx 'skills/old-matt' "$REPO/.gitignore" >/dev/null
+! grep -Fx 'skills/old-matt' "$REPO/.git/info/exclude" >/dev/null
 grep -Fx 'skills/find-skills' "$REPO/.gitignore" >/dev/null
+cp "$REPO/.gitignore" "$TMPDIR/gitignore-after-sync"
+HOME="$FAKE_HOME" PATH="$TMPDIR/bin:$PATH" "$REPO/scripts/update-mattpocock-skills.sh" >/dev/null
+cmp -s "$TMPDIR/gitignore-after-sync" "$REPO/.gitignore"
 
 make_marked_copy old-empty old-empty matt-skills
 printf '{"empty":true,"skills":{}}\n' > "$FAKE_HOME/.agents/.skill-lock.json"
