@@ -1,37 +1,51 @@
 ---
 name: remote-mac
-description: "Remote Macs: MacBook, Mac Studio, clawmac, Tailscale, SSH, OpenClaw."
+description: "Remote Macs: MacBook, Mac Studio, clawmac, megaclaw, Tailscale, SSH, OpenClaw."
 ---
 
 # Remote Mac
 
-Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `moltymac`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
+Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `megaclaw`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
 
 ## Peter's Topology
 
 - Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
-- Workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local`.
+- Corporate workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local`.
 - Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected.
-- Molty: runs on Mac Studio, not `moltymac`, when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
-- `moltymac`: old/alternate node. If Tailscale shows it offline or SSH times out, do not treat it as the live Molty runtime.
+- Network split:
+  - `corporate`: Peter's work-managed environment. Treat Mac Studio as the main remote Mac to configure and inspect there.
+  - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
+- Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
+- Molty: runs on Mac Studio when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
+- `megaclaw`: alternate Mac node, replaced retired `moltymac` (2026-07-05). Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
 
-Manager repo source of truth:
+Non-Mac fleet nodes (full detail in `computers.yaml`):
+
+- `gorillaclaw`: personal Ubuntu Linux node at GorillaServers (Los Angeles), Tailscale `100.93.99.79`; SSH user `steipete`.
+- `steipetesurface`: Peter's personal Windows Surface, Tailscale `100.118.219.64`, SSH user `steip`. Corporate Windows laptop `CPC-steip-11ENO` is separate and work-managed.
+
+Not Peter's Macs (do not configure/brand as his):
+
+- `crabhammer`: Scaleway M4-XL given to vince; on Peter's tailnet + billing but provisioned for vince (no SSH access). Listed under `handed_off:` in `computers.yaml`.
+
+Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac):
 
 - `/Users/steipete/Projects/manager/computers.yaml`
 - `/Users/steipete/Projects/manager/agents.yaml`
 
 ## Discovery
 
-1. Start with `tailscale status` and pick the matching host.
-2. If Tailscale is down or SSH times out, try LAN discovery:
+1. Start with live `tailscale status --json`; match hostname/DNS name and use the node's current IP. Manager-cached Tailscale IPs may be stale.
+2. In the `corporate` environment, default to Mac Studio for remote configuration work. Reach it through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery from there.
+3. In the `personal` environment, if Tailscale is down or SSH times out, try LAN discovery:
 
 ```bash
 dns-sd -B _ssh._tcp local
 arp -a
 ```
 
-3. Try mDNS names such as `HOST.local` when visible.
-4. For Mac Studio, prefer `steipete-macstudio.local` when Tailscale SSH times out.
+4. Try mDNS names such as `HOST.local` only when on the same LAN.
+5. If Mac Studio's live Tailscale node is offline from the `corporate` environment, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
 
 ## SSH Rules
 
@@ -66,6 +80,18 @@ clawmac healthy shape:
 - `launchctl list` includes `ai.openclaw.gateway`.
 - `lsof -nP -iTCP:18789 -sTCP:LISTEN` shows loopback listeners.
 - `openclaw channels status --json` shows Telegram connected.
+
+## Codex Automations
+
+- Codex cron automations are host-local scheduler state, not generic cloud jobs.
+- In the `corporate` environment, configure or mirror those automations on Mac Studio unless Peter says otherwise.
+- Treat `~/.codex/automations/<automation-id>/automation.toml` on the target host as the source of truth for the scheduled job definition on that machine.
+- If the goal is to move a cron automation from Peter's current corporate machine to Mac Studio, do the machine work on Mac Studio:
+  - ensure the intended repo checkout exists there
+  - sync the required repo-local policy files
+  - create or update the matching `~/.codex/automations/...` entry on Mac Studio
+  - disable or pause the old corporate-host copy if Peter wants only one runner
+- Do not assume Codex app thread handoff moves cron scheduler ownership; thread movement and cron ownership are separate.
 
 ## clawmac GUI Access
 

@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+skill = File.read(File.expand_path("../skills/maintainer-orchestrator/SKILL.md", __dir__))
+metadata = File.read(File.expand_path("../skills/maintainer-orchestrator/agents/openai.yaml", __dir__))
+
+requirements = {
+  "Codex app workers only" => "a worker is an owned Codex app thread, never a collaboration subagent",
+  "one project thread per repository" => "Use exactly one owned Codex app project thread per repository",
+  "root-owned skill maintenance" => "Maintain this canonical `maintainer-orchestrator` skill in the current root orchestrator session, never in a project thread or collaboration subagent.",
+  "no project task fan-out" => "project threads never create task threads",
+  "pre-spawn classification" => "Before spawning a collaboration subagent, classify the task",
+  "mutating work routing" => "Any repository task that can mutate repository, GitHub, or external state",
+  "support-only subagents" => "Use collaboration subagents only for orchestration support",
+  "subagent mutation ban" => "Collaboration subagents must never edit repository files, create commits, run implementation proof as the owner, push, mutate PRs/issues, approve workflows, merge, release, deploy, or perform live product/account proof.",
+  "preservation-first recovery" => "Snapshot and preserve its state, patches, refs, logs, and evidence; hand them to the proper Codex app thread; reconcile ownership; never discard work.",
+  "thread-owned execution" => "Project execution remains owned and performed by its Codex app thread",
+  "text is not capability" => "Thread prompts do not grant capabilities",
+  "permission propagation check" => "verify its effective permission profile",
+  "no repeated permission prompts" => "Do not retry the same denied action or repeatedly prompt the owner.",
+  "single heartbeat inspection" => "inspect the existing heartbeat first",
+  "private concurrency invariant" => "Private investigation, implementation, testing, proof, and review continue independently.",
+  "single public admission gate" => "admit no additional public action until the overlap clears",
+  "frozen means public only" => "means public-mutation-frozen only when that restriction existed before the worker crossed the public boundary",
+  "decision wait does not idle" => "Keep all other qualified private project lanes active while that answer is pending.",
+}
+
+missing = requirements.reject { |_label, text| skill.include?(text) }
+abort "Missing maintainer-orchestrator policy: #{missing.keys.join(', ')}" unless missing.empty?
+abort "Ambiguous task subthread terminology" if skill.match?(/\bsubthreads?\b/i)
+forbidden_fan_out = [
+  "may create direct Codex app task threads",
+  "A project thread may create",
+  "Use one isolated Codex worktree thread per selected task",
+  "root → project → task",
+  "Workers may review, implement, test, and monitor concurrently",
+]
+abort "Task-thread fan-out remains" if forbidden_fan_out.any? { |text| skill.include?(text) }
+abort "Stale maintainer-orchestrator default prompt" unless metadata.include?("one Codex app thread per project") && metadata.include?("skill maintenance in the root session") && metadata.include?("collaboration subagents read-only and support-only")
+
+puts "Validated maintainer-orchestrator worker boundary."

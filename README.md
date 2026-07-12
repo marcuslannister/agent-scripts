@@ -38,7 +38,7 @@ Shared personal skills live as real folders in `skills/`. Third-party skills arr
 
 Shared hard rules live in `AGENTS.MD`.
 
-Global setup:
+Global setup (Claude Code reads `CLAUDE.md` only, so it links to the shared `AGENTS.MD`):
 - `~/.codex/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
 - `~/.claude/CLAUDE.md -> ~/Projects/agent-scripts/AGENTS.MD`
 - `~/.claude/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
@@ -89,6 +89,10 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Stages exactly the listed files.
 - Enforces a non-empty commit message.
 - Runs skill validation before committing.
+
+`scripts/sync-skills`
+- Builds the per-machine skill mirror: Codex whole-root links, Claude flat per-skill links, shared `AGENTS.MD` pointers.
+- Idempotent; prints changes only, prunes broken/stale managed links, never clobbers real files.
 
 `scripts/validate-skills`
 - Checks every `skills/*/SKILL.md`.

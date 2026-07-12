@@ -4,6 +4,11 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-12 — Upstream Merge Reconciliation
+- Merged `upstream/main` (steipete/agent-scripts). Kept the fork's own `AGENTS.MD`, one-skills-root-per-CLI model (ADR 0001), Python `validate-skills`, and the prior "unused skills" removals — honoring the modify/delete conflicts for `agent-transcript`, `browser-use`, `clawsweeper-status`, `clickclack`, `npm`, `one-password`, and `xurl`.
+- Adopted from upstream: `maintainer-orchestrator` and `codex-first` skills, `scripts/sync-skills` and `scripts/test-maintainer-orchestrator-policy`, `browser-tools.ts` hardening, `package.json`/`bun.lock`, and the CI steps that build the browser helper and test the orchestrator worker boundary.
+- Dropped upstream additions that don't fit the fork: `fleet-maintenance`, `xcode-sync`, and the broken sibling-repo symlink skills (`crabbox`, `gitcrawl`, `graincrawl`, `behavior-validator`, `session-viewer`).
+
 ## 2026-07-11 — Matt Skills Upstream Reconciliation
 - `update-mattpocock-skills.sh` now reconciles the full `mattpocock/skills` set on every run, installing new skills and removing canonical and Claude-side copies deleted or renamed upstream instead of only refreshing names already present in the skills lock.
 - Matt's generated ignore block moved from tracked `.gitignore` to repo-local `.git/info/exclude`, preventing upstream skill additions and renames from dirtying the worktree; the updater migrates the old tracked block after a successful sync.
