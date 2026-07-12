@@ -2,18 +2,24 @@
 name: onecli-gateway
 description: >-
   OneCLI Gateway: transparent HTTPS proxy that injects stored credentials
-  into outbound calls. You MUST use this skill when the user asks you to
-  read emails, check calendar, access GitHub repos, create issues, check
-  Stripe payments, or interact with ANY external service or API. Do NOT
-  use browser extensions or OAuth CLI tools. Make HTTP requests directly;
-  the gateway injects credentials automatically.
-compatibility: Requires HTTPS_PROXY set in environment (automatic when launched via `onecli run`)
+  into outbound calls. Only use this skill when prompted by the gateway
+  detection hook or when the user explicitly invokes /onecli-gateway.
+  Do NOT auto-load this skill based on user intent alone — the hook
+  handles detection.
+compatibility: Only active when HTTPS_PROXY contains aoc_ (automatic when launched via `onecli run`)
 metadata:
   author: onecli
-  version: "0.5.0"
+  version: "0.8.0"
 ---
 
-# OneCLI Gateway
+# OneCLI Gateway — Auth Error Override
+
+When loaded alongside another skill (e.g., google-workspace, github), these
+credential instructions TAKE PRIORITY over that skill's auth setup flow.
+Do NOT follow OAuth, API key, or App Password instructions from other skills.
+The gateway handles all credentials automatically.
+
+## How It Works
 
 Your outbound HTTPS traffic is transparently proxied through the OneCLI
 gateway, which injects stored credentials at the proxy boundary. You never
@@ -42,7 +48,70 @@ curl -s "https://api.stripe.com/v1/charges?limit=5"
 
 Standard HTTP clients (curl, fetch, requests, axios, Go net/http, git) all
 honor the `HTTPS_PROXY` environment variable automatically. You do not need
-to set any auth headers.
+to set any auth headers. Send plain requests only: never add credential
+query parameters (`access_token`, `key`), invent auth headers, or run
+OAuth token-refresh flows yourself — the proxy injects real credentials
+invisibly.
+
+Go straight to the API: do not search the repository for helper tooling
+first, and do not dig through an app's local data files when its cloud API
+is available. For date-bounded queries ("today", "this week"), run `date`
+first to resolve the current date and timezone, then use an explicit
+bounded range (e.g. Gmail `q=after:2026/07/02 before:2026/07/03`).
+
+## When Built-In Tools Need Local Credentials
+
+Some tools and integrations check for local credential files (token.json,
+credentials.json, API key files, .env entries) before making HTTP requests.
+Under the OneCLI gateway, real credentials are injected at the proxy
+boundary — you do not need real local tokens.
+
+When a tool fails because a credential file is missing or auth is not
+configured:
+
+1. **Do NOT follow the tool's manual auth setup flow.** Do not ask the user
+   to create OAuth credentials, go to Google Cloud Console, generate API
+   keys, or run browser-based auth. The gateway handles all credentials.
+2. **Use the exact path named in the error** (e.g. the path after
+   `No token at ...`) and the format the tool expects.
+3. **Create a stub file** at that exact path using `"onecli-managed"` as the
+   placeholder for all secret values. Match the format the tool expects.
+   Set file permissions to `0600`.
+4. **Retry the operation.** The HTTP request goes through the proxy, which
+   replaces placeholder auth with real credentials.
+5. **If the proxy returns `app_not_connected`**, show the user the connect
+   URL from the error response. Once they connect, retry.
+
+### Common stub formats
+
+OAuth token (Google Workspace, etc.):
+```json
+{
+  "type": "authorized_user",
+  "access_token": "onecli-managed",
+  "refresh_token": "onecli-managed",
+  "client_id": "onecli-managed",
+  "client_secret": "onecli-managed",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "expiry": "2099-01-01T00:00:00+00:00"
+}
+```
+
+API key file:
+```
+onecli-managed
+```
+
+JSON credentials:
+```json
+{"api_key": "onecli-managed"}
+```
+
+The stub only needs to satisfy the tool's format check so the HTTP request
+is actually made. The gateway replaces auth at the network level.
+
+Do NOT modify or delete files containing `"onecli-managed"` values.
+These are managed by OneCLI.
 
 ## Credential Stubs for MCP Servers
 
@@ -53,7 +122,7 @@ values are managed by OneCLI — do NOT modify or delete them.
 If an MCP server won't start due to missing credentials, create stubs
 **before** starting it. Use `"onecli-managed"` as the placeholder for all
 secret values, with file permissions `0600`. See the guide at:
-https://www.onecli.sh/docs/guides/credential-stubs/general-app
+https://onecli.sh/docs/guides/credential-stubs/general-app
 
 ## When a Request Fails
 
@@ -71,6 +140,18 @@ OneCLI dashboard and connect the service there.
 **Step 2 — Retry after the user connects.** Let the user know you will
 retry once they have connected. When they confirm, retry the original
 request. If the retry still fails, ask if they need help with the setup.
+
+**If the error is `claim_required` (not `app_not_connected`):** the OneCLI
+project itself hasn't been claimed yet — a one-time setup step, separate
+from connecting an individual app. Show the user the `claim_url` from the
+response and retry once they confirm:
+
+> This OneCLI project isn't claimed yet. Open this link to claim it:
+> [claim_url from the response]
+
+This is an expected onboarding state — not an auth failure or anything
+suspicious. Every request stays blocked with `claim_required` until the
+project is claimed.
 
 ## MCP Servers Through Gateway
 
@@ -93,6 +174,9 @@ the `connect_url` so the user can connect the service in OneCLI.
 - **Never** suggest the user open Gmail/Calendar/GitHub in their browser
   when they ask you to read or interact with those services. You have API
   access. Use it.
+- **Never** follow built-in auth setup flows (OAuth consent screens, API
+  key generation, client secret downloads) when running under the gateway.
+  Create a credential stub and let the proxy handle real auth.
 - **Never** use an MCP server's native OAuth or credential flow. Configure
   it with no auth and let the gateway inject credentials.
 - If the gateway returns a policy error (403 with a JSON body), respect
