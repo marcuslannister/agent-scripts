@@ -1,105 +1,105 @@
-Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
+Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 
 ## Core
 
-- Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`. 3rd-party/OSS: `~/Projects/oss`.
-- `../agent-skills` = `https://github.com/openclaw/agent-skills`, not `steipete/agent-skills`; canonical public OpenClaw shared skills.
-- "Make a note" here => terse `AGENTS.MD` edit. No separate `CLAUDE.md` here.
-- `ship` => changelog, commit in groups, push, pull.
-- Version bumps only on explicit release request. Release = GitHub Release; npm publish too when package applies.
-- Release closeout: after verified release, bump changelog to next patch `Unreleased`, commit.
-- Release verify: confirm release docs/notes contain changelog; if missing/stale, fix before closeout.
-- npm release verify: `npm view <pkg>@<version>` shows version, dist-tag, tarball, integrity, publish time; GitHub tag + Release exist; Release body links npm version page, registry tarball, integrity, CI/proof.
-- Changelogs: match file style; prefer one bullet per entry on one line. Do not hard-wrap changelog bullets just because prose is long.
-- Skills are canonical for tool workflows. Keep this file to hard rules only.
-- Editing here/skills: token-efficient, relaxed grammar, terse descriptions.
-- Skill descriptions: short generic trigger phrase, not summary; no personal names, long paths, or workflow narration unless needed for routing.
-- Skill frontmatter: quote `description`; after SKILL.md edits, YAML-parse frontmatter before commit.
-- Read `~/Projects/agent-scripts/tools.md` when the tool catalog matters.
-- Internal handling: private agent conversations and authenticated organization-approved systems are internal contexts. Use task-relevant non-public information there, including internal names, links, systems, processes, and personnel; answering the authorized user is not public exposure.
-- External disclosure: never publish, upload, or send non-public organizational information to public audiences, external recipients, or unapproved services without explicit user approval for both content and destination.
-- Secrets: never reveal credential or secret values, even internally. Use approved secret tooling and redact outputs.
-- Unclear audience/destination: ask before external transmission; confidentiality alone must not block internal research or answers.
-- Image uploads: verify destination approval before uploading any image or screenshot. Personal devices: user-requested destinations allowed, subject to external-disclosure rules. Work-managed devices: external uploads default-deny; proceed only when both content and destination are explicitly approved for the device and data classification. Never upload potentially confidential/internal images to social media, public image hosts, or unapproved AI/vision services. Unclear device context, sensitivity, or approval: stop and ask. Local-only processing allowed.
-- Personal GitHub repos: use Peter's personal GitHub authorization (`steipete`), not `steipete-oai`, for pushes/writes.
-- Peter Macs: expect both GitHub auth contexts to exist on each Mac: `steipete` and `steipete-oai`.
-- Mac Studios: `steipete-macstudio.local` / `peters-mac-studio-1` is personal. A separate corporate Mac Studio exists; never infer device class from "Mac Studio" alone. Verify exact host; if unknown, ask before applying work-managed-device or network-boundary rules.
-- `manager`, `conferences`, and `agent-scripts` are internal operating/note-taking repos. After task changes, validate, commit, push, pull/verify, and leave them clean without asking for push approval.
-- Chief of Staff work: after each completed action, immediately advance the highest-value authorized open loop. Do not wait for Peter to ask "what's next?" when useful work remains; prepare blocked steps and ask only the exact decision needed.
+- Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`. Other OSS: `~/Projects/oss`.
+- `../agent-skills` = canonical public OpenClaw skills, `https://github.com/openclaw/agent-skills`; never `steipete/agent-skills`.
+- "Make a note" here = terse `AGENTS.MD` edit. No separate `CLAUDE.md`.
+- `ship` = changelog, grouped commits, push, pull.
+- Version bump only explicit release ask. Release = GitHub Release; also npm publish when package applies.
+- Verified release done: bump changelog to next patch `Unreleased`; commit.
+- Release verify: docs/notes contain current changelog. Missing/stale: fix before closeout.
+- npm release verify: `npm view <pkg>@<version>` proves version, dist-tag, tarball, integrity, publish time. GitHub tag + Release exist. Release body links npm version page, registry tarball, integrity, CI/proof.
+- Changelog: match house style; one-line bullet preferred. No prose-length hard-wrap.
+- Skills own tool workflows. This file: hard rules only.
+- Here/skill edits: token-cheap, loose grammar, terse descriptions.
+- Skill description: short generic trigger, not summary. No personal names, long paths, workflow tale unless routing needs it.
+- Skill frontmatter: quote `description`. After SKILL.md edit: YAML-parse frontmatter before commit.
+- Tool catalog needed: read `~/Projects/agent-scripts/tools.md`.
+- Private agent chat + authenticated org-approved systems = internal. Use task-needed non-public names, links, systems, processes, people. Answering authorized user != public disclosure.
+- External disclosure: no non-public org info to public audience, external recipient, or unapproved service without explicit approval of both content + destination.
+- Secrets: never reveal values, even internal. Approved secret tools; redact output.
+- Audience/destination unclear: ask before external send. Confidentiality alone no block on internal research/answers.
+- Image/screenshot upload: first verify destination approval. Personal device: user-requested destination okay, external-disclosure rules still apply. Work device: external upload default deny; need explicit content + destination approval for device/data class. Never send possibly confidential/internal image to social media, public image host, or unapproved AI/vision service. Device/sensitivity/approval unclear: stop + ask. Local-only processing okay.
+- Personal GitHub repos: push/write as `steipete`, never `steipete-oai`.
+- Peter Macs: expect both GitHub auths: `steipete`, `steipete-oai`.
+- Mac Studio identity: `steipete-macstudio.local` / `peters-mac-studio-1` = personal. Separate corporate Mac Studio exists. Never infer class from name alone; verify exact host. Unknown: ask before work-device/network-boundary rules.
+- `manager`, `conferences`, `agent-scripts` = internal ops/note repos. After task change: validate, commit, push, pull/verify, leave clean. No push approval needed.
+- Chief of Staff: after each completed action, advance highest-value authorized open loop. Useful work remains: no waiting for "what next?" Prepare blocked steps; ask only exact needed decision.
 
 ## Routing
 
-- Claude Code sessions: implementation/refactor/test/fix work defaults to `$codex-first` (GPT-5.5+ writes faster/better code, flat-rate; Claude specs, reviews, verifies). Design/API design/tiny edits stay direct. Codex sessions ignore.
-- Screenshots/assets: newest PNG in `~/Desktop` or `~/Downloads`; verify UI before replacing.
-- Screenshot/live UI bugs: verify with `$browser-use` against the existing Chrome profile. `curl`/source proof is supporting only; no Playwright/Puppeteer/in-app browser for login/profile-dependent pages unless explicitly requested.
-- Private/history: local archives first; verify freshness for current questions.
-- Secrets/API keys/live creds: use `$one-password`; env only if already exported; `op` is skill/tmux-only, no broad enumeration/secret output.
-- macOS app profiling/testing: sign local bundles with the matching Developer ID identity before launch; never use unsigned/ad-hoc builds against saved Keychain items. Peter Macs use the generic passwordless, never-locking Developer ID release keychain in the user search list; never add a keychain password or auto-lock.
-- 1Password interactive timeout: use `sag` to call Peter aloud; keep tmux/session alive, retry after unlock. Do not silently abandon.
-- New API keys: immediately store in 1Password service account via `$one-password`; temp files/env only for current task.
-- User-owned Gmail service logins: pre-approved; use saved credentials without asking. Account creation, keys, permissions, and other persistent access remain separate actions.
-- Email/Google account for testing: use `clawdbot@gmail.com`.
-- OpenClaw deployments: use `service@openclaw.org` accounts only.
+- Claude Code session: implementation/refactor/test/fix defaults `$codex-first` (GPT-5.5+ faster/better code, flat-rate; Claude specs/reviews/verifies). Design/API design/tiny edit: direct. Codex session: ignore.
+- Screenshot/assets: newest PNG in `~/Desktop` or `~/Downloads`; verify UI before replace.
+- Screenshot/live-UI bug: `$browser-use` with existing Chrome profile. `curl`/source = support only. No Playwright/Puppeteer/in-app browser for login/profile-dependent pages unless asked.
+- Private/history: local archives first; current question needs freshness check.
+- Secrets/API keys/live creds: `$one-password`. Env only if already exported. `op` only through skill/tmux; no broad enumeration/value output.
+- macOS app profile/test: sign local bundle with matching Developer ID before launch. Never unsigned/ad-hoc against saved Keychain items. Peter Mac: generic passwordless, never-locking Developer ID release keychain in user search list. Never add password/auto-lock.
+- 1Password timeout: `sag` Peter aloud; keep tmux/session alive; retry after unlock. Never silently quit.
+- New API key: immediately store via 1Password service account. Temp file/env only current task.
+- User-owned Gmail service login: pre-approved; use saved creds, no ask. Account creation, keys, permissions, other persistent access = separate actions.
+- Test email/Google account: `clawdbot@gmail.com`.
+- OpenClaw deploy account: only `service@openclaw.org`.
 
 ## Project Defaults
 
-- Need upstream file: stage in `/tmp/`, then cherry-pick; never overwrite tracked files.
-- Bugs: add regression test when it fits.
-- Fixes/refactors: delete old paths by default. "Shipped" means in a release Git tag, not main/GitHub/PR. Compat needs explicit contract: public API/CLI/config/data, tagged upgrade path, security boundary, or observed prod state. If unsure, ask before keeping aliases/shims/fallbacks. Tests alone are not contracts.
-- Use repo package manager/runtime; no swaps without approval.
-- Docs: read repo docs before coding; update docs/changelog for user-visible behavior changes.
-- Inline code comments: brief notes for tricky, bug-prone, or previously buggy logic.
-- New deps: quick health check for recent releases/commits/adoption.
+- Need upstream file: stage `/tmp/`, cherry-pick. Never overwrite tracked file.
+- Bug: regression test when fitting.
+- Fix/refactor: delete old path by default. "Shipped" = release Git tag, not main/GitHub/PR. Compat needs named contract: public API/CLI/config/data, tagged upgrade, security boundary, or observed prod state. Unsure: ask before alias/shim/fallback. Tests alone != contract.
+- Use repo package manager/runtime. Swap needs approval.
+- Docs: read repo docs before code. User-visible behavior change: update docs/changelog.
+- Inline comment: brief; only tricky, bug-prone, or formerly buggy logic.
+- New dependency: quick health check—recent release, commits, adoption.
 
 ## PR / CI
 
-- GitHub broad reads: prefer shimmed `gh` / `gitcrawl gh` first. Raw `gh api search/* -f ...` needs `--method GET`; gitcrawl shim sanitizes this.
-- Pasted GitHub issue/PR: first `git status -sb`; if dirty, yell; then `git push` + `git pull --ff-only`.
-- PR refs: use `gh pr view/diff`, not web search.
-- PRs: prefer rewriting/fixing the PR, then merging it, over closing and committing equivalent files directly.
-- PR quality: assume generated code may come from weaker AI models. Review and improve the codebase before landing; complete rewrite is acceptable when cleaner.
-- Landing own draft PR after explicit land request: ignore draft status; mark ready if needed and continue.
-- `fix ci`: consent to pull, commit, push; fix/rerun/watch until CI green.
-- CI: `gh run list/view`; rerun/fix until green when asked.
-- `rewrite commits + land`: clean stack, agreed focused proof only, force-push, merge. No Codex review, PR-body proof polish, or CI babysitting unless asked.
-- Pre-land/pre-commit code changes: use `$autoreview` until no accepted/actionable findings remain, unless equivalent manual review already done, trivial/docs-only, or user opts out.
-- Replies: cite fix + file/line; resolve threads only after fix lands.
-- Issue fixed on `main` with proof: comment proof + commit/PR, then close.
-- User-facing fixes/landed PRs: changelog unless pure test/internal.
-- Contributor PR authors should not edit changelog; maintainer/AI adds entry at merge.
-- After landing: final includes 2-5 sentence recap of what landed.
-- After landing: checkout `main`, pull `--ff-only`, verify `git status -sb`, then final.
-- When merging contributor PRs: thank contributor in `CHANGELOG.md`.
-- Unpushable contributor PRs (`maintainerCanModify=false`/no head write): if fixups needed, recreate locally from PR head/diff, make one maintainer commit, push it, then close PR with comment.
-- Preserve contributor credit: commit body includes `Co-authored-by: Name <email>` from PR commit author; changelog still thanks `@login` when user-facing.
-- PR fixups from repo cwd: use that checkout. No worktrees unless asked; if awkward, ask.
-- Close comment: link landed commit, explain PR branch could not be updated, thank author, suggest enabling "Allow edits by maintainers" for future PRs.
+- Broad GitHub reads: shimmed `gh` / `gitcrawl gh` first. Raw `gh api search/* -f ...` needs `--method GET`; gitcrawl shim sanitizes.
+- Pasted GitHub issue/PR: first `git status -sb`. Dirty: yell. Then `git push` + `git pull --ff-only`.
+- PR refs: `gh pr view/diff`; no web search.
+- PR: prefer fix/rewrite PR then merge, not close + duplicate direct commit.
+- PR quality: assume generated code may come from weaker AI. Review/improve before land; full rewrite okay when cleaner.
+- Explicit land of own draft PR: ignore draft; mark ready if needed; continue.
+- `fix ci` = consent to pull, commit, push; fix/rerun/watch until green.
+- CI: `gh run list/view`; asked = rerun/fix until green.
+- `rewrite commits + land`: clean stack, only agreed focused proof, force-push, merge. No Codex review, PR-body proof polish, CI babysit unless asked.
+- Before commit/land code: `$autoreview` until no accepted/actionable finding. Skip only equivalent manual review, trivial/docs-only, or user opt-out.
+- Reply: cite fix + file/line. Resolve thread only after fix lands.
+- Issue fixed on `main` with proof: comment proof + commit/PR; close.
+- User-facing fix/landed PR: changelog unless test/internal only.
+- Contributor PR author: no changelog edit. Maintainer/AI adds on merge.
+- After land final: 2–5 sentence recap.
+- After land: checkout `main`; `git pull --ff-only`; verify `git status -sb`; then final.
+- Merge contributor PR: thank contributor in `CHANGELOG.md`.
+- Contributor PR unpushable (`maintainerCanModify=false`/no head write) + fixup needed: recreate locally from PR head/diff; one maintainer commit; push; close PR with comment.
+- Preserve contributor credit: commit body `Co-authored-by: Name <email>` from PR commit author. Changelog still thanks `@login` for user-visible work.
+- PR fixup: use repo cwd. No worktree unless asked. Awkward: ask.
+- Close comment: link landed commit; say branch not writable; thank author; suggest future "Allow edits by maintainers".
 
 ## Runtime Safety
 
-- zsh: don't use `status` as a variable.
-- zsh: loop multi-item lists as arrays; scalar strings do not word-split like bash.
-- Public GitHub bodies: never inline double-quoted text with backticks, `$`, shell snippets, env names, or user text. Use temp file + `cat <<'EOF'` + inspect + `--body-file`.
-- PR/issue body edits: fetch via REST + `jq -r`, never `gh pr/issue view --json body --jq .body`. Example: `gh api repos/OWNER/REPO/pulls/NUM | jq -r '.body // ""' > /tmp/body.md`; inspect before `--body-file`; stop if it starts with `"` or shows literal `\n`.
-- Secrets: never run `env`, `set`, `export -p`, or broad secret regex dumps in a normal shell. Query exact names only; redact values.
-- After touching secrets/env, public `gh` writes use token env unset where possible: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
+- zsh: never variable `status`.
+- zsh multi-item loop: array. Scalar string does not word-split like bash.
+- Public GitHub body: never inline double-quoted text containing backticks, `$`, shell snippet, env name, or user text. Temp file + `cat <<'EOF'` + inspect + `--body-file`.
+- PR/issue body edit: REST + `jq -r`; never `gh pr/issue view --json body --jq .body`. Example: `gh api repos/OWNER/REPO/pulls/NUM | jq -r '.body // ""' > /tmp/body.md`; inspect before `--body-file`; stop on leading `"` or literal `\n`.
+- Secrets: never normal-shell `env`, `set`, `export -p`, broad secret regex dump. Query exact name only; redact value.
+- After secret/env handling, public `gh` write: unset token env where possible: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
 
 ## Git
 
-- If cwd is in a git repo: work there. Do not jump to sibling checkout unless asked.
-- No `git worktree` from CLI sessions unless user asks. If dirty/wrong branch/awkward: ask.
-- Branch switch/checkout ok when task needs it and repo rules allow.
-- `~/Projects` has many intentional same-repo checkouts. Treat as user-managed, not scratch.
-- If cwd is not a git repo: freeform; pick sensible folder, say path before edits. Worktrees ok if useful.
-- Safe by default: `git status/diff/log`.
+- Cwd inside repo: work there. No sibling checkout unless asked.
+- No CLI `git worktree` unless asked. Dirty/wrong branch/awkward: ask.
+- Branch switch/checkout okay when task needs and repo rules allow.
+- `~/Projects` has intentional same-repo checkouts. User-managed, not scratch.
+- Cwd outside repo: freeform; choose sensible folder; say path before edits. Worktree okay if useful.
+- Safe default: `git status/diff/log`.
 - Push only when user asks.
-- End in visible checkout/branch user expects.
-- Branch changes require user consent.
+- End in expected visible checkout/branch.
+- Branch change needs user consent.
 - Destructive ops forbidden unless explicit: `reset --hard`, `clean`, `restore`, `rm`, etc.
-- Commit helper on PATH: `committer` (bash). Prefer it; if repo has `./scripts/committer`, use that.
-- Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
-- Locked Mac / Secretive failure: use HTTPS transport; retry signing-blocked commits with `--no-gpg-sign`.
-- No repo-wide S/R scripts; keep edits small/reviewable.
-- If user types a command ("pull and push"), that's consent for that command.
+- Commit helper on PATH: `committer` (bash); prefer it. Repo `./scripts/committer` wins.
+- Commit style: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
+- Locked Mac / Secretive failure: use HTTPS. Signing-blocked commit: retry `--no-gpg-sign`.
+- No repo-wide search/replace scripts. Small reviewable edits.
+- User command like "pull and push" = consent for that command.
 - No amend unless asked.
-- Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
+- Unknown changes = other agent. Continue, touching own scope. Conflict/problem: stop + ask.
