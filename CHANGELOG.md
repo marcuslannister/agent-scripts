@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-12 — AGENTS.MD Reconciliation
+- Reorganized `AGENTS.MD` into Core / Routing / Project Defaults / PR-CI / Runtime Safety / Git sections, folding in reconciled upstream rules (`$codex-first` routing, `gitcrawl gh` read shim, zsh loop and `--no-gpg-sign` safety notes) while keeping the fork's own identity and internal/external disclosure rules.
+
 ## 2026-07-12 — Upstream Merge Reconciliation
 - Merged `upstream/main` (steipete/agent-scripts). Kept the fork's own `AGENTS.MD`, one-skills-root-per-CLI model (ADR 0001), Python `validate-skills`, and the prior "unused skills" removals — honoring the modify/delete conflicts for `agent-transcript`, `browser-use`, `clawsweeper-status`, `clickclack`, `npm`, `one-password`, and `xurl`.
 - Adopted from upstream: `maintainer-orchestrator` and `codex-first` skills, `scripts/sync-skills` and `scripts/test-maintainer-orchestrator-policy`, `browser-tools.ts` hardening, `package.json`/`bun.lock`, and the CI steps that build the browser helper and test the orchestrator worker boundary.
