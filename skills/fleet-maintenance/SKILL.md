@@ -11,7 +11,7 @@ Maintain Peter's Macs while protecting ambiguous local work. Package updates are
 
 - Read `~/Projects/manager/computers.yaml`; use live Tailscale state and deduplicate hosts by hardware UUID. Exclude handed-off and unknown machines.
 - Audit hosts in parallel; mutate one host at a time. Recheck agent activity immediately before every repo or Xcode mutation.
-- Treat any repository with a user process cwd inside it, Git lock, dirty worktree, or file modification within three days as active. Skip that repository.
+- Skip repositories with a user process cwd inside them or a Git lock. Recent files are audit signal, not a blocker. Permit dirty worktrees only through the conflict-free fast-forward procedure below.
 - Homebrew and global npm updates are allowed while agents/services are running. This can mix old in-memory code with replaced files, break later imports or child processes, and let Homebrew terminate/reopen cask GUI apps. Accept that package-update risk; never manually terminate or restart services. Verify health and report interruptions or pending restarts.
 - Never reset, clean, stash, rebase, switch branches, delete local work, push, install macOS updates, or reboot during routine maintenance.
 - Snapshot role-critical services before package updates. Do not restart OpenClaw gateways or other services unless explicitly authorized; verify them afterward using their owning skill.
@@ -57,7 +57,7 @@ ssh -o RequestTTY=no -o RemoteCommand=none HOST 'bash -s -- "$HOME/Projects" 3' 
   < skills/fleet-maintenance/scripts/repo-sync-audit.sh
 ```
 
-Only process rows marked `candidate`. Recheck the row immediately before mutation, then:
+Only process rows marked `candidate`. Recheck branch, upstream, Git locks, and active process cwd immediately before mutation, then:
 
 ```bash
 git -C "$repo" fetch --prune
@@ -69,11 +69,13 @@ Run fetches noninteractively and bound each one (for example five minutes). On t
 Interpret counts as `ahead behind`:
 
 - `0 0`: current; no action.
-- `0 N`: inspect `git log --oneline HEAD..@{upstream}` and `git diff --stat HEAD..@{upstream}`. If this is the configured upstream and the worktree remains clean/inactive, run `git pull --ff-only`, then verify clean/current.
+- `0 N`: inspect `git log --oneline HEAD..@{upstream}` and `git diff --stat HEAD..@{upstream}`. Record `HEAD` and worktree status. Run `git merge --ff-only @{upstream}` without stash or autostash. A clean worktree should advance. A dirty worktree may advance only when Git can preserve every local change without overlap; Git refusal means `skip-local-overlap`, not an error to repair. After success, require no unmerged entries, the expected upstream commit at `HEAD`, and all prior local modifications still present. After refusal, require unchanged `HEAD`, no unmerged entries, and unchanged worktree status.
 - `N 0` or `N M`: inspect local commit subjects/authors and `git diff --stat @{upstream}...HEAD`; explain likely intent and escalate. Never push or rewrite.
 - detached/no upstream/fetch failure: understand remotes, branches, recent commits, and worktree state; escalate with the smallest useful decision.
 
 Do not infer that a stale local checkout should match a sibling checkout. Each visible checkout is user-managed.
+
+Never use `pull` or `merge` as a conflict resolver. Never pass `--autostash`, create a stash, discard changes, or stage files. A non-fast-forward, checkout-overwrite warning, merge conflict, or changed safety snapshot stops that repository only; continue the fleet pass.
 
 ## Homebrew
 

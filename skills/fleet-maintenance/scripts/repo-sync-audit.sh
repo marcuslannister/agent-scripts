@@ -121,12 +121,6 @@ while IFS= read -r -d '' repo; do
     decision=skip-active
   elif [[ "$dirty" == unknown ]]; then
     decision=skip-status-error
-  elif [[ "$recent" == unknown ]]; then
-    decision=skip-recent-error
-  elif [[ "$dirty" == yes ]]; then
-    decision=skip-dirty
-  elif [[ "$recent" == yes ]]; then
-    decision=skip-recent
   elif [[ "$branch" == DETACHED ]]; then
     decision=escalate-detached
   elif [[ "$upstream" == - ]]; then
