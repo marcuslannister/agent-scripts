@@ -120,20 +120,37 @@ snapshot_local_content() {
   local repo=$1
   local paths=$2
   local output=$3
-  while IFS= read -r -d '' path; do
-    printf '%s\0' "$path"
-    if [[ -L "$repo/$path" ]]; then
-      printf 'link\0'
-      readlink "$repo/$path" | shasum -a 256 | awk '{printf "%s%c", $1, 0}'
-    elif [[ -f "$repo/$path" ]]; then
-      printf 'file\0'
-      shasum -a 256 "$repo/$path" | awk '{printf "%s%c", $1, 0}'
-    elif [[ -d "$repo/$path" ]]; then
-      printf 'directory\0'
-    else
-      printf 'missing\0'
-    fi
-  done <"$paths" >"$output"
+  perl -MDigest::SHA -e '
+    use strict;
+    use warnings;
+    my ($repo, $paths) = @ARGV;
+    open my $list, "<:raw", $paths or exit 2;
+    local $/ = "\0";
+    while (defined(my $path = <$list>)) {
+      chop $path;
+      my $full = "$repo/$path";
+      print $path, "\0";
+      if (-l $full) {
+        my $target = readlink $full;
+        exit 2 unless defined $target;
+        print "link\0", Digest::SHA::sha256_hex("$target\n"), "\0";
+      } elsif (-f $full) {
+        open my $content, "<:raw", $full or exit 2;
+        my $sha = Digest::SHA->new(256);
+        $sha->addfile($content);
+        close $content or exit 2;
+        my $digest = $sha->hexdigest;
+        $digest = "\\$digest" if $full =~ /[\\\n]/;
+        print "file\0", $digest, "\0";
+      } elsif (-d $full) {
+        print "directory\0";
+      } else {
+        print "missing\0";
+      }
+    }
+    close $list or exit 2;
+    close STDOUT or exit 2;
+  ' "$repo" "$paths" >"$output"
 }
 
 if ! "$audit" "$root" "$days" nul >"$tmp/audit.nul"; then
