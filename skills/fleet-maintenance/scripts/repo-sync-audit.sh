@@ -106,10 +106,14 @@ while IFS= read -r -d '' repo; do
     fi
   fi
 
-  recent=unknown
-  if recent_path=$(find "$repo" \( -path '*/.git' -o -path '*/node_modules' \) -prune -o -type f -mtime "-$days" -print -quit 2>/dev/null); then
-    recent=no
-    [[ -n "$recent_path" ]] && recent=yes
+  # Machine updater ignores recency; keep the expensive signal for human audits only.
+  recent=not-scanned
+  if [[ "$format" == tsv ]]; then
+    recent=unknown
+    if recent_path=$(find "$repo" \( -path '*/.git' -o -path '*/node_modules' \) -prune -o -type f -mtime "-$days" -print -quit 2>/dev/null); then
+      recent=no
+      [[ -n "$recent_path" ]] && recent=yes
+    fi
   fi
 
   active=no
