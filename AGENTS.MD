@@ -35,7 +35,7 @@ Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 - Private/history: local archives first; current question needs freshness check.
 - Secrets/API keys/live creds: `$one-password`. Env only if already exported. `op` only through skill/tmux; no broad enumeration/value output.
 - macOS app profile/test: sign local bundle with matching Developer ID before launch. Never unsigned/ad-hoc against saved Keychain items. Peter Mac: generic passwordless, never-locking Developer ID release keychain in user search list. Never add password/auto-lock.
-- 1Password timeout: `sag` Peter aloud; keep tmux/session alive; retry after unlock. Never silently quit.
+- 1Password interactive/desktop path: chat consent first, no auto-fallback, no nameplate/sag pre-alert. `sag` only if consented unlock prompt sits unanswered; keep tmux/session alive; retry after unlock. Never silently quit.
 - New API key: immediately store via 1Password service account. Temp file/env only current task.
 - User-owned Gmail service login: pre-approved; use saved creds, no ask. Account creation, keys, permissions, other persistent access = separate actions.
 - Test email/Google account: `clawdbot@gmail.com`.

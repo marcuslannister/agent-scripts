@@ -14,44 +14,54 @@ Follow the official CLI get-started steps. Don't guess install commands.
 - `references/get-started.md` (install + app integration + sign-in flow)
 - `references/cli-examples.md` (real `op` examples, including safe item create/edit patterns)
 
+## Access paths (strict order)
+
+**1. Service account — default, zero prompts.** `OP_SERVICE_ACCOUNT_TOKEN` is exported from `~/.profile` (Codex-managed block), scoped to the `Molty` vault (read+write). Non-interactive; never touches the desktop app.
+
+- Pass the token per command: `OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item get "<item>" --vault Molty ...`.
+- `--vault Molty` is required; omitting it fails even with a valid token.
+- NEVER `op signin` and NEVER `--account` on this path. Either one routes through the desktop app and throws an Authorize prompt at Peter. `--account` + token = interactive path, always wrong.
+- Older alias `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` = fallback only; may be stale.
+- Token missing/expired or item read fails: report the exact error and ask. Do NOT silently fall back to the desktop app.
+
+**2. Desktop app — explicit consent only.** For items genuinely outside Molty (personal `Private` vault, `OpenClaw-Core`). No automatic fallback.
+
+- STOP and ask in chat first: item name + why needed. Wait for yes.
+- After consent: one persistent tmux session, `op signin --account my.1password.com` once, then batch every interactive read of the whole task into that same session. App authorization is per terminal session (~10 min, refreshes on use) — reusing the session means one Authorize prompt max per task. There is no app setting to disable the per-terminal prompt; session reuse is the only mitigation.
+- No nameplate/sag pre-alerts. Audible page (`sag`) only if Peter approved the unlock in chat and the 1Password prompt then sits unanswered.
+
+## Known Molty items (skip discovery)
+
+Exact titles; go straight to the service-account read. No enumeration needed.
+
+| Purpose | Item title | Field |
+|---|---|---|
+| OpenAI (OpenClaw/i18n jobs) | `AI API Key - OpenAI - OPENAI_API_KEY - OpenClaw` | `OPENAI_API_KEY` |
+| OpenAI (serviceable access) | `AI API Key - OpenAI - OPENAI_API_KEY - Serviceable Access` | `OPENAI_API_KEY` |
+| Anthropic (live tests) | `AI API Key - Anthropic - ANTHROPIC_API_KEY - OpenClaw Live Tests` | `ANTHROPIC_API_KEY` |
+| Anthropic (clawdbot) | `AI API Key - Anthropic - ANTHROPIC_API_KEY - Clawdbot` | `ANTHROPIC_API_KEY` |
+| Gemini | `AI API Key - Google Gemini - GEMINI_API_KEY - steipete-m5` | `GEMINI_API_KEY` |
+| App Store Connect release | `API Key - App Store Connect - Personal - Release` | `private_key_p8`, `key_id`, `issuer_id` |
+| npm release automation | `npm Registry - steipete - Release Automation` | see `$npm` |
+| Cloudflare (OpenClaw services) | `OpenClaw Services Cloudflare API Token` | `credential` |
+| Sparkle signing | `Nameplate Sparkle EdDSA` | `private key` |
+| Octopool | `Octopool Proxy Secret`, `Octopool Admin Token (OpenClaw account)` | `credential` |
+
+Outside Molty by design (desktop path, consent first): `OpenClaw Developer ID Release Keychain` (`OpenClaw-Core` vault), npm interactive login+OTP (`Private/Npmjs`), personal SSH/signing keys.
+
 ## Workflow
 
 1. Check OS + shell.
 2. Verify CLI present inside tmux: `op --version`.
 3. REQUIRED: create exactly one persistent named tmux session for the whole secret task.
-4. Try scoped service-account access first when a matching token/workflow exists; no dialogs.
-5. If service-account access is missing or lacks the exact item/field needed, automatically try the desktop-app fallback in the same session. Do not ask for chat permission first.
-6. Desktop fallback: trigger app integration/unlock, then `op signin` once inside the same session. The 1Password prompt is the user approval boundary; ask in chat only if the prompt cannot be surfaced or completed.
-7. Verify chosen access path inside that same session: `op whoami`.
-8. If multiple accounts: use `--account` or `OP_ACCOUNT`.
-9. If a command fails, reuse the same tmux session with `tmux send-keys`; do not start a second session just to retry.
-
-## Default Account
-
-- Default account for personal/work secrets is `my.1password.com`.
-- Do not silently use `my.1password.eu` / Titan unless explicitly asked.
-- Pass `--account my.1password.com` on every `op` command when storing or reading secrets. Do not rely on ambient account selection.
-- `op account list` is metadata-only, but still must run inside tmux. Use it to confirm account names when routing is unclear.
-- `op signin --account my.1password.com` can return status 0 with no useful output and still not make a later shell signed in. Prefer doing sign-in, create/edit/get, and verification in the same tmux shell.
-
-## Service account tokens
-
-- Prefer service-account tokens before any interactive 1Password flow. User dialogs are fallback only.
-- 1Password service accounts are non-interactive tokens for a specific vault/scope, useful for automation without unlocking the desktop app.
-- Peter's default service-account token is exported from `~/.profile` as `OP_SERVICE_ACCOUNT_TOKEN` in a Codex-managed block. It is scoped to the restricted `Molty` vault.
-- Older shells may expose the same value as `MOLTY_OP_SERVICE_ACCOUNT_TOKEN`; treat that as a fallback alias for known `Molty` vault items.
-- If the token is not already exported, not applicable, or cannot read the exact known item/field required, use the desktop-app 1Password flow below automatically. Ask only when an actual unlock or other user interaction remains blocked.
-- Export/pass it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault Molty ...`.
-- Service-account `op` reads require an explicit vault query; omitting `--vault Molty` fails even when the token is valid.
-- Keep the tmux rule: every `op` command, including service-account reads, still runs inside one named tmux session.
-- Do not enumerate vaults/items with service accounts by default. If the user explicitly asks to search, gives a screenshot/listing, or gives only a fuzzy item name, use the safe metadata search below before desktop fallback.
-- Print presence/shape only, never token or secret values.
+4. Known/expected Molty item → service-account read directly (path 1). Verify with `OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op whoami` if unsure the token works.
+5. Item unknown → check the table above → vault-scoped metadata search in Molty (service account, safe) → only then the desktop consent ask (path 2).
+6. If a command fails, reuse the same tmux session with `tmux send-keys`; do not start a second session just to retry.
+7. If multiple personal accounts in an interactive flow: `--account my.1password.com` default; never `my.1password.eu` / Titan unless explicitly asked.
 
 ## Required Persistent Tmux Session
 
-The shell tool uses a fresh TTY per command. Run `op` inside one dedicated tmux session and keep using that same session until the whole secret task is done. Service-account commands still run here, but must not trigger app prompts.
-
-Example:
+The shell tool uses a fresh TTY per command. Run `op` inside one dedicated tmux session and keep using that same session until the whole secret task is done. Service-account commands are non-interactive but still run here (TTY hygiene, retry reuse); they must not trigger app prompts.
 
 ```bash
 SOCKET_DIR="${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}"
@@ -61,11 +71,11 @@ SESSION="op-work"
 
 tmux -S "$SOCKET" has-session -t "$SESSION" 2>/dev/null ||
   tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
-tmux -S "$SOCKET" send-keys -t "$SESSION:" -- "op signin --account my.1password.com" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION:" -- "op whoami" Enter
+tmux -S "$SOCKET" send-keys -t "$SESSION:" -- 'OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op whoami' Enter
 tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION:" -S -200
 ```
 
+No `op signin` in bootstrap. Sign-in belongs only to a consented desktop flow (path 2).
 Do not create a new tmux session after a quoting, item-name, or command failure. Send a corrected command into the existing session.
 Target the session as `$SESSION:` instead of assuming window `0`; older sessions may have window indexes starting at `1`.
 
@@ -77,7 +87,7 @@ Target the session as `$SESSION:` instead of assuming window `0`; older sessions
 
 ## Known working secret-write pattern
 
-Use the persistent tmux session. Write the exact secret task to a temp script, then send that script into `op-work`; do not create a second tmux session for retries.
+New secrets default to the `Molty` vault via the service account (no prompts). Personal-account writes only on explicit ask. Use the persistent tmux session; write the exact secret task to a temp script, send it into `op-work`; do not create a second tmux session for retries.
 
 ```bash
 SOCKET_DIR="${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}"
@@ -90,7 +100,7 @@ cat > /tmp/op-store-secret.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 set +x
-ACCOUNT="my.1password.com"
+VAULT="Molty"
 ITEM_TITLE="Service API Tokens"
 FIELD_NAME="api_token"
 EXPECTED_PREFIX=""
@@ -99,8 +109,8 @@ TOKEN="$(pbpaste)"
 if [ -n "$EXPECTED_PREFIX" ]; then
   case "$TOKEN" in "$EXPECTED_PREFIX"*) ;; *) echo "clipboard value does not match expected prefix" >&2; exit 2;; esac
 fi
-op item create --account "$ACCOUNT" --category "API Credential" --title "$ITEM_TITLE" "$FIELD_NAME[password]=$TOKEN" "notesPlain=$NOTES" >/dev/null
-op item get "$ITEM_TITLE" --account "$ACCOUNT" --fields "label=$FIELD_NAME" >/dev/null
+OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item create --vault "$VAULT" --category "API Credential" --title "$ITEM_TITLE" "$FIELD_NAME[password]=$TOKEN" "notesPlain=$NOTES" >/dev/null
+OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item get "$ITEM_TITLE" --vault "$VAULT" --fields "label=$FIELD_NAME" >/dev/null
 echo "stored and verified secret field without printing it"
 SCRIPT
 chmod 700 /tmp/op-store-secret.sh
@@ -138,7 +148,7 @@ Keep JSON extraction scoped to the known item and vault. Do not enumerate vaults
 
 ## Explicit item search
 
-Only use this when the user explicitly asks to search, gives a screenshot/listing, or the exact title guess failed and the user asks for regex/fuzzy lookup. Stay vault-scoped and metadata-only; print candidate titles/ids/categories/vault names, never fields or values. Prefer exact visible strings from screenshots first: vault name, item title, and field label.
+Only use this when the user explicitly asks to search, gives a screenshot/listing, or the exact title guess failed. Stay vault-scoped (Molty, service account) and metadata-only; print candidate titles/ids/categories/vault names, never fields or values. Prefer exact visible strings from screenshots first: vault name, item title, and field label.
 
 ```bash
 cat > /tmp/op-find-item.sh <<'SCRIPT'
@@ -166,11 +176,11 @@ chmod 700 /tmp/op-find-item.sh
 tmux -S "$SOCKET" send-keys -t "$SESSION:" -- "bash /tmp/op-find-item.sh; rm -f /tmp/op-find-item.sh" C-m
 ```
 
-After choosing a candidate, switch back to exact item/field JSON extraction and shape-only validation. An exact known personal item may use desktop fallback automatically; do not broadly enumerate personal vaults unless the user asked to search.
+After choosing a candidate, switch back to exact item/field JSON extraction and shape-only validation. No Molty match → desktop consent ask (path 2), never a silent personal-vault read.
 
 ## Redacted debugging
 
-Keep the whole pipeline inside the same tmux session. Inspect status and output length, never secret values.
+Interactive-flow debugging only (consented desktop path). Keep the whole pipeline inside the same tmux session. Inspect status and output length, never secret values.
 
 ```bash
 cat > /tmp/op-debug.sh <<'SCRIPT'
@@ -189,8 +199,8 @@ tmux -S "$SOCKET" send-keys -t "$SESSION" -- "bash /tmp/op-debug.sh; rm -f /tmp/
 
 - Never paste secrets into logs, chat, or code.
 - Prefer `op run` / `op inject` over writing secrets to disk.
+- Desktop app path only after explicit chat consent; the 1Password unlock prompt then handles the actual authorization — no extra chat round trip at prompt time.
 - If sign-in without app integration is needed, use `op account add`.
-- If a command returns "account is not signed in", re-run `op signin` inside tmux and authorize in the app.
-- Let the desktop 1Password unlock prompt request user interaction directly; do not add a separate chat permission round trip first.
-- Before any interactive op auth/unlock: pre-alert with context via `$nameplate-attention` (`nameplate attention "<why; no secret read>" --title "<agent> → 1Password"`); `sag` audible fallback if unanswered. op's own prompt carries no reason field.
+- If a command returns "account is not signed in" in a consented interactive flow, re-run `op signin` inside tmux and let Peter authorize in the app.
+- `sag` only when a consented unlock prompt sits unanswered; never as a pre-alert.
 - Do not run `op` outside tmux; stop and ask if tmux is unavailable.
