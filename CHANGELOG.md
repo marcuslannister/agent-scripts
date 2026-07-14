@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-14 — Plugin-Distributed Skill Topology
+- Added manifest-scoped native adapters for Waza and claude-mem on Claude and Codex, preserving claude-mem dependency checks and shared state while gating unknown third-party plugins before mutation, ignoring bundled system plugins, aggregating failures, and verifying final state.
+- Routine `update-all.sh` no longer invokes the generic Claude installed-plugin updater or direct Waza/claude-mem updaters; staged legacy entrypoints remain until the final topology cutover.
+
 ## 2026-07-13 — Copy-Distributed Third-Party Topology
 - Added manifest-owned adapters for Anthropic skills, neat-freak, and visual-explainer with complete preflight inventory, both-surface policy, non-mutating checks, idempotent reconciliation, owner-scoped cleanup, and final verification through `update-skill-topology.sh`.
 - Anthropic's six managed skills and neat-freak now target both surfaces; visual-explainer keeps Claude's native plugin mechanism and a content-hashed Codex copy.

@@ -46,9 +46,34 @@ function validateDestinations(value, label) {
   }
 }
 
+function validatePluginMetadata(value, label, supportedDestinations) {
+  validateFields(value, ["name", "repo", "marketplaces"], ["name", "repo", "marketplaces"], label);
+  if (typeof value.name !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value.name)) {
+    throw new TopologyError(`${label} has an invalid name`, 2);
+  }
+  if (typeof value.repo !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(value.repo)) {
+    throw new TopologyError(`${label} has an invalid repo`, 2);
+  }
+  if (!isObject(value.marketplaces) || Object.keys(value.marketplaces).length === 0) {
+    throw new TopologyError(`${label} marketplaces must be a non-empty object`, 2);
+  }
+  const unknownDestinations = Object.keys(value.marketplaces)
+    .filter((destination) => !DESTINATIONS.includes(destination));
+  if (unknownDestinations.length > 0) {
+    throw new TopologyError(`${label} marketplaces contains unknown destination: ${unknownDestinations[0]}`, 2);
+  }
+  for (const destination of supportedDestinations) {
+    const marketplace = value.marketplaces[destination];
+    if (typeof marketplace !== "string" || !/^[a-z0-9]+(?:-[a-z0-9-]*[a-z0-9])?$/u.test(marketplace)) {
+      throw new TopologyError(`${label} is missing a valid ${destination} marketplace`, 2);
+    }
+  }
+}
+
 export function readManifest(manifestPath) {
   const manifest = readJson(manifestPath, "skill topology manifest");
   validateFields(manifest, ["version", "sources"], ["version", "sources"], "skill topology manifest");
+
   if (manifest.version !== 1) {
     throw new TopologyError("skill topology manifest version must be 1", 2);
   }
@@ -92,7 +117,7 @@ export function readRegistry(registryPath) {
   const sourceIds = new Set();
   for (const [index, adapter] of registry.entries()) {
     const label = `topology adapter registry entry ${index}`;
-    validateFields(adapter, ["sourceId", "classification", "supportedDestinations", "command", "stateInspection"], ["sourceId", "classification", "supportedDestinations", "command"], label);
+    validateFields(adapter, ["sourceId", "classification", "supportedDestinations", "command", "stateInspection", "plugin"], ["sourceId", "classification", "supportedDestinations", "command"], label);
     if (typeof adapter.sourceId !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(adapter.sourceId)) {
       throw new TopologyError(`${label} has an invalid sourceId`, 2);
     }
@@ -109,6 +134,16 @@ export function readRegistry(registryPath) {
     }
     if (adapter.stateInspection !== undefined && !["topology", "adapter"].includes(adapter.stateInspection)) {
       throw new TopologyError(`${label} has an invalid stateInspection`, 2);
+    }
+    const pluginClassification = ["plugin-both", "plugin-claude-only"].includes(adapter.classification);
+    if (!pluginClassification && adapter.plugin !== undefined) {
+      throw new TopologyError(`${label} has plugin metadata for a non-plugin source`, 2);
+    }
+    if (adapter.plugin !== undefined) {
+      const requiredPluginDestinations = adapter.classification === "plugin-both"
+        ? adapter.supportedDestinations
+        : Object.keys(adapter.plugin.marketplaces);
+      validatePluginMetadata(adapter.plugin, `${label} plugin`, requiredPluginDestinations);
     }
     adapter.stateInspection ??= "topology";
   }

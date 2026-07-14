@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Black-box contract: the routine updater runs source-specific installers,
-# but never publishes tracked Claude repo skills onto the Codex surface.
+# Black-box contract: routine updates cannot bypass manifest policy through
+# bulk repo publication or generic/direct plugin update entrypoints.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
@@ -15,13 +15,10 @@ cp "$REPO_ROOT/scripts/update-all.sh" "$SCRIPTS/"
 
 UPDATERS=(
   update-agents.sh
-  update-cc-plugins.sh
   update-cli-skills.sh
   update-visual-explainer.sh
   update-khazix-skills.sh
   update-anthropic-skills.sh
-  update-claude-mem.sh
-  update-waza.sh
   update-mattpocock-skills.sh
 )
 
@@ -33,12 +30,20 @@ for updater in "${UPDATERS[@]}"; do
   chmod +x "$SCRIPTS/$updater"
 done
 
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'echo "repo-skills invocation forbidden" >> "$UPDATE_LOG"' \
-  'exit 99' \
-  > "$SCRIPTS/update-repo-skills.sh"
-chmod +x "$SCRIPTS/update-repo-skills.sh"
+FORBIDDEN_UPDATERS=(
+  update-repo-skills.sh
+  update-cc-plugins.sh
+  update-claude-mem.sh
+  update-waza.sh
+)
+for updater in "${FORBIDDEN_UPDATERS[@]}"; do
+  printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'printf '\''forbidden updater: %s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
+    'exit 99' \
+    > "$SCRIPTS/$updater"
+  chmod +x "$SCRIPTS/$updater"
+done
 
 UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" > "$TMPDIR/out" 2>&1
 

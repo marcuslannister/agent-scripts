@@ -67,6 +67,13 @@ function runAdapterProcess(adapter, args) {
   });
 }
 
+function adapterFailureMessages(prefix, stderr) {
+  const details = stderr.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+  return details.length > 0
+    ? details.map((detail) => `${prefix}: ${detail}`)
+    : [prefix];
+}
+
 async function discoverInventory(adapter, discoveryRoot, mode) {
   const result = await runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot, "discover", "", os.homedir(), mode]);
   if (interrupted) {
@@ -84,6 +91,21 @@ function orderedDestinations(destinations) {
 
 function runRuntimeAdapter(adapter, action, discoveryRoot, planPath, mode = "reconcile") {
   return runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot, action, planPath, os.homedir(), mode]);
+}
+
+function writeNativePluginAllowlist(discoveryRoot, manifest, registryBySource) {
+  const entries = [];
+  for (const source of manifest.sources) {
+    const plugin = registryBySource.get(source.id)?.plugin;
+    if (!plugin) {
+      continue;
+    }
+    for (const [destination, marketplace] of Object.entries(plugin.marketplaces)) {
+      entries.push(`${destination}\t${plugin.name}@${marketplace}`);
+    }
+  }
+  entries.sort();
+  fs.writeFileSync(path.join(discoveryRoot, "native-plugins.tsv"), `${entries.join("\n")}${entries.length > 0 ? "\n" : ""}`);
 }
 
 function expectedStatesForAdapter(adapter, plan, destinationClaims) {
@@ -124,7 +146,7 @@ async function inspectAdapterState({ adapter, plan, destinationClaims, discovery
     throw new TopologyError("interrupted", 130);
   }
   if (result.code !== 0) {
-    errors.push(`source ${adapter.sourceId} inspection failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`);
+    errors.push(...adapterFailureMessages(`source ${adapter.sourceId} inspection failed`, result.stderr));
   }
 
   const expectedByKey = new Map(expectedStates.map((item) => [`${item.skill}\u0000${item.destination}`, item]));
@@ -136,6 +158,23 @@ async function inspectAdapterState({ adapter, plan, destinationClaims, discovery
     const validDestination = DESTINATIONS.includes(destination);
     if (extra.length > 0 || !validName || !validDestination || !detail) {
       errors.push(`source ${adapter.sourceId} returned invalid inspection output`);
+      continue;
+    }
+    if (state === "decision") {
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*@[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(detail)
+          || seen.has(`decision\u0000${destination}\u0000${detail}`)) {
+        errors.push(`source ${adapter.sourceId} returned invalid decision inspection output`);
+        continue;
+      }
+      seen.add(`decision\u0000${destination}\u0000${detail}`);
+      decisions.push({
+        code: "unknown-installed-plugin",
+        sourceId: adapter.sourceId,
+        skill,
+        destination,
+        pluginId: detail,
+        message: `installed third-party plugin ${detail} on ${destination} is not listed in skill-topology.json`,
+      });
       continue;
     }
     if (state === "orphan") {
@@ -296,6 +335,19 @@ async function reconcileTopology({ document, plan, registryBySource, destination
     }
     verificationBySource.get(item.sourceId).push({ state: "absent", skill: item.skill, destination: item.destination });
   }
+  for (const [sourceId, expectedStates] of verificationBySource) {
+    const adapter = registryBySource.get(sourceId);
+    if (!adapter.plugin) {
+      continue;
+    }
+    for (const item of expectedStates.filter((candidate) => candidate.state === "present")) {
+      const hasDriftAction = actionsBySource.get(sourceId)
+        .some((action) => action.skill === item.skill && action.destination === item.destination);
+      if (!hasDriftAction) {
+        actionsBySource.get(sourceId).push({ operation: "refresh", skill: item.skill, destination: item.destination });
+      }
+    }
+  }
 
   const changes = [];
   const errors = [];
@@ -312,14 +364,14 @@ async function reconcileTopology({ document, plan, registryBySource, destination
     }
     for (const line of result.stdout.split(/\r?\n/u).filter(Boolean)) {
       const [action, skill, destination, ...extra] = line.split("\t");
-      if (extra.length > 0 || !["installed", "removed"].includes(action) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(skill ?? "") || !DESTINATIONS.includes(destination)) {
+      if (extra.length > 0 || !["installed", "removed", "updated"].includes(action) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(skill ?? "") || !DESTINATIONS.includes(destination)) {
         errors.push(`source ${sourceId} returned invalid reconcile output`);
         continue;
       }
       changes.push({ action, sourceId, skill, destination });
     }
     if (result.code !== 0) {
-      errors.push(`source ${sourceId} reconciliation failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`);
+      errors.push(...adapterFailureMessages(`source ${sourceId} reconciliation failed`, result.stderr));
     }
   }
 
@@ -338,7 +390,7 @@ async function reconcileTopology({ document, plan, registryBySource, destination
       errors.push(`source ${sourceId} returned invalid verification output`);
     }
     if (result.code !== 0) {
-      errors.push(`source ${sourceId} verification failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`);
+      errors.push(...adapterFailureMessages(`source ${sourceId} verification failed`, result.stderr));
     }
   }
 
@@ -393,6 +445,7 @@ async function evaluateTopology(mode) {
   const discoveryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-scripts-topology-discovery-"));
 
   try {
+    writeNativePluginAllowlist(discoveryRoot, manifest, registryBySource);
     const sources = [];
     const plan = [];
     const decisions = registry

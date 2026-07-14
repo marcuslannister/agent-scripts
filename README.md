@@ -57,7 +57,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, `update-waza.sh`, then `update-mattpocock-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, then `update-mattpocock-skills.sh`; generic and direct plugin updates stay outside routine execution.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/verify.sh`
@@ -65,22 +65,23 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
-- Default mode discovers repo-owned, Anthropic, neat-freak, and visual-explainer inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
+- Default mode discovers repo-owned, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
-- Staged migration: legacy per-source commands below remain active until the final routine-updater cutover; their older hardcoded destination policy is unchanged here.
+- Waza and claude-mem use manifest-scoped native Claude/Codex adapters. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
+- Staged migration: legacy per-source commands below remain callable until the final routine-updater cutover. Generic Claude plugin updates and the direct Waza/claude-mem commands are no longer routine steps.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
 - Tries both even if one fails; prints version before/after each.
 
 `scripts/update-cc-plugins.sh`
-- Updates all Claude Code marketplaces and installed plugins.
+- Legacy manual command that updates all Claude Code marketplaces and installed plugins; excluded from routine updates because its installed-plugin inventory is not manifest policy.
 
 `scripts/update-cli-skills.sh`
 - Removes legacy tw93/Waza skills-CLI installs (Waza is a marketplace plugin now), bootstraps `find-skills` (vercel-labs/skills) when missing, then runs `npx skills update --global`, refreshing every skills.sh-managed package, including Matt Pocock's canonical copies. Also rsyncs one-off npx skills both agents need (`find-skills`) into `skills/` as untracked copies behind a `# cli-skills` block in `.gitignore`.
 
 `scripts/update-waza.sh`
-- Installs/updates `tw93/Waza` for Claude Code and Codex via each CLI's plugin marketplace (marketplace `waza` on both sides). The umbrella `waza` plugin registers all eight skills namespaced as `/waza:think`, `/waza:check`, etc.; no entries in `skills/`.
+- Legacy direct entrypoint retained during staged migration. `update-skill-topology.sh` owns routine Waza policy and native installation on both surfaces.
 
 `scripts/update-mattpocock-skills.sh`
 - Reconciles Matt Pocock's complete upstream skill set into `~/.agents/skills` for Codex: updates changed skills, installs additions, and removes canonical directories deleted or renamed upstream. Then rsyncs the current set into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in), removing stale copies and regenerating a repo-local `# matt-skills` block in `.git/info/exclude` so upstream churn does not dirty tracked files.
@@ -95,7 +96,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, rsyncs `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` as untracked copies behind an `# anthropic-skills` block in `.gitignore`, copies those same document skills into `~/.agents/skills` for Codex, and copies `frontend-design` + `skill-creator` into `~/.agents/skills` only: Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
 
 `scripts/update-claude-mem.sh`
-- Requires runnable Bun and Astral `uv` first because claude-mem hooks run through `bun-runner.js` and vector search uses `uvx`; checks Scoop, `~/.bun`, Homebrew, and PATH locations, then fails before install/update if either dependency is missing or broken. Installs/updates `thedotmack/claude-mem` for Claude Code (marketplace `thedotmack`) and Codex (marketplace `claude-mem-local`) via each CLI's plugin marketplace commands; no npx installer. Both tools share one claude-mem worker and database under `~/.claude-mem`.
+- Legacy direct entrypoint retained during staged migration. `update-skill-topology.sh` owns routine claude-mem policy, dependency checks, native installation on both surfaces, and final verification without touching the shared `~/.claude-mem` worker/database.
 
 `scripts/committer`
 - Stages exactly the listed files.

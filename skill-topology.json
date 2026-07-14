@@ -63,6 +63,22 @@
       "overrides": {
         "visual-explainer": ["claude", "codex"]
       }
+    },
+    {
+      "id": "waza",
+      "classification": "plugin-both",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {
+        "waza": ["claude", "codex"]
+      }
+    },
+    {
+      "id": "claude-mem",
+      "classification": "plugin-both",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {
+        "claude-mem": ["claude", "codex"]
+      }
     }
   ]
 }

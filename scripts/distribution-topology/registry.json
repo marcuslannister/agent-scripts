@@ -30,6 +30,43 @@
     "classification": "plugin-claude-only",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/visual-explainer.sh",
-    "stateInspection": "adapter"
+    "stateInspection": "adapter",
+    "plugin": {
+      "name": "visual-explainer",
+      "repo": "nicobailon/visual-explainer",
+      "marketplaces": {
+        "claude": "visual-explainer-marketplace"
+      }
+    }
+  },
+  {
+    "sourceId": "waza",
+    "classification": "plugin-both",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/plugin-both.sh",
+    "stateInspection": "adapter",
+    "plugin": {
+      "name": "waza",
+      "repo": "tw93/Waza",
+      "marketplaces": {
+        "claude": "waza",
+        "codex": "waza"
+      }
+    }
+  },
+  {
+    "sourceId": "claude-mem",
+    "classification": "plugin-both",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/plugin-both.sh",
+    "stateInspection": "adapter",
+    "plugin": {
+      "name": "claude-mem",
+      "repo": "thedotmack/claude-mem",
+      "marketplaces": {
+        "claude": "thedotmack",
+        "codex": "claude-mem-local"
+      }
+    }
   }
 ]
