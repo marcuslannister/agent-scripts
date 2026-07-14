@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-13 — GitHub Cache Hygiene
+- Kept agent GitHub reads on the Octopool shim by banning absolute real-`gh` paths outside shim diagnosis and reserving `OPENCLAW_GH_BIN` for mutating repository workflows.
+
 ## 2026-07-13 — Global Workflow Rules
 - Simplified shared agent policy around workflow-owned operations, made autoreview universal before commit or land, separated GitHub shipping from explicitly authorized publication, and removed obsolete upstream-temp, screenshot-selection, and blanket file-deletion restrictions.
 
