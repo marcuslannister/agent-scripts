@@ -6,6 +6,21 @@ COMMAND="$REPO_ROOT/scripts/update-skill-topology.sh"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
+source "$REPO_ROOT/scripts/lib-copies.sh"
+
+install_repo_copy() {
+  local destination="$1"
+  local source_path="$2"
+  local marker_source="${3:-$source_path}"
+  local stored_hash
+
+  install_skill_copy "$source_path" "$destination" repo-skills
+  if [ "$marker_source" != "$source_path" ]; then
+    stored_hash="$(sed -n '3p' "$destination/.agent-scripts-copy")"
+    printf '%s\n%s\n%s\n' "$marker_source" repo-skills "$stored_hash" > "$destination/.agent-scripts-copy"
+  fi
+}
+
 help_output="$($COMMAND --help)"
 grep -F 'Usage: update-skill-topology.sh --check [--json]' <<< "$help_output" >/dev/null
 grep -F '0   check clean' <<< "$help_output" >/dev/null
@@ -43,7 +58,7 @@ CODEX_EXCEPTIONS=(
 )
 
 for skill in "${CODEX_EXCEPTIONS[@]}"; do
-  mkdir -p "$HOME_DIR/.agents/skills/$skill"
+  install_repo_copy "$HOME_DIR/.agents/skills/$skill" "$REPO_ROOT/skills/$skill"
 done
 
 HOME="$HOME_DIR" TMPDIR="$RUNTIME_DIR" "$COMMAND" --check --json > "$TMP_ROOT/clean.json" 2> "$TMP_ROOT/clean.err"
@@ -72,9 +87,12 @@ mkdir -p \
 printf 'cache sentinel\n' > "$DRIFT_HOME/.cache/topology-source/state"
 printf 'claude plugin sentinel\n' > "$DRIFT_HOME/.claude/plugins/state"
 printf 'codex plugin sentinel\n' > "$DRIFT_HOME/.codex/plugins/state"
+install_repo_copy "$DRIFT_HOME/.agents/skills/codex-first" "$REPO_ROOT/skills/codex-first"
 
 for skill in "${CODEX_EXCEPTIONS[@]}"; do
-  [ "$skill" = create-cli ] || mkdir -p "$DRIFT_HOME/.agents/skills/$skill"
+  if [ "$skill" != create-cli ]; then
+    install_repo_copy "$DRIFT_HOME/.agents/skills/$skill" "$REPO_ROOT/skills/$skill"
+  fi
 done
 
 cp -R "$DRIFT_HOME" "$TMP_ROOT/drift-home-before"
@@ -110,6 +128,8 @@ make_fixture() {
   printf '%s\n' '---' 'name: new-skill' 'description: "fixture"' '---' > "$fixture_root/skills/new-skill/SKILL.md"
   printf '%s\n' '---' 'name: shared-skill' 'description: "fixture"' '---' > "$fixture_root/skills/shared-skill/SKILL.md"
   printf '%s\n' '---' 'name: codex-tool' 'description: "fixture"' '---' > "$fixture_root/codex-skills/codex-tool/SKILL.md"
+  install_repo_copy "$fixture_root/home/.agents/skills/shared-skill" "$fixture_root/skills/shared-skill" "skills/shared-skill"
+  install_repo_copy "$fixture_root/home/.agents/skills/codex-tool" "$fixture_root/codex-skills/codex-tool" "codex-skills/codex-tool"
   cat > "$fixture_root/skill-topology.json" <<'JSON'
 {
   "version": 1,
@@ -129,6 +149,10 @@ make_fixture() {
   ]
 }
 JSON
+  git -C "$fixture_root" init -q
+  git -C "$fixture_root" add skills codex-skills
+  mkdir -p "$fixture_root/skills/untracked-third-party"
+  printf '%s\n' '---' 'name: untracked-third-party' 'description: "fixture"' '---' > "$fixture_root/skills/untracked-third-party/SKILL.md"
 }
 
 FIXTURE_BASE="$TMP_ROOT/fixture-base"
@@ -138,8 +162,31 @@ jq -e '
   .status == "clean" and
   (.plan[] | select(.skill == "new-skill") | .destinations == ["claude"]) and
   (.plan[] | select(.skill == "shared-skill") | .destinations == ["claude", "codex"]) and
-  (.plan[] | select(.skill == "codex-tool") | .destinations == ["codex"])
+  (.plan[] | select(.skill == "codex-tool") | .destinations == ["codex"]) and
+  ([.plan[].skill] | index("untracked-third-party") | not)
 ' "$TMP_ROOT/fixture-clean.json" >/dev/null
+
+FOREIGN_ROOT="$TMP_ROOT/foreign-owner"
+cp -R "$FIXTURE_BASE" "$FOREIGN_ROOT"
+printf '%s\n%s\n' "$FOREIGN_ROOT/skills/shared-skill" other-owner > "$FOREIGN_ROOT/home/.agents/skills/shared-skill/.agent-scripts-copy"
+set +e
+HOME="$FOREIGN_ROOT/home" TMPDIR="$FOREIGN_ROOT/runtime" "$FOREIGN_ROOT/scripts/update-skill-topology.sh" --check --json > "$FOREIGN_ROOT/result.json" 2> "$FOREIGN_ROOT/result.err"
+foreign_exit=$?
+set -e
+test "$foreign_exit" -eq 3
+test ! -s "$FOREIGN_ROOT/result.err"
+jq -e '.status == "decision-required" and (.decisions[] | .code == "surface-ownership-collision" and .skill == "shared-skill" and .destination == "codex")' "$FOREIGN_ROOT/result.json" >/dev/null
+
+TAMPER_ROOT="$TMP_ROOT/tampered-copy"
+cp -R "$FIXTURE_BASE" "$TAMPER_ROOT"
+printf 'tampered\n' >> "$TAMPER_ROOT/home/.agents/skills/shared-skill/SKILL.md"
+set +e
+HOME="$TAMPER_ROOT/home" TMPDIR="$TAMPER_ROOT/runtime" "$TAMPER_ROOT/scripts/update-skill-topology.sh" --check --json > "$TAMPER_ROOT/result.json" 2> "$TAMPER_ROOT/result.err"
+tamper_exit=$?
+set -e
+test "$tamper_exit" -eq 1
+test ! -s "$TAMPER_ROOT/result.err"
+jq -e '.status == "drift" and (.drift[] | .skill == "shared-skill" and .destination == "codex" and .reason == "content-mismatch")' "$TAMPER_ROOT/result.json" >/dev/null
 
 assert_invalid_manifest() {
   local name="$1"
@@ -218,6 +265,15 @@ run_fixture_json "$UNSUPPORTED_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-claude" and .destination == "codex")' "$UNSUPPORTED_ROOT/result.json" >/dev/null
 
+EMPTY_CAPABILITY_ROOT="$TMP_ROOT/empty-unsupported-default"
+cp -R "$FIXTURE_BASE" "$EMPTY_CAPABILITY_ROOT"
+git -C "$EMPTY_CAPABILITY_ROOT" rm --cached -q codex-skills/codex-tool/SKILL.md
+jq '.[1].supportedDestinations = ["claude"]' "$EMPTY_CAPABILITY_ROOT/scripts/distribution-topology/registry.json" > "$EMPTY_CAPABILITY_ROOT/registry.tmp"
+mv "$EMPTY_CAPABILITY_ROOT/registry.tmp" "$EMPTY_CAPABILITY_ROOT/scripts/distribution-topology/registry.json"
+run_fixture_json "$EMPTY_CAPABILITY_ROOT"
+test "$RUN_EXIT" -eq 3
+jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-codex" and .destination == "codex")' "$EMPTY_CAPABILITY_ROOT/result.json" >/dev/null
+
 STALE_ROOT="$TMP_ROOT/stale-override"
 cp -R "$FIXTURE_BASE" "$STALE_ROOT"
 jq '.sources[0].overrides["removed-skill"] = ["codex"]' "$STALE_ROOT/skill-topology.json" > "$STALE_ROOT/manifest.tmp"
@@ -240,6 +296,7 @@ COLLISION_ROOT="$TMP_ROOT/collision"
 cp -R "$FIXTURE_BASE" "$COLLISION_ROOT"
 mkdir -p "$COLLISION_ROOT/codex-skills/shared-skill"
 printf '%s\n' '---' 'name: shared-skill' 'description: "fixture"' '---' > "$COLLISION_ROOT/codex-skills/shared-skill/SKILL.md"
+git -C "$COLLISION_ROOT" add codex-skills/shared-skill/SKILL.md
 run_fixture_json "$COLLISION_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "surface-collision" and .skill == "shared-skill" and .destination == "codex")' "$COLLISION_ROOT/result.json" >/dev/null
@@ -346,9 +403,54 @@ set +e
 wait "$stale_pid" 2>/dev/null
 set -e
 
-run_fixture_json "$LOCK_ROOT"
-test "$RUN_EXIT" -eq 0
-jq -e --arg pid "$stale_pid" '.status == "clean" and (.warnings[] | .code == "stale-lock-recovered" and (.message | contains($pid)))' "$LOCK_ROOT/result.json" >/dev/null
+TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/recovery-one.started" \
+TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/recovery.release" \
+HOME="$LOCK_ROOT/home" \
+TMPDIR="$LOCK_ROOT/runtime" \
+  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/recovery-one.json" 2> "$LOCK_ROOT/recovery-one.err" &
+recovery_one_pid=$!
+
+TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/recovery-two.started" \
+TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/recovery.release" \
+HOME="$LOCK_ROOT/home" \
+TMPDIR="$LOCK_ROOT/runtime" \
+  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/recovery-two.json" 2> "$LOCK_ROOT/recovery-two.err" &
+recovery_two_pid=$!
+
+for _ in {1..100}; do
+  { [ -e "$LOCK_ROOT/recovery-one.started" ] || [ -e "$LOCK_ROOT/recovery-two.started" ]; } &&
+    { [ -s "$LOCK_ROOT/recovery-one.json" ] || [ -s "$LOCK_ROOT/recovery-two.json" ]; } &&
+    break
+  sleep 0.05
+done
+test -e "$LOCK_ROOT/recovery-one.started" || test -e "$LOCK_ROOT/recovery-two.started"
+test -s "$LOCK_ROOT/recovery-one.json" || test -s "$LOCK_ROOT/recovery-two.json"
+
+: > "$LOCK_ROOT/recovery.release"
+set +e
+wait "$recovery_one_pid"
+recovery_one_exit=$?
+wait "$recovery_two_pid"
+recovery_two_exit=$?
+set -e
+
+if [ "$recovery_one_exit" -eq 0 ] && [ "$recovery_two_exit" -eq 1 ]; then
+  recovery_winner="$LOCK_ROOT/recovery-one.json"
+  recovery_loser="$LOCK_ROOT/recovery-two.json"
+  recovery_winner_pid="$recovery_one_pid"
+elif [ "$recovery_one_exit" -eq 1 ] && [ "$recovery_two_exit" -eq 0 ]; then
+  recovery_winner="$LOCK_ROOT/recovery-two.json"
+  recovery_loser="$LOCK_ROOT/recovery-one.json"
+  recovery_winner_pid="$recovery_two_pid"
+else
+  echo "expected one stale-lock recovery winner, got $recovery_one_exit and $recovery_two_exit" >&2
+  exit 1
+fi
+
+jq -e --arg pid "$stale_pid" '.status == "clean" and (.warnings[] | .code == "stale-lock-recovered" and (.message | contains($pid)))' "$recovery_winner" >/dev/null
+jq -e --arg pid "$recovery_winner_pid" '.status == "failed" and (.errors[0] | contains("already running") and contains($pid))' "$recovery_loser" >/dev/null
+test ! -s "$LOCK_ROOT/recovery-one.err"
+test ! -s "$LOCK_ROOT/recovery-two.err"
 test -z "$(find "$LOCK_ROOT/runtime" -mindepth 1 -print -quit)"
 
 TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/interrupt.started" \
