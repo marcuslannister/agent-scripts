@@ -253,6 +253,34 @@ jq -e '
 test ! -e "$UNSAFE_ADOPTION_FIXTURE/skills/neat-freak"
 test "$(cat "$UNSAFE_ADOPTION_FIXTURE/home/.agents/skills/neat-freak/.user-notes")" = user-owned
 
+ADOPTION_RACE_FIXTURE="$TMP_ROOT/khazix-adoption-race"
+cp -R "$KHAZIX_FIXTURE" "$ADOPTION_RACE_FIXTURE"
+mv "$ADOPTION_RACE_FIXTURE/home/.agents/skills/neat-freak/.agent-scripts-copy" \
+  "$ADOPTION_RACE_FIXTURE/copy-marker"
+mv "$ADOPTION_RACE_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" \
+  "$ADOPTION_RACE_FIXTURE/scripts/distribution-topology/adapters/copy-source-real.sh"
+cat > "$ADOPTION_RACE_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${4:-discover}" = reconcile ]; then
+  printf 'arrived-after-preflight\n' > "$6/.agents/skills/neat-freak/.user-notes"
+fi
+exec "${BASH_SOURCE[0]%/*}/copy-source-real.sh" "$@"
+BASH
+chmod +x "$ADOPTION_RACE_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh"
+set +e
+HOME="$ADOPTION_RACE_FIXTURE/home" TMPDIR="$ADOPTION_RACE_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
+  "$ADOPTION_RACE_FIXTURE/scripts/update-skill-topology.sh" --json > "$ADOPTION_RACE_FIXTURE/result.json"
+adoption_race_exit=$?
+set -e
+test "$adoption_race_exit" -eq 3
+jq -e '
+  .status == "decision-required" and
+  any(.errors[]; contains("refusing unsafe copy adoption")) and
+  (.decisions[] | .code == "surface-ownership-collision" and .destination == "codex")
+' "$ADOPTION_RACE_FIXTURE/result.json" >/dev/null
+test "$(cat "$ADOPTION_RACE_FIXTURE/home/.agents/skills/neat-freak/.user-notes")" = arrived-after-preflight
+
 UNSUPPORTED_FIXTURE="$TMP_ROOT/khazix-unsupported"
 cp -R "$KHAZIX_FIXTURE" "$UNSUPPORTED_FIXTURE"
 mv "$UNSUPPORTED_FIXTURE/home/.agents/skills/neat-freak" "$UNSUPPORTED_FIXTURE/missing-neat-freak"

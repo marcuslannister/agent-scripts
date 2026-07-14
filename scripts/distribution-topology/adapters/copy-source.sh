@@ -79,8 +79,10 @@ case "$action" in
   reconcile)
     read_roots
     failed=0
-    reconcile_copy_actions "$plan_path" "$source_root" "$repo_root/skills" claude "$owner" || failed=1
-    reconcile_copy_actions "$plan_path" "$source_root" "$home/.agents/skills" codex "$owner" || failed=1
+    reconcile_copy_actions "$plan_path" "$source_root" "$marker_root" \
+      "$repo_root/skills" claude "$owner" "$repo_root" || failed=1
+    reconcile_copy_actions "$plan_path" "$source_root" "$marker_root" \
+      "$home/.agents/skills" codex "$owner" "$repo_root" || failed=1
     refresh_copy_gitignore "$repo_root" "$repo_root/skills" "$owner" || failed=1
     exit "$failed"
     ;;

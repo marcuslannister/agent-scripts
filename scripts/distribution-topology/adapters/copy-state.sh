@@ -164,20 +164,29 @@ emit_copy_inspection() { # plan source_root marker_root surface destination owne
   done
 }
 
-reconcile_copy_actions() { # plan source_root surface destination owner
+reconcile_copy_actions() { # plan source_root marker_root surface destination owner repo_root
   local plan_path="$1"
   local source_root="$2"
-  local surface="$3"
-  local destination="$4"
-  local owner="$5"
-  local operation skill planned_destination marker marker_owner failed=0
+  local marker_root="$3"
+  local surface="$4"
+  local destination="$5"
+  local owner="$6"
+  local repo_root="$7"
+  local operation skill planned_destination marker marker_owner state detail failed=0
 
   while IFS=$'\t' read -r operation skill planned_destination; do
     [ "$planned_destination" = "$destination" ] || continue
     case "$skill" in ''|*[!a-z0-9-]*) printf 'invalid copy skill name: %s\n' "$skill" >&2; failed=1; continue ;; esac
     case "$operation" in
       install)
-        if install_skill_copy "$source_root/$skill" "$surface/$skill" "$owner" >/dev/null; then
+        IFS=$'\t' read -r state detail < <(
+          inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
+            "$surface/$skill" "$owner" "$repo_root"
+        )
+        if [ "$state" = foreign ] || [ "$state" = error ]; then
+          printf 'refusing unsafe copy adoption: %s -> %s (%s)\n' "$skill" "$destination" "$detail" >&2
+          failed=1
+        elif install_skill_copy "$source_root/$skill" "$surface/$skill" "$owner" >/dev/null; then
           printf 'installed\t%s\t%s\n' "$skill" "$destination"
         else
           failed=1

@@ -189,7 +189,8 @@ reconcile_states() {
     reconcile_claude_plugin "$operation" || failed=1
   done < "$plan_path"
   remove_legacy_path || failed=1
-  reconcile_copy_actions "$plan_path" "$source_root" "$home/.agents/skills" codex "$owner" || failed=1
+  reconcile_copy_actions "$plan_path" "$source_root" "$marker_root" \
+    "$home/.agents/skills" codex "$owner" "$repo_root" || failed=1
   return "$failed"
 }
 
