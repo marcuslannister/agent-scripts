@@ -67,8 +67,8 @@ function runAdapterProcess(adapter, args) {
   });
 }
 
-async function discoverInventory(adapter, discoveryRoot) {
-  const result = await runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot]);
+async function discoverInventory(adapter, discoveryRoot, mode) {
+  const result = await runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot, "discover", "", os.homedir(), mode]);
   if (interrupted) {
     throw new TopologyError("interrupted", 130);
   }
@@ -82,11 +82,114 @@ function orderedDestinations(destinations) {
   return DESTINATIONS.filter((destination) => destinations.includes(destination));
 }
 
-function runRuntimeAdapter(adapter, action, discoveryRoot, planPath) {
-  return runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot, action, planPath, os.homedir()]);
+function runRuntimeAdapter(adapter, action, discoveryRoot, planPath, mode = "reconcile") {
+  return runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot, action, planPath, os.homedir(), mode]);
 }
 
-function inspectPlan({ plan, registryBySource, destinationClaims }) {
+function expectedStatesForAdapter(adapter, plan, destinationClaims) {
+  const expectedStates = [];
+  for (const entry of plan.filter((candidate) => candidate.sourceId === adapter.sourceId)) {
+    for (const destination of adapter.supportedDestinations) {
+      const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
+        .some((sourceId) => sourceId !== entry.sourceId);
+      if (!entry.destinations.includes(destination) && claimedByOtherSource) {
+        continue;
+      }
+      expectedStates.push({
+        state: entry.destinations.includes(destination) ? "present" : "absent",
+        skill: entry.skill,
+        destination,
+      });
+    }
+  }
+  return expectedStates;
+}
+
+async function inspectAdapterState({ adapter, plan, destinationClaims, discoveryRoot, mode }) {
+  const drift = [];
+  const decisions = [];
+  const errors = [];
+  const skipped = [];
+  const expectedStates = expectedStatesForAdapter(adapter, plan, destinationClaims);
+  const planPath = path.join(discoveryRoot, `${adapter.sourceId}.inspect.tsv`);
+  fs.writeFileSync(planPath, expectedStates
+    .map((item) => `${item.state}\t${item.skill}\t${item.destination}\n`)
+    .join(""));
+
+  const result = await runRuntimeAdapter(adapter, "inspect", discoveryRoot, planPath, mode);
+  if (interrupted) {
+    throw new TopologyError("interrupted", 130);
+  }
+  if (result.code !== 0) {
+    errors.push(`source ${adapter.sourceId} inspection failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`);
+  }
+
+  const expectedByKey = new Map(expectedStates.map((item) => [`${item.skill}\u0000${item.destination}`, item]));
+  const seen = new Set();
+  for (const line of result.stdout.split(/\r?\n/u).filter(Boolean)) {
+    const [state, skill, destination, detail, ...extra] = line.split("\t");
+    const key = `${skill}\u0000${destination}`;
+    const validName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(skill ?? "");
+    const validDestination = DESTINATIONS.includes(destination);
+    if (extra.length > 0 || !validName || !validDestination || !detail) {
+      errors.push(`source ${adapter.sourceId} returned invalid inspection output`);
+      continue;
+    }
+    if (state === "orphan") {
+      if (expectedByKey.has(key) || seen.has(`orphan\u0000${key}`)) {
+        errors.push(`source ${adapter.sourceId} returned invalid orphan inspection output`);
+        continue;
+      }
+      seen.add(`orphan\u0000${key}`);
+      drift.push({ sourceId: adapter.sourceId, skill, destination, reason: "unexpected" });
+      continue;
+    }
+    if (!["present", "absent", "drift", "foreign", "error"].includes(state) || !expectedByKey.has(key) || seen.has(key)) {
+      errors.push(`source ${adapter.sourceId} returned invalid inspection output`);
+      continue;
+    }
+    seen.add(key);
+    const expected = expectedByKey.get(key);
+    if (state === "error") {
+      errors.push(`cannot verify ${adapter.sourceId}/${skill} on ${destination}: ${detail}`);
+    } else if (state === "foreign") {
+      if (expected.state === "present") {
+        decisions.push({
+          code: "surface-ownership-collision",
+          sourceId: adapter.sourceId,
+          skill,
+          destination,
+          message: `${skill} exists on ${destination} but is not the managed ${adapter.sourceId} copy`,
+        });
+      } else {
+        skipped.push({ sourceId: adapter.sourceId, skill, destination, reason: detail });
+      }
+    } else if (expected.state === "present" && state === "absent") {
+      const entry = plan.find((candidate) => candidate.sourceId === adapter.sourceId && candidate.skill === skill);
+      if (entry && !entry.missingDestinations.includes(destination)) {
+        entry.missingDestinations.push(destination);
+      }
+      drift.push({ sourceId: adapter.sourceId, skill, destination, reason: "missing" });
+    } else if (expected.state === "present" && state === "drift") {
+      drift.push({ sourceId: adapter.sourceId, skill, destination, reason: detail });
+    } else if (expected.state === "absent" && ["present", "drift"].includes(state)) {
+      const entry = plan.find((candidate) => candidate.sourceId === adapter.sourceId && candidate.skill === skill);
+      if (entry && !entry.unexpectedDestinations.includes(destination)) {
+        entry.unexpectedDestinations.push(destination);
+      }
+      drift.push({ sourceId: adapter.sourceId, skill, destination, reason: "unexpected" });
+    }
+  }
+
+  for (const [key, expected] of expectedByKey) {
+    if (!seen.has(key)) {
+      errors.push(`source ${adapter.sourceId} returned incomplete inspection for ${expected.skill} -> ${expected.destination}`);
+    }
+  }
+  return { drift, decisions, errors, skipped };
+}
+
+async function inspectPlan({ plan, registryBySource, destinationClaims, discoveryRoot, mode }) {
   const drift = [];
   const decisions = [];
   const errors = [];
@@ -96,6 +199,9 @@ function inspectPlan({ plan, registryBySource, destinationClaims }) {
     entry.missingDestinations = [];
     entry.unexpectedDestinations = [];
     const adapter = registryBySource.get(entry.sourceId);
+    if (adapter.stateInspection === "adapter") {
+      continue;
+    }
     for (const destination of adapter.supportedDestinations) {
       const desired = entry.destinations.includes(destination);
       const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
@@ -157,6 +263,14 @@ function inspectPlan({ plan, registryBySource, destinationClaims }) {
     }
     const sourceId = plan.find((entry) => entry.skill === copy.skill)?.sourceId ?? "repo-claude";
     drift.push({ sourceId, skill: copy.skill, destination: "codex", reason: "unexpected" });
+  }
+
+  for (const adapter of [...registryBySource.values()].filter((candidate) => candidate.stateInspection === "adapter")) {
+    const inspected = await inspectAdapterState({ adapter, plan, destinationClaims, discoveryRoot, mode });
+    drift.push(...inspected.drift);
+    decisions.push(...inspected.decisions);
+    errors.push(...inspected.errors);
+    skipped.push(...inspected.skipped);
   }
 
   drift.sort((left, right) => `${left.sourceId}\u0000${left.skill}\u0000${left.destination}`.localeCompare(`${right.sourceId}\u0000${right.skill}\u0000${right.destination}`));
@@ -242,7 +356,7 @@ async function reconcileTopology({ document, plan, registryBySource, destination
     }
   }
 
-  const verification = inspectPlan({ plan, registryBySource, destinationClaims });
+  const verification = await inspectPlan({ plan, registryBySource, destinationClaims, discoveryRoot, mode: "reconcile" });
   errors.push(...verification.errors);
   for (const item of verification.drift) {
     errors.push(`final verification failed: ${item.sourceId}/${item.skill} -> ${item.destination}: ${item.reason}`);
@@ -329,7 +443,7 @@ async function evaluateTopology(mode) {
         }
       }
 
-      const inventory = await discoverInventory(adapter, discoveryRoot);
+      const inventory = await discoverInventory(adapter, discoveryRoot, mode);
       if (new Set(inventory).size !== inventory.length || inventory.some((skill) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(skill))) {
         throw new TopologyError(`source ${source.id} returned an invalid inventory`, 1);
       }
@@ -381,7 +495,7 @@ async function evaluateTopology(mode) {
       });
     }
 
-    const inspected = inspectPlan({ plan, registryBySource, destinationClaims });
+    const inspected = await inspectPlan({ plan, registryBySource, destinationClaims, discoveryRoot, mode });
     const drift = inspected.drift;
     decisions.push(...inspected.decisions);
 

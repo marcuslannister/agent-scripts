@@ -34,6 +34,35 @@
       "classification": "repo-owned",
       "defaultDestinations": ["codex"],
       "overrides": {}
+    },
+    {
+      "id": "anthropic-skills",
+      "classification": "source-only",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {
+        "docx": ["claude", "codex"],
+        "frontend-design": ["claude", "codex"],
+        "pdf": ["claude", "codex"],
+        "pptx": ["claude", "codex"],
+        "skill-creator": ["claude", "codex"],
+        "xlsx": ["claude", "codex"]
+      }
+    },
+    {
+      "id": "khazix-skills",
+      "classification": "source-only",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {
+        "neat-freak": ["claude", "codex"]
+      }
+    },
+    {
+      "id": "visual-explainer",
+      "classification": "plugin-claude-only",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {
+        "visual-explainer": ["claude", "codex"]
+      }
     }
   ]
 }

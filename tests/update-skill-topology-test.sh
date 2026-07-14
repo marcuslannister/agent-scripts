@@ -29,55 +29,8 @@ grep -F '2   invalid usage or manifest' <<< "$help_output" >/dev/null
 grep -F '3   user decision required' <<< "$help_output" >/dev/null
 grep -F '130 interrupted' <<< "$help_output" >/dev/null
 
-HOME_DIR="$TMP_ROOT/home"
-RUNTIME_DIR="$TMP_ROOT/runtime"
-mkdir -p "$HOME_DIR/.agents/skills" "$RUNTIME_DIR"
-
-CODEX_EXCEPTIONS=(
-  create-cli
-  github-author-context
-  github-cache-hygiene
-  github-deep-review
-  github-project-triage
-  mac-maintenance
-  markdown-converter
-  nano-banana-pro
-  native-app-performance
-  obsidian
-  onecli-gateway
-  openai-image-gen
-  peekaboo
-  release-mac-app
-  reminders
-  remote-mac
-  review-claudemd
-  skill-cleaner
-  ssh-doctor
-  validate-skills
-  video-transcript-downloader
-)
-
-for skill in "${CODEX_EXCEPTIONS[@]}"; do
-  install_repo_copy "$HOME_DIR/.agents/skills/$skill" "$REPO_ROOT/skills/$skill"
-done
 test -f "$REPO_ROOT/codex-skills/maintainer-orchestrator/SKILL.md"
 test ! -e "$REPO_ROOT/skills/maintainer-orchestrator"
-install_repo_copy "$HOME_DIR/.agents/skills/maintainer-orchestrator" "$REPO_ROOT/codex-skills/maintainer-orchestrator"
-
-HOME="$HOME_DIR" TMPDIR="$RUNTIME_DIR" "$COMMAND" --check --json > "$TMP_ROOT/clean.json" 2> "$TMP_ROOT/clean.err"
-test ! -s "$TMP_ROOT/clean.err"
-jq -e '
-  .schemaVersion == 1 and
-  .mode == "check" and
-  .status == "clean" and
-  .drift == [] and
-  .decisions == [] and
-    .errors == [] and
-    ([.sources[].id] == ["repo-claude", "repo-codex"]) and
-    (.plan[] | select(.skill == "codex-first") | .destinations == ["claude"]) and
-    (.plan[] | select(.skill == "create-cli") | .destinations == ["claude", "codex"]) and
-    (.plan[] | select(.skill == "maintainer-orchestrator") | .sourceId == "repo-codex" and .destinations == ["codex"])
-' "$TMP_ROOT/clean.json" >/dev/null
 jq -e '
   (.sources[] | select(.id == "repo-claude") |
     .defaultDestinations == ["claude"] and
@@ -86,46 +39,13 @@ jq -e '
     (.overrides | has("codex-first") | not) and
     (.overrides | has("maintainer-orchestrator") | not)) and
   (.sources[] | select(.id == "repo-codex") |
-    .defaultDestinations == ["codex"] and .overrides == {})
+    .defaultDestinations == ["codex"] and .overrides == {}) and
+  (.sources[] | select(.id == "anthropic-skills") |
+    .classification == "source-only" and
+    .defaultDestinations == ["claude", "codex"] and
+    ([.overrides | keys[]] == ["docx", "frontend-design", "pdf", "pptx", "skill-creator", "xlsx"]) and
+    ([.overrides[] | select(. != ["claude", "codex"])] | length) == 0)
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
-
-DRIFT_HOME="$TMP_ROOT/drift-home"
-DRIFT_RUNTIME="$TMP_ROOT/drift-runtime"
-mkdir -p \
-  "$DRIFT_HOME/.agents/skills/codex-first" \
-  "$DRIFT_HOME/.cache/topology-source" \
-  "$DRIFT_HOME/.claude/plugins" \
-  "$DRIFT_HOME/.codex/plugins" \
-  "$DRIFT_RUNTIME"
-printf 'cache sentinel\n' > "$DRIFT_HOME/.cache/topology-source/state"
-printf 'claude plugin sentinel\n' > "$DRIFT_HOME/.claude/plugins/state"
-printf 'codex plugin sentinel\n' > "$DRIFT_HOME/.codex/plugins/state"
-install_repo_copy "$DRIFT_HOME/.agents/skills/codex-first" "$REPO_ROOT/skills/codex-first"
-
-for skill in "${CODEX_EXCEPTIONS[@]}"; do
-  if [ "$skill" != create-cli ]; then
-    install_repo_copy "$DRIFT_HOME/.agents/skills/$skill" "$REPO_ROOT/skills/$skill"
-  fi
-done
-install_repo_copy "$DRIFT_HOME/.agents/skills/maintainer-orchestrator" "$REPO_ROOT/codex-skills/maintainer-orchestrator"
-
-cp -R "$DRIFT_HOME" "$TMP_ROOT/drift-home-before"
-manifest_before="$(cksum "$REPO_ROOT/skill-topology.json")"
-
-set +e
-HOME="$DRIFT_HOME" TMPDIR="$DRIFT_RUNTIME" "$COMMAND" --check > "$TMP_ROOT/drift.out" 2> "$TMP_ROOT/drift.err"
-drift_exit=$?
-set -e
-
-test "$drift_exit" -eq 1
-test ! -s "$TMP_ROOT/drift.err"
-grep -F 'SOURCE       INVENTORY  DEFAULT  RESULT' "$TMP_ROOT/drift.out" >/dev/null
-grep -F 'repo-claude/create-cli -> codex: missing' "$TMP_ROOT/drift.out" >/dev/null
-grep -F 'repo-claude/codex-first -> codex: unexpected' "$TMP_ROOT/drift.out" >/dev/null
-grep -F 'Result: drift (2 changes)' "$TMP_ROOT/drift.out" >/dev/null
-diff -r "$TMP_ROOT/drift-home-before" "$DRIFT_HOME"
-test "$manifest_before" = "$(cksum "$REPO_ROOT/skill-topology.json")"
-test -z "$(find "$DRIFT_RUNTIME" -mindepth 1 -print -quit)"
 
 make_fixture() {
   local fixture_root="$1"
@@ -139,6 +59,9 @@ make_fixture() {
     "$fixture_root/runtime"
   cp "$COMMAND" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture_root/scripts/"
   cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture_root/scripts/"
+  jq '[.[] | select(.sourceId == "repo-claude" or .sourceId == "repo-codex")]' \
+    "$fixture_root/scripts/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
+  mv "$fixture_root/registry.tmp" "$fixture_root/scripts/distribution-topology/registry.json"
   printf '%s\n' '---' 'name: new-skill' 'description: "fixture"' '---' > "$fixture_root/skills/new-skill/SKILL.md"
   printf '%s\n' '---' 'name: shared-skill' 'description: "fixture"' '---' > "$fixture_root/skills/shared-skill/SKILL.md"
   printf '%s\n' '---' 'name: codex-tool' 'description: "fixture"' '---' > "$fixture_root/codex-skills/codex-tool/SKILL.md"

@@ -65,7 +65,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
-- Default mode discovers both repo-owned inventories, validates the complete manifest plan before distribution writes, reconciles approved copies, removes only disallowed `repo-skills`-owned copies, and verifies final managed state. Unmarked and other-owner entries remain untouched and are reported when skipped.
+- Default mode discovers repo-owned, Anthropic, neat-freak, and visual-explainer inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 
 `scripts/update-agents.sh`

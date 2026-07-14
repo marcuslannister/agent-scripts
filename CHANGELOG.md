@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-13 — Copy-Distributed Third-Party Topology
+- Added manifest-owned adapters for Anthropic skills, neat-freak, and visual-explainer with complete preflight inventory, both-surface policy, non-mutating checks, idempotent reconciliation, owner-scoped cleanup, and final verification through `update-skill-topology.sh`.
+- Anthropic's six managed skills and neat-freak now target both surfaces; visual-explainer keeps Claude's native plugin mechanism and a content-hashed Codex copy.
+
 ## 2026-07-13 — Repo-Owned Skill Reconciliation
 - `update-skill-topology.sh` now reconciles by default, aggregates independent repo adapter failures, always verifies final managed state, and reports installs, removals, skipped unowned entries, and decisions; `--check` remains non-mutating.
 - Moved `maintainer-orchestrator` to the Codex-only authoring source, retained `codex-first` as Claude-only and 21 explicit both-surface approvals, and limited first-run cleanup to disallowed copies marked `repo-skills` while preserving unmarked, other-owner, and approved entries.

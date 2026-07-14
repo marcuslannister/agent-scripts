@@ -92,7 +92,7 @@ export function readRegistry(registryPath) {
   const sourceIds = new Set();
   for (const [index, adapter] of registry.entries()) {
     const label = `topology adapter registry entry ${index}`;
-    validateFields(adapter, ["sourceId", "classification", "supportedDestinations", "command"], ["sourceId", "classification", "supportedDestinations", "command"], label);
+    validateFields(adapter, ["sourceId", "classification", "supportedDestinations", "command", "stateInspection"], ["sourceId", "classification", "supportedDestinations", "command"], label);
     if (typeof adapter.sourceId !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(adapter.sourceId)) {
       throw new TopologyError(`${label} has an invalid sourceId`, 2);
     }
@@ -107,6 +107,10 @@ export function readRegistry(registryPath) {
     if (typeof adapter.command !== "string" || adapter.command.length === 0 || path.isAbsolute(adapter.command) || adapter.command.split(/[\\/]/u).includes("..")) {
       throw new TopologyError(`${label} has an invalid command`, 2);
     }
+    if (adapter.stateInspection !== undefined && !["topology", "adapter"].includes(adapter.stateInspection)) {
+      throw new TopologyError(`${label} has an invalid stateInspection`, 2);
+    }
+    adapter.stateInspection ??= "topology";
   }
   return registry;
 }

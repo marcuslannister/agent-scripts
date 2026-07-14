@@ -1,0 +1,462 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_ROOT="$(mktemp -d)"
+trap 'rm -rf "$TMP_ROOT"' EXIT
+
+FIXTURE="$TMP_ROOT/anthropic"
+UPSTREAM="$TMP_ROOT/upstreams/anthropic-skills"
+BIN="$TMP_ROOT/bin"
+mkdir -p "$FIXTURE/scripts" "$FIXTURE/skills" "$FIXTURE/home/.agents/skills" \
+  "$FIXTURE/runtime" "$UPSTREAM/skills" "$BIN"
+cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$FIXTURE/scripts/"
+cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
+
+ANTHROPIC_SKILLS=(docx frontend-design pdf pptx skill-creator xlsx)
+for skill in "${ANTHROPIC_SKILLS[@]}"; do
+  mkdir -p "$UPSTREAM/skills/$skill"
+  printf '%s\n' '---' "name: $skill" 'description: "fixture"' '---' > "$UPSTREAM/skills/$skill/SKILL.md"
+done
+mkdir -p "$UPSTREAM/.git"
+
+cat > "$BIN/git" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = clone ]; then
+  destination="${@: -1}"
+  mkdir -p "$(dirname "$destination")"
+  cp -R "$FAKE_ANTHROPIC_UPSTREAM" "$destination"
+  exit 0
+fi
+if [ "${1:-}" = -C ] && [ "${3:-}" = pull ] && [ "${4:-}" = --ff-only ]; then
+  exit 0
+fi
+printf 'unexpected git call: %s\n' "$*" >&2
+exit 1
+BASH
+chmod +x "$BIN/git"
+
+cat > "$FIXTURE/skill-topology.json" <<'JSON'
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "anthropic-skills",
+      "classification": "source-only",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {
+        "docx": ["claude", "codex"],
+        "frontend-design": ["claude", "codex"],
+        "pdf": ["claude", "codex"],
+        "pptx": ["claude", "codex"],
+        "skill-creator": ["claude", "codex"],
+        "xlsx": ["claude", "codex"]
+      }
+    }
+  ]
+}
+JSON
+
+cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+[
+  {
+    "sourceId": "anthropic-skills",
+    "classification": "source-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/copy-source.sh",
+    "stateInspection": "adapter"
+  }
+]
+JSON
+
+COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
+FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$COMMAND" --json > "$FIXTURE/first.json"
+
+jq -e '
+  .status == "reconciled" and
+  ([.sources[] | {id, inventoryCount, defaultDestinations}] == [{
+    "id":"anthropic-skills",
+    "inventoryCount":6,
+    "defaultDestinations":["claude","codex"]
+  }]) and
+  ([.changes[] | select(.action == "installed")] | length) == 12 and
+  .errors == [] and .decisions == []
+' "$FIXTURE/first.json" >/dev/null
+
+for skill in "${ANTHROPIC_SKILLS[@]}"; do
+  for destination in "$FIXTURE/skills/$skill" "$FIXTURE/home/.agents/skills/$skill"; do
+    test -f "$destination/SKILL.md"
+    test "$(sed -n '2p' "$destination/.agent-scripts-copy")" = anthropic-skills
+    test -n "$(sed -n '3p' "$destination/.agent-scripts-copy")"
+  done
+done
+
+FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$COMMAND" --json > "$FIXTURE/second.json"
+jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$FIXTURE/second.json" >/dev/null
+
+for surface in "$FIXTURE/skills" "$FIXTURE/home/.agents/skills"; do
+  mkdir -p "$surface/old-anthropic" "$surface/other-owner" "$surface/hand-made"
+  printf '%s\n%s\n' "$FIXTURE/home/Projects/anthropic-skills/skills/old-anthropic" anthropic-skills \
+    > "$surface/old-anthropic/.agent-scripts-copy"
+  printf '%s\n%s\n' "$FIXTURE/home/Projects/other/other-owner" another-updater \
+    > "$surface/other-owner/.agent-scripts-copy"
+  printf 'mine\n' > "$surface/hand-made/SKILL.md"
+done
+FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$COMMAND" --json > "$FIXTURE/cleanup.json"
+jq -e '
+  .status == "reconciled" and
+  ([.changes[] | select(.action == "removed" and .skill == "old-anthropic")] | length) == 2
+' "$FIXTURE/cleanup.json" >/dev/null
+for surface in "$FIXTURE/skills" "$FIXTURE/home/.agents/skills"; do
+  test ! -e "$surface/old-anthropic"
+  test -f "$surface/other-owner/.agent-scripts-copy"
+  test "$(cat "$surface/hand-made/SKILL.md")" = mine
+done
+
+cp -R "$FIXTURE/home" "$FIXTURE/home-before-check"
+cp -R "$FIXTURE/skills" "$FIXTURE/skills-before-check"
+cp "$FIXTURE/.gitignore" "$FIXTURE/gitignore-before-check"
+printf 'upstream changed\n' >> "$UPSTREAM/skills/docx/SKILL.md"
+set +e
+FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$COMMAND" --check --json > "$FIXTURE/check-drift.json"
+check_drift_exit=$?
+set -e
+test "$check_drift_exit" -eq 1
+jq -e '
+  .status == "drift" and
+  ([.drift[] | select(.skill == "docx" and .reason == "content-mismatch")] | length) == 2
+' "$FIXTURE/check-drift.json" >/dev/null
+diff -r "$FIXTURE/home-before-check" "$FIXTURE/home"
+diff -r "$FIXTURE/skills-before-check" "$FIXTURE/skills"
+cmp -s "$FIXTURE/gitignore-before-check" "$FIXTURE/.gitignore"
+test -z "$(find "$FIXTURE/runtime" -mindepth 1 -print -quit)"
+
+INCOMPLETE_FIXTURE="$TMP_ROOT/anthropic-incomplete"
+cp -R "$FIXTURE" "$INCOMPLETE_FIXTURE"
+mv "$INCOMPLETE_FIXTURE/home/Projects/anthropic-skills/skills/docx/SKILL.md" \
+  "$INCOMPLETE_FIXTURE/home/Projects/anthropic-skills/skills/docx/SKILL.missing"
+mv "$INCOMPLETE_FIXTURE/home/.agents/skills/xlsx" "$INCOMPLETE_FIXTURE/missing-xlsx"
+cp -R "$INCOMPLETE_FIXTURE/home" "$INCOMPLETE_FIXTURE/home-before"
+cp -R "$INCOMPLETE_FIXTURE/skills" "$INCOMPLETE_FIXTURE/skills-before"
+set +e
+HOME="$INCOMPLETE_FIXTURE/home" TMPDIR="$INCOMPLETE_FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$INCOMPLETE_FIXTURE/scripts/update-skill-topology.sh" --json > "$INCOMPLETE_FIXTURE/result.json"
+incomplete_exit=$?
+set -e
+test "$incomplete_exit" -eq 3
+jq -e '
+  .status == "decision-required" and .changes == [] and
+  (.decisions[] | .code == "stale-override" and .sourceId == "anthropic-skills" and .skill == "docx")
+' "$INCOMPLETE_FIXTURE/result.json" >/dev/null
+test ! -e "$INCOMPLETE_FIXTURE/home/.agents/skills/xlsx"
+diff -r "$INCOMPLETE_FIXTURE/home-before" "$INCOMPLETE_FIXTURE/home"
+diff -r "$INCOMPLETE_FIXTURE/skills-before" "$INCOMPLETE_FIXTURE/skills"
+
+jq -e '
+  .sources[] | select(.id == "khazix-skills") |
+  .classification == "source-only" and
+  .defaultDestinations == ["claude", "codex"] and
+  .overrides["neat-freak"] == ["claude", "codex"]
+' "$REPO_ROOT/skill-topology.json" >/dev/null
+
+KHAZIX_FIXTURE="$TMP_ROOT/khazix"
+KHAZIX_UPSTREAM="$TMP_ROOT/upstreams/khazix-skills"
+KHAZIX_BIN="$TMP_ROOT/khazix-bin"
+mkdir -p "$KHAZIX_FIXTURE/scripts" "$KHAZIX_FIXTURE/skills" \
+  "$KHAZIX_FIXTURE/home/.agents/skills" "$KHAZIX_FIXTURE/runtime" \
+  "$KHAZIX_UPSTREAM/neat-freak" "$KHAZIX_UPSTREAM/.git" "$KHAZIX_BIN"
+cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$KHAZIX_FIXTURE/scripts/"
+cp -R "$REPO_ROOT/scripts/distribution-topology" "$KHAZIX_FIXTURE/scripts/"
+printf '%s\n' '---' 'name: neat-freak' 'description: "fixture"' '---' > "$KHAZIX_UPSTREAM/neat-freak/SKILL.md"
+mkdir -p "$KHAZIX_FIXTURE/skills/neat-freak"
+cp "$KHAZIX_UPSTREAM/neat-freak/SKILL.md" "$KHAZIX_FIXTURE/skills/neat-freak/SKILL.md"
+
+cat > "$KHAZIX_BIN/git" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = clone ]; then
+  destination="${@: -1}"
+  mkdir -p "$(dirname "$destination")"
+  cp -R "$FAKE_KHAZIX_UPSTREAM" "$destination"
+  exit 0
+fi
+if [ "${1:-}" = -C ] && [ "${3:-}" = pull ] && [ "${4:-}" = --ff-only ]; then
+  exit 0
+fi
+printf 'unexpected git call: %s\n' "$*" >&2
+exit 1
+BASH
+chmod +x "$KHAZIX_BIN/git"
+
+cat > "$KHAZIX_FIXTURE/skill-topology.json" <<'JSON'
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "khazix-skills",
+      "classification": "source-only",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {"neat-freak": ["claude", "codex"]}
+    }
+  ]
+}
+JSON
+cat > "$KHAZIX_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+[
+  {
+    "sourceId": "khazix-skills",
+    "classification": "source-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/copy-source.sh",
+    "stateInspection": "adapter"
+  }
+]
+JSON
+
+FAKE_KHAZIX_UPSTREAM="$KHAZIX_UPSTREAM" \
+HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
+  "$KHAZIX_FIXTURE/scripts/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/result.json"
+jq -e '
+  .status == "reconciled" and
+  ([.changes[] | select(.skill == "neat-freak" and .action == "installed")] | length) == 2 and
+  (.plan[] | select(.skill == "neat-freak") | .destinations == ["claude", "codex"])
+' "$KHAZIX_FIXTURE/result.json" >/dev/null
+test -f "$KHAZIX_FIXTURE/skills/neat-freak/SKILL.md"
+test -f "$KHAZIX_FIXTURE/home/.agents/skills/neat-freak/SKILL.md"
+
+UNSUPPORTED_FIXTURE="$TMP_ROOT/khazix-unsupported"
+cp -R "$KHAZIX_FIXTURE" "$UNSUPPORTED_FIXTURE"
+mv "$UNSUPPORTED_FIXTURE/home/.agents/skills/neat-freak" "$UNSUPPORTED_FIXTURE/missing-neat-freak"
+jq '.[0].supportedDestinations = ["claude"]' \
+  "$UNSUPPORTED_FIXTURE/scripts/distribution-topology/registry.json" > "$UNSUPPORTED_FIXTURE/registry.tmp"
+mv "$UNSUPPORTED_FIXTURE/registry.tmp" "$UNSUPPORTED_FIXTURE/scripts/distribution-topology/registry.json"
+cp -R "$UNSUPPORTED_FIXTURE/home" "$UNSUPPORTED_FIXTURE/home-before"
+cp -R "$UNSUPPORTED_FIXTURE/skills" "$UNSUPPORTED_FIXTURE/skills-before"
+set +e
+HOME="$UNSUPPORTED_FIXTURE/home" TMPDIR="$UNSUPPORTED_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
+  "$UNSUPPORTED_FIXTURE/scripts/update-skill-topology.sh" --json > "$UNSUPPORTED_FIXTURE/result.json"
+unsupported_exit=$?
+set -e
+test "$unsupported_exit" -eq 3
+jq -e '
+  .status == "decision-required" and .changes == [] and
+  (.decisions[] | .code == "unsupported-destination" and .sourceId == "khazix-skills" and .destination == "codex")
+' "$UNSUPPORTED_FIXTURE/result.json" >/dev/null
+test ! -e "$UNSUPPORTED_FIXTURE/home/.agents/skills/neat-freak"
+diff -r "$UNSUPPORTED_FIXTURE/home-before" "$UNSUPPORTED_FIXTURE/home"
+diff -r "$UNSUPPORTED_FIXTURE/skills-before" "$UNSUPPORTED_FIXTURE/skills"
+
+CONTRACT_FIXTURE="$TMP_ROOT/khazix-contract"
+cp -R "$KHAZIX_FIXTURE" "$CONTRACT_FIXTURE"
+mv "$CONTRACT_FIXTURE/home/.agents/skills/neat-freak" "$CONTRACT_FIXTURE/missing-neat-freak"
+mv "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" \
+  "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source-real.sh"
+cat > "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${4:-discover}" = inspect ]; then
+  exit 0
+fi
+exec "${BASH_SOURCE[0]%/*}/copy-source-real.sh" "$@"
+BASH
+chmod +x "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh"
+set +e
+HOME="$CONTRACT_FIXTURE/home" TMPDIR="$CONTRACT_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
+  "$CONTRACT_FIXTURE/scripts/update-skill-topology.sh" --json > "$CONTRACT_FIXTURE/result.json"
+contract_exit=$?
+set -e
+test "$contract_exit" -eq 1
+jq -e '
+  .status == "failed" and .changes == [] and
+  ([.errors[] | select(contains("returned incomplete inspection"))] | length) == 2
+' "$CONTRACT_FIXTURE/result.json" >/dev/null
+test ! -e "$CONTRACT_FIXTURE/home/.agents/skills/neat-freak"
+
+jq -e '
+  .sources[] | select(.id == "visual-explainer") |
+  .classification == "plugin-claude-only" and
+  .defaultDestinations == ["claude", "codex"] and
+  .overrides["visual-explainer"] == ["claude", "codex"]
+' "$REPO_ROOT/skill-topology.json" >/dev/null
+
+VISUAL_FIXTURE="$TMP_ROOT/visual"
+VISUAL_UPSTREAM="$TMP_ROOT/upstreams/visual-explainer"
+VISUAL_BIN="$TMP_ROOT/visual-bin"
+VISUAL_SHA=0123456789abcdef0123456789abcdef01234567
+mkdir -p "$VISUAL_FIXTURE/scripts" "$VISUAL_FIXTURE/skills" \
+  "$VISUAL_FIXTURE/home/.agents/skills" "$VISUAL_FIXTURE/home/.claude/plugins" \
+  "$VISUAL_FIXTURE/runtime" "$VISUAL_UPSTREAM/plugins/visual-explainer/commands" \
+  "$VISUAL_UPSTREAM/.git" "$VISUAL_BIN"
+cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$VISUAL_FIXTURE/scripts/"
+cp -R "$REPO_ROOT/scripts/distribution-topology" "$VISUAL_FIXTURE/scripts/"
+printf '%s\n' '---' 'name: visual-explainer' 'description: "fixture"' '---' \
+  > "$VISUAL_UPSTREAM/plugins/visual-explainer/SKILL.md"
+printf 'command fixture\n' > "$VISUAL_UPSTREAM/plugins/visual-explainer/commands/explain.md"
+printf '{"plugins":{}}\n' > "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json"
+printf '{"enabledPlugins":{}}\n' > "$VISUAL_FIXTURE/home/.claude/settings.json"
+
+cat > "$VISUAL_BIN/git" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = clone ]; then
+  destination="${@: -1}"
+  mkdir -p "$(dirname "$destination")"
+  cp -R "$FAKE_VISUAL_UPSTREAM" "$destination"
+  exit 0
+fi
+if [ "${1:-}" = -C ] && [ "${3:-}" = pull ] && [ "${4:-}" = --ff-only ]; then
+  exit 0
+fi
+if [ "${1:-}" = -C ] && [ "${3:-}" = rev-parse ] && [ "${4:-}" = HEAD ]; then
+  printf '%s\n' "$FAKE_VISUAL_SHA"
+  exit 0
+fi
+printf 'unexpected git call: %s\n' "$*" >&2
+exit 1
+BASH
+
+cat > "$VISUAL_BIN/claude" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$HOME/claude-calls.log"
+case "$*" in
+  'plugin marketplace list')
+    if [ -f "$HOME/.claude/plugins/visual-marketplace" ]; then
+      printf 'visual-explainer-marketplace\n'
+    fi
+    ;;
+  'plugin marketplace add nicobailon/visual-explainer')
+    : > "$HOME/.claude/plugins/visual-marketplace"
+    ;;
+  'plugin marketplace update visual-explainer-marketplace')
+    ;;
+  'plugin install visual-explainer@visual-explainer-marketplace'|'plugin update visual-explainer@visual-explainer-marketplace')
+    [ "${FAKE_VISUAL_NO_STATE:-0}" = 1 ] && exit 0
+    cat > "$HOME/.claude/plugins/installed_plugins.json" <<JSON
+{"plugins":{"visual-explainer@visual-explainer-marketplace":[{"gitCommitSha":"$FAKE_VISUAL_SHA"}]}}
+JSON
+    cat > "$HOME/.claude/settings.json" <<'JSON'
+{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":true}}
+JSON
+    ;;
+  'plugin uninstall visual-explainer@visual-explainer-marketplace')
+    printf '{"plugins":{}}\n' > "$HOME/.claude/plugins/installed_plugins.json"
+    printf '{"enabledPlugins":{}}\n' > "$HOME/.claude/settings.json"
+    ;;
+  *)
+    printf 'unexpected claude call: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+BASH
+chmod +x "$VISUAL_BIN/git" "$VISUAL_BIN/claude"
+
+cat > "$VISUAL_FIXTURE/skill-topology.json" <<'JSON'
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "visual-explainer",
+      "classification": "plugin-claude-only",
+      "defaultDestinations": ["claude", "codex"],
+      "overrides": {"visual-explainer": ["claude", "codex"]}
+    }
+  ]
+}
+JSON
+cat > "$VISUAL_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+[
+  {
+    "sourceId": "visual-explainer",
+    "classification": "plugin-claude-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/visual-explainer.sh",
+    "stateInspection": "adapter"
+  }
+]
+JSON
+
+VISUAL_COMMAND="$VISUAL_FIXTURE/scripts/update-skill-topology.sh"
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/first.json"
+jq -e '
+  .status == "reconciled" and
+  ([.changes[] | select(.skill == "visual-explainer" and .action == "installed")] | length) == 2 and
+  (.plan[] | select(.skill == "visual-explainer") | .destinations == ["claude", "codex"])
+' "$VISUAL_FIXTURE/first.json" >/dev/null
+jq -e '.plugins["visual-explainer@visual-explainer-marketplace"][0].gitCommitSha == $sha' \
+  --arg sha "$VISUAL_SHA" "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json" >/dev/null
+test -f "$VISUAL_FIXTURE/home/.agents/skills/visual-explainer/SKILL.md"
+test -f "$VISUAL_FIXTURE/home/.agents/skills/visual-explainer/commands/explain.md"
+test ! -e "$VISUAL_FIXTURE/skills/visual-explainer"
+grep -Fx 'plugin marketplace add nicobailon/visual-explainer' "$VISUAL_FIXTURE/home/claude-calls.log" >/dev/null
+grep -Fx 'plugin install visual-explainer@visual-explainer-marketplace' "$VISUAL_FIXTURE/home/claude-calls.log" >/dev/null
+
+cp "$VISUAL_FIXTURE/home/claude-calls.log" "$VISUAL_FIXTURE/claude-calls-first"
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/second.json"
+jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$VISUAL_FIXTURE/second.json" >/dev/null
+cmp -s "$VISUAL_FIXTURE/claude-calls-first" "$VISUAL_FIXTURE/home/claude-calls.log"
+
+cp -R "$VISUAL_FIXTURE/home" "$VISUAL_FIXTURE/home-before-check"
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --check --json > "$VISUAL_FIXTURE/check.json"
+jq -e '.status == "clean" and .changes == [] and .errors == []' "$VISUAL_FIXTURE/check.json" >/dev/null
+diff -r "$VISUAL_FIXTURE/home-before-check" "$VISUAL_FIXTURE/home"
+test -z "$(find "$VISUAL_FIXTURE/runtime" -mindepth 1 -print -quit)"
+
+mkdir -p "$VISUAL_FIXTURE/home/.codex"
+printf '%s\n' '../Projects/visual-explainer/plugins/visual-explainer' \
+  > "$VISUAL_FIXTURE/home/.codex/visual-explainer"
+set +e
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --check --json > "$VISUAL_FIXTURE/legacy-check.json"
+legacy_check_exit=$?
+set -e
+test "$legacy_check_exit" -eq 1
+jq -e '
+  .status == "drift" and
+  (.drift[] | .sourceId == "visual-explainer" and .destination == "codex" and .reason == "legacy-path")
+' "$VISUAL_FIXTURE/legacy-check.json" >/dev/null
+test -f "$VISUAL_FIXTURE/home/.codex/visual-explainer"
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/legacy-reconcile.json"
+test ! -e "$VISUAL_FIXTURE/home/.codex/visual-explainer"
+jq -e '.status == "reconciled" and (.changes[] | .skill == "visual-explainer" and .destination == "codex")' \
+  "$VISUAL_FIXTURE/legacy-reconcile.json" >/dev/null
+
+VERIFY_FIXTURE="$TMP_ROOT/visual-verify"
+cp -R "$VISUAL_FIXTURE" "$VERIFY_FIXTURE"
+printf '{"plugins":{}}\n' > "$VERIFY_FIXTURE/home/.claude/plugins/installed_plugins.json"
+printf '{"enabledPlugins":{}}\n' > "$VERIFY_FIXTURE/home/.claude/settings.json"
+set +e
+FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_NO_STATE=1 \
+HOME="$VERIFY_FIXTURE/home" TMPDIR="$VERIFY_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VERIFY_FIXTURE/scripts/update-skill-topology.sh" --json > "$VERIFY_FIXTURE/result.json"
+verify_exit=$?
+set -e
+test "$verify_exit" -eq 1
+if ! jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("source visual-explainer verification failed")) and
+  any(.errors[]; contains("final verification failed: visual-explainer/visual-explainer -> claude: missing"))
+' "$VERIFY_FIXTURE/result.json" >/dev/null; then
+  cat "$VERIFY_FIXTURE/result.json" >&2
+  exit 1
+fi
+
+echo "copy-distributed topology tests passed"

@@ -10,5 +10,26 @@
     "classification": "repo-owned",
     "supportedDestinations": ["codex"],
     "command": "adapters/repo-owned.sh"
+  },
+  {
+    "sourceId": "anthropic-skills",
+    "classification": "source-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/copy-source.sh",
+    "stateInspection": "adapter"
+  },
+  {
+    "sourceId": "khazix-skills",
+    "classification": "source-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/copy-source.sh",
+    "stateInspection": "adapter"
+  },
+  {
+    "sourceId": "visual-explainer",
+    "classification": "plugin-claude-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/visual-explainer.sh",
+    "stateInspection": "adapter"
   }
 ]
