@@ -183,6 +183,28 @@ jq -e '
 jq -e '. == []' "$NULL_METADATA_FIXTURE/home/claude-plugins.json" >/dev/null
 jq -e '.installed == []' "$NULL_METADATA_FIXTURE/home/codex-plugins.json" >/dev/null
 
+UNSUPPORTED_MARKETPLACE_FIXTURE="$TMP_ROOT/unsupported-plugin-marketplace"
+cp -R "$FIXTURE" "$UNSUPPORTED_MARKETPLACE_FIXTURE"
+jq '.[0].classification = "plugin-claude-only"' \
+  "$UNSUPPORTED_MARKETPLACE_FIXTURE/scripts/distribution-topology/registry.json" > "$UNSUPPORTED_MARKETPLACE_FIXTURE/registry.tmp"
+mv "$UNSUPPORTED_MARKETPLACE_FIXTURE/registry.tmp" "$UNSUPPORTED_MARKETPLACE_FIXTURE/scripts/distribution-topology/registry.json"
+jq '.sources[0].classification = "plugin-claude-only"' \
+  "$UNSUPPORTED_MARKETPLACE_FIXTURE/skill-topology.json" > "$UNSUPPORTED_MARKETPLACE_FIXTURE/manifest.tmp"
+mv "$UNSUPPORTED_MARKETPLACE_FIXTURE/manifest.tmp" "$UNSUPPORTED_MARKETPLACE_FIXTURE/skill-topology.json"
+set +e
+HOME="$UNSUPPORTED_MARKETPLACE_FIXTURE/home" TMPDIR="$UNSUPPORTED_MARKETPLACE_FIXTURE/runtime" \
+PATH="$UNSUPPORTED_MARKETPLACE_FIXTURE/bin:$PATH" \
+  "$UNSUPPORTED_MARKETPLACE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UNSUPPORTED_MARKETPLACE_FIXTURE/result.json"
+unsupported_marketplace_exit=$?
+set -e
+test "$unsupported_marketplace_exit" -eq 2
+jq -e '
+  .status == "invalid" and
+  (.errors[0] | contains("marketplaces contains unsupported destination: codex"))
+' "$UNSUPPORTED_MARKETPLACE_FIXTURE/result.json" >/dev/null
+jq -e '. == []' "$UNSUPPORTED_MARKETPLACE_FIXTURE/home/claude-plugins.json" >/dev/null
+jq -e '.installed == []' "$UNSUPPORTED_MARKETPLACE_FIXTURE/home/codex-plugins.json" >/dev/null
+
 if ! HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/first.json"; then
   cat "$FIXTURE/first.json" >&2

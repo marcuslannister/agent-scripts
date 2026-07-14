@@ -57,10 +57,16 @@ function validatePluginMetadata(value, label, supportedDestinations) {
   if (!isObject(value.marketplaces) || Object.keys(value.marketplaces).length === 0) {
     throw new TopologyError(`${label} marketplaces must be a non-empty object`, 2);
   }
-  const unknownDestinations = Object.keys(value.marketplaces)
+  const marketplaceDestinations = Object.keys(value.marketplaces);
+  const unknownDestinations = marketplaceDestinations
     .filter((destination) => !DESTINATIONS.includes(destination));
   if (unknownDestinations.length > 0) {
     throw new TopologyError(`${label} marketplaces contains unknown destination: ${unknownDestinations[0]}`, 2);
+  }
+  const unsupportedDestinations = marketplaceDestinations
+    .filter((destination) => !supportedDestinations.includes(destination));
+  if (unsupportedDestinations.length > 0) {
+    throw new TopologyError(`${label} marketplaces contains unsupported destination: ${unsupportedDestinations[0]}`, 2);
   }
   for (const destination of supportedDestinations) {
     const marketplace = value.marketplaces[destination];
@@ -142,7 +148,7 @@ export function readRegistry(registryPath) {
       }
       const requiredPluginDestinations = adapter.classification === "plugin-both"
         ? adapter.supportedDestinations
-        : Object.keys(isObject(adapter.plugin.marketplaces) ? adapter.plugin.marketplaces : {});
+        : ["claude"];
       validatePluginMetadata(adapter.plugin, `${label} plugin`, requiredPluginDestinations);
     } else if (adapter.plugin !== undefined) {
       throw new TopologyError(`${label} has plugin metadata for a non-plugin source`, 2);
