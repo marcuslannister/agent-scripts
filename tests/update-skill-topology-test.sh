@@ -166,6 +166,21 @@ jq -e '
   ([.plan[].skill] | index("untracked-third-party") | not)
 ' "$TMP_ROOT/fixture-clean.json" >/dev/null
 
+SPLIT_OWNER_ROOT="$TMP_ROOT/split-owner"
+cp -R "$FIXTURE_BASE" "$SPLIT_OWNER_ROOT"
+mkdir -p "$SPLIT_OWNER_ROOT/codex-skills/new-skill" "$SPLIT_OWNER_ROOT/home/.agents/skills/new-skill"
+cp "$SPLIT_OWNER_ROOT/skills/new-skill/SKILL.md" "$SPLIT_OWNER_ROOT/codex-skills/new-skill/SKILL.md"
+git -C "$SPLIT_OWNER_ROOT" add codex-skills/new-skill/SKILL.md
+install_repo_copy "$SPLIT_OWNER_ROOT/home/.agents/skills/new-skill" "$SPLIT_OWNER_ROOT/codex-skills/new-skill" "codex-skills/new-skill"
+HOME="$SPLIT_OWNER_ROOT/home" TMPDIR="$SPLIT_OWNER_ROOT/runtime" "$SPLIT_OWNER_ROOT/scripts/update-skill-topology.sh" --check --json > "$SPLIT_OWNER_ROOT/result.json"
+jq -e '
+  .status == "clean" and
+  ([.plan[] | select(.skill == "new-skill") | {sourceId, destinations}] == [
+    {"sourceId":"repo-claude","destinations":["claude"]},
+    {"sourceId":"repo-codex","destinations":["codex"]}
+  ])
+' "$SPLIT_OWNER_ROOT/result.json" >/dev/null
+
 FOREIGN_ROOT="$TMP_ROOT/foreign-owner"
 cp -R "$FIXTURE_BASE" "$FOREIGN_ROOT"
 printf '%s\n%s\n' "$FOREIGN_ROOT/skills/shared-skill" other-owner > "$FOREIGN_ROOT/home/.agents/skills/shared-skill/.agent-scripts-copy"

@@ -203,6 +203,13 @@ async function checkTopology() {
     for (const entry of plan) {
       const adapter = registryBySource.get(entry.sourceId);
       for (const destination of adapter.supportedDestinations) {
+        const desired = entry.destinations.includes(destination);
+        const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
+          .some((sourceId) => sourceId !== entry.sourceId);
+        if (!desired && claimedByOtherSource) {
+          continue;
+        }
+
         const destinationState = inspectDestination({
           repoRoot,
           home: os.homedir(),
@@ -225,7 +232,6 @@ async function checkTopology() {
         }
 
         const present = destinationState.kind !== "absent";
-        const desired = entry.destinations.includes(destination);
         if (desired && !present) {
           entry.missingDestinations.push(destination);
           drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: "missing" });
