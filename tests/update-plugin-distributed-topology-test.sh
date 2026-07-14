@@ -210,7 +210,8 @@ cat > "$UNKNOWN_FIXTURE/home/codex-plugins.json" <<'JSON'
     {"pluginId":"waza@waza","marketplaceName":"waza","version":"1.0.0","installed":true,"enabled":true},
     {"pluginId":"documents@openai-primary-runtime","marketplaceName":"openai-primary-runtime","version":"1.0.0","installed":true,"enabled":true},
     {"pluginId":"browser@openai-bundled","marketplaceName":"openai-bundled","version":"1.0.0","installed":true,"enabled":true},
-    {"pluginId":"rogue@custom-market","marketplaceName":"custom-market","version":"1.0.0","installed":true,"enabled":true}
+    {"pluginId":"rogue@custom-market","marketplaceName":"custom-market","version":"1.0.0","installed":true,"enabled":true},
+    {"pluginId":"rogue-openai@openai-community","marketplaceName":"openai-community","version":"1.0.0","installed":true,"enabled":true}
   ]
 }
 JSON
@@ -222,14 +223,18 @@ HOME="$UNKNOWN_FIXTURE/home" TMPDIR="$UNKNOWN_FIXTURE/runtime" PATH="$UNKNOWN_FI
 unknown_exit=$?
 set -e
 test "$unknown_exit" -eq 3
-jq -e '
+if ! jq -e '
   .status == "decision-required" and .changes == [] and
   ([.decisions[] | {code, pluginId, destination}] == [
+    {"code":"unknown-installed-plugin","pluginId":"rogue-openai@openai-community","destination":"codex"},
     {"code":"unknown-installed-plugin","pluginId":"rogue@custom-market","destination":"claude"},
     {"code":"unknown-installed-plugin","pluginId":"rogue@custom-market","destination":"codex"}
   ]) and
   ([.decisions[] | select(.pluginId == "frontend-design@claude-plugins-official" or .pluginId == "documents@openai-primary-runtime" or .pluginId == "browser@openai-bundled")] | length) == 0
-' "$UNKNOWN_FIXTURE/result.json" >/dev/null
+' "$UNKNOWN_FIXTURE/result.json" >/dev/null; then
+  cat "$UNKNOWN_FIXTURE/result.json" >&2
+  exit 1
+fi
 cmp -s "$UNKNOWN_FIXTURE/claude-mutations-before" "$UNKNOWN_FIXTURE/home/claude-mutations.log"
 cmp -s "$UNKNOWN_FIXTURE/codex-mutations-before" "$UNKNOWN_FIXTURE/home/codex-mutations.log"
 

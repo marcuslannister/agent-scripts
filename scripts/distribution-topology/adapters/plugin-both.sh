@@ -17,58 +17,72 @@ marketplace_for() {
     '.[] | select(.sourceId == $source_id) | .plugin.marketplaces[$destination]' "$registry"
 }
 
-find_claude_mem_bun() {
-  local candidate found
-  for candidate in \
-    "$home"/scoop/apps/bun/*/bun.exe \
-    "$home/scoop/apps/bun/current/bun.exe" \
-    "$home/scoop/shims/bun" \
-    "$home/scoop/shims/bun.exe" \
-    "$home/.bun/bin/bun" \
-    "$home/.bun/bin/bun.exe" \
-    /usr/local/bin/bun \
-    /opt/homebrew/bin/bun \
-    /home/linuxbrew/.linuxbrew/bin/bun
-  do
-    [ -e "$candidate" ] || continue
-    "$candidate" --version >/dev/null 2>&1 && return 0
-  done
-  found="$(command -v bun 2>/dev/null || true)"
-  [ -n "$found" ] && "$found" --version >/dev/null 2>&1
-}
-
-find_claude_mem_uv_command() {
-  local command_name="$1"
-  local candidate found
-  for candidate in \
-    "$home"/scoop/apps/uv/*/"${command_name}.exe" \
-    "$home/scoop/apps/uv/current/${command_name}.exe" \
-    "$home/scoop/shims/${command_name}" \
-    "$home/scoop/shims/${command_name}.exe" \
-    "$home/.local/bin/${command_name}" \
-    /usr/local/bin/"$command_name" \
-    /opt/homebrew/bin/"$command_name" \
-    /home/linuxbrew/.linuxbrew/bin/"$command_name"
-  do
-    [ -e "$candidate" ] || continue
-    "$candidate" --version >/dev/null 2>&1 && return 0
-  done
-  found="$(command -v "$command_name" 2>/dev/null || true)"
-  [ -n "$found" ] && "$found" --version >/dev/null 2>&1
-}
+if [ "$source_id" = claude-mem ]; then
+  source "${BASH_SOURCE[0]%/*}/claude-mem-dependencies.sh"
+fi
 
 require_source_dependencies() {
-  [ "$source_id" = claude-mem ] || return 0
-  local failed=0
-  if ! find_claude_mem_bun; then
-    printf 'claude-mem requires runnable Bun for its shared hooks; install or repair Bun: https://bun.sh/docs/installation\n' >&2
-    failed=1
-  fi
-  if ! find_claude_mem_uv_command uv || ! find_claude_mem_uv_command uvx; then
-    printf 'claude-mem requires runnable uv and uvx for shared vector search; install or repair Astral uv\n' >&2
-    failed=1
-  fi
-  return "$failed"
+  [ "$source_id" != claude-mem ] || require_claude_mem_dependencies
+}
+
+PLUGIN_INVENTORY_JSON=
+PLUGIN_INVENTORY_ERROR=
+
+load_plugin_inventory() {
+  local destination="$1"
+  local output
+  PLUGIN_INVENTORY_JSON=
+  PLUGIN_INVENTORY_ERROR=
+
+  case "$destination" in
+    claude)
+      if ! output="$(claude plugin list --json 2>&1)"; then
+        PLUGIN_INVENTORY_ERROR="Claude plugin inventory failed: ${output//$'\n'/ }"
+        return 1
+      fi
+      if ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$output"; then
+        PLUGIN_INVENTORY_ERROR="Claude plugin inventory returned invalid JSON"
+        return 1
+      fi
+      PLUGIN_INVENTORY_JSON="$(jq -c '
+        map({
+          id: .id,
+          version: (.version // ""),
+          enabled: (.enabled // false),
+          system: (.id | endswith("@claude-plugins-official"))
+        })
+      ' <<< "$output")"
+      ;;
+    codex)
+      if ! output="$(codex plugin list --json 2>&1)"; then
+        PLUGIN_INVENTORY_ERROR="Codex plugin inventory failed: ${output//$'\n'/ }"
+        return 1
+      fi
+      if ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
+        PLUGIN_INVENTORY_ERROR="Codex plugin inventory returned invalid JSON"
+        return 1
+      fi
+      PLUGIN_INVENTORY_JSON="$(jq -c '
+        (.installed // [])
+        | map(
+            select(.installed == true)
+            | {
+                id: .pluginId,
+                version: (.version // ""),
+                enabled: (.enabled // false),
+                system: (
+                  (.marketplaceName // "") == "openai-primary-runtime"
+                  or (.marketplaceName // "") == "openai-bundled"
+                )
+              }
+          )
+      ' <<< "$output")"
+      ;;
+    *)
+      PLUGIN_INVENTORY_ERROR="unknown plugin destination: $destination"
+      return 1
+      ;;
+  esac
 }
 
 PLUGIN_STATE=
@@ -77,48 +91,25 @@ PLUGIN_ERROR=
 
 load_plugin_state() {
   local destination="$1"
-  local marketplace plugin_id output record
+  local marketplace plugin_id record
   marketplace="$(marketplace_for "$destination")"
   plugin_id="$plugin_name@$marketplace"
   PLUGIN_STATE=
   PLUGIN_VERSION=
   PLUGIN_ERROR=
 
-  case "$destination" in
-    claude)
-      if ! output="$(claude plugin list --json 2>&1)"; then
-        PLUGIN_ERROR="Claude plugin inventory failed: ${output//$'\n'/ }"
-        return 1
-      fi
-      if ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$output"; then
-        PLUGIN_ERROR="Claude plugin inventory returned invalid JSON"
-        return 1
-      fi
-      record="$(jq -c --arg id "$plugin_id" 'first(.[]? | select(.id == $id)) // empty' <<< "$output")"
-      ;;
-    codex)
-      if ! output="$(codex plugin list --json 2>&1)"; then
-        PLUGIN_ERROR="Codex plugin inventory failed: ${output//$'\n'/ }"
-        return 1
-      fi
-      if ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
-        PLUGIN_ERROR="Codex plugin inventory returned invalid JSON"
-        return 1
-      fi
-      record="$(jq -c --arg id "$plugin_id" 'first(.installed[]? | select(.pluginId == $id and .installed == true)) // empty' <<< "$output")"
-      ;;
-    *)
-      PLUGIN_ERROR="unknown plugin destination: $destination"
-      return 1
-      ;;
-  esac
+  if ! load_plugin_inventory "$destination"; then
+    PLUGIN_ERROR="$PLUGIN_INVENTORY_ERROR"
+    return 1
+  fi
 
+  record="$(jq -c --arg id "$plugin_id" 'first(.[]? | select(.id == $id)) // empty' <<< "$PLUGIN_INVENTORY_JSON")"
   if [ -z "$record" ]; then
     PLUGIN_STATE=missing
     return 0
   fi
-  PLUGIN_VERSION="$(jq -r '.version // ""' <<< "$record")"
-  if [ "$(jq -r '.enabled // false' <<< "$record")" = true ]; then
+  PLUGIN_VERSION="$(jq -r '.version' <<< "$record")"
+  if [ "$(jq -r '.enabled' <<< "$record")" = true ]; then
     PLUGIN_STATE=enabled
   else
     PLUGIN_STATE=disabled
@@ -244,51 +235,29 @@ emit_unknown_plugin() {
 
 scan_unknown_plugins() {
   local marker="$discovery_root/native-plugin-inventory-scanned"
-  local output plugin_id failed=0
+  local destination plugin_id failed=0
   [ -e "$marker" ] && return 0
   if [ ! -f "$discovery_root/native-plugins.tsv" ]; then
     printf 'native plugin allowlist is missing\n' >&2
     return 1
   fi
 
-  if ! output="$(claude plugin list --json 2>&1)"; then
-    printf 'Claude plugin inventory failed while checking manifest scope: %s\n' "${output//$'\n'/ }" >&2
-    failed=1
-  elif ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$output"; then
-    printf 'Claude plugin inventory returned invalid JSON while checking manifest scope\n' >&2
-    failed=1
-  else
+  for destination in claude codex; do
+    if ! load_plugin_inventory "$destination"; then
+      printf '%s while checking manifest scope\n' "$PLUGIN_INVENTORY_ERROR" >&2
+      failed=1
+      continue
+    fi
     while IFS= read -r plugin_id; do
       [ -n "$plugin_id" ] || continue
-      case "$plugin_id" in
-        *@claude-plugins-official) continue ;;
-      esac
-      plugin_is_allowed claude "$plugin_id" || emit_unknown_plugin claude "$plugin_id" || failed=1
-    done < <(jq -r '.[].id // empty' <<< "$output")
-  fi
-
-  if ! output="$(codex plugin list --json 2>&1)"; then
-    printf 'Codex plugin inventory failed while checking manifest scope: %s\n' "${output//$'\n'/ }" >&2
-    failed=1
-  elif ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
-    printf 'Codex plugin inventory returned invalid JSON while checking manifest scope\n' >&2
-    failed=1
-  else
-    while IFS= read -r plugin_id; do
-      [ -n "$plugin_id" ] || continue
-      plugin_is_allowed codex "$plugin_id" || emit_unknown_plugin codex "$plugin_id" || failed=1
-    done < <(jq -r '
-      .installed[]?
-      | select(.installed == true)
-      | select((.marketplaceName // "" | startswith("openai-")) | not)
-      | .pluginId // empty
-    ' <<< "$output")
-  fi
+      plugin_is_allowed "$destination" "$plugin_id" ||
+        emit_unknown_plugin "$destination" "$plugin_id" || failed=1
+    done < <(jq -r '.[] | select(.system == false) | .id // empty' <<< "$PLUGIN_INVENTORY_JSON")
+  done
 
   [ "$failed" -eq 0 ] && : > "$marker"
   return "$failed"
 }
-
 
 inspect_states() {
   local expected skill destination state detail failed=0

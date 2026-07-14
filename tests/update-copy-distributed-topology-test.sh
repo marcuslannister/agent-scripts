@@ -428,7 +428,12 @@ cat > "$VISUAL_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
     "classification": "plugin-claude-only",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/visual-explainer.sh",
-    "stateInspection": "adapter"
+    "stateInspection": "adapter",
+    "plugin": {
+      "name": "visual-explainer",
+      "repo": "nicobailon/visual-explainer",
+      "marketplaces": {"claude": "visual-explainer-marketplace"}
+    }
   }
 ]
 JSON

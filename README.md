@@ -68,14 +68,14 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Default mode discovers repo-owned, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 - Waza and claude-mem use manifest-scoped native Claude/Codex adapters. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
-- Staged migration: legacy per-source commands below remain callable until the final routine-updater cutover. Generic Claude plugin updates and the direct Waza/claude-mem commands are no longer routine steps.
+- Staged migration: legacy per-source commands below remain callable until the final routine-updater cutover. The generic Claude plugin entrypoint delegates to manifest topology; direct Waza/claude-mem commands are no longer routine steps.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
 - Tries both even if one fails; prints version before/after each.
 
 `scripts/update-cc-plugins.sh`
-- Legacy manual command that updates all Claude Code marketplaces and installed plugins; excluded from routine updates because its installed-plugin inventory is not manifest policy.
+- Compatibility entrypoint that delegates to `update-skill-topology.sh`; bulk installed-plugin mutation is no longer available outside manifest policy.
 
 `scripts/update-cli-skills.sh`
 - Removes legacy tw93/Waza skills-CLI installs (Waza is a marketplace plugin now), bootstraps `find-skills` (vercel-labs/skills) when missing, then runs `npx skills update --global`, refreshing every skills.sh-managed package, including Matt Pocock's canonical copies. Also rsyncs one-off npx skills both agents need (`find-skills`) into `skills/` as untracked copies behind a `# cli-skills` block in `.gitignore`.

@@ -142,7 +142,7 @@ export function readRegistry(registryPath) {
     if (adapter.plugin !== undefined) {
       const requiredPluginDestinations = adapter.classification === "plugin-both"
         ? adapter.supportedDestinations
-        : Object.keys(adapter.plugin.marketplaces);
+        : Object.keys(isObject(adapter.plugin.marketplaces) ? adapter.plugin.marketplaces : {});
       validatePluginMetadata(adapter.plugin, `${label} plugin`, requiredPluginDestinations);
     }
     adapter.stateInspection ??= "topology";

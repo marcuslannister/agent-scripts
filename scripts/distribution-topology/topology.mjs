@@ -337,7 +337,7 @@ async function reconcileTopology({ document, plan, registryBySource, destination
   }
   for (const [sourceId, expectedStates] of verificationBySource) {
     const adapter = registryBySource.get(sourceId);
-    if (!adapter.plugin) {
+    if (adapter.classification !== "plugin-both") {
       continue;
     }
     for (const item of expectedStates.filter((candidate) => candidate.state === "present")) {
