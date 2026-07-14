@@ -30,10 +30,9 @@ refresh_source_clone() { # clone_dir repo_url
 copy_contents_match() { # source destination
   local source="$1"
   local destination="$2"
-  local source_hash copy_hash
-  source_hash="$(compute_copy_hash "$source" 2>/dev/null || true)"
-  copy_hash="$(compute_copy_hash "$destination" 2>/dev/null || true)"
-  [ -n "$source_hash" ] && [ "$source_hash" = "$copy_hash" ]
+  [ -d "$source" ] && [ -d "$destination" ] \
+    && diff -qr -x .agent-scripts-copy -x .agent-scripts-copy-source \
+      "$source" "$destination" >/dev/null 2>&1
 }
 
 inspect_copy_state() { # content_source marker_source destination owner repo_root

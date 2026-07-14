@@ -238,7 +238,7 @@ UNSAFE_ADOPTION_FIXTURE="$TMP_ROOT/khazix-unsafe-adoption"
 cp -R "$KHAZIX_FIXTURE" "$UNSAFE_ADOPTION_FIXTURE"
 mv "$UNSAFE_ADOPTION_FIXTURE/home/.agents/skills/neat-freak/.agent-scripts-copy" \
   "$UNSAFE_ADOPTION_FIXTURE/copy-marker"
-printf 'user-owned\n' > "$UNSAFE_ADOPTION_FIXTURE/home/.agents/skills/neat-freak/NOTES.md"
+printf 'user-owned\n' > "$UNSAFE_ADOPTION_FIXTURE/home/.agents/skills/neat-freak/.user-notes"
 mv "$UNSAFE_ADOPTION_FIXTURE/skills/neat-freak" "$UNSAFE_ADOPTION_FIXTURE/missing-claude-copy"
 set +e
 HOME="$UNSAFE_ADOPTION_FIXTURE/home" TMPDIR="$UNSAFE_ADOPTION_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
@@ -251,7 +251,7 @@ jq -e '
   (.decisions[] | .code == "surface-ownership-collision" and .sourceId == "khazix-skills" and .destination == "codex")
 ' "$UNSAFE_ADOPTION_FIXTURE/result.json" >/dev/null
 test ! -e "$UNSAFE_ADOPTION_FIXTURE/skills/neat-freak"
-test "$(cat "$UNSAFE_ADOPTION_FIXTURE/home/.agents/skills/neat-freak/NOTES.md")" = user-owned
+test "$(cat "$UNSAFE_ADOPTION_FIXTURE/home/.agents/skills/neat-freak/.user-notes")" = user-owned
 
 UNSUPPORTED_FIXTURE="$TMP_ROOT/khazix-unsupported"
 cp -R "$KHAZIX_FIXTURE" "$UNSUPPORTED_FIXTURE"
