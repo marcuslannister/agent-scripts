@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "repo-claude",
+      "classification": "repo-owned",
+      "defaultDestinations": ["claude"],
+      "overrides": {
+        "create-cli": ["claude", "codex"],
+        "github-author-context": ["claude", "codex"],
+        "github-cache-hygiene": ["claude", "codex"],
+        "github-deep-review": ["claude", "codex"],
+        "github-project-triage": ["claude", "codex"],
+        "mac-maintenance": ["claude", "codex"],
+        "markdown-converter": ["claude", "codex"],
+        "nano-banana-pro": ["claude", "codex"],
+        "native-app-performance": ["claude", "codex"],
+        "obsidian": ["claude", "codex"],
+        "onecli-gateway": ["claude", "codex"],
+        "openai-image-gen": ["claude", "codex"],
+        "peekaboo": ["claude", "codex"],
+        "release-mac-app": ["claude", "codex"],
+        "reminders": ["claude", "codex"],
+        "remote-mac": ["claude", "codex"],
+        "review-claudemd": ["claude", "codex"],
+        "skill-cleaner": ["claude", "codex"],
+        "ssh-doctor": ["claude", "codex"],
+        "validate-skills": ["claude", "codex"],
+        "video-transcript-downloader": ["claude", "codex"]
+      }
+    },
+    {
+      "id": "repo-codex",
+      "classification": "repo-owned",
+      "defaultDestinations": ["codex"],
+      "overrides": {}
+    }
+  ]
+}

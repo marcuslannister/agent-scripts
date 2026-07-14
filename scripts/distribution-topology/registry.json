@@ -1,0 +1,14 @@
+[
+  {
+    "sourceId": "repo-claude",
+    "classification": "repo-owned",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/repo-owned.sh"
+  },
+  {
+    "sourceId": "repo-codex",
+    "classification": "repo-owned",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/repo-owned.sh"
+  }
+]

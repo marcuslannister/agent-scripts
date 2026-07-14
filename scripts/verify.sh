@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for required_tool in bash git python3 bun node npm ruby; do
+for required_tool in bash git python3 bun node npm ruby jq; do
   if command -v "$required_tool" >/dev/null 2>&1; then
     continue
   fi
@@ -12,6 +12,7 @@ for required_tool in bash git python3 bun node npm ruby; do
     bun) echo "Install Bun: https://bun.sh/docs/installation" >&2 ;;
     node|npm) echo "Install Node.js with npm: https://nodejs.org/" >&2 ;;
     ruby) echo "Install Ruby to run the maintainer policy check." >&2 ;;
+    jq) echo "Install jq: https://jqlang.org/download/" >&2 ;;
     *) echo "Install $required_tool and retry." >&2 ;;
   esac
   exit 1

@@ -4,6 +4,7 @@ Shared agent instructions, skills, and small portable helpers for Peter's local 
 
 This repo is the canonical place for:
 - `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
+- `skill-topology.json`: versioned desired distribution for registered skill sources
 - `skills/`: reusable workflow skills, including repo-owned skills exposed by symlink
 - `scripts/`: dependency-light helpers used across projects
 - `hooks/`: local guardrails such as skill validation
@@ -60,6 +61,10 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 `scripts/verify.sh`
 - Single local/CI verifier: skill validation, Bash syntax, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks.
 - Missing tools or installed dependencies fail early with setup guidance.
+
+`scripts/update-skill-topology.sh`
+- Check-only topology preview: `--check` discovers repo-owned Claude and Codex inventories, validates the complete manifest plan, and reports clean state, drift, or decisions without persistent writes. Reconciliation remains outside this command for now.
+- Add `--json` for one stable JSON document. Exit codes: `0` clean, `1` drift/discovery/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.

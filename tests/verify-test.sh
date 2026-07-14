@@ -22,7 +22,7 @@ grep -F "required tool not found: python3" "$TMPDIR/out" >/dev/null
 grep -F "Install Python 3" "$TMPDIR/out" >/dev/null
 
 mkdir -p "$TMPDIR/pkg-bin"
-for tool in bash git bun node npm ruby; do
+for tool in bash git bun node npm ruby jq; do
   ln -s "$(command -v "$tool")" "$TMPDIR/pkg-bin/$tool"
 done
 printf '%s\n' '#!/bin/sh' 'exit 1' > "$TMPDIR/pkg-bin/python3"
@@ -35,5 +35,18 @@ fi
 
 grep -F "required Python package not found: PyYAML" "$TMPDIR/pkg-out" >/dev/null
 grep -F "python3 -m pip install pyyaml" "$TMPDIR/pkg-out" >/dev/null
+
+mkdir -p "$TMPDIR/jq-bin"
+for tool in bash git python3 bun node npm ruby; do
+  ln -s "$(command -v "$tool")" "$TMPDIR/jq-bin/$tool"
+done
+
+if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/jq-bin" /bin/bash "$REPO_ROOT/scripts/verify.sh" >"$TMPDIR/jq-out" 2>&1; then
+  echo "FAIL: verifier accepted a missing jq dependency" >&2
+  exit 1
+fi
+
+grep -F "required tool not found: jq" "$TMPDIR/jq-out" >/dev/null
+grep -F "Install jq" "$TMPDIR/jq-out" >/dev/null
 
 echo "verify tests passed"

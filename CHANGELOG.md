@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-13 — Repo-Owned Skill Topology Preview
+- Added strict versioned `skill-topology.json` policy for repo-owned source defaults and named Codex distribution exceptions.
+- Added non-mutating `update-skill-topology.sh --check` with human/JSON reports, complete-plan validation, distinct recovery exit codes, temporary discovery, and stale-safe single-writer locking.
+
 ## 2026-07-13 — Routine Update Guard and Repository Verifier
 - Routine `update-all.sh` runs no bulk repo-skills publication step; its black-box regression locks the supported updater order and excludes repo publication.
 - Added `scripts/verify.sh` as the one local and CI verification interface for skill validation, Bash syntax, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks, with actionable dependency preflights.
