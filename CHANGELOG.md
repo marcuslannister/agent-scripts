@@ -5,6 +5,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 # Changelog
 
 ## 2026-07-14 — Skill Topology Final Cutover
+- Replaced the private Node topology core with one Bash implementation, preserving public command behavior while adding no-Node command and topology-suite regression coverage.
 - Reduced routine updates to agent CLIs then manifest-owned topology reconciliation, preserving ordered run-all execution, concise summary output, and aggregate failure behavior.
 - Removed all legacy per-source updater commands and generic plugin policy code without shims; added a verifier gate that enforces the private adapter handshake and rejects restoration of bulk repo publication.
 

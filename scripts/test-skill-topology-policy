@@ -27,6 +27,16 @@ done
 [ ! -e "$REPO_ROOT/scripts/lib-plugins.sh" ] \
   || fail "generic plugin policy owner remains: lib-plugins.sh"
 
+TOPOLOGY_DIR="$REPO_ROOT/scripts/distribution-topology"
+[ -x "$TOPOLOGY_DIR/topology.sh" ] \
+  || fail "private Bash topology core missing or not executable"
+if rg -q 'exec node|topology\.mjs' "$REPO_ROOT/scripts/update-skill-topology.sh"; then
+  fail "public topology command still invokes the retired Node core"
+fi
+if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
+  fail "retired Node topology implementation remains"
+fi
+
 invocations="$(awk -F '"' '/^"\$SCRIPT_DIR\/update-[a-z-]+\.sh"/ { print $2 }' \
   "$REPO_ROOT/scripts/update-all.sh")"
 expected_invocations='$SCRIPT_DIR/update-agents.sh

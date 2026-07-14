@@ -65,6 +65,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
+- Public command and private topology core are Bash; topology reconciliation neither invokes nor requires Node. Browser-helper verification keeps its unrelated Node requirement.
 - Default mode discovers repo-owned, Matt, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, independently migrates legacy Codex-root drift, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies the root plus every managed destination. Unmarked and other-owner active-surface entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 - Waza and claude-mem use manifest-scoped native Claude/Codex adapters. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
