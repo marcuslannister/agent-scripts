@@ -143,10 +143,19 @@ topology_expected_states() { # source_id output_tsv plan_json
   done < <(jq -r --arg source "$source_id" '.[] | select(.sourceId == $source) | .skill' "$plan_json")
 }
 
+topology_seen() { # seen_file key
+  rg -Fxq -- "$2" "$1"
+}
+
+topology_mark_seen() { # seen_file key
+  printf '%s\n' "$2" >> "$1"
+}
+
 topology_inspect_adapter() { # source_id plan_json output_dir mode
   local source_id="$1" plan_json="$2" output="$3" mode="$4"
   local expected="$DISCOVERY_ROOT/$source_id.inspect.tsv" command line state skill destination detail extra key detail_key
-  declare -A seen=()
+  local seen_file="$DISCOVERY_ROOT/$source_id.seen"
+  : > "$seen_file"
   topology_expected_states "$source_id" "$expected" "$plan_json"
   command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
   topology_run_process "$command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" inspect "$expected" "$HOME" "$mode" || return $?
@@ -166,41 +175,42 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
     case "$state" in
       decision)
         detail_key="decision"$'\034'"$destination"$'\034'"$detail"
-        if [[ ! "$detail" =~ ^[a-z0-9]+(-[a-z0-9]+)*@[a-z0-9]+(-[a-z0-9]+)*$ ]] || [ -n "${seen[$detail_key]:-}" ]; then
+        if [[ ! "$detail" =~ ^[a-z0-9]+(-[a-z0-9]+)*@[a-z0-9]+(-[a-z0-9]+)*$ ]] || topology_seen "$seen_file" "$detail_key"; then
           topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid decision inspection output"
           continue
         fi
-        seen[$detail_key]=1
+        topology_mark_seen "$seen_file" "$detail_key"
         jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" --arg pluginId "$detail" \
           '{code:"unknown-installed-plugin",sourceId:$sourceId,skill:$skill,destination:$destination,pluginId:$pluginId,message:("installed third-party plugin " + $pluginId + " on " + $destination + " is not listed in skill-topology.json")}' \
           >> "$output/decisions.ndjson"
         ;;
       npx-decision)
         detail_key="npx"$'\034'"$skill"$'\034'"$destination"
-        if [[ ! "$detail" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || [ -n "${seen[$detail_key]:-}" ]; then
+        if [[ ! "$detail" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || topology_seen "$seen_file" "$detail_key"; then
           topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid npx decision inspection output"
           continue
         fi
-        seen[$detail_key]=1
+        topology_mark_seen "$seen_file" "$detail_key"
         jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" --arg lockSource "$detail" \
           '{code:"unknown-npx-lock-source",sourceId:$sourceId,skill:$skill,destination:$destination,lockSource:$lockSource,message:("skills lock entry " + $skill + " belongs to unknown npx source " + $lockSource)}' \
           >> "$output/decisions.ndjson"
         ;;
       orphan)
-        if rg -q -F $'\t'"$skill"$'\t'"$destination" "$expected" || [ -n "${seen[orphan$'\034'$key]:-}" ]; then
+        detail_key="orphan"$'\034'"$key"
+        if rg -q -F $'\t'"$skill"$'\t'"$destination" "$expected" || topology_seen "$seen_file" "$detail_key"; then
           topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid orphan inspection output"
           continue
         fi
-        seen[orphan$'\034'$key]=1
+        topology_mark_seen "$seen_file" "$detail_key"
         jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
           '{sourceId:$sourceId,skill:$skill,destination:$destination,reason:"unexpected"}' >> "$output/drift.ndjson"
         ;;
       present|absent|drift|foreign|error)
-        if ! rg -q -F $'\t'"$skill"$'\t'"$destination" "$expected" || [ -n "${seen[$key]:-}" ]; then
+        if ! rg -q -F $'\t'"$skill"$'\t'"$destination" "$expected" || topology_seen "$seen_file" "$key"; then
           topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid inspection output"
           continue
         fi
-        seen[$key]=1
+        topology_mark_seen "$seen_file" "$key"
         local_expected="$(awk -F '\t' -v skill="$skill" -v destination="$destination" '$2 == skill && $3 == destination { print $1; exit }' "$expected")"
         case "$state" in
           error) topology_append_json_string "$output/errors.ndjson" "cannot verify $source_id/$skill on $destination: $detail" ;;
@@ -235,7 +245,7 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
 
   while IFS=$'\t' read -r state skill destination; do
     key="$skill"$'\034'"$destination"
-    [ -n "${seen[$key]:-}" ] || topology_append_json_string "$output/errors.ndjson" \
+    topology_seen "$seen_file" "$key" || topology_append_json_string "$output/errors.ndjson" \
       "source $source_id returned incomplete inspection for $skill -> $destination"
   done < "$expected"
 }
@@ -426,15 +436,12 @@ topology_evaluate() {
   else status=clean; exit_code=0
   fi
 
-  jq --slurpfile decisions "$inspect_dir/decisions.ndjson" --slurpfile drift "$inspect_dir/drift.ndjson" '
-    map(. as $source | .result =
-      (if any($decisions[]; .sourceId == $source.id or ((.sourceIds? // []) | index($source.id) != null)) then "decision-required"
-       elif any($drift[]; .sourceId == $source.id) then "drift" else "clean" end))
-  ' "$sources_file" >/dev/null 2>&1 || true
   # Rewrite NDJSON source results without losing one-object-per-line form.
-  jq -s -c --slurpfile decisions "$inspect_dir/decisions.ndjson" --slurpfile drift "$inspect_dir/drift.ndjson" '
+  jq -s -c --slurpfile decisions "$inspect_dir/decisions.ndjson" --slurpfile drift "$inspect_dir/drift.ndjson" \
+    --slurpfile errors "$inspect_dir/errors.ndjson" '
     .[] as $source | $source + {result:
       (if any($decisions[]; .sourceId == $source.id or ((.sourceIds? // []) | index($source.id) != null)) then "decision-required"
+       elif any($errors[]; contains($source.id + "/") or contains("source " + $source.id + " ")) then "failed"
        elif any($drift[]; .sourceId == $source.id) then "drift" else "clean" end)}
   ' "$sources_file" > "$DISCOVERY_ROOT/sources-updated.ndjson"
   mv "$DISCOVERY_ROOT/sources-updated.ndjson" "$sources_file"
@@ -539,7 +546,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
   jq -s -c --slurpfile decisions "$final_inspect/decisions.ndjson" --slurpfile drift "$final_inspect/drift.ndjson" --slurpfile changes "$changes" --slurpfile errors "$errors" '
     .[] as $source | $source + {result:
       (if any($decisions[]; .sourceId == $source.id) then "decision-required"
-       elif any($errors[]; contains("source " + $source.id)) or any($drift[]; .sourceId == $source.id) then "failed"
+       elif any($errors[]; contains("source " + $source.id + " ")) or any($drift[]; .sourceId == $source.id) then "failed"
        elif any($changes[]; .sourceId == $source.id) then "changed" else "clean" end)}
   ' "$sources" > "$DISCOVERY_ROOT/sources-final.ndjson"
   topology_build_document reconcile "$status" "$DISCOVERY_ROOT/sources-final.ndjson" "$plan_file" "$final_inspect" "$errors" "$warnings" "$changes" "$hygiene_dir/hygiene.json" "$DISCOVERY_ROOT/document.json"
@@ -603,8 +610,13 @@ DISCOVERY_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/agent-scripts-topology-discovery-XX
 
 topology_evaluate
 result_code=$?
-if [ -n "$TOPOLOGY_RECOVERED_PID" ] && [ -n "$DOCUMENT_PATH" ]; then
-  jq --arg pid "$TOPOLOGY_RECOVERED_PID" '.warnings |= [{code:"stale-lock-recovered",message:("recovered stale topology lock held by PID " + $pid)}] + .' "$DOCUMENT_PATH" > "$DOCUMENT_PATH.tmp"
+if { [ -n "$TOPOLOGY_RECOVERED_PID" ] || [ "$TOPOLOGY_RECOVERED_PENDING" -eq 1 ]; } && [ -n "$DOCUMENT_PATH" ]; then
+  if [ -n "$TOPOLOGY_RECOVERED_PID" ]; then
+    recovery_message="recovered stale topology lock held by PID $TOPOLOGY_RECOVERED_PID"
+  else
+    recovery_message="recovered stale topology lock with no recorded PID"
+  fi
+  jq --arg message "$recovery_message" '.warnings |= [{code:"stale-lock-recovered",message:$message}] + .' "$DOCUMENT_PATH" > "$DOCUMENT_PATH.tmp"
   mv "$DOCUMENT_PATH.tmp" "$DOCUMENT_PATH"
 fi
 if [ -n "$DOCUMENT_PATH" ]; then

@@ -2,9 +2,22 @@
 
 TOPOLOGY_LOCK_PATH=
 TOPOLOGY_RECOVERED_PID=
+TOPOLOGY_RECOVERED_PENDING=0
 
 topology_process_is_alive() { # pid
   kill -0 "$1" 2>/dev/null
+}
+
+topology_pending_lock_is_stale() { # lock_path
+  local modified now
+  if stat -f %m "$1" >/dev/null 2>&1; then
+    modified="$(stat -f %m "$1")"
+  else
+    modified="$(stat -c %Y "$1" 2>/dev/null || true)"
+  fi
+  [[ "$modified" =~ ^[0-9]+$ ]] || return 1
+  now="$(date +%s)"
+  [ $((now - modified)) -ge 5 ]
 }
 
 topology_cleanup_stale_discovery() {
@@ -34,19 +47,27 @@ topology_acquire_lock() {
       topology_fail 1 "skill topology is already running (PID $pid)"
       return 1
     fi
+    recovered="${TMPDIR:-/tmp}/agent-scripts-skill-topology-$(id -u 2>/dev/null || printf user).recovered-$$-$RANDOM"
     if [ -z "$pid" ]; then
+      if topology_pending_lock_is_stale "$lock_root"; then
+        mv "$lock_root" "$recovered" 2>/dev/null || true
+        continue
+      fi
       topology_fail 1 "skill topology is already running (PID pending)"
       return 1
     fi
 
-    recovered="${TMPDIR:-/tmp}/agent-scripts-skill-topology-$(id -u 2>/dev/null || printf user).recovered-$$-$RANDOM"
     mv "$lock_root" "$recovered" 2>/dev/null || true
   done
 
   shopt -s nullglob
   for recovered in "${TMPDIR:-/tmp}"/agent-scripts-skill-topology-*.recovered-*; do
     pid="$(sed -n '1p' "$recovered/pid" 2>/dev/null || true)"
-    [ -n "$TOPOLOGY_RECOVERED_PID" ] || TOPOLOGY_RECOVERED_PID="$pid"
+    if [ -n "$pid" ]; then
+      [ -n "$TOPOLOGY_RECOVERED_PID" ] || TOPOLOGY_RECOVERED_PID="$pid"
+    else
+      TOPOLOGY_RECOVERED_PENDING=1
+    fi
     rm -rf -- "$recovered"
     topology_cleanup_stale_discovery
   done

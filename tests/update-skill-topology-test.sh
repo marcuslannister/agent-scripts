@@ -234,7 +234,8 @@ chmod 644 \
 test "$verify_aggregate_exit" -eq 1
 jq -e '
   .status == "failed" and (.errors | length) == 2 and
-  ([.errors[] | select(contains("repo-claude/shared-skill") or contains("repo-codex/codex-tool"))] | length) == 2
+  ([.errors[] | select(contains("repo-claude/shared-skill") or contains("repo-codex/codex-tool"))] | length) == 2 and
+  ([.sources[] | select(.result == "failed") | .id] == ["repo-claude", "repo-codex"])
 ' "$VERIFY_AGGREGATE_ROOT/result.json" >/dev/null
 
 assert_invalid_manifest() {
@@ -261,6 +262,7 @@ assert_invalid_manifest classification '.sources[0].classification = "mystery"'
 assert_invalid_manifest duplicate-destination '.sources[0].defaultDestinations = ["claude", "claude"]'
 assert_invalid_manifest unknown-destination '.sources[0].overrides["shared-skill"] = ["claude", "mars"]'
 assert_invalid_manifest version '.version = 2'
+assert_invalid_manifest version-type '.version = "1"'
 
 MALFORMED_ROOT="$TMP_ROOT/invalid-malformed"
 cp -R "$FIXTURE_BASE" "$MALFORMED_ROOT"
@@ -281,6 +283,23 @@ run_fixture_json() {
   set -e
   test ! -s "$fixture_root/result.err"
 }
+
+assert_invalid_registry() {
+  local name="$1"
+  local jq_filter="$2"
+  local fixture_root="$TMP_ROOT/invalid-registry-$name"
+  cp -R "$FIXTURE_BASE" "$fixture_root"
+  jq "$jq_filter" "$fixture_root/scripts/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
+  mv "$fixture_root/registry.tmp" "$fixture_root/scripts/distribution-topology/registry.json"
+
+  run_fixture_json "$fixture_root"
+  test "$RUN_EXIT" -eq 2
+  jq -e '.status == "invalid" and (.errors | length == 1)' "$fixture_root/result.json" >/dev/null
+}
+
+assert_invalid_registry state-inspection-null '.[0].stateInspection = null'
+assert_invalid_registry state-inspection-false '.[0].stateInspection = false'
+assert_invalid_registry command-backslash-traversal '.[0].command = "adapters\\..\\escape.sh"'
 
 MISSING_ADAPTER_ROOT="$TMP_ROOT/missing-adapter"
 cp -R "$FIXTURE_BASE" "$MISSING_ADAPTER_ROOT"
@@ -639,6 +658,14 @@ jq -e --arg pid "$stale_pid" '.status == "clean" and (.warnings[] | .code == "st
 jq -e --arg pid "$recovery_winner_pid" '.status == "failed" and (.errors[0] | contains("already running") and contains($pid))' "$recovery_loser" >/dev/null
 test ! -s "$LOCK_ROOT/recovery-one.err"
 test ! -s "$LOCK_ROOT/recovery-two.err"
+test -z "$(find "$LOCK_ROOT/runtime" -mindepth 1 -print -quit)"
+
+pending_lock="$LOCK_ROOT/runtime/agent-scripts-skill-topology-$(id -u).lock"
+mkdir "$pending_lock"
+touch -t 202001010000 "$pending_lock"
+run_fixture_json "$LOCK_ROOT"
+test "$RUN_EXIT" -eq 0
+jq -e '.status == "clean" and (.warnings[] | .code == "stale-lock-recovered" and .message == "recovered stale topology lock with no recorded PID")' "$LOCK_ROOT/result.json" >/dev/null
 test -z "$(find "$LOCK_ROOT/runtime" -mindepth 1 -print -quit)"
 
 TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/interrupt.started" \

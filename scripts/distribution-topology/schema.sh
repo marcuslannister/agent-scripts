@@ -53,7 +53,7 @@ topology_validate_manifest() { # file
     return 2
   fi
   topology_validate_fields "$file" '.' '["version","sources"]' '["version","sources"]' 'skill topology manifest' || return $?
-  if [ "$(jq -r '.version' "$file")" != 1 ]; then
+  if ! jq -e '.version == 1' "$file" >/dev/null; then
     topology_fail 2 'skill topology manifest version must be 1'
     return 2
   fi
@@ -72,7 +72,7 @@ topology_validate_manifest() { # file
     label="skill topology manifest source $index"
     topology_validate_fields "$file" ".sources[$index]" '["id","classification","defaultDestinations","overrides"]' '["id","classification","defaultDestinations","overrides"]' "$label" || return $?
     source_id="$(jq -r ".sources[$index].id" "$file")"
-    if ! topology_is_name "$source_id"; then
+    if ! jq -e ".sources[$index].id | type == \"string\"" "$file" >/dev/null || ! topology_is_name "$source_id"; then
       topology_fail 2 "$label has an invalid id"
       return 2
     fi
@@ -104,9 +104,13 @@ topology_validate_plugin() { # file index label classification
   fi
   topology_validate_fields "$file" ".[${index}].plugin" '["name","repo","marketplaces"]' '["name","repo","marketplaces"]' "$label plugin" || return $?
   value="$(jq -r ".[${index}].plugin.name" "$file")"
-  topology_is_name "$value" || { topology_fail 2 "$label plugin has an invalid name"; return 2; }
+  jq -e ".[${index}].plugin.name | type == \"string\"" "$file" >/dev/null \
+    && topology_is_name "$value" \
+    || { topology_fail 2 "$label plugin has an invalid name"; return 2; }
   value="$(jq -r ".[${index}].plugin.repo" "$file")"
-  [[ "$value" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { topology_fail 2 "$label plugin has an invalid repo"; return 2; }
+  jq -e ".[${index}].plugin.repo | type == \"string\"" "$file" >/dev/null \
+    && [[ "$value" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+    || { topology_fail 2 "$label plugin has an invalid repo"; return 2; }
   if ! jq -e ".[${index}].plugin.marketplaces | type == \"object\" and length > 0" "$file" >/dev/null; then
     topology_fail 2 "$label plugin marketplaces must be a non-empty object"
     return 2
@@ -124,7 +128,8 @@ topology_validate_plugin() { # file index label classification
   done < <(jq -r ".[${index}].plugin.marketplaces | keys[]" "$file")
   for destination in claude $([ "$classification" = plugin-both ] && printf codex); do
     value="$(jq -r --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] // empty" "$file")"
-    if ! topology_is_name "$value"; then
+    if ! jq -e --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] | type == \"string\"" "$file" >/dev/null \
+      || ! topology_is_name "$value"; then
       topology_fail 2 "$label plugin is missing a valid $destination marketplace"
       return 2
     fi
@@ -132,7 +137,7 @@ topology_validate_plugin() { # file index label classification
 }
 
 topology_validate_registry() { # file
-  local file="$1" parse_error count index label source_id classification command state plugin_kind
+  local file="$1" parse_error count index label source_id classification command normalized_command state plugin_kind
   if ! parse_error="$(jq empty "$file" 2>&1)"; then
     topology_fail 2 "topology adapter registry is not valid JSON: $parse_error"
     return 2
@@ -151,16 +156,20 @@ topology_validate_registry() { # file
     label="topology adapter registry entry $index"
     topology_validate_fields "$file" ".[$index]" '["sourceId","classification","supportedDestinations","command","stateInspection","plugin"]' '["sourceId","classification","supportedDestinations","command"]' "$label" || return $?
     source_id="$(jq -r ".[$index].sourceId" "$file")"
-    topology_is_name "$source_id" || { topology_fail 2 "$label has an invalid sourceId"; return 2; }
+    jq -e ".[$index].sourceId | type == \"string\"" "$file" >/dev/null \
+      && topology_is_name "$source_id" \
+      || { topology_fail 2 "$label has an invalid sourceId"; return 2; }
     classification="$(jq -r ".[$index].classification" "$file")"
     topology_is_classification "$classification" || { topology_fail 2 "$label contains unknown classification: $classification"; return 2; }
     topology_validate_destinations "$file" ".[$index].supportedDestinations" "$label supportedDestinations" || return $?
     command="$(jq -r ".[$index].command" "$file")"
-    if [ -z "$command" ] || [[ "$command" = /* ]] || [[ "/$command/" = *'/../'* ]]; then
+    normalized_command="${command//\\//}"
+    if ! jq -e ".[$index].command | type == \"string\"" "$file" >/dev/null \
+      || [ -z "$command" ] || [[ "$command" = /* ]] || [[ "/$normalized_command/" = *'/../'* ]]; then
       topology_fail 2 "$label has an invalid command"
       return 2
     fi
-    state="$(jq -r ".[$index].stateInspection // \"topology\"" "$file")"
+    state="$(jq -r "if .[$index] | has(\"stateInspection\") then .[$index].stateInspection else \"topology\" end" "$file")"
     case "$state" in topology|adapter) ;; *) topology_fail 2 "$label has an invalid stateInspection"; return 2 ;; esac
     plugin_kind=0
     case "$classification" in plugin-both|plugin-claude-only) plugin_kind=1 ;; esac
