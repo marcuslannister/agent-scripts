@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Legacy bulk publisher for tracked repo skills. Root hygiene belongs to the
-# topology command and intentionally does not run here. Re-runnable; exits
-# non-zero on publication or active-copy verification failure.
+# Staged legacy bulk publisher, retained until issue #18's final cutover. Root
+# hygiene belongs to the topology command and intentionally does not run here.
+# Re-runnable; exits non-zero on publication or active-copy verification failure.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;33m>>> %s\033[0m\n' "$*"; }

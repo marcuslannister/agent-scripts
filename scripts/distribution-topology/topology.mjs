@@ -17,6 +17,7 @@ const repoRoot = path.resolve(moduleDirectory, "../..");
 const manifestPath = path.join(repoRoot, "skill-topology.json");
 const registryPath = path.join(moduleDirectory, "registry.json");
 const activeChildren = new Set();
+const HYGIENE_KINDS = new Set(["root-symlink", "root-file", "directory", "symlink", "file", "other"]);
 let activeLock = null;
 
 function parseArguments(args) {
@@ -81,28 +82,32 @@ function decodeHex(value) {
   return Buffer.from(value, "hex").toString("utf8");
 }
 
-function parseHygieneEntries(stdout) {
-  const entries = [];
+function parseHygieneRecords(stdout, record, fieldCount, errorMessage) {
+  const records = [];
   for (const line of stdout.split(/\r?\n/u).filter(Boolean)) {
-    const [record, encodedName, kind, ...extra] = line.split("\t");
-    if (record !== "entry" || extra.length > 0 || !["root-symlink", "root-file", "directory", "symlink", "file", "other"].includes(kind)) {
-      throw new TopologyError("Codex-root hygiene returned invalid inspection output", 1);
+    const fields = line.split("\t");
+    if (fields.length !== fieldCount || fields[0] !== record || !HYGIENE_KINDS.has(fields[2])) {
+      throw new TopologyError(errorMessage, 1);
     }
-    entries.push({ name: decodeHex(encodedName), kind });
+    records.push(fields);
   }
-  return entries.sort((left, right) => left.name.localeCompare(right.name));
+  return records;
+}
+
+function parseHygieneEntries(stdout) {
+  return parseHygieneRecords(stdout, "entry", 3, "Codex-root hygiene returned invalid inspection output")
+    .map(([, encodedName, kind]) => ({ name: decodeHex(encodedName), kind }))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function parseHygieneChanges(stdout) {
-  const changes = [];
-  for (const line of stdout.split(/\r?\n/u).filter(Boolean)) {
-    const [record, encodedName, kind, encodedBackupPath, ...extra] = line.split("\t");
-    if (record !== "migrated" || extra.length > 0 || !["root-symlink", "root-file", "directory", "symlink", "file", "other"].includes(kind)) {
-      throw new TopologyError("Codex-root hygiene returned invalid reconcile output", 1);
-    }
-    changes.push({ name: decodeHex(encodedName), kind, backupPath: decodeHex(encodedBackupPath) });
-  }
-  return changes.sort((left, right) => left.name.localeCompare(right.name));
+  return parseHygieneRecords(stdout, "migrated", 4, "Codex-root hygiene returned invalid reconcile output")
+    .map(([, encodedName, kind, encodedBackupPath]) => ({
+      name: decodeHex(encodedName),
+      kind,
+      backupPath: decodeHex(encodedBackupPath),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 async function inspectCodexRootHygiene() {
@@ -483,12 +488,12 @@ async function reconcileTopology({ document, plan, registryBySource, destination
 
   const verification = await inspectPlan({ plan, registryBySource, destinationClaims, discoveryRoot, mode: "reconcile" });
   const hygieneVerification = await inspectCodexRootHygiene();
-  hygieneErrors.push(...hygieneVerification.errors);
-  for (const item of hygieneVerification.entries) {
-    hygieneErrors.push(`final Codex-root hygiene verification failed: ${item.name} (${item.kind})`);
-  }
-  errors.push(...hygieneVerification.errors);
-  errors.push(...hygieneVerification.entries.map((item) => `final Codex-root hygiene verification failed: ${item.name} (${item.kind})`));
+  const finalHygieneErrors = [
+    ...hygieneVerification.errors,
+    ...hygieneVerification.entries.map((item) => `final Codex-root hygiene verification failed: ${item.name} (${item.kind})`),
+  ];
+  hygieneErrors.push(...finalHygieneErrors);
+  errors.push(...finalHygieneErrors);
   errors.push(...verification.errors);
   for (const item of verification.drift) {
     errors.push(`final verification failed: ${item.sourceId}/${item.skill} -> ${item.destination}: ${item.reason}`);

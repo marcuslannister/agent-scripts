@@ -18,7 +18,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/do
 
 ## Plugin & skill update rules
 
-Root policy: each CLI reads exactly one skills root. Claude Code reads repo `skills/` (via `~/.claude/skills`); Codex reads only `~/.agents/skills` — never a `~/.codex/skills` symlink, which would make Codex load both roots and see duplicates. `scripts/update-skill-topology.sh` owns legacy-root hygiene and manifest-approved distribution.
+Root policy: each CLI reads exactly one skills root. Claude Code reads repo `skills/` (via `~/.claude/skills`); Codex reads only `~/.agents/skills` — never a `~/.codex/skills` symlink, which would make Codex load both roots and see duplicates. `scripts/update-skill-topology.sh` owns routine legacy-root hygiene and manifest-approved distribution; staged direct entrypoints remain only until issue #18's final cutover.
 
 Destination principle: skills both agents need → tracked in repo `skills/` and explicitly approved for Codex in `skill-topology.json`; skills only Codex needs → authored under `codex-skills/`. A skill Claude Code already gets as a plugin may use a Codex-only distribution mechanism.
 
