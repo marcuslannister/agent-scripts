@@ -142,6 +142,25 @@ BASH
 chmod +x "$BIN/claude" "$BIN/codex"
 
 COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
+MISSING_METADATA_FIXTURE="$TMP_ROOT/missing-plugin-metadata"
+cp -R "$FIXTURE" "$MISSING_METADATA_FIXTURE"
+jq '.[0] |= del(.plugin)' \
+  "$MISSING_METADATA_FIXTURE/scripts/distribution-topology/registry.json" > "$MISSING_METADATA_FIXTURE/registry.tmp"
+mv "$MISSING_METADATA_FIXTURE/registry.tmp" "$MISSING_METADATA_FIXTURE/scripts/distribution-topology/registry.json"
+set +e
+HOME="$MISSING_METADATA_FIXTURE/home" TMPDIR="$MISSING_METADATA_FIXTURE/runtime" \
+PATH="$MISSING_METADATA_FIXTURE/bin:$PATH" \
+  "$MISSING_METADATA_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$MISSING_METADATA_FIXTURE/result.json"
+missing_metadata_exit=$?
+set -e
+test "$missing_metadata_exit" -eq 2
+jq -e '
+  .status == "invalid" and
+  (.errors[0] | contains("requires plugin metadata for a plugin source"))
+' "$MISSING_METADATA_FIXTURE/result.json" >/dev/null
+jq -e '. == []' "$MISSING_METADATA_FIXTURE/home/claude-plugins.json" >/dev/null
+jq -e '.installed == []' "$MISSING_METADATA_FIXTURE/home/codex-plugins.json" >/dev/null
+
 if ! HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/first.json"; then
   cat "$FIXTURE/first.json" >&2

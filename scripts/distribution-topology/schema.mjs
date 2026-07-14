@@ -136,6 +136,9 @@ export function readRegistry(registryPath) {
       throw new TopologyError(`${label} has an invalid stateInspection`, 2);
     }
     const pluginClassification = ["plugin-both", "plugin-claude-only"].includes(adapter.classification);
+    if (pluginClassification && adapter.plugin === undefined) {
+      throw new TopologyError(`${label} requires plugin metadata for a plugin source`, 2);
+    }
     if (!pluginClassification && adapter.plugin !== undefined) {
       throw new TopologyError(`${label} has plugin metadata for a non-plugin source`, 2);
     }
