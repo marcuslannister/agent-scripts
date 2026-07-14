@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate skills/*/SKILL.md front matter: valid YAML mapping with non-empty,
+"""Validate repo-owned SKILL.md front matter: valid YAML mapping with non-empty,
 unique `name` and non-empty `description`. Used by hooks/pre-commit."""
 
 import glob
@@ -54,7 +54,7 @@ def main():
     root = repo_root()
     os.chdir(root if root else os.getcwd())
 
-    skill_files = sorted(glob.glob("skills/*/SKILL.md"))
+    skill_files = sorted(glob.glob("skills/*/SKILL.md") + glob.glob("codex-skills/*/SKILL.md"))
     errors = []
     names = {}
 
@@ -86,7 +86,7 @@ def main():
             names[normalized] = path
 
     if not skill_files:
-        print("No skills/*/SKILL.md files found.", file=sys.stderr)
+        print("No repo-owned SKILL.md files found.", file=sys.stderr)
         sys.exit(0)
 
     if errors:

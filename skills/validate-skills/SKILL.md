@@ -5,8 +5,8 @@ description: "Validate skill front matter: name, description, valid YAML, duplic
 
 # Validate Skills
 
-Use before committing skill edits, or to check `skills/*/SKILL.md` front matter
-on demand. Already runs automatically in `hooks/pre-commit` and
+Use before committing skill edits, or to check repo-owned `SKILL.md` front matter
+under `skills/` and `codex-skills/` on demand. Already runs automatically in `hooks/pre-commit` and
 `scripts/committer`; this is the manual entry point.
 
 ## Run
@@ -17,8 +17,9 @@ From the agent-scripts repo (the script resolves the repo root itself):
 scripts/validate-skills
 ```
 
-Checks every `skills/*/SKILL.md` for a valid YAML front-matter mapping, non-empty
-string `name` and `description`, and a `name` unique across skills.
+Checks every direct child skill under both repo-owned authoring sources for a
+valid YAML front-matter mapping, non-empty string `name` and `description`, and
+a `name` unique across sources.
 
 - Exit 0: `Validated N skill(s).`
 - Exit 1 (stderr): `Skill validation failed:` then `- <path>: <reason>` per problem.

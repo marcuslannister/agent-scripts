@@ -22,8 +22,8 @@ install_repo_copy() {
 }
 
 help_output="$($COMMAND --help)"
-grep -F 'Usage: update-skill-topology.sh --check [--json]' <<< "$help_output" >/dev/null
-grep -F '0   check clean' <<< "$help_output" >/dev/null
+grep -F 'Usage: update-skill-topology.sh [--check] [--json]' <<< "$help_output" >/dev/null
+grep -F '0   reconciled or check clean' <<< "$help_output" >/dev/null
 grep -F '1   drift or verification failure' <<< "$help_output" >/dev/null
 grep -F '2   invalid usage or manifest' <<< "$help_output" >/dev/null
 grep -F '3   user decision required' <<< "$help_output" >/dev/null
@@ -60,6 +60,9 @@ CODEX_EXCEPTIONS=(
 for skill in "${CODEX_EXCEPTIONS[@]}"; do
   install_repo_copy "$HOME_DIR/.agents/skills/$skill" "$REPO_ROOT/skills/$skill"
 done
+test -f "$REPO_ROOT/codex-skills/maintainer-orchestrator/SKILL.md"
+test ! -e "$REPO_ROOT/skills/maintainer-orchestrator"
+install_repo_copy "$HOME_DIR/.agents/skills/maintainer-orchestrator" "$REPO_ROOT/codex-skills/maintainer-orchestrator"
 
 HOME="$HOME_DIR" TMPDIR="$RUNTIME_DIR" "$COMMAND" --check --json > "$TMP_ROOT/clean.json" 2> "$TMP_ROOT/clean.err"
 test ! -s "$TMP_ROOT/clean.err"
@@ -69,12 +72,22 @@ jq -e '
   .status == "clean" and
   .drift == [] and
   .decisions == [] and
-  .errors == [] and
-  ([.sources[].id] == ["repo-claude", "repo-codex"]) and
-  (.plan[] | select(.skill == "codex-first") | .destinations == ["claude"]) and
-  (.plan[] | select(.skill == "create-cli") | .destinations == ["claude", "codex"])
+    .errors == [] and
+    ([.sources[].id] == ["repo-claude", "repo-codex"]) and
+    (.plan[] | select(.skill == "codex-first") | .destinations == ["claude"]) and
+    (.plan[] | select(.skill == "create-cli") | .destinations == ["claude", "codex"]) and
+    (.plan[] | select(.skill == "maintainer-orchestrator") | .sourceId == "repo-codex" and .destinations == ["codex"])
 ' "$TMP_ROOT/clean.json" >/dev/null
-jq -e '.sources[] | select(.id == "repo-claude") | (.overrides | has("codex-first") | not)' "$REPO_ROOT/skill-topology.json" >/dev/null
+jq -e '
+  (.sources[] | select(.id == "repo-claude") |
+    .defaultDestinations == ["claude"] and
+    (.overrides | length) == 21 and
+    ([.overrides[] | select(. != ["claude", "codex"])] | length) == 0 and
+    (.overrides | has("codex-first") | not) and
+    (.overrides | has("maintainer-orchestrator") | not)) and
+  (.sources[] | select(.id == "repo-codex") |
+    .defaultDestinations == ["codex"] and .overrides == {})
+' "$REPO_ROOT/skill-topology.json" >/dev/null
 
 DRIFT_HOME="$TMP_ROOT/drift-home"
 DRIFT_RUNTIME="$TMP_ROOT/drift-runtime"
@@ -94,6 +107,7 @@ for skill in "${CODEX_EXCEPTIONS[@]}"; do
     install_repo_copy "$DRIFT_HOME/.agents/skills/$skill" "$REPO_ROOT/skills/$skill"
   fi
 done
+install_repo_copy "$DRIFT_HOME/.agents/skills/maintainer-orchestrator" "$REPO_ROOT/codex-skills/maintainer-orchestrator"
 
 cp -R "$DRIFT_HOME" "$TMP_ROOT/drift-home-before"
 manifest_before="$(cksum "$REPO_ROOT/skill-topology.json")"
@@ -123,7 +137,7 @@ make_fixture() {
     "$fixture_root/home/.agents/skills/shared-skill" \
     "$fixture_root/home/.agents/skills/codex-tool" \
     "$fixture_root/runtime"
-  cp "$COMMAND" "$fixture_root/scripts/"
+  cp "$COMMAND" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture_root/scripts/"
   cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture_root/scripts/"
   printf '%s\n' '---' 'name: new-skill' 'description: "fixture"' '---' > "$fixture_root/skills/new-skill/SKILL.md"
   printf '%s\n' '---' 'name: shared-skill' 'description: "fixture"' '---' > "$fixture_root/skills/shared-skill/SKILL.md"
@@ -166,6 +180,84 @@ jq -e '
   ([.plan[].skill] | index("untracked-third-party") | not)
 ' "$TMP_ROOT/fixture-clean.json" >/dev/null
 
+RECONCILE_ROOT="$TMP_ROOT/reconcile"
+cp -R "$FIXTURE_BASE" "$RECONCILE_ROOT"
+rm -rf "$RECONCILE_ROOT/home/.agents/skills/shared-skill" "$RECONCILE_ROOT/home/.agents/skills/codex-tool"
+if ! HOME="$RECONCILE_ROOT/home" TMPDIR="$RECONCILE_ROOT/runtime" "$RECONCILE_ROOT/scripts/update-skill-topology.sh" --json > "$RECONCILE_ROOT/first.json"; then
+  cat "$RECONCILE_ROOT/first.json" >&2
+  exit 1
+fi
+jq -e '
+  .mode == "reconcile" and
+  .status == "reconciled" and
+  ([.changes[] | {action, sourceId, skill, destination}] == [
+    {"action":"installed","sourceId":"repo-claude","skill":"shared-skill","destination":"codex"},
+    {"action":"installed","sourceId":"repo-codex","skill":"codex-tool","destination":"codex"}
+  ]) and
+  .errors == []
+' "$RECONCILE_ROOT/first.json" >/dev/null
+cp -R "$RECONCILE_ROOT/home" "$RECONCILE_ROOT/home-after-first"
+HOME="$RECONCILE_ROOT/home" TMPDIR="$RECONCILE_ROOT/runtime" "$RECONCILE_ROOT/scripts/update-skill-topology.sh" --json > "$RECONCILE_ROOT/second.json"
+jq -e '.mode == "reconcile" and .status == "reconciled" and .changes == [] and .errors == []' "$RECONCILE_ROOT/second.json" >/dev/null
+diff -r "$RECONCILE_ROOT/home-after-first" "$RECONCILE_ROOT/home"
+
+CLEANUP_ROOT="$TMP_ROOT/cleanup"
+cp -R "$FIXTURE_BASE" "$CLEANUP_ROOT"
+mkdir -p \
+  "$CLEANUP_ROOT/skills/hand-skill" \
+  "$CLEANUP_ROOT/skills/foreign-skill" \
+  "$CLEANUP_ROOT/home/.agents/skills/retired-skill"
+printf '%s\n' '---' 'name: hand-skill' 'description: "fixture"' '---' > "$CLEANUP_ROOT/skills/hand-skill/SKILL.md"
+printf '%s\n' '---' 'name: foreign-skill' 'description: "fixture"' '---' > "$CLEANUP_ROOT/skills/foreign-skill/SKILL.md"
+git -C "$CLEANUP_ROOT" add skills/hand-skill/SKILL.md skills/foreign-skill/SKILL.md
+install_repo_copy "$CLEANUP_ROOT/home/.agents/skills/new-skill" "$CLEANUP_ROOT/skills/new-skill" "skills/new-skill"
+cp -R "$CLEANUP_ROOT/skills/hand-skill" "$CLEANUP_ROOT/home/.agents/skills/hand-skill"
+cp -R "$CLEANUP_ROOT/skills/foreign-skill" "$CLEANUP_ROOT/home/.agents/skills/foreign-skill"
+printf '%s\n%s\n' skills/foreign-skill other-owner > "$CLEANUP_ROOT/home/.agents/skills/foreign-skill/.agent-scripts-copy"
+printf '%s\n' '---' 'name: retired-skill' 'description: "fixture"' '---' > "$CLEANUP_ROOT/home/.agents/skills/retired-skill/SKILL.md"
+printf '%s\n%s\n' skills/retired-skill repo-skills > "$CLEANUP_ROOT/home/.agents/skills/retired-skill/.agent-scripts-copy"
+
+HOME="$CLEANUP_ROOT/home" TMPDIR="$CLEANUP_ROOT/runtime" "$CLEANUP_ROOT/scripts/update-skill-topology.sh" --json > "$CLEANUP_ROOT/result.json"
+jq -e '
+  .status == "reconciled" and
+  ([.changes[] | select(.action == "removed") | .skill] == ["new-skill", "retired-skill"]) and
+  ([.skipped[] | {skill, reason}] == [
+    {"skill":"foreign-skill","reason":"other-owner"},
+    {"skill":"hand-skill","reason":"unowned"}
+  ]) and
+  .decisions == [] and
+  .errors == []
+' "$CLEANUP_ROOT/result.json" >/dev/null
+test ! -e "$CLEANUP_ROOT/home/.agents/skills/new-skill"
+test ! -e "$CLEANUP_ROOT/home/.agents/skills/retired-skill"
+test -f "$CLEANUP_ROOT/home/.agents/skills/hand-skill/SKILL.md"
+test -f "$CLEANUP_ROOT/home/.agents/skills/foreign-skill/SKILL.md"
+test -f "$CLEANUP_ROOT/home/.agents/skills/shared-skill/SKILL.md"
+
+SOURCE_MOVE_ROOT="$TMP_ROOT/source-move"
+cp -R "$FIXTURE_BASE" "$SOURCE_MOVE_ROOT"
+source_move_hash="$(sed -n '3p' "$SOURCE_MOVE_ROOT/home/.agents/skills/codex-tool/.agent-scripts-copy")"
+printf '%s\n%s\n%s\n' skills/codex-tool repo-skills "$source_move_hash" > "$SOURCE_MOVE_ROOT/home/.agents/skills/codex-tool/.agent-scripts-copy"
+set +e
+HOME="$SOURCE_MOVE_ROOT/home" TMPDIR="$SOURCE_MOVE_ROOT/runtime" "$SOURCE_MOVE_ROOT/scripts/update-skill-topology.sh" --check --json > "$SOURCE_MOVE_ROOT/check.json"
+source_move_check_exit=$?
+set -e
+test "$source_move_check_exit" -eq 1
+jq -e '.status == "drift" and (.drift[] | .sourceId == "repo-codex" and .skill == "codex-tool" and .reason == "source-mismatch")' "$SOURCE_MOVE_ROOT/check.json" >/dev/null
+HOME="$SOURCE_MOVE_ROOT/home" TMPDIR="$SOURCE_MOVE_ROOT/runtime" "$SOURCE_MOVE_ROOT/scripts/update-skill-topology.sh" --json > "$SOURCE_MOVE_ROOT/reconcile.json"
+jq -e '.status == "reconciled" and (.changes[] | .action == "installed" and .sourceId == "repo-codex" and .skill == "codex-tool")' "$SOURCE_MOVE_ROOT/reconcile.json" >/dev/null
+test "$(cd "$(sed -n '1p' "$SOURCE_MOVE_ROOT/home/.agents/skills/codex-tool/.agent-scripts-copy")" && pwd -P)" = "$(cd "$SOURCE_MOVE_ROOT/codex-skills/codex-tool" && pwd -P)"
+
+HUMAN_CLEANUP_ROOT="$TMP_ROOT/human-cleanup"
+cp -R "$FIXTURE_BASE" "$HUMAN_CLEANUP_ROOT"
+install_repo_copy "$HUMAN_CLEANUP_ROOT/home/.agents/skills/new-skill" "$HUMAN_CLEANUP_ROOT/skills/new-skill" "skills/new-skill"
+HOME="$HUMAN_CLEANUP_ROOT/home" TMPDIR="$HUMAN_CLEANUP_ROOT/runtime" "$HUMAN_CLEANUP_ROOT/scripts/update-skill-topology.sh" > "$HUMAN_CLEANUP_ROOT/result.out" 2> "$HUMAN_CLEANUP_ROOT/result.err"
+test ! -s "$HUMAN_CLEANUP_ROOT/result.err"
+grep -F 'Skill topology reconcile' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
+grep -F 'Changes:' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
+grep -F 'removed repo-claude/new-skill -> codex' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
+grep -F 'Result: reconciled (1 changes)' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
+
 SPLIT_OWNER_ROOT="$TMP_ROOT/split-owner"
 cp -R "$FIXTURE_BASE" "$SPLIT_OWNER_ROOT"
 mkdir -p "$SPLIT_OWNER_ROOT/codex-skills/new-skill" "$SPLIT_OWNER_ROOT/home/.agents/skills/new-skill"
@@ -202,6 +294,25 @@ set -e
 test "$tamper_exit" -eq 1
 test ! -s "$TAMPER_ROOT/result.err"
 jq -e '.status == "drift" and (.drift[] | .skill == "shared-skill" and .destination == "codex" and .reason == "content-mismatch")' "$TAMPER_ROOT/result.json" >/dev/null
+
+VERIFY_AGGREGATE_ROOT="$TMP_ROOT/verification-aggregate"
+cp -R "$FIXTURE_BASE" "$VERIFY_AGGREGATE_ROOT"
+chmod 000 \
+  "$VERIFY_AGGREGATE_ROOT/home/.agents/skills/shared-skill/SKILL.md" \
+  "$VERIFY_AGGREGATE_ROOT/home/.agents/skills/codex-tool/SKILL.md"
+set +e
+HOME="$VERIFY_AGGREGATE_ROOT/home" TMPDIR="$VERIFY_AGGREGATE_ROOT/runtime" \
+  "$VERIFY_AGGREGATE_ROOT/scripts/update-skill-topology.sh" --check --json > "$VERIFY_AGGREGATE_ROOT/result.json"
+verify_aggregate_exit=$?
+set -e
+chmod 644 \
+  "$VERIFY_AGGREGATE_ROOT/home/.agents/skills/shared-skill/SKILL.md" \
+  "$VERIFY_AGGREGATE_ROOT/home/.agents/skills/codex-tool/SKILL.md"
+test "$verify_aggregate_exit" -eq 1
+jq -e '
+  .status == "failed" and (.errors | length) == 2 and
+  ([.errors[] | select(contains("repo-claude/shared-skill") or contains("repo-codex/codex-tool"))] | length) == 2
+' "$VERIFY_AGGREGATE_ROOT/result.json" >/dev/null
 
 assert_invalid_manifest() {
   local name="$1"
@@ -280,6 +391,14 @@ run_fixture_json "$UNSUPPORTED_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-claude" and .destination == "codex")' "$UNSUPPORTED_ROOT/result.json" >/dev/null
 
+CODEX_TO_CLAUDE_ROOT="$TMP_ROOT/codex-to-claude"
+cp -R "$FIXTURE_BASE" "$CODEX_TO_CLAUDE_ROOT"
+jq '.sources[1].overrides["codex-tool"] = ["claude"]' "$CODEX_TO_CLAUDE_ROOT/skill-topology.json" > "$CODEX_TO_CLAUDE_ROOT/manifest.tmp"
+mv "$CODEX_TO_CLAUDE_ROOT/manifest.tmp" "$CODEX_TO_CLAUDE_ROOT/skill-topology.json"
+run_fixture_json "$CODEX_TO_CLAUDE_ROOT"
+test "$RUN_EXIT" -eq 3
+jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-codex" and .destination == "claude")' "$CODEX_TO_CLAUDE_ROOT/result.json" >/dev/null
+
 EMPTY_CAPABILITY_ROOT="$TMP_ROOT/empty-unsupported-default"
 cp -R "$FIXTURE_BASE" "$EMPTY_CAPABILITY_ROOT"
 git -C "$EMPTY_CAPABILITY_ROOT" rm --cached -q codex-skills/codex-tool/SKILL.md
@@ -307,6 +426,27 @@ grep -F 'Result: decision-required (1 decision)' "$STALE_ROOT/human.out" >/dev/n
 grep -F 'Decision required:' "$STALE_ROOT/human.err" >/dev/null
 grep -F 'override names a skill absent from repo-claude: removed-skill' "$STALE_ROOT/human.err" >/dev/null
 
+PREFLIGHT_ROOT="$TMP_ROOT/reconcile-preflight"
+cp -R "$FIXTURE_BASE" "$PREFLIGHT_ROOT"
+rm -rf "$PREFLIGHT_ROOT/home/.agents/skills/shared-skill" "$PREFLIGHT_ROOT/home/.agents/skills/codex-tool"
+mkdir -p "$PREFLIGHT_ROOT/skills/preflight-hand" "$PREFLIGHT_ROOT/home/.agents/skills/preflight-hand"
+printf '%s\n' '---' 'name: preflight-hand' 'description: "fixture"' '---' > "$PREFLIGHT_ROOT/skills/preflight-hand/SKILL.md"
+cp "$PREFLIGHT_ROOT/skills/preflight-hand/SKILL.md" "$PREFLIGHT_ROOT/home/.agents/skills/preflight-hand/SKILL.md"
+git -C "$PREFLIGHT_ROOT" add skills/preflight-hand/SKILL.md
+jq '.sources[0].overrides["removed-skill"] = ["codex"]' "$PREFLIGHT_ROOT/skill-topology.json" > "$PREFLIGHT_ROOT/manifest.tmp"
+mv "$PREFLIGHT_ROOT/manifest.tmp" "$PREFLIGHT_ROOT/skill-topology.json"
+set +e
+HOME="$PREFLIGHT_ROOT/home" TMPDIR="$PREFLIGHT_ROOT/runtime" "$PREFLIGHT_ROOT/scripts/update-skill-topology.sh" --json > "$PREFLIGHT_ROOT/result.json"
+preflight_exit=$?
+set -e
+test "$preflight_exit" -eq 3
+jq -e '
+  .mode == "reconcile" and .status == "decision-required" and .changes == [] and
+  (.skipped[] | .sourceId == "repo-claude" and .skill == "preflight-hand" and .destination == "codex" and .reason == "unowned")
+' "$PREFLIGHT_ROOT/result.json" >/dev/null
+test ! -e "$PREFLIGHT_ROOT/home/.agents/skills/shared-skill"
+test ! -e "$PREFLIGHT_ROOT/home/.agents/skills/codex-tool"
+
 COLLISION_ROOT="$TMP_ROOT/collision"
 cp -R "$FIXTURE_BASE" "$COLLISION_ROOT"
 mkdir -p "$COLLISION_ROOT/codex-skills/shared-skill"
@@ -314,7 +454,11 @@ printf '%s\n' '---' 'name: shared-skill' 'description: "fixture"' '---' > "$COLL
 git -C "$COLLISION_ROOT" add codex-skills/shared-skill/SKILL.md
 run_fixture_json "$COLLISION_ROOT"
 test "$RUN_EXIT" -eq 3
-jq -e '.status == "decision-required" and (.decisions[] | .code == "surface-collision" and .skill == "shared-skill" and .destination == "codex")' "$COLLISION_ROOT/result.json" >/dev/null
+jq -e '
+  .status == "decision-required" and
+  (.decisions[] | .code == "surface-collision" and .skill == "shared-skill" and .destination == "codex") and
+  ([.sources[] | select(.result == "decision-required") | .id] == ["repo-claude", "repo-codex"])
+' "$COLLISION_ROOT/result.json" >/dev/null
 
 ADAPTER_FAILURE_ROOT="$TMP_ROOT/adapter-failure"
 cp -R "$FIXTURE_BASE" "$ADAPTER_FAILURE_ROOT"
@@ -328,6 +472,108 @@ run_fixture_json "$ADAPTER_FAILURE_ROOT"
 test "$RUN_EXIT" -eq 1
 jq -e '.status == "failed" and (.errors[0] | contains("fixture discovery failure"))' "$ADAPTER_FAILURE_ROOT/result.json" >/dev/null
 test -z "$(find "$ADAPTER_FAILURE_ROOT/runtime" -mindepth 1 -print -quit)"
+
+RUNTIME_FAILURE_ROOT="$TMP_ROOT/runtime-adapter-failure"
+cp -R "$FIXTURE_BASE" "$RUNTIME_FAILURE_ROOT"
+rm -rf "$RUNTIME_FAILURE_ROOT/home/.agents/skills/shared-skill" "$RUNTIME_FAILURE_ROOT/home/.agents/skills/codex-tool"
+mv "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${4:-discover}" = reconcile ] || [ "${4:-discover}" = verify ]; then
+  printf '%s:%s\n' "$1" "$4" >> "$TOPOLOGY_ADAPTER_LOG"
+fi
+if [ "$1" = repo-claude ] && [ "${4:-discover}" = reconcile ]; then
+  echo "fixture reconcile failure" >&2
+  exit 1
+fi
+exec "${BASH_SOURCE[0]%/*}/repo-owned-real.sh" "$@"
+BASH
+chmod +x "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+set +e
+TOPOLOGY_ADAPTER_LOG="$RUNTIME_FAILURE_ROOT/adapter.log" \
+HOME="$RUNTIME_FAILURE_ROOT/home" \
+TMPDIR="$RUNTIME_FAILURE_ROOT/runtime" \
+  "$RUNTIME_FAILURE_ROOT/scripts/update-skill-topology.sh" --json > "$RUNTIME_FAILURE_ROOT/result.json" 2> "$RUNTIME_FAILURE_ROOT/result.err"
+runtime_failure_exit=$?
+set -e
+test "$runtime_failure_exit" -eq 1
+test ! -s "$RUNTIME_FAILURE_ROOT/result.err"
+test "$(sort "$RUNTIME_FAILURE_ROOT/adapter.log")" = "$(printf '%s\n' repo-claude:reconcile repo-claude:verify repo-codex:reconcile repo-codex:verify | sort)"
+test ! -e "$RUNTIME_FAILURE_ROOT/home/.agents/skills/shared-skill"
+test -f "$RUNTIME_FAILURE_ROOT/home/.agents/skills/codex-tool/SKILL.md"
+jq -e '
+  .status == "failed" and
+  ([.errors[] | select(contains("source repo-claude reconciliation failed") or contains("source repo-claude verification failed") or contains("final verification failed: repo-claude/shared-skill -> codex: missing"))] | length) == 3 and
+  (.changes[] | .sourceId == "repo-codex" and .skill == "codex-tool" and .action == "installed")
+' "$RUNTIME_FAILURE_ROOT/result.json" >/dev/null
+set +e
+TOPOLOGY_ADAPTER_LOG="$RUNTIME_FAILURE_ROOT/adapter.log" \
+HOME="$RUNTIME_FAILURE_ROOT/home" \
+TMPDIR="$RUNTIME_FAILURE_ROOT/runtime" \
+  "$RUNTIME_FAILURE_ROOT/scripts/update-skill-topology.sh" > "$RUNTIME_FAILURE_ROOT/human.out" 2> "$RUNTIME_FAILURE_ROOT/human.err"
+runtime_human_exit=$?
+set -e
+test "$runtime_human_exit" -eq 1
+grep -F 'Result: failed' "$RUNTIME_FAILURE_ROOT/human.out" >/dev/null
+grep -F 'error: source repo-claude reconciliation failed: fixture reconcile failure' "$RUNTIME_FAILURE_ROOT/human.err" >/dev/null
+grep -F 'error: source repo-claude verification failed:' "$RUNTIME_FAILURE_ROOT/human.err" >/dev/null
+grep -F 'error: final verification failed: repo-claude/shared-skill -> codex: missing' "$RUNTIME_FAILURE_ROOT/human.err" >/dev/null
+
+FINAL_DECISION_ROOT="$TMP_ROOT/final-decision"
+cp -R "$FIXTURE_BASE" "$FINAL_DECISION_ROOT"
+rm -rf "$FINAL_DECISION_ROOT/home/.agents/skills/shared-skill"
+mv "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+real_adapter="${BASH_SOURCE[0]%/*}/repo-owned-real.sh"
+if [ "$1" = repo-claude ] && [ "${4:-discover}" = reconcile ]; then
+  "$real_adapter" "$@"
+  rm -f "$6/.agents/skills/shared-skill/.agent-scripts-copy"
+  exit 0
+fi
+exec "$real_adapter" "$@"
+BASH
+chmod +x "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+set +e
+HOME="$FINAL_DECISION_ROOT/home" TMPDIR="$FINAL_DECISION_ROOT/runtime" \
+  "$FINAL_DECISION_ROOT/scripts/update-skill-topology.sh" --json > "$FINAL_DECISION_ROOT/result.json"
+final_decision_exit=$?
+set -e
+test "$final_decision_exit" -eq 3
+jq -e '
+  .status == "decision-required" and
+  (.decisions[] | .code == "surface-ownership-collision" and .sourceId == "repo-claude" and .skill == "shared-skill" and .destination == "codex") and
+  (.errors[] | contains("source repo-claude verification failed"))
+' "$FINAL_DECISION_ROOT/result.json" >/dev/null
+
+FINAL_SKIP_ROOT="$TMP_ROOT/final-skip"
+cp -R "$FIXTURE_BASE" "$FINAL_SKIP_ROOT"
+install_repo_copy "$FINAL_SKIP_ROOT/home/.agents/skills/new-skill" "$FINAL_SKIP_ROOT/skills/new-skill" "skills/new-skill"
+mv "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+real_adapter="${BASH_SOURCE[0]%/*}/repo-owned-real.sh"
+if [ "$1" = repo-claude ] && [ "${4:-discover}" = reconcile ]; then
+  marker="$6/.agents/skills/new-skill/.agent-scripts-copy"
+  printf '%s\n%s\n%s\n' "$(sed -n '1p' "$marker")" other-owner "$(sed -n '3p' "$marker")" > "$marker"
+fi
+exec "$real_adapter" "$@"
+BASH
+chmod +x "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+set +e
+HOME="$FINAL_SKIP_ROOT/home" TMPDIR="$FINAL_SKIP_ROOT/runtime" \
+  "$FINAL_SKIP_ROOT/scripts/update-skill-topology.sh" --json > "$FINAL_SKIP_ROOT/result.json"
+final_skip_exit=$?
+set -e
+test "$final_skip_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  (.skipped[] | .sourceId == "repo-claude" and .skill == "new-skill" and .destination == "codex" and .reason == "other-owner") and
+  (.errors[] | contains("source repo-claude reconciliation failed"))
+' "$FINAL_SKIP_ROOT/result.json" >/dev/null
 
 REMOTE_ROOT="$TMP_ROOT/remote-discovery"
 cp -R "$FIXTURE_BASE" "$REMOTE_ROOT"

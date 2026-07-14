@@ -1,6 +1,6 @@
-export const HELP = `Usage: update-skill-topology.sh --check [--json]
+export const HELP = `Usage: update-skill-topology.sh [--check] [--json]
 
-Preview the manifest-owned skill distribution topology without changing it.
+Reconcile the manifest-owned skill distribution topology. Use --check to preview.
 
 Options:
   --check  Discover inventory and report topology drift.
@@ -9,7 +9,7 @@ Options:
             Show this help.
 
 Exit codes:
-  0   check clean
+  0   reconciled or check clean
   1   drift or verification failure
   2   invalid usage or manifest
   3   user decision required
@@ -17,7 +17,7 @@ Exit codes:
 `;
 
 export function writeHuman(document) {
-  process.stdout.write("Skill topology check\n");
+  process.stdout.write(`Skill topology ${document.mode}\n`);
   process.stdout.write(`${"SOURCE".padEnd(13)}${"INVENTORY".padEnd(11)}${"DEFAULT".padEnd(9)}RESULT\n`);
   for (const source of document.sources) {
     process.stdout.write(`${source.id.padEnd(13)}${String(source.inventoryCount).padEnd(11)}${source.defaultDestinations.join(",").padEnd(9)}${source.result}\n`);
@@ -28,9 +28,21 @@ export function writeHuman(document) {
   for (const item of document.drift) {
     process.stdout.write(`- ${item.sourceId}/${item.skill} -> ${item.destination}: ${item.reason}\n`);
   }
+  if (document.changes.length > 0) {
+    process.stdout.write("\nChanges:\n");
+  }
+  for (const item of document.changes) {
+    process.stdout.write(`- ${item.action} ${item.sourceId}/${item.skill} -> ${item.destination}\n`);
+  }
+  if (document.skipped.length > 0) {
+    process.stdout.write("\nSkipped:\n");
+  }
+  for (const item of document.skipped) {
+    process.stdout.write(`- ${item.sourceId}/${item.skill} -> ${item.destination}: ${item.reason}\n`);
+  }
   const resultCount = document.decisions.length > 0
     ? `${document.decisions.length} decision${document.decisions.length === 1 ? "" : "s"}`
-    : `${document.drift.length} changes`;
+    : `${document.mode === "check" ? document.drift.length : document.changes.length} changes`;
   process.stdout.write(`\nResult: ${document.status} (${resultCount})\n`);
 
   if (document.decisions.length > 0) {
@@ -42,12 +54,15 @@ export function writeHuman(document) {
   for (const warning of document.warnings) {
     process.stderr.write(`warning: ${warning.message}\n`);
   }
+  for (const error of document.errors) {
+    process.stderr.write(`error: ${error}\n`);
+  }
 }
 
-export function failureDocument(error) {
+export function failureDocument(error, mode = "check") {
   return {
     schemaVersion: 1,
-    mode: "check",
+    mode,
     status: error.exitCode === 2 ? "invalid" : error.exitCode === 130 ? "interrupted" : "failed",
     sources: [],
     plan: [],
@@ -55,5 +70,7 @@ export function failureDocument(error) {
     decisions: [],
     errors: [error.message],
     warnings: [],
+    changes: [],
+    skipped: [],
   };
 }

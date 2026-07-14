@@ -10,7 +10,7 @@ import { TopologyError } from "./errors.mjs";
 import { acquireLock, releaseLock } from "./lock.mjs";
 import { failureDocument, HELP, writeHuman } from "./report.mjs";
 import { DESTINATIONS, readManifest, readRegistry } from "./schema.mjs";
-import { inspectDestination } from "./state.mjs";
+import { inspectDestination, listRetiredOwnedCopies } from "./state.mjs";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(moduleDirectory, "../..");
@@ -21,23 +21,23 @@ let activeLock = null;
 
 function parseArguments(args) {
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
-    return { help: true, json: false };
+    return { help: true, json: false, mode: "reconcile" };
   }
 
   const json = args.includes("--json");
   const check = args.includes("--check");
   const known = args.every((argument) => argument === "--check" || argument === "--json");
-  if (!known || !check || args.filter((argument) => argument === "--check").length !== 1 || args.filter((argument) => argument === "--json").length > 1) {
-    throw new TopologyError("use --check to preview the skill topology", 2);
+  if (!known || args.filter((argument) => argument === "--check").length > 1 || args.filter((argument) => argument === "--json").length > 1) {
+    throw new TopologyError("invalid arguments; use --check only to preview the skill topology", 2);
   }
 
-  return { help: false, json };
+  return { help: false, json, mode: check ? "check" : "reconcile" };
 }
 
-function discoverInventory(adapter, discoveryRoot) {
+function runAdapterProcess(adapter, args) {
   const command = path.resolve(moduleDirectory, adapter.command);
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, [adapter.sourceId, repoRoot, discoveryRoot], {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
       cwd: repoRoot,
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
@@ -49,27 +49,232 @@ function discoverInventory(adapter, discoveryRoot) {
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.on("error", (error) => {
-      activeChildren.delete(child);
-      reject(new TopologyError(`source ${adapter.sourceId} discovery failed: ${error.message}`, 1));
-    });
-    child.on("close", (code) => {
-      activeChildren.delete(child);
-      if (code !== 0) {
-        reject(new TopologyError(`source ${adapter.sourceId} discovery failed${stderr.trim() ? `: ${stderr.trim()}` : ""}`, 1));
+    let finished = false;
+    const finish = (result) => {
+      if (finished) {
         return;
       }
-      const inventory = stdout.split(/\r?\n/u).filter(Boolean).sort();
-      resolve(inventory);
+      finished = true;
+      activeChildren.delete(child);
+      resolve(result);
+    };
+    child.on("error", (error) => {
+      finish({ code: 1, stdout, stderr: error.message });
+    });
+    child.on("close", (code) => {
+      finish({ code: code ?? 1, stdout, stderr });
     });
   });
+}
+
+async function discoverInventory(adapter, discoveryRoot) {
+  const result = await runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot]);
+  if (interrupted) {
+    throw new TopologyError("interrupted", 130);
+  }
+  if (result.code !== 0) {
+    throw new TopologyError(`source ${adapter.sourceId} discovery failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`, 1);
+  }
+  return result.stdout.split(/\r?\n/u).filter(Boolean).sort();
 }
 
 function orderedDestinations(destinations) {
   return DESTINATIONS.filter((destination) => destinations.includes(destination));
 }
 
-async function checkTopology() {
+function runRuntimeAdapter(adapter, action, discoveryRoot, planPath) {
+  return runAdapterProcess(adapter, [adapter.sourceId, repoRoot, discoveryRoot, action, planPath, os.homedir()]);
+}
+
+function inspectPlan({ plan, registryBySource, destinationClaims }) {
+  const drift = [];
+  const decisions = [];
+  const errors = [];
+  const skipped = [];
+
+  for (const entry of plan) {
+    entry.missingDestinations = [];
+    entry.unexpectedDestinations = [];
+    const adapter = registryBySource.get(entry.sourceId);
+    for (const destination of adapter.supportedDestinations) {
+      const desired = entry.destinations.includes(destination);
+      const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
+        .some((sourceId) => sourceId !== entry.sourceId);
+      if (!desired && claimedByOtherSource) {
+        continue;
+      }
+
+      const destinationState = inspectDestination({
+        repoRoot,
+        home: os.homedir(),
+        sourceId: entry.sourceId,
+        skill: entry.skill,
+        destination,
+      });
+      if (destinationState.kind === "foreign") {
+        if (desired) {
+          decisions.push({
+            code: "surface-ownership-collision",
+            sourceId: entry.sourceId,
+            skill: entry.skill,
+            destination,
+            message: `${entry.skill} exists on ${destination} but is not the managed ${entry.sourceId} copy`,
+          });
+        } else {
+          skipped.push({
+            sourceId: entry.sourceId,
+            skill: entry.skill,
+            destination,
+            reason: destinationState.reason,
+          });
+        }
+        continue;
+      }
+      if (destinationState.kind === "verification-failed") {
+        errors.push(destinationState.message);
+        continue;
+      }
+
+      const present = destinationState.kind !== "absent";
+      if (desired && !present) {
+        entry.missingDestinations.push(destination);
+        drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: "missing" });
+      } else if (desired && destinationState.driftReason) {
+        drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: destinationState.driftReason });
+      } else if (!desired && present) {
+        entry.unexpectedDestinations.push(destination);
+        drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: "unexpected" });
+      }
+    }
+  }
+
+  const desiredCodexSkills = new Set(plan
+    .filter((entry) => entry.destinations.includes("codex"))
+    .map((entry) => entry.skill));
+  for (const copy of listRetiredOwnedCopies(os.homedir())) {
+    if (desiredCodexSkills.has(copy.skill) || drift.some((item) => item.skill === copy.skill && item.destination === "codex")) {
+      continue;
+    }
+    const sourceId = plan.find((entry) => entry.skill === copy.skill)?.sourceId ?? "repo-claude";
+    drift.push({ sourceId, skill: copy.skill, destination: "codex", reason: "unexpected" });
+  }
+
+  drift.sort((left, right) => `${left.sourceId}\u0000${left.skill}\u0000${left.destination}`.localeCompare(`${right.sourceId}\u0000${right.skill}\u0000${right.destination}`));
+  skipped.sort((left, right) => `${left.sourceId}\u0000${left.skill}\u0000${left.destination}`.localeCompare(`${right.sourceId}\u0000${right.skill}\u0000${right.destination}`));
+  return { drift, decisions, errors, skipped };
+}
+
+async function reconcileTopology({ document, plan, registryBySource, destinationClaims, discoveryRoot }) {
+  const actionsBySource = new Map([...registryBySource.keys()].map((sourceId) => [sourceId, []]));
+  const verificationBySource = new Map([...registryBySource.keys()].map((sourceId) => [sourceId, []]));
+  for (const item of document.drift) {
+    const entry = plan.find((candidate) => candidate.sourceId === item.sourceId && candidate.skill === item.skill);
+    const operation = entry?.destinations.includes(item.destination) ? "install" : "remove";
+    actionsBySource.get(item.sourceId).push({ operation, skill: item.skill, destination: item.destination });
+  }
+  for (const entry of plan) {
+    const adapter = registryBySource.get(entry.sourceId);
+    for (const destination of adapter.supportedDestinations) {
+      if (entry.sourceId === "repo-claude" && destination === "claude") {
+        continue;
+      }
+      const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
+        .some((sourceId) => sourceId !== entry.sourceId);
+      if (!entry.destinations.includes(destination) && claimedByOtherSource) {
+        continue;
+      }
+      verificationBySource.get(entry.sourceId).push({
+        state: entry.destinations.includes(destination) ? "present" : "absent",
+        skill: entry.skill,
+        destination,
+      });
+    }
+  }
+  for (const item of document.drift) {
+    if (plan.some((entry) => entry.sourceId === item.sourceId && entry.skill === item.skill)) {
+      continue;
+    }
+    verificationBySource.get(item.sourceId).push({ state: "absent", skill: item.skill, destination: item.destination });
+  }
+
+  const changes = [];
+  const errors = [];
+  for (const [sourceId, actions] of [...actionsBySource].sort(([left], [right]) => left.localeCompare(right))) {
+    const planPath = path.join(discoveryRoot, `${sourceId}.reconcile.tsv`);
+    const planText = actions
+      .sort((left, right) => `${left.skill}\u0000${left.destination}`.localeCompare(`${right.skill}\u0000${right.destination}`))
+      .map((item) => `${item.operation}\t${item.skill}\t${item.destination}\n`)
+      .join("");
+    fs.writeFileSync(planPath, planText);
+    const result = await runRuntimeAdapter(registryBySource.get(sourceId), "reconcile", discoveryRoot, planPath);
+    if (interrupted) {
+      throw new TopologyError("interrupted", 130);
+    }
+    for (const line of result.stdout.split(/\r?\n/u).filter(Boolean)) {
+      const [action, skill, destination, ...extra] = line.split("\t");
+      if (extra.length > 0 || !["installed", "removed"].includes(action) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(skill ?? "") || !DESTINATIONS.includes(destination)) {
+        errors.push(`source ${sourceId} returned invalid reconcile output`);
+        continue;
+      }
+      changes.push({ action, sourceId, skill, destination });
+    }
+    if (result.code !== 0) {
+      errors.push(`source ${sourceId} reconciliation failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`);
+    }
+  }
+
+  for (const [sourceId, expectedStates] of [...verificationBySource].sort(([left], [right]) => left.localeCompare(right))) {
+    const planPath = path.join(discoveryRoot, `${sourceId}.verify.tsv`);
+    const planText = expectedStates
+      .sort((left, right) => `${left.skill}\u0000${left.destination}`.localeCompare(`${right.skill}\u0000${right.destination}`))
+      .map((item) => `${item.state}\t${item.skill}\t${item.destination}\n`)
+      .join("");
+    fs.writeFileSync(planPath, planText);
+    const result = await runRuntimeAdapter(registryBySource.get(sourceId), "verify", discoveryRoot, planPath);
+    if (interrupted) {
+      throw new TopologyError("interrupted", 130);
+    }
+    if (result.stdout.trim()) {
+      errors.push(`source ${sourceId} returned invalid verification output`);
+    }
+    if (result.code !== 0) {
+      errors.push(`source ${sourceId} verification failed${result.stderr.trim() ? `: ${result.stderr.trim()}` : ""}`);
+    }
+  }
+
+  const verification = inspectPlan({ plan, registryBySource, destinationClaims });
+  errors.push(...verification.errors);
+  for (const item of verification.drift) {
+    errors.push(`final verification failed: ${item.sourceId}/${item.skill} -> ${item.destination}: ${item.reason}`);
+  }
+
+  for (const source of document.sources) {
+    source.result = verification.decisions.some((item) => item.sourceId === source.id)
+      ? "decision-required"
+      : (errors.some((message) => message.includes(`source ${source.id}`))
+          || verification.drift.some((item) => item.sourceId === source.id))
+        ? "failed"
+        : changes.some((item) => item.sourceId === source.id)
+          ? "changed"
+          : "clean";
+  }
+
+  document.mode = "reconcile";
+  document.status = verification.decisions.length > 0
+    ? "decision-required"
+    : errors.length === 0
+      ? "reconciled"
+      : "failed";
+  document.drift = verification.drift;
+  document.decisions = verification.decisions;
+  document.errors = errors;
+  document.changes = changes;
+  document.skipped = verification.skipped;
+  const exitCode = verification.decisions.length > 0 ? 3 : errors.length === 0 ? 0 : 1;
+  return { document, exitCode };
+}
+
+async function evaluateTopology(mode) {
   const manifest = readManifest(manifestPath);
   const registry = readRegistry(registryPath);
   const manifestBySource = new Map(manifest.sources.map((source) => [source.id, source]));
@@ -176,8 +381,12 @@ async function checkTopology() {
       });
     }
 
-    decisions.sort((left, right) => `${left.code}\u0000${left.sourceId ?? left.sourceIds?.join(",") ?? ""}\u0000${left.skill ?? ""}\u0000${left.destination ?? ""}`.localeCompare(`${right.code}\u0000${right.sourceId ?? right.sourceIds?.join(",") ?? ""}\u0000${right.skill ?? ""}\u0000${right.destination ?? ""}`));
+    const inspected = inspectPlan({ plan, registryBySource, destinationClaims });
+    const drift = inspected.drift;
+    decisions.push(...inspected.decisions);
+
     if (decisions.length > 0) {
+      decisions.sort((left, right) => `${left.code}\u0000${left.sourceId ?? left.sourceIds?.join(",") ?? ""}\u0000${left.skill ?? ""}\u0000${left.destination ?? ""}`.localeCompare(`${right.code}\u0000${right.sourceId ?? right.sourceIds?.join(",") ?? ""}\u0000${right.skill ?? ""}\u0000${right.destination ?? ""}`));
       for (const source of sources) {
         if (decisions.some((decision) => decision.sourceId === source.id || decision.sourceIds?.includes(source.id))) {
           source.result = "decision-required";
@@ -186,84 +395,42 @@ async function checkTopology() {
       return {
         document: {
           schemaVersion: 1,
-          mode: "check",
-          status: "decision-required",
-          sources,
-          plan,
-          drift: [],
-          decisions,
-          errors: [],
-          warnings: [],
-        },
-        exitCode: 3,
-      };
-    }
-
-    const drift = [];
-    for (const entry of plan) {
-      const adapter = registryBySource.get(entry.sourceId);
-      for (const destination of adapter.supportedDestinations) {
-        const desired = entry.destinations.includes(destination);
-        const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
-          .some((sourceId) => sourceId !== entry.sourceId);
-        if (!desired && claimedByOtherSource) {
-          continue;
-        }
-
-        const destinationState = inspectDestination({
-          repoRoot,
-          home: os.homedir(),
-          sourceId: entry.sourceId,
-          skill: entry.skill,
-          destination,
-        });
-        if (destinationState.kind === "foreign") {
-          decisions.push({
-            code: "surface-ownership-collision",
-            sourceId: entry.sourceId,
-            skill: entry.skill,
-            destination,
-            message: `${entry.skill} exists on ${destination} but is not the managed ${entry.sourceId} copy`,
-          });
-          continue;
-        }
-        if (destinationState.kind === "verification-failed") {
-          throw new TopologyError(destinationState.message, 1);
-        }
-
-        const present = destinationState.kind !== "absent";
-        if (desired && !present) {
-          entry.missingDestinations.push(destination);
-          drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: "missing" });
-        } else if (desired && destinationState.driftReason) {
-          drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: destinationState.driftReason });
-        } else if (!desired && present) {
-          entry.unexpectedDestinations.push(destination);
-          drift.push({ sourceId: entry.sourceId, skill: entry.skill, destination, reason: "unexpected" });
-        }
-      }
-    }
-
-    if (decisions.length > 0) {
-      decisions.sort((left, right) => `${left.sourceId}\u0000${left.skill}\u0000${left.destination}`.localeCompare(`${right.sourceId}\u0000${right.skill}\u0000${right.destination}`));
-      for (const source of sources) {
-        if (decisions.some((decision) => decision.sourceId === source.id)) {
-          source.result = "decision-required";
-        }
-      }
-      return {
-        document: {
-          schemaVersion: 1,
-          mode: "check",
+          mode,
           status: "decision-required",
           sources,
           plan,
           drift,
           decisions,
-          errors: [],
+          errors: inspected.errors,
           warnings: [],
+          changes: [],
+          skipped: inspected.skipped,
         },
         exitCode: 3,
+      };
+    }
+
+    if (inspected.errors.length > 0) {
+      for (const source of sources) {
+        if (inspected.errors.some((error) => error.includes(`${source.id}/`))) {
+          source.result = "failed";
+        }
+      }
+      return {
+        document: {
+          schemaVersion: 1,
+          mode,
+          status: "failed",
+          sources,
+          plan,
+          drift,
+          decisions: [],
+          errors: inspected.errors,
+          warnings: [],
+          changes: [],
+          skipped: inspected.skipped,
+        },
+        exitCode: 1,
       };
     }
 
@@ -273,18 +440,24 @@ async function checkTopology() {
       }
     }
 
+    const document = {
+      schemaVersion: 1,
+      mode,
+      status: drift.length === 0 ? "clean" : "drift",
+      sources,
+      plan,
+      drift,
+      decisions,
+      errors: [],
+      warnings: [],
+      changes: [],
+      skipped: inspected.skipped,
+    };
+    if (mode === "reconcile") {
+      return await reconcileTopology({ document, plan, registryBySource, destinationClaims, discoveryRoot });
+    }
     return {
-      document: {
-        schemaVersion: 1,
-        mode: "check",
-        status: drift.length === 0 ? "clean" : "drift",
-        sources,
-        plan,
-        drift,
-        decisions,
-        errors: [],
-        warnings: [],
-      },
+      document,
       exitCode: drift.length === 0 ? 0 : 1,
     };
   } finally {
@@ -319,7 +492,7 @@ async function run() {
   const lock = acquireLock();
   activeLock = lock;
   try {
-    const result = await checkTopology();
+    const result = await evaluateTopology(options.mode);
     if (interrupted) {
       throw new TopologyError("interrupted", 130);
     }
@@ -350,7 +523,8 @@ try {
       ? caught
       : new TopologyError(caught.message, 1);
   if (requestedJson) {
-    process.stdout.write(`${JSON.stringify(failureDocument(error), null, 2)}\n`);
+    const mode = process.argv.slice(2).includes("--check") ? "check" : "reconcile";
+    process.stdout.write(`${JSON.stringify(failureDocument(error, mode), null, 2)}\n`);
   } else {
     process.stderr.write(`error: ${error.message}\n`);
   }

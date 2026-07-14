@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-const COPY_OWNER = "repo-skills";
+export const COPY_OWNER = "repo-skills";
 
 function contentFiles(root) {
   const files = [];
@@ -50,6 +50,14 @@ function destinationPath(repoRoot, home, destination, skill) {
   return path.join(home, ".agents", "skills", skill);
 }
 
+function canonicalPath(candidate) {
+  try {
+    return fs.realpathSync(candidate);
+  } catch {
+    return path.resolve(candidate);
+  }
+}
+
 export function inspectDestination({ repoRoot, home, sourceId, skill, destination }) {
   if (sourceId === "repo-claude" && destination === "claude") {
     return { kind: "canonical" };
@@ -65,15 +73,15 @@ export function inspectDestination({ repoRoot, home, sourceId, skill, destinatio
   try {
     markerLines = fs.readFileSync(path.join(installedPath, ".agent-scripts-copy"), "utf8").split(/\r?\n/u);
     if (markerLines[1] !== COPY_OWNER) {
-      return { kind: "foreign" };
+      return { kind: "foreign", reason: markerLines[1] ? "other-owner" : "unowned" };
     }
-    const recordedSource = fs.realpathSync(path.resolve(repoRoot, markerLines[0] ?? ""));
-    const expectedSource = fs.realpathSync(expectedSourcePath);
+    const recordedSource = canonicalPath(path.resolve(repoRoot, markerLines[0] ?? ""));
+    const expectedSource = canonicalPath(expectedSourcePath);
     if (recordedSource !== expectedSource) {
-      return { kind: "foreign" };
+      return { kind: "managed", driftReason: "source-mismatch" };
     }
   } catch {
-    return { kind: "foreign" };
+    return { kind: "foreign", reason: "unowned" };
   }
 
   const storedHash = markerLines[2];
@@ -90,4 +98,27 @@ export function inspectDestination({ repoRoot, home, sourceId, skill, destinatio
   } catch (error) {
     return { kind: "verification-failed", message: `cannot verify ${sourceId}/${skill} on ${destination}: ${error.message}` };
   }
+}
+
+export function listRetiredOwnedCopies(home) {
+  const surface = path.join(home, ".agents", "skills");
+  if (!fs.existsSync(surface)) {
+    return [];
+  }
+
+  const copies = [];
+  for (const entry of fs.readdirSync(surface, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name)) {
+      continue;
+    }
+    try {
+      const marker = fs.readFileSync(path.join(surface, entry.name, ".agent-scripts-copy"), "utf8").split(/\r?\n/u);
+      if (marker[1] === COPY_OWNER) {
+        copies.push({ skill: entry.name, destination: "codex" });
+      }
+    } catch {
+      // Unowned entries are outside retired-publisher cleanup.
+    }
+  }
+  return copies.sort((left, right) => left.skill.localeCompare(right.skill));
 }

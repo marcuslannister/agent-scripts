@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-13 — Repo-Owned Skill Reconciliation
+- `update-skill-topology.sh` now reconciles by default, aggregates independent repo adapter failures, always verifies final managed state, and reports installs, removals, skipped unowned entries, and decisions; `--check` remains non-mutating.
+- Moved `maintainer-orchestrator` to the Codex-only authoring source, retained `codex-first` as Claude-only and 21 explicit both-surface approvals, and limited first-run cleanup to disallowed copies marked `repo-skills` while preserving unmarked, other-owner, and approved entries.
+
 ## 2026-07-13 — Repo-Owned Skill Topology Preview
 - Added strict versioned `skill-topology.json` policy for repo-owned source defaults and named Codex distribution exceptions.
 - Added non-mutating `update-skill-topology.sh --check` with human/JSON reports, complete-plan validation, distinct recovery exit codes, temporary discovery, and stale-safe single-writer locking.

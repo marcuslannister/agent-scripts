@@ -5,13 +5,14 @@ Shared agent instructions, skills, and small portable helpers for Peter's local 
 This repo is the canonical place for:
 - `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
 - `skill-topology.json`: versioned desired distribution for registered skill sources
-- `skills/`: reusable workflow skills, including repo-owned skills exposed by symlink
+- `skills/`: repo-owned Claude-authored skills plus untracked third-party copies
+- `codex-skills/`: repo-owned Codex-only authoring source
 - `scripts/`: dependency-light helpers used across projects
 - `hooks/`: local guardrails such as skill validation
 
 ## Skills
 
-Skills are the main routing layer. Each `skills/<name>/SKILL.md` has YAML front matter:
+Skills are the main routing layer. Each `skills/<name>/SKILL.md` or `codex-skills/<name>/SKILL.md` has YAML front matter:
 
 ```yaml
 ---
@@ -29,7 +30,8 @@ Rules:
 
 Global discovery — one skills root per CLI:
 - Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
-- Codex: `~/.agents/skills` only; explicit `scripts/update-repo-skills.sh` runs sync tracked skills in `skills/` there as marked copies. Routine updates do not publish them. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill. If legacy entries reappear under `~/.codex/skills`, the updater moves every non-`.system` entry into `~/.codex/skills-migrated-<timestamp>`, leaves the active Codex surface untouched, then verifies the old root has no non-system entries and every tracked repo skill is present as a marked copy under `~/.agents/skills`.
+- Codex: `~/.agents/skills` only; default `scripts/update-skill-topology.sh` reconciliation installs repo-owned skills approved by `skill-topology.json`. Claude-authored skills default to Claude, 21 named skills explicitly reach both surfaces, `codex-first` remains Claude-only, and `maintainer-orchestrator` is authored under `codex-skills/` for Codex only.
+- The old `~/.codex/skills` root is legacy. `scripts/update-repo-skills.sh` still owns its migration/backup recovery until root hygiene moves into the topology module; it is not part of routine updates.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
 
@@ -63,8 +65,8 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
-- Check-only topology preview: `--check` discovers repo-owned Claude and Codex inventories, validates the complete manifest plan, and reports clean state, drift, or decisions without persistent writes. Reconciliation remains outside this command for now.
-- Add `--json` for one stable JSON document. Exit codes: `0` clean, `1` drift/discovery/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
+- Default mode discovers both repo-owned inventories, validates the complete manifest plan before distribution writes, reconciles approved copies, removes only disallowed `repo-skills`-owned copies, and verifies final managed state. Unmarked and other-owner entries remain untouched and are reported when skipped.
+- Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
@@ -104,7 +106,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Idempotent; prints changes only, prunes broken/stale managed links, never clobbers real files.
 
 `scripts/validate-skills`
-- Checks every `skills/*/SKILL.md`.
+- Checks every repo-owned `skills/*/SKILL.md` and `codex-skills/*/SKILL.md`.
 - Verifies YAML front matter plus required `name` and `description`.
 - Enable as a local hook with `git config core.hooksPath hooks`.
 - Requires Python 3 with PyYAML (`pip install pyyaml`; add `--break-system-packages` on an externally-managed Python).

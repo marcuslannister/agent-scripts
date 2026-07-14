@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-skill = File.read(File.expand_path("../skills/maintainer-orchestrator/SKILL.md", __dir__))
-metadata = File.read(File.expand_path("../skills/maintainer-orchestrator/agents/openai.yaml", __dir__))
+skill = File.read(File.expand_path("../codex-skills/maintainer-orchestrator/SKILL.md", __dir__))
+metadata = File.read(File.expand_path("../codex-skills/maintainer-orchestrator/agents/openai.yaml", __dir__))
 
 requirements = {
   "Codex app workers only" => "a worker is an owned Codex app thread, never a collaboration subagent",

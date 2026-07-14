@@ -8,7 +8,7 @@
   {
     "sourceId": "repo-codex",
     "classification": "repo-owned",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": ["codex"],
     "command": "adapters/repo-owned.sh"
   }
 ]
