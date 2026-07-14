@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-13 — Routine Update Guard and Repository Verifier
+- Routine `update-all.sh` runs no bulk repo-skills publication step; its black-box regression locks the supported updater order and excludes repo publication.
+- Added `scripts/verify.sh` as the one local and CI verification interface for skill validation, Bash syntax, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks, with actionable dependency preflights.
+
 ## 2026-07-12 — AGENTS.MD Reconciliation
 - Reorganized `AGENTS.MD` into Core / Routing / Project Defaults / PR-CI / Runtime Safety / Git sections, folding in reconciled upstream rules (`$codex-first` routing, `gitcrawl gh` read shim, zsh loop and `--no-gpg-sign` safety notes) while keeping the fork's own identity and internal/external disclosure rules.
 

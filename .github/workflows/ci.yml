@@ -22,35 +22,11 @@ jobs:
         with:
           bun-version: 1.3.14
 
-      - name: Check shell helper syntax
-        run: |
-          find skills -path '*/scripts/*' -type f -print0 |
-            while IFS= read -r -d '' script; do
-              if head -n 1 "$script" | grep -q 'bash'; then
-                bash -n "$script"
-              fi
-            done
-
-      - name: Validate skill front matter
+      - name: Install verification dependencies
         run: |
           python3 -m pip install --quiet pyyaml
-          scripts/validate-skills
-
-      - name: Test maintainer orchestrator worker boundary
-        run: scripts/test-maintainer-orchestrator-policy
-
-      - name: Build browser helper
-        run: |
           bun install --frozen-lockfile
-          bun build scripts/browser-tools.ts --compile --target bun --outfile /tmp/browser-tools
-          /tmp/browser-tools --help
+          npm ci --prefix skills/video-transcript-downloader
 
-      - name: Install video transcript downloader dependencies
-        working-directory: skills/video-transcript-downloader
-        run: npm ci
-
-      - name: Smoke video transcript downloader
-        working-directory: skills/video-transcript-downloader
-        run: |
-          node -e "import('youtube-transcript-plus').then(m => { if (typeof m.YoutubeTranscript?.fetchTranscript !== 'function') process.exit(1); })"
-          ./scripts/vtd.js transcript --help
+      - name: Verify
+        run: scripts/verify.sh

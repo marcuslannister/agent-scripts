@@ -28,7 +28,7 @@ Rules:
 
 Global discovery — one skills root per CLI:
 - Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
-- Codex: `~/.agents/skills` only; `scripts/update-repo-skills.sh` (part of `update-all.sh`) syncs the tracked skills in `skills/` there as marked copies. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill. If legacy entries reappear under `~/.codex/skills`, the updater moves every non-`.system` entry into `~/.codex/skills-migrated-<timestamp>`, leaves the active Codex surface untouched, then verifies the old root has no non-system entries and every tracked repo skill is present as a marked copy under `~/.agents/skills`.
+- Codex: `~/.agents/skills` only; explicit `scripts/update-repo-skills.sh` runs sync tracked skills in `skills/` there as marked copies. Routine updates do not publish them. The old `~/.codex/skills` symlink is gone — it made Codex load both roots and see duplicates of every synced skill. If legacy entries reappear under `~/.codex/skills`, the updater moves every non-`.system` entry into `~/.codex/skills-migrated-<timestamp>`, leaves the active Codex surface untouched, then verifies the old root has no non-system entries and every tracked repo skill is present as a marked copy under `~/.agents/skills`.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
 
@@ -54,8 +54,12 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, `update-waza.sh`, `update-mattpocock-skills.sh`, then `update-repo-skills.sh`.
+- Top-level updater: runs `update-agents.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, `update-claude-mem.sh`, `update-waza.sh`, then `update-mattpocock-skills.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
+
+`scripts/verify.sh`
+- Single local/CI verifier: skill validation, Bash syntax, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks.
+- Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
