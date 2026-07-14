@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0002
+---
+
 # One skills root per CLI
 
 Codex used to read both `~/.agents/skills` and the repo `skills/` dir (through a `~/.codex/skills` symlink), so every skill synced from the Codex surface into the Claude surface loaded twice. We decided each CLI reads exactly one root: Claude Code reads repo `skills/` via `~/.claude/skills`; Codex reads only `~/.agents/skills`, with `scripts/update-repo-skills.sh` syncing tracked repo skills there as marked copies (refreshed manually via `update-all.sh`).
