@@ -35,7 +35,7 @@ Global discovery — one skills root per CLI:
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
 
-Shared personal skills live as real folders in `skills/`. Third-party skills arrive as untracked rsync copies behind marker-delimited ignore blocks (tracked `.gitignore` or repo-local `.git/info/exclude`; see the `scripts/update-*-skills.sh` updaters); `skills/` contains no symlinks.
+Shared personal skills live as real folders in `skills/`. Copy-distributed third-party skills arrive through private topology adapters as untracked rsync copies behind marker-delimited ignore blocks (tracked `.gitignore` or repo-local `.git/info/exclude`); `skills/` contains no symlinks.
 
 ## Agent Instructions
 
@@ -57,11 +57,11 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `scripts/update-all.sh`
-- Top-level updater: runs `update-agents.sh`, `update-cli-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, then `update-mattpocock-skills.sh`; generic and direct plugin updates stay outside routine execution.
+- Top-level updater: exactly two ordered steps — `update-agents.sh`, then `update-skill-topology.sh`.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/verify.sh`
-- Single local/CI verifier: skill validation, Bash syntax, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks.
+- Single local/CI verifier: skill validation, Bash syntax, topology cutover policy, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks.
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
@@ -69,35 +69,19 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 - Waza and claude-mem use manifest-scoped native Claude/Codex adapters. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
 - Matt skills default to both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; `find-skills` is retired and its known lock/copy state is removed during reconciliation.
-- Staged migration: legacy per-source commands below remain callable until the final routine-updater cutover. Generic plugin mutation delegates to manifest topology, generic npx mutation is inert, and direct Waza/claude-mem commands are no longer routine steps.
+- Exit `3` means no distribution mutation occurred. Inspect `--check --json` decisions, make an explicit manifest or installed-state decision, then rerun; do not guess a fallback or delete unowned entries.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
 - Tries both even if one fails; prints version before/after each.
 
-`scripts/update-cc-plugins.sh`
-- Compatibility entrypoint that delegates to `update-skill-topology.sh`; bulk installed-plugin mutation is no longer available outside manifest policy.
+Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. Their mechanics now live only in `scripts/distribution-topology/adapters/`.
 
-`scripts/update-cli-skills.sh`
-- Staged inert public-CLI compatibility entrypoint retained only until issue #18's final cutover. Generic npx updates and `find-skills` bootstrap are retired; use `update-skill-topology.sh`.
-
-`scripts/update-waza.sh`
-- Legacy direct entrypoint retained during staged migration. `update-skill-topology.sh` owns routine Waza policy and native installation on both surfaces.
-
-`scripts/update-mattpocock-skills.sh`
-- Reconciles Matt Pocock's complete upstream skill set into `~/.agents/skills` for Codex: updates changed skills, installs additions, and removes canonical directories deleted or renamed upstream. Then rsyncs the current set into `skills/` as untracked copies for Claude Code (deny-list: `code-review`, which would collide with the built-in), removing stale copies and regenerating a repo-local `# matt-skills` block in `.git/info/exclude` so upstream churn does not dirty tracked files.
-
-`scripts/update-visual-explainer.sh`
-- Clones/pulls `nicobailon/visual-explainer` under `~/Projects`, then rsyncs the plugin dir to `~/.agents/skills/visual-explainer` (Codex's user skill root) as a copy — never a symlink. Claude Code gets it as a marketplace plugin instead.
-
-`scripts/update-khazix-skills.sh`
-- Clones/pulls `KKKKhazix/khazix-skills` under `~/Projects` and rsyncs its `neat-freak` skill into `skills/` as an untracked copy behind a `# khazix-skills` block in `.gitignore`.
-
-`scripts/update-anthropic-skills.sh`
-- Clones/pulls `anthropics/skills` into `~/Projects/anthropic-skills`, rsyncs `docx`, `xlsx`, `pdf`, and `pptx` into `skills/` as untracked copies behind an `# anthropic-skills` block in `.gitignore`, copies those same document skills into `~/.agents/skills` for Codex, and copies `frontend-design` + `skill-creator` into `~/.agents/skills` only: Claude Code ships both via plugins and does not read `~/.agents/skills`, so Codex gets them without duplicating the plugins.
-
-`scripts/update-claude-mem.sh`
-- Legacy direct entrypoint retained during staged migration. `update-skill-topology.sh` owns routine claude-mem policy, dependency checks, native installation on both surfaces, and final verification without touching the shared `~/.claude-mem` worker/database.
+Topology authoring:
+- Put repo-owned Claude skills under `skills/`; they default to Claude.
+- Put repo-owned Codex-only skills under `codex-skills/`; they default to Codex.
+- For an external skill-bearing source, add exactly one `skill-topology.json` source and one private adapter registration. Record destination defaults and named exceptions in the manifest; never add another public updater.
+- Run `scripts/update-skill-topology.sh --check`, then `scripts/verify.sh` before commit.
 
 `scripts/committer`
 - Stages exactly the listed files.

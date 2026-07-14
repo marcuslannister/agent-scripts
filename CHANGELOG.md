@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-14 — Skill Topology Final Cutover
+- Reduced routine updates to agent CLIs then manifest-owned topology reconciliation, preserving ordered run-all execution, concise summary output, and aggregate failure behavior.
+- Removed all legacy per-source updater commands and generic plugin policy code without shims; added a verifier gate that enforces the private adapter handshake and rejects restoration of bulk repo publication.
+
 ## 2026-07-14 — Codex Root Hygiene and Instruction Setup
 - Moved legacy `~/.codex/skills` migration and final verification into `update-skill-topology.sh` as an independent responsibility, with non-mutating checks, collision-safe timestamped backups, partial-failure reporting, safe reruns, and separate black-box coverage.
 - Deleted the conflicting `sync-skills` mirror without a compatibility shim and added explicit idempotent `setup-agent-instructions.sh`, which owns only absent/shared instruction pointers and preserves real files and foreign symlinks.

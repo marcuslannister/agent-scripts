@@ -89,6 +89,12 @@ find ~/.codex/skills -maxdepth 1 -mindepth 1 ! -name .system -print
 Topology reconciliation should finish green. The final `find` command should print
 nothing.
 
+If the command exits `3`, run `scripts/update-skill-topology.sh --check --json`
+and inspect `decisions`. A source, destination, collision, unknown plugin, or
+unknown npx lock entry needs an explicit policy or installed-state decision.
+Do not restore through the legacy root, guess a copy/plugin fallback, or delete
+an unowned entry. Resolve the decision, then rerun reconciliation.
+
 ## Delete The Backup
 
 Delete a migrated backup only after:

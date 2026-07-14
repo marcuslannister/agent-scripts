@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Black-box contract: routine updates cannot bypass manifest policy through
-# bulk repo publication or generic/direct plugin update entrypoints.
+# Black-box contract: routine updates have exactly two ordered steps and still
+# attempt both, summarize both, and aggregate failure.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
@@ -13,14 +13,7 @@ UPDATE_LOG="$TMPDIR/update.log"
 mkdir -p "$SCRIPTS"
 cp "$REPO_ROOT/scripts/update-all.sh" "$SCRIPTS/"
 
-UPDATERS=(
-  update-agents.sh
-  update-cli-skills.sh
-  update-visual-explainer.sh
-  update-khazix-skills.sh
-  update-anthropic-skills.sh
-  update-mattpocock-skills.sh
-)
+UPDATERS=(update-agents.sh update-skill-topology.sh)
 
 for updater in "${UPDATERS[@]}"; do
   printf '%s\n' \
@@ -30,29 +23,28 @@ for updater in "${UPDATERS[@]}"; do
   chmod +x "$SCRIPTS/$updater"
 done
 
-FORBIDDEN_UPDATERS=(
-  update-repo-skills.sh
-  update-cc-plugins.sh
-  update-claude-mem.sh
-  update-waza.sh
-)
-for updater in "${FORBIDDEN_UPDATERS[@]}"; do
-  printf '%s\n' \
-    '#!/usr/bin/env bash' \
-    'printf '\''forbidden updater: %s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
-    'exit 99' \
-    > "$SCRIPTS/$updater"
-  chmod +x "$SCRIPTS/$updater"
-done
-
 UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" > "$TMPDIR/out" 2>&1
 
 printf '%s\n' "${UPDATERS[@]}" > "$TMPDIR/expected.log"
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
 
-if grep -F 'repo-skills' "$TMPDIR/out" >/dev/null; then
-  echo "FAIL: routine updater invoked or reported repo-skills sync" >&2
+grep -F 'agent CLIs' "$TMPDIR/out" >/dev/null
+grep -F 'skill topology' "$TMPDIR/out" >/dev/null
+
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
+  'exit 17' \
+  > "$SCRIPTS/update-agents.sh"
+chmod +x "$SCRIPTS/update-agents.sh"
+: > "$UPDATE_LOG"
+
+if UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" > "$TMPDIR/failure.out" 2>&1; then
+  echo "FAIL: routine updater ignored a failed step" >&2
   exit 1
 fi
+cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
+grep -F 'agent CLIs' "$TMPDIR/failure.out" >/dev/null
+grep -F 'skill topology' "$TMPDIR/failure.out" >/dev/null
 
 echo "update-all tests passed"

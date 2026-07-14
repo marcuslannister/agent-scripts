@@ -51,6 +51,7 @@ cd "$REPO_ROOT"
 
 section "Bash syntax"
 while IFS= read -r -d '' candidate; do
+  [ -f "$candidate" ] || continue
   first_line=
   IFS= read -r first_line < "$candidate" || true
   case "$candidate:$first_line" in
@@ -60,6 +61,9 @@ done < <(git ls-files -co --exclude-standard -z)
 
 section "Skill front matter"
 scripts/validate-skills
+
+section "Skill topology cutover policy"
+scripts/test-skill-topology-policy
 
 section "Updater and copy regressions"
 for test_file in tests/*-test.sh; do

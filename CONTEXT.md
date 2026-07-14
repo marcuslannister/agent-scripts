@@ -49,12 +49,18 @@ A skill directory rsynced into a surface and kept out of git by a marker-delimit
 _Avoid_: vendored copy, symlink
 
 **Owner**:
-The updater a copy belongs to, recorded on line 2 of the copy's `.agent-scripts-copy` marker (line 1 is the upstream source path, line 3 the sync-time content hash). Orphan cleanup keys on the owner, so several updaters can share one surface without deleting each other's copies. A pre-owner copy with a single-line marker is left untouched until its own updater re-syncs it and stamps the owner.
+The private adapter reconciliation scope a copy belongs to, recorded on line 2 of the copy's `.agent-scripts-copy` marker (line 1 is the upstream source path, line 3 the sync-time content hash). Orphan cleanup keys on the owner, so several registered sources can share one surface without deleting each other's copies. A pre-owner copy with a single-line marker is left untouched until its adapter re-syncs it and stamps the owner.
 _Avoid_: source prefix, gitignore block (the pre-owner ways ownership was inferred)
 
 **Sync-time hash**:
-Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden files, stamped by `install_skill_copy` at sync time (best-effort; omitted when no sha256 tool exists). `check_skill_copy_updates` compares it to the current upstream source (→ upstream advanced) and to the on-disk copy (→ hand-edited locally), so drift in gitignored copies is detectable without a full re-sync. Surfaced by the OSS updaters' `--check-updates` flag.
+Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden files, stamped by `install_skill_copy` at sync time (best-effort; omitted when no sha256 tool exists). Topology checks compare it to the current upstream source (→ upstream advanced) and to the on-disk copy (→ hand-edited locally), so drift in gitignored copies is detectable without a full re-sync. Surfaced by `update-skill-topology.sh --check`.
 _Avoid_: reusing it as an identity or cache key — it only answers "did content change since last sync".
 
-**Updater**:
-A per-source script in `scripts/` that brings one repo's skills/plugins to their desired state; `update-all.sh` orchestrates all of them.
+**Topology manifest**:
+`skill-topology.json`, the only desired-distribution policy. One entry per skill-bearing source; source defaults plus named overrides declare destinations.
+
+**Private adapter**:
+An implementation under `scripts/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
+
+**Routine updater**:
+`update-all.sh`. Exactly two ordered steps: agent CLI updates, then skill-topology reconciliation.

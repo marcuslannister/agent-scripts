@@ -4,7 +4,7 @@ status: superseded by ADR-0002
 
 # One skills root per CLI
 
-Codex used to read both `~/.agents/skills` and the repo `skills/` dir (through a `~/.codex/skills` symlink), so every skill synced from the Codex surface into the Claude surface loaded twice. We decided each CLI reads exactly one root: Claude Code reads repo `skills/` via `~/.claude/skills`; Codex reads only `~/.agents/skills`, with `scripts/update-repo-skills.sh` syncing tracked repo skills there as marked copies only when invoked explicitly.
+Codex used to read both `~/.agents/skills` and the repo `skills/` dir (through a `~/.codex/skills` symlink), so every skill synced from the Codex surface into the Claude surface loaded twice. We decided each CLI reads exactly one root: Claude Code reads repo `skills/` via `~/.claude/skills`; Codex reads only `~/.agents/skills`. ADR-0002 retains that one-root decision but replaces this ADR's bulk `update-repo-skills.sh` publication consequence with manifest-owned topology reconciliation; the old command is deleted.
 
 ## Considered options
 
@@ -13,7 +13,7 @@ Codex used to read both `~/.agents/skills` and the repo `skills/` dir (through a
 
 ## Consequences
 
-- Codex sees repo-skill edits only after an updater run (accepted staleness contract; Claude stays live).
+- Codex sees repo-skill edits only after topology reconciliation (accepted staleness contract; Claude stays live).
 - An independent topology hygiene step moves the old `~/.codex/skills` symlink or any non-system entries beside its `.system` dir into `~/.codex/skills-migrated-<timestamp>`, so a machine in the old topology gets a reversible cleanup instead of silent double-loading. Codex's own bundled system skills under `~/.codex/skills/.system` are tolerated — the CLI recreates that dir itself.
 - Marker-scoped orphan cleanup removes Codex-surface copies whose tracked source was deleted or renamed.
 - CLI-specific skill forks are unified into one CLI-agnostic tracked skill rather than deny-listed (first case: `review-claudemd`).

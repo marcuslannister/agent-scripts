@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="${1:-$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)}"
+MANIFEST="$REPO_ROOT/skill-topology.json"
+REGISTRY="$REPO_ROOT/scripts/distribution-topology/registry.json"
+failed=0
+
+fail() {
+  printf 'skill topology policy: %s\n' "$1" >&2
+  failed=1
+}
+
+for required in update-agents.sh update-all.sh update-skill-topology.sh; do
+  [ -f "$REPO_ROOT/scripts/$required" ] || fail "missing public updater: $required"
+done
+
+for candidate in "$REPO_ROOT"/scripts/update-*.sh; do
+  [ -e "$candidate" ] || continue
+  name="${candidate##*/}"
+  case "$name" in
+    update-agents.sh|update-all.sh|update-skill-topology.sh) ;;
+    *) fail "unexpected public updater: $name" ;;
+  esac
+done
+
+[ ! -e "$REPO_ROOT/scripts/lib-plugins.sh" ] \
+  || fail "generic plugin policy owner remains: lib-plugins.sh"
+
+invocations="$(awk -F '"' '/^"\$SCRIPT_DIR\/update-[a-z-]+\.sh"/ { print $2 }' \
+  "$REPO_ROOT/scripts/update-all.sh")"
+expected_invocations='$SCRIPT_DIR/update-agents.sh
+$SCRIPT_DIR/update-skill-topology.sh'
+[ "$invocations" = "$expected_invocations" ] \
+  || fail "update-all.sh must invoke only agent updates then skill topology"
+
+if ! jq -e --slurpfile registry "$REGISTRY" '
+    ([.sources[].id] | length) == ([.sources[].id] | unique | length) and
+    ([$registry[0][].sourceId] | length) == ([$registry[0][].sourceId] | unique | length) and
+    ([.sources[].id] | sort) == ([$registry[0][].sourceId] | sort) and
+    (all($registry[0][];
+      (.command | startswith("adapters/")) and
+      (.command | contains("..") | not)))
+  ' "$MANIFEST" >/dev/null; then
+  fail "manifest/adapter handshake or private adapter policy failed"
+fi
+
+if ! jq -e '
+    .sources[] | select(.id == "repo-claude") |
+    .defaultDestinations == ["claude"]
+  ' "$MANIFEST" >/dev/null; then
+  fail "repo-claude must default only to Claude"
+fi
+
+while IFS= read -r command; do
+  [ -f "$REPO_ROOT/scripts/distribution-topology/$command" ] \
+    || fail "registered adapter missing: $command"
+done < <(jq -r '.[].command' "$REGISTRY")
+
+[ "$failed" -eq 0 ] || exit 1
+printf 'skill topology policy passed\n'
