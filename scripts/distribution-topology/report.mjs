@@ -18,9 +18,9 @@ Exit codes:
 
 export function writeHuman(document) {
   process.stdout.write(`Skill topology ${document.mode}\n`);
-  process.stdout.write(`${"SOURCE".padEnd(13)}${"INVENTORY".padEnd(11)}${"DEFAULT".padEnd(9)}RESULT\n`);
+  process.stdout.write(`${"SOURCE".padEnd(20)}${"INVENTORY".padEnd(11)}${"DEFAULT".padEnd(14)}${"SUPPORTED".padEnd(14)}RESULT\n`);
   for (const source of document.sources) {
-    process.stdout.write(`${source.id.padEnd(13)}${String(source.inventoryCount).padEnd(11)}${source.defaultDestinations.join(",").padEnd(9)}${source.result}\n`);
+    process.stdout.write(`${source.id.padEnd(20)}${String(source.inventoryCount).padEnd(11)}${source.defaultDestinations.join(",").padEnd(14)}${source.supportedDestinations.join(",").padEnd(14)}${source.result}\n`);
   }
   if (document.drift.length > 0) {
     process.stdout.write("\nDrift:\n");

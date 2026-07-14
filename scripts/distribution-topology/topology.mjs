@@ -90,6 +90,9 @@ function expectedStatesForAdapter(adapter, plan, destinationClaims) {
   const expectedStates = [];
   for (const entry of plan.filter((candidate) => candidate.sourceId === adapter.sourceId)) {
     for (const destination of adapter.supportedDestinations) {
+      if (entry.sourceId === "repo-claude" && destination === "claude") {
+        continue;
+      }
       const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
         .some((sourceId) => sourceId !== entry.sourceId);
       if (!entry.destinations.includes(destination) && claimedByOtherSource) {
@@ -280,29 +283,12 @@ async function inspectPlan({ plan, registryBySource, destinationClaims, discover
 
 async function reconcileTopology({ document, plan, registryBySource, destinationClaims, discoveryRoot }) {
   const actionsBySource = new Map([...registryBySource.keys()].map((sourceId) => [sourceId, []]));
-  const verificationBySource = new Map([...registryBySource.keys()].map((sourceId) => [sourceId, []]));
+  const verificationBySource = new Map([...registryBySource.values()]
+    .map((adapter) => [adapter.sourceId, expectedStatesForAdapter(adapter, plan, destinationClaims)]));
   for (const item of document.drift) {
     const entry = plan.find((candidate) => candidate.sourceId === item.sourceId && candidate.skill === item.skill);
     const operation = entry?.destinations.includes(item.destination) ? "install" : "remove";
     actionsBySource.get(item.sourceId).push({ operation, skill: item.skill, destination: item.destination });
-  }
-  for (const entry of plan) {
-    const adapter = registryBySource.get(entry.sourceId);
-    for (const destination of adapter.supportedDestinations) {
-      if (entry.sourceId === "repo-claude" && destination === "claude") {
-        continue;
-      }
-      const claimedByOtherSource = (destinationClaims.get(`${entry.skill}\u0000${destination}`) ?? [])
-        .some((sourceId) => sourceId !== entry.sourceId);
-      if (!entry.destinations.includes(destination) && claimedByOtherSource) {
-        continue;
-      }
-      verificationBySource.get(entry.sourceId).push({
-        state: entry.destinations.includes(destination) ? "present" : "absent",
-        skill: entry.skill,
-        destination,
-      });
-    }
   }
   for (const item of document.drift) {
     if (plan.some((entry) => entry.sourceId === item.sourceId && entry.skill === item.skill)) {
@@ -468,6 +454,7 @@ async function evaluateTopology(mode) {
         classification: source.classification,
         inventoryCount: inventory.length,
         defaultDestinations: orderedDestinations(source.defaultDestinations ?? []),
+        supportedDestinations: orderedDestinations(adapter.supportedDestinations),
         result: "clean",
       });
     }

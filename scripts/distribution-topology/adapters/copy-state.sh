@@ -16,6 +16,26 @@ copy_state_canonical_path() {
   fi
 }
 
+refresh_source_clone() { # clone_dir repo_url
+  local clone_dir="$1"
+  local repo_url="$2"
+  if [ -d "$clone_dir/.git" ]; then
+    git -C "$clone_dir" pull --ff-only
+  else
+    mkdir -p "$(dirname "$clone_dir")"
+    git clone --depth 1 "$repo_url" "$clone_dir"
+  fi
+}
+
+copy_contents_match() { # source destination
+  local source="$1"
+  local destination="$2"
+  local source_hash copy_hash
+  source_hash="$(compute_copy_hash "$source" 2>/dev/null || true)"
+  copy_hash="$(compute_copy_hash "$destination" 2>/dev/null || true)"
+  [ -n "$source_hash" ] && [ "$source_hash" = "$copy_hash" ]
+}
+
 inspect_copy_state() { # content_source marker_source destination owner repo_root
   local content_source="$1"
   local marker_source="$2"
@@ -64,7 +84,15 @@ inspect_copy_state() { # content_source marker_source destination owner repo_roo
       return
     fi
     stored_hash="$(sed -n '3p' "$marker" 2>/dev/null || true)"
-    if [ -z "$marker_owner" ] || [ -z "$stored_hash" ]; then
+    if [ -z "$marker_owner" ]; then
+      if copy_contents_match "$content_source" "$destination"; then
+        printf 'drift\tunstamped\n'
+      else
+        printf 'foreign\tunowned\n'
+      fi
+      return
+    fi
+    if [ -z "$stored_hash" ]; then
       printf 'drift\tunstamped\n'
       return
     fi
@@ -84,9 +112,19 @@ inspect_copy_state() { # content_source marker_source destination owner repo_roo
     return
   fi
 
-  if [ -f "$destination/.agent-scripts-copy-source" ] \
-    || { [ -f "$content_source/SKILL.md" ] && [ -f "$destination/SKILL.md" ] \
-      && cmp -s "$content_source/SKILL.md" "$destination/SKILL.md"; } \
+  if [ -f "$destination/.agent-scripts-copy-source" ]; then
+    recorded_source="$(sed -n '1p' "$destination/.agent-scripts-copy-source" 2>/dev/null || true)"
+    case "$recorded_source" in
+      /*) ;;
+      *) recorded_source="$repo_root/$recorded_source" ;;
+    esac
+    if [ "$(copy_state_canonical_path "$recorded_source")" = "$(copy_state_canonical_path "$marker_source")" ] \
+      && copy_contents_match "$content_source" "$destination"; then
+      printf 'drift\tunstamped\n'
+    else
+      printf 'foreign\tunowned\n'
+    fi
+  elif copy_contents_match "$content_source" "$destination" \
     || [ -z "$(find "$destination" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]; then
     printf 'drift\tunstamped\n'
   else

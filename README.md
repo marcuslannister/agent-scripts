@@ -67,6 +67,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 `scripts/update-skill-topology.sh`
 - Default mode discovers repo-owned, Anthropic, neat-freak, and visual-explainer inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
+- Staged migration: legacy per-source commands below remain active until the final routine-updater cutover; their older hardcoded destination policy is unchanged here.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.

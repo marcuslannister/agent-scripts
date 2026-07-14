@@ -44,12 +44,7 @@ discover_source() {
     clone_dir="$home/Projects/$clone_name"
   fi
 
-  if [ -d "$clone_dir/.git" ]; then
-    git -C "$clone_dir" pull --ff-only
-  else
-    mkdir -p "$(dirname "$clone_dir")"
-    git clone --depth 1 "$repo_url" "$clone_dir"
-  fi
+  refresh_source_clone "$clone_dir" "$repo_url"
   source_root="$clone_dir"
   [ -n "$source_suffix" ] && source_root="$source_root/$source_suffix"
   [ -d "$source_root" ] || { printf 'source inventory root missing: %s\n' "$source_root" >&2; return 1; }

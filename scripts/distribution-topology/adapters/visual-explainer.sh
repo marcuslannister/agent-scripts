@@ -30,12 +30,7 @@ discover_source() {
   else
     clone_dir="$home/Projects/visual-explainer"
   fi
-  if [ -d "$clone_dir/.git" ]; then
-    git -C "$clone_dir" pull --ff-only
-  else
-    mkdir -p "$(dirname "$clone_dir")"
-    git clone --depth 1 "$repo_url" "$clone_dir"
-  fi
+  refresh_source_clone "$clone_dir" "$repo_url"
   source_root="$clone_dir/plugins"
   [ -f "$source_root/visual-explainer/SKILL.md" ] \
     || { printf 'visual-explainer inventory is incomplete\n' >&2; return 1; }
@@ -112,27 +107,34 @@ remove_legacy_path() {
   fi
 }
 
+inspect_destination_state() { # skill destination
+  local skill="$1"
+  local destination="$2"
+  local state detail
+  case "$destination" in
+    claude)
+      inspect_claude_plugin
+      ;;
+    codex)
+      IFS=$'\t' read -r state detail < <(
+        inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
+          "$home/.agents/skills/$skill" "$owner" "$repo_root"
+      )
+      if [ "$state" = present ] && legacy_path_present; then
+        state=drift
+        detail=legacy-path
+      fi
+      printf '%s\t%s\n' "$state" "$detail"
+      ;;
+    *) printf 'error\tinvalid-destination\n' ;;
+  esac
+}
+
 inspect_states() {
   local expected skill destination state detail
   while IFS=$'\t' read -r expected skill destination; do
-    case "$destination" in
-      claude)
-        IFS=$'\t' read -r state detail < <(inspect_claude_plugin)
-        printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
-        ;;
-      codex)
-        IFS=$'\t' read -r state detail < <(
-          inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
-            "$home/.agents/skills/$skill" "$owner" "$repo_root"
-        )
-        if [ "$state" = present ] && legacy_path_present; then
-          state=drift
-          detail=legacy-path
-        fi
-        printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
-        ;;
-      *) printf 'invalid visual destination: %s\n' "$destination" >&2; return 1 ;;
-    esac
+    IFS=$'\t' read -r state detail < <(inspect_destination_state "$skill" "$destination")
+    printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
   emit_copy_inspection "$plan_path" "$source_root" "$marker_root" \
     "$home/.agents/skills" codex "$owner" "$repo_root" \
@@ -194,16 +196,7 @@ reconcile_states() {
 verify_states() {
   local expected skill destination state detail failed=0
   while IFS=$'\t' read -r expected skill destination; do
-    case "$destination" in
-      claude) IFS=$'\t' read -r state detail < <(inspect_claude_plugin) ;;
-      codex)
-        IFS=$'\t' read -r state detail < <(
-          inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
-            "$home/.agents/skills/$skill" "$owner" "$repo_root"
-        )
-        if legacy_path_present; then state=drift; detail=legacy-path; fi
-        ;;
-    esac
+    IFS=$'\t' read -r state detail < <(inspect_destination_state "$skill" "$destination")
     case "$expected:$state" in
       present:present|absent:absent|absent:foreign) ;;
       *) printf 'visual-explainer verification failed: %s -> %s (%s)\n' "$skill" "$destination" "$detail" >&2; failed=1 ;;

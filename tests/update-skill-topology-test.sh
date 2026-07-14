@@ -344,7 +344,7 @@ HOME="$STALE_ROOT/home" TMPDIR="$STALE_ROOT/runtime" "$STALE_ROOT/scripts/update
 stale_human_exit=$?
 set -e
 test "$stale_human_exit" -eq 3
-grep -F 'repo-claude  2          claude   decision-required' "$STALE_ROOT/human.out" >/dev/null
+grep -Eq '^repo-claude +2 +claude +claude,codex +decision-required$' "$STALE_ROOT/human.out"
 grep -F 'Result: decision-required (1 decision)' "$STALE_ROOT/human.out" >/dev/null
 grep -F 'Decision required:' "$STALE_ROOT/human.err" >/dev/null
 grep -F 'override names a skill absent from repo-claude: removed-skill' "$STALE_ROOT/human.err" >/dev/null
