@@ -65,10 +65,11 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
-- Default mode discovers repo-owned, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
+- Default mode discovers repo-owned, Matt, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 - Waza and claude-mem use manifest-scoped native Claude/Codex adapters. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
-- Staged migration: legacy per-source commands below remain callable until the final routine-updater cutover. The generic Claude plugin entrypoint delegates to manifest topology; direct Waza/claude-mem commands are no longer routine steps.
+- Matt skills default to both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; `find-skills` is retired and its known lock/copy state is removed during reconciliation.
+- Staged migration: legacy per-source commands below remain callable until the final routine-updater cutover. Generic plugin mutation delegates to manifest topology, generic npx mutation is inert, and direct Waza/claude-mem commands are no longer routine steps.
 
 `scripts/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
@@ -78,7 +79,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Compatibility entrypoint that delegates to `update-skill-topology.sh`; bulk installed-plugin mutation is no longer available outside manifest policy.
 
 `scripts/update-cli-skills.sh`
-- Removes legacy tw93/Waza skills-CLI installs (Waza is a marketplace plugin now), bootstraps `find-skills` (vercel-labs/skills) when missing, then runs `npx skills update --global`, refreshing every skills.sh-managed package, including Matt Pocock's canonical copies. Also rsyncs one-off npx skills both agents need (`find-skills`) into `skills/` as untracked copies behind a `# cli-skills` block in `.gitignore`.
+- Staged inert public-CLI compatibility entrypoint retained only until issue #18's final cutover. Generic npx updates and `find-skills` bootstrap are retired; use `update-skill-topology.sh`.
 
 `scripts/update-waza.sh`
 - Legacy direct entrypoint retained during staged migration. `update-skill-topology.sh` owns routine Waza policy and native installation on both surfaces.

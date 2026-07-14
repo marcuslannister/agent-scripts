@@ -12,6 +12,13 @@
     "command": "adapters/repo-owned.sh"
   },
   {
+    "sourceId": "matt-skills",
+    "classification": "npx-only",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/npx-source.sh",
+    "stateInspection": "adapter"
+  },
+  {
     "sourceId": "anthropic-skills",
     "classification": "source-only",
     "supportedDestinations": ["claude", "codex"],

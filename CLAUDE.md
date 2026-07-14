@@ -24,5 +24,5 @@ Destination principle: skills both agents need → tracked in repo `skills/` (th
 
 1. Ships both Claude Code and Codex plugins (claude-mem, Waza) → each CLI's native plugin marketplace commands; no entries in `skills/`.
 2. Ships a Claude Code plugin but no Codex plugin (visual-explainer) → Claude via plugin; Codex via the project's npx installer if it has one, otherwise clone under `~/Projects` and rsync a copy into `~/.agents/skills`; no entries in `skills/`.
-3. npx-only skill repos (mattpocock/skills) → `npx skills add … --agent codex|claude`; Claude-side copies stay gitignored, never tracked in `skills/`.
+3. npx-only skill repos (mattpocock/skills) → the manifest adapter installs the canonical Codex copies with `npx skills add … --agent codex`, then makes owned, gitignored Claude-side copies; never track them in `skills/`.
 4. Source-only skill repos (khazix-skills, anthropics/skills) → clone under `~/Projects`, then rsync COPIES into the destination surface — never symlinks. Copies in `skills/` stay untracked via marker-delimited `.gitignore` blocks.

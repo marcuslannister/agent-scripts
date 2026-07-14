@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-14 — Matt Skills Topology
+- Added a manifest-scoped Matt skills adapter with both-surface defaults, a Codex-only `code-review` override, complete upstream/lock preflight, precise renamed/removed cleanup, partial-failure detection, and final verification.
+- Retired generic global npx updates and `find-skills` bootstrap/distribution; unknown skills-lock sources now require a decision before mutation, while reconciliation removes only the known `find-skills` lock entry and owned copies.
+
 ## 2026-07-14 — Plugin-Distributed Skill Topology
 - Added manifest-scoped native adapters for Waza and claude-mem on Claude and Codex, preserving claude-mem dependency checks and shared state while gating unknown third-party plugins before mutation, ignoring bundled system plugins, aggregating failures, and verifying final state.
 - Routine `update-all.sh` no longer invokes generic or direct plugin updaters; the generic Claude plugin entrypoint now delegates to manifest topology, while staged per-source entrypoints remain until final cutover.

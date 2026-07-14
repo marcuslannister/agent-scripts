@@ -34,7 +34,7 @@ A repo shipping plugin manifests for both Claude Code and Codex; managed by each
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is served by whatever the repo offers (installer or copy).
 
 **npx-only repo**:
-A skill repo distributed solely through the skills CLI (`npx skills add`).
+A skill repo distributed solely through a manifest-scoped skills CLI adapter (`npx skills add`). Generic global updates are not policy.
 
 **Source-only repo**:
 A skill repo with no installer or plugin manifest; cloned under `~/Projects` and copied into a surface.

@@ -177,6 +177,23 @@ async function inspectAdapterState({ adapter, plan, destinationClaims, discovery
       });
       continue;
     }
+    if (state === "npx-decision") {
+      if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(detail)
+          || seen.has(`npx-decision\u0000${skill}\u0000${destination}`)) {
+        errors.push(`source ${adapter.sourceId} returned invalid npx decision inspection output`);
+        continue;
+      }
+      seen.add(`npx-decision\u0000${skill}\u0000${destination}`);
+      decisions.push({
+        code: "unknown-npx-lock-source",
+        sourceId: adapter.sourceId,
+        skill,
+        destination,
+        lockSource: detail,
+        message: `skills lock entry ${skill} belongs to unknown npx source ${detail}`,
+      });
+      continue;
+    }
     if (state === "orphan") {
       if (expectedByKey.has(key) || seen.has(`orphan\u0000${key}`)) {
         errors.push(`source ${adapter.sourceId} returned invalid orphan inspection output`);
