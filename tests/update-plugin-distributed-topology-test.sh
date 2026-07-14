@@ -161,6 +161,28 @@ jq -e '
 jq -e '. == []' "$MISSING_METADATA_FIXTURE/home/claude-plugins.json" >/dev/null
 jq -e '.installed == []' "$MISSING_METADATA_FIXTURE/home/codex-plugins.json" >/dev/null
 
+NULL_METADATA_FIXTURE="$TMP_ROOT/null-plugin-metadata"
+cp -R "$FIXTURE" "$NULL_METADATA_FIXTURE"
+jq '.[0].classification = "plugin-claude-only" | .[0].plugin = null' \
+  "$NULL_METADATA_FIXTURE/scripts/distribution-topology/registry.json" > "$NULL_METADATA_FIXTURE/registry.tmp"
+mv "$NULL_METADATA_FIXTURE/registry.tmp" "$NULL_METADATA_FIXTURE/scripts/distribution-topology/registry.json"
+jq '.sources[0].classification = "plugin-claude-only"' \
+  "$NULL_METADATA_FIXTURE/skill-topology.json" > "$NULL_METADATA_FIXTURE/manifest.tmp"
+mv "$NULL_METADATA_FIXTURE/manifest.tmp" "$NULL_METADATA_FIXTURE/skill-topology.json"
+set +e
+HOME="$NULL_METADATA_FIXTURE/home" TMPDIR="$NULL_METADATA_FIXTURE/runtime" \
+PATH="$NULL_METADATA_FIXTURE/bin:$PATH" \
+  "$NULL_METADATA_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$NULL_METADATA_FIXTURE/result.json"
+null_metadata_exit=$?
+set -e
+test "$null_metadata_exit" -eq 2
+jq -e '
+  .status == "invalid" and
+  (.errors[0] | contains("requires plugin metadata for a plugin source"))
+' "$NULL_METADATA_FIXTURE/result.json" >/dev/null
+jq -e '. == []' "$NULL_METADATA_FIXTURE/home/claude-plugins.json" >/dev/null
+jq -e '.installed == []' "$NULL_METADATA_FIXTURE/home/codex-plugins.json" >/dev/null
+
 if ! HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/first.json"; then
   cat "$FIXTURE/first.json" >&2

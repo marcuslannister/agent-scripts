@@ -136,17 +136,16 @@ export function readRegistry(registryPath) {
       throw new TopologyError(`${label} has an invalid stateInspection`, 2);
     }
     const pluginClassification = ["plugin-both", "plugin-claude-only"].includes(adapter.classification);
-    if (pluginClassification && adapter.plugin === undefined) {
-      throw new TopologyError(`${label} requires plugin metadata for a plugin source`, 2);
-    }
-    if (!pluginClassification && adapter.plugin !== undefined) {
-      throw new TopologyError(`${label} has plugin metadata for a non-plugin source`, 2);
-    }
-    if (adapter.plugin !== undefined) {
+    if (pluginClassification) {
+      if (!isObject(adapter.plugin)) {
+        throw new TopologyError(`${label} requires plugin metadata for a plugin source`, 2);
+      }
       const requiredPluginDestinations = adapter.classification === "plugin-both"
         ? adapter.supportedDestinations
         : Object.keys(isObject(adapter.plugin.marketplaces) ? adapter.plugin.marketplaces : {});
       validatePluginMetadata(adapter.plugin, `${label} plugin`, requiredPluginDestinations);
+    } else if (adapter.plugin !== undefined) {
+      throw new TopologyError(`${label} has plugin metadata for a non-plugin source`, 2);
     }
     adapter.stateInspection ??= "topology";
   }
