@@ -2,13 +2,13 @@
 summary: "Recover local-only skills from migrated Codex skill backups"
 read_when:
   - Recovering entries from ~/.codex/skills-migrated-* backups.
-  - Investigating Codex skill root drift after update-repo-skills.sh runs.
+  - Investigating Codex skill root drift after update-skill-topology.sh runs.
 ---
 
 # Codex Skill Backup Recovery
 
 Codex uses one supported skills root: `~/.agents/skills`. The old
-`~/.codex/skills` root is legacy. `scripts/update-repo-skills.sh` migrates
+`~/.codex/skills` root is legacy. `scripts/update-skill-topology.sh` migrates
 non-system entries from the legacy root into
 `~/.codex/skills-migrated-<timestamp>` so Codex does not double-load skills.
 
@@ -40,9 +40,9 @@ test -f ~/.agents/skills/$name/SKILL.md && echo "active already"
 test -f ~/Projects/agent-scripts/skills/$name/SKILL.md && echo "tracked repo skill"
 ```
 
-If the skill is tracked in this repo, do not restore the backup copy. Run
-`scripts/update-repo-skills.sh`; it refreshes the active marked copy from
-`skills/<name>`.
+If the skill is tracked in this repo and approved for Codex, do not restore the
+backup copy. Run `scripts/update-skill-topology.sh`; it refreshes the active
+managed copy from its declared source.
 
 ## Restore Local-Only Skills
 
@@ -79,14 +79,14 @@ with an `.agent-scripts-copy` marker that points back to this repo's
 
 ## Verify
 
-Run the updater after any restore:
+Run topology reconciliation after any restore:
 
 ```bash
-~/Projects/agent-scripts/scripts/update-repo-skills.sh
+~/Projects/agent-scripts/scripts/update-skill-topology.sh
 find ~/.codex/skills -maxdepth 1 -mindepth 1 ! -name .system -print
 ```
 
-The updater should finish green. The final `find` command should print
+Topology reconciliation should finish green. The final `find` command should print
 nothing.
 
 ## Delete The Backup
@@ -96,7 +96,7 @@ Delete a migrated backup only after:
 - you have inspected every top-level entry;
 - every wanted local-only skill has been restored under `~/.agents/skills`;
 - tracked repo skills are present as updater-managed marked copies;
-- `scripts/update-repo-skills.sh` finishes successfully;
+- `scripts/update-skill-topology.sh` finishes successfully;
 - `~/.codex/skills` has no non-system entries.
 
 Keep the backup if any entry is unclear. It is inactive while it stays under

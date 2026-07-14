@@ -67,6 +67,61 @@ function runAdapterProcess(adapter, args) {
   });
 }
 
+function runCodexRootHygiene(action) {
+  return runAdapterProcess(
+    { command: "codex-root-hygiene.sh" },
+    [action, os.homedir()],
+  );
+}
+
+function decodeHex(value) {
+  if (!/^(?:[0-9a-f]{2})*$/u.test(value ?? "")) {
+    throw new TopologyError("Codex-root hygiene returned invalid encoded output", 1);
+  }
+  return Buffer.from(value, "hex").toString("utf8");
+}
+
+function parseHygieneEntries(stdout) {
+  const entries = [];
+  for (const line of stdout.split(/\r?\n/u).filter(Boolean)) {
+    const [record, encodedName, kind, ...extra] = line.split("\t");
+    if (record !== "entry" || extra.length > 0 || !["root-symlink", "root-file", "directory", "symlink", "file", "other"].includes(kind)) {
+      throw new TopologyError("Codex-root hygiene returned invalid inspection output", 1);
+    }
+    entries.push({ name: decodeHex(encodedName), kind });
+  }
+  return entries.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function parseHygieneChanges(stdout) {
+  const changes = [];
+  for (const line of stdout.split(/\r?\n/u).filter(Boolean)) {
+    const [record, encodedName, kind, encodedBackupPath, ...extra] = line.split("\t");
+    if (record !== "migrated" || extra.length > 0 || !["root-symlink", "root-file", "directory", "symlink", "file", "other"].includes(kind)) {
+      throw new TopologyError("Codex-root hygiene returned invalid reconcile output", 1);
+    }
+    changes.push({ name: decodeHex(encodedName), kind, backupPath: decodeHex(encodedBackupPath) });
+  }
+  return changes.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+async function inspectCodexRootHygiene() {
+  const result = await runCodexRootHygiene("inspect");
+  if (interrupted) {
+    throw new TopologyError("interrupted", 130);
+  }
+  const errors = result.code === 0
+    ? []
+    : adapterFailureMessages("Codex-root hygiene inspection failed", result.stderr);
+  return {
+    status: errors.length > 0 ? "failed" : result.stdout.trim() ? "drift" : "clean",
+    legacyRoot: path.join(os.homedir(), ".codex", "skills"),
+    entries: parseHygieneEntries(result.stdout),
+    changes: [],
+    errors,
+  };
+}
+
 function adapterFailureMessages(prefix, stderr) {
   const details = stderr.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
   return details.length > 0
@@ -368,6 +423,21 @@ async function reconcileTopology({ document, plan, registryBySource, destination
 
   const changes = [];
   const errors = [];
+  const hygieneErrors = [];
+  const hygieneResult = await runCodexRootHygiene("reconcile");
+  if (interrupted) {
+    throw new TopologyError("interrupted", 130);
+  }
+  let hygieneChanges = [];
+  try {
+    hygieneChanges = parseHygieneChanges(hygieneResult.stdout);
+  } catch (error) {
+    hygieneErrors.push(error.message);
+  }
+  if (hygieneResult.code !== 0) {
+    hygieneErrors.push(...adapterFailureMessages("Codex-root hygiene reconciliation failed", hygieneResult.stderr));
+  }
+  errors.push(...hygieneErrors);
   for (const [sourceId, actions] of [...actionsBySource].sort(([left], [right]) => left.localeCompare(right))) {
     const planPath = path.join(discoveryRoot, `${sourceId}.reconcile.tsv`);
     const planText = actions
@@ -412,6 +482,13 @@ async function reconcileTopology({ document, plan, registryBySource, destination
   }
 
   const verification = await inspectPlan({ plan, registryBySource, destinationClaims, discoveryRoot, mode: "reconcile" });
+  const hygieneVerification = await inspectCodexRootHygiene();
+  hygieneErrors.push(...hygieneVerification.errors);
+  for (const item of hygieneVerification.entries) {
+    hygieneErrors.push(`final Codex-root hygiene verification failed: ${item.name} (${item.kind})`);
+  }
+  errors.push(...hygieneVerification.errors);
+  errors.push(...hygieneVerification.entries.map((item) => `final Codex-root hygiene verification failed: ${item.name} (${item.kind})`));
   errors.push(...verification.errors);
   for (const item of verification.drift) {
     errors.push(`final verification failed: ${item.sourceId}/${item.skill} -> ${item.destination}: ${item.reason}`);
@@ -439,6 +516,12 @@ async function reconcileTopology({ document, plan, registryBySource, destination
   document.errors = errors;
   document.changes = changes;
   document.skipped = verification.skipped;
+  document.hygiene = {
+    ...hygieneVerification,
+    status: hygieneErrors.length > 0 ? "failed" : "clean",
+    changes: hygieneChanges,
+    errors: hygieneErrors,
+  };
   const exitCode = verification.decisions.length > 0 ? 3 : errors.length === 0 ? 0 : 1;
   return { document, exitCode };
 }
@@ -462,6 +545,7 @@ async function evaluateTopology(mode) {
   const discoveryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-scripts-topology-discovery-"));
 
   try {
+    const hygiene = await inspectCodexRootHygiene();
     writeNativePluginAllowlist(discoveryRoot, manifest, registryBySource);
     const sources = [];
     const plan = [];
@@ -554,6 +638,7 @@ async function evaluateTopology(mode) {
 
     const inspected = await inspectPlan({ plan, registryBySource, destinationClaims, discoveryRoot, mode });
     const drift = inspected.drift;
+    const inspectionErrors = [...inspected.errors, ...hygiene.errors];
     decisions.push(...inspected.decisions);
 
     if (decisions.length > 0) {
@@ -572,16 +657,17 @@ async function evaluateTopology(mode) {
           plan,
           drift,
           decisions,
-          errors: inspected.errors,
+          errors: inspectionErrors,
           warnings: [],
           changes: [],
           skipped: inspected.skipped,
+          hygiene,
         },
         exitCode: 3,
       };
     }
 
-    if (inspected.errors.length > 0) {
+    if (inspectionErrors.length > 0) {
       for (const source of sources) {
         if (inspected.errors.some((error) => error.includes(`${source.id}/`))) {
           source.result = "failed";
@@ -596,10 +682,11 @@ async function evaluateTopology(mode) {
           plan,
           drift,
           decisions: [],
-          errors: inspected.errors,
+          errors: inspectionErrors,
           warnings: [],
           changes: [],
           skipped: inspected.skipped,
+          hygiene,
         },
         exitCode: 1,
       };
@@ -614,7 +701,7 @@ async function evaluateTopology(mode) {
     const document = {
       schemaVersion: 1,
       mode,
-      status: drift.length === 0 ? "clean" : "drift",
+      status: drift.length === 0 && hygiene.entries.length === 0 ? "clean" : "drift",
       sources,
       plan,
       drift,
@@ -623,13 +710,14 @@ async function evaluateTopology(mode) {
       warnings: [],
       changes: [],
       skipped: inspected.skipped,
+      hygiene,
     };
     if (mode === "reconcile") {
       return await reconcileTopology({ document, plan, registryBySource, destinationClaims, discoveryRoot });
     }
     return {
       document,
-      exitCode: drift.length === 0 ? 0 : 1,
+      exitCode: drift.length === 0 && hygiene.entries.length === 0 ? 0 : 1,
     };
   } finally {
     fs.rmSync(discoveryRoot, { recursive: true, force: true });

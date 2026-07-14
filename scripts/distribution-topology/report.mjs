@@ -34,6 +34,13 @@ export function writeHuman(document) {
   for (const item of document.changes) {
     process.stdout.write(`- ${item.action} ${item.sourceId}/${item.skill} -> ${item.destination}\n`);
   }
+  process.stdout.write(`\nCodex-root hygiene: ${document.hygiene.status}\n`);
+  for (const item of document.hygiene.entries) {
+    process.stdout.write(`- legacy entry ${item.name}: ${item.kind}\n`);
+  }
+  for (const item of document.hygiene.changes) {
+    process.stdout.write(`- migrated ${item.name} -> ${item.backupPath}\n`);
+  }
   if (document.skipped.length > 0) {
     process.stdout.write("\nSkipped:\n");
   }
@@ -42,7 +49,9 @@ export function writeHuman(document) {
   }
   const resultCount = document.decisions.length > 0
     ? `${document.decisions.length} decision${document.decisions.length === 1 ? "" : "s"}`
-    : `${document.mode === "check" ? document.drift.length : document.changes.length} changes`;
+    : `${document.mode === "check"
+      ? document.drift.length + document.hygiene.entries.length
+      : document.changes.length + document.hygiene.changes.length} changes`;
   process.stdout.write(`\nResult: ${document.status} (${resultCount})\n`);
 
   if (document.decisions.length > 0) {
@@ -72,5 +81,12 @@ export function failureDocument(error, mode = "check") {
     warnings: [],
     changes: [],
     skipped: [],
+    hygiene: {
+      status: "failed",
+      legacyRoot: "",
+      entries: [],
+      changes: [],
+      errors: [error.message],
+    },
   };
 }

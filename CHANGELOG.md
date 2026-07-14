@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-14 — Codex Root Hygiene and Instruction Setup
+- Moved legacy `~/.codex/skills` migration and final verification into `update-skill-topology.sh` as an independent responsibility, with non-mutating checks, collision-safe timestamped backups, partial-failure reporting, safe reruns, and separate black-box coverage.
+- Deleted the conflicting `sync-skills` mirror without a compatibility shim and added explicit idempotent `setup-agent-instructions.sh`, which owns only absent/shared instruction pointers and preserves real files and foreign symlinks.
+
 ## 2026-07-14 — Matt Skills Topology
 - Added a manifest-scoped Matt skills adapter with both-surface defaults, a Codex-only `code-review` override, complete upstream/lock preflight, precise renamed/removed cleanup, partial-failure detection, and final verification.
 - Retired generic global npx updates and `find-skills` bootstrap/distribution; unknown skills-lock sources now require a decision before mutation, while reconciliation removes only the known `find-skills` lock entry and owned copies.

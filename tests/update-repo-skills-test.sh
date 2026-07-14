@@ -68,76 +68,16 @@ test ! -e "$SURFACE/delta"
 test -f "$SURFACE/epsilon/SKILL.md"
 test "$(cat "$SURFACE/hand-made/SKILL.md")" = "mine"
 
-# Legacy root migration: the old ~/.codex/skills symlink means Codex
-# double-loads. Move it into a timestamped backup when symlinks are supported;
-# on Git Bash setups that materialize directory symlinks as copies, migrate
-# the copied entries. The active Codex surface stays untouched.
+# Root hygiene is intentionally outside this legacy publication command.
+# Its public owner is update-skill-topology.sh.
 mkdir -p "$FAKE_HOME/.codex"
 ln -s "$REPO/skills" "$FAKE_HOME/.codex/skills"
 AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091501 run_sync >/dev/null
-ROOT_BACKUP="$FAKE_HOME/.codex/skills-migrated-20260707-091501"
-if [ ! -e "$ROOT_BACKUP/skills" ] && [ ! -L "$ROOT_BACKUP/skills" ] && [ ! -e "$ROOT_BACKUP/epsilon" ]; then
-  echo "FAIL: legacy root drift was not moved into backup" >&2
-  exit 1
-fi
-test -d "$FAKE_HOME/.codex/skills"
+test -L "$FAKE_HOME/.codex/skills"
+test "$(readlink "$FAKE_HOME/.codex/skills")" = "$REPO/skills"
+test ! -e "$FAKE_HOME/.codex/skills-migrated-20260707-091501"
 test -f "$SURFACE/epsilon/SKILL.md"
 test "$(cat "$SURFACE/hand-made/SKILL.md")" = "mine"
-AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091502 run_sync >/dev/null
-test ! -e "$FAKE_HOME/.codex/skills-migrated-20260707-091502"
-rm -rf "$FAKE_HOME/.codex"
-run_sync >/dev/null
-
-# Codex's own bundled skills under ~/.codex/skills/.system are not drift.
-# Any non-system entry beside it is migrated, including dirs, symlinks, and
-# plain pointer files. Same-named active-surface entries are not overwritten.
-mkdir -p "$FAKE_HOME/.codex/skills/.system/bundled-skill"
-run_sync >/dev/null # .system alone stays green
-mkdir -p "$SURFACE/stray-skill"
-printf 'active\n' > "$SURFACE/stray-skill/SKILL.md"
-mkdir -p "$FAKE_HOME/.codex/skills/stray-skill"
-ln -s "$REPO/skills/epsilon" "$FAKE_HOME/.codex/skills/linked-skill"
-printf '%s\n' "$REPO/skills/epsilon" > "$FAKE_HOME/.codex/skills/pointer-file"
-AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091502 run_sync >"$TMPDIR/verified.out"
-BACKUP="$FAKE_HOME/.codex/skills-migrated-20260707-091502"
-test -d "$BACKUP/stray-skill"
-if [ ! -e "$BACKUP/linked-skill" ] && [ ! -L "$BACKUP/linked-skill" ]; then
-  echo "FAIL: legacy symlink entry was not moved into backup" >&2
-  exit 1
-fi
-test -f "$BACKUP/pointer-file"
-test -d "$FAKE_HOME/.codex/skills/.system"
-if find "$FAKE_HOME/.codex/skills" -mindepth 1 -maxdepth 1 ! -name '.system' | grep -q .; then
-  echo "FAIL: legacy root still has non-system entries after migration" >&2
-  exit 1
-fi
-grep -F "verified one-root Codex surface: $FAKE_HOME/.codex/skills has no non-system entries; 1 tracked marked copies active" "$TMPDIR/verified.out" >/dev/null
-test "$(sed -n '1p' "$SURFACE/epsilon/.agent-scripts-copy")" = "$REPO/skills/epsilon"
-test "$(cat "$SURFACE/stray-skill/SKILL.md")" = "active"
-AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091503 run_sync >/dev/null
-test ! -e "$FAKE_HOME/.codex/skills-migrated-20260707-091503"
-rm -rf "$FAKE_HOME/.codex"
-run_sync >/dev/null
-
-# Unsafe migration failures are reported and preserve the entry in place.
-mkdir -p "$FAKE_HOME/.codex/skills/.system"
-printf 'stuck\n' > "$FAKE_HOME/.codex/skills/blocked-file"
-FAILBIN="$TMPDIR/failbin"
-REAL_MV="$(command -v mv)"
-mkdir -p "$FAILBIN"
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'case "$1" in' \
-  '  */blocked-file) exit 1 ;;' \
-  "  *) exec \"$REAL_MV\" \"\$@\" ;;" \
-  'esac' > "$FAILBIN/mv"
-chmod +x "$FAILBIN/mv"
-if AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260707-091504 PATH="$FAILBIN:$PATH" run_sync >"$TMPDIR/blocked.out" 2>&1; then
-  echo "FAIL: blocked migration did not fail the run" >&2
-  exit 1
-fi
-grep -F "could not migrate legacy $FAKE_HOME/.codex/skills entry: $FAKE_HOME/.codex/skills/blocked-file" "$TMPDIR/blocked.out" >/dev/null
-test "$(cat "$FAKE_HOME/.codex/skills/blocked-file")" = "stuck"
 rm -rf "$FAKE_HOME/.codex"
 run_sync >/dev/null
 

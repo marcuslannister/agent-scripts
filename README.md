@@ -31,7 +31,7 @@ Rules:
 Global discovery — one skills root per CLI:
 - Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
 - Codex: `~/.agents/skills` only; default `scripts/update-skill-topology.sh` reconciliation installs repo-owned skills approved by `skill-topology.json`. Claude-authored skills default to Claude, 21 named skills explicitly reach both surfaces, `codex-first` remains Claude-only, and `maintainer-orchestrator` is authored under `codex-skills/` for Codex only.
-- The old `~/.codex/skills` root is legacy. `scripts/update-repo-skills.sh` still owns its migration/backup recovery until root hygiene moves into the topology module; it is not part of routine updates.
+- The old `~/.codex/skills` root is legacy. `scripts/update-skill-topology.sh` independently migrates every non-system entry into collision-safe timestamped backups and verifies that only Codex's `.system` entry may remain.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
 
@@ -41,7 +41,7 @@ Shared personal skills live as real folders in `skills/`. Third-party skills arr
 
 Shared hard rules live in `AGENTS.MD`.
 
-Global setup (Claude Code reads `CLAUDE.md` only, so it links to the shared `AGENTS.MD`):
+Run `scripts/setup-agent-instructions.sh` explicitly once per machine. It creates missing shared pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. Claude Code reads `CLAUDE.md`, so setup creates:
 - `~/.codex/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
 - `~/.claude/CLAUDE.md -> ~/Projects/agent-scripts/AGENTS.MD`
 - `~/.claude/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
@@ -65,7 +65,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
-- Default mode discovers repo-owned, Matt, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies every managed destination. Unmarked and other-owner entries remain untouched.
+- Default mode discovers repo-owned, Matt, Anthropic, neat-freak, visual-explainer, Waza, and claude-mem inventories, validates the complete manifest plan before distribution writes, independently migrates legacy Codex-root drift, reconciles approved copies/plugins, performs owner-scoped cleanup, and verifies the root plus every managed destination. Unmarked and other-owner active-surface entries remain untouched.
 - Add `--check` for a non-mutating preview or `--json` for one stable JSON document. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 - Waza and claude-mem use manifest-scoped native Claude/Codex adapters. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
 - Matt skills default to both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; `find-skills` is retired and its known lock/copy state is removed during reconciliation.
@@ -104,9 +104,9 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Enforces a non-empty commit message.
 - Runs skill validation before committing.
 
-`scripts/sync-skills`
-- Builds the per-machine skill mirror: Codex whole-root links, Claude flat per-skill links, shared `AGENTS.MD` pointers.
-- Idempotent; prints changes only, prunes broken/stale managed links, never clobbers real files.
+`scripts/setup-agent-instructions.sh`
+- Explicit one-machine setup for the three shared `AGENTS.MD`/`CLAUDE.md` pointers; not part of topology reconciliation or routine updates.
+- Idempotent; preserves real user files and foreign symlinks.
 
 `scripts/validate-skills`
 - Checks every repo-owned `skills/*/SKILL.md` and `codex-skills/*/SKILL.md`.
