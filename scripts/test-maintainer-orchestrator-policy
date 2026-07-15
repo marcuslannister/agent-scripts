@@ -17,51 +17,49 @@ fi
 skill="$(<"$SKILL_PATH")"
 metadata="$(<"$METADATA_PATH")"
 
-requirement_labels=(
+requirements=(
   "Codex app workers only"
-  "one project thread per repository"
-  "root-owned skill maintenance"
-  "no project task fan-out"
-  "pre-spawn classification"
-  "mutating work routing"
-  "support-only subagents"
-  "subagent mutation ban"
-  "preservation-first recovery"
-  "thread-owned execution"
-  "text is not capability"
-  "permission propagation check"
-  "no repeated permission prompts"
-  "single heartbeat inspection"
-  "private concurrency invariant"
-  "single public admission gate"
-  "frozen means public only"
-  "decision wait does not idle"
-)
-requirement_texts=(
   "a worker is an owned Codex app thread, never a collaboration subagent"
+  "one project thread per repository"
   "Use exactly one owned Codex app project thread per repository"
+  "root-owned skill maintenance"
   'Maintain this canonical `maintainer-orchestrator` skill in the current root orchestrator session, never in a project thread or collaboration subagent.'
+  "no project task fan-out"
   "project threads never create task threads"
+  "pre-spawn classification"
   "Before spawning a collaboration subagent, classify the task"
+  "mutating work routing"
   "Any repository task that can mutate repository, GitHub, or external state"
+  "support-only subagents"
   "Use collaboration subagents only for orchestration support"
+  "subagent mutation ban"
   "Collaboration subagents must never edit repository files, create commits, run implementation proof as the owner, push, mutate PRs/issues, approve workflows, merge, release, deploy, or perform live product/account proof."
+  "preservation-first recovery"
   "Snapshot and preserve its state, patches, refs, logs, and evidence; hand them to the proper Codex app thread; reconcile ownership; never discard work."
+  "thread-owned execution"
   "Project execution remains owned and performed by its Codex app thread"
+  "text is not capability"
   "Thread prompts do not grant capabilities"
+  "permission propagation check"
   "verify its effective permission profile"
+  "no repeated permission prompts"
   "Do not retry the same denied action or repeatedly prompt the owner."
+  "single heartbeat inspection"
   "inspect the existing heartbeat first"
+  "private concurrency invariant"
   "Private investigation, implementation, testing, proof, and review continue independently."
+  "single public admission gate"
   "admit no additional public action until the overlap clears"
+  "frozen means public only"
   "means public-mutation-frozen only when that restriction existed before the worker crossed the public boundary"
+  "decision wait does not idle"
   "Keep all other qualified private project lanes active while that answer is pending."
 )
 
 missing=()
-for index in "${!requirement_labels[@]}"; do
-  if [[ "$skill" != *"${requirement_texts[$index]}"* ]]; then
-    missing+=("${requirement_labels[$index]}")
+for ((index = 0; index < ${#requirements[@]}; index += 2)); do
+  if [[ "$skill" != *"${requirements[$((index + 1))]}"* ]]; then
+    missing+=("${requirements[$index]}")
   fi
 done
 

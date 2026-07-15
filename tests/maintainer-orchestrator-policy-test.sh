@@ -63,56 +63,54 @@ PATH="$TMP_ROOT/bin" "$valid_fixture/scripts/test-maintainer-orchestrator-policy
   >"$valid_fixture/out" 2>&1
 grep -F "Validated maintainer-orchestrator worker boundary." "$valid_fixture/out" >/dev/null
 
-requirement_labels=(
+requirements=(
   "Codex app workers only"
-  "one project thread per repository"
-  "root-owned skill maintenance"
-  "no project task fan-out"
-  "pre-spawn classification"
-  "mutating work routing"
-  "support-only subagents"
-  "subagent mutation ban"
-  "preservation-first recovery"
-  "thread-owned execution"
-  "text is not capability"
-  "permission propagation check"
-  "no repeated permission prompts"
-  "single heartbeat inspection"
-  "private concurrency invariant"
-  "single public admission gate"
-  "frozen means public only"
-  "decision wait does not idle"
-)
-requirement_texts=(
   "a worker is an owned Codex app thread, never a collaboration subagent"
+  "one project thread per repository"
   "Use exactly one owned Codex app project thread per repository"
+  "root-owned skill maintenance"
   'Maintain this canonical `maintainer-orchestrator` skill in the current root orchestrator session, never in a project thread or collaboration subagent.'
+  "no project task fan-out"
   "project threads never create task threads"
+  "pre-spawn classification"
   "Before spawning a collaboration subagent, classify the task"
+  "mutating work routing"
   "Any repository task that can mutate repository, GitHub, or external state"
+  "support-only subagents"
   "Use collaboration subagents only for orchestration support"
+  "subagent mutation ban"
   "Collaboration subagents must never edit repository files, create commits, run implementation proof as the owner, push, mutate PRs/issues, approve workflows, merge, release, deploy, or perform live product/account proof."
+  "preservation-first recovery"
   "Snapshot and preserve its state, patches, refs, logs, and evidence; hand them to the proper Codex app thread; reconcile ownership; never discard work."
+  "thread-owned execution"
   "Project execution remains owned and performed by its Codex app thread"
+  "text is not capability"
   "Thread prompts do not grant capabilities"
+  "permission propagation check"
   "verify its effective permission profile"
+  "no repeated permission prompts"
   "Do not retry the same denied action or repeatedly prompt the owner."
+  "single heartbeat inspection"
   "inspect the existing heartbeat first"
+  "private concurrency invariant"
   "Private investigation, implementation, testing, proof, and review continue independently."
+  "single public admission gate"
   "admit no additional public action until the overlap clears"
+  "frozen means public only"
   "means public-mutation-frozen only when that restriction existed before the worker crossed the public boundary"
+  "decision wait does not idle"
   "Keep all other qualified private project lanes active while that answer is pending."
 )
 
-for index in "${!requirement_labels[@]}"; do
-  fixture="$(create_fixture "missing-$index")"
+for ((index = 0; index < ${#requirements[@]}; index += 2)); do
+  fixture="$(create_fixture "missing-$((index / 2))")"
   replace_text \
     "$fixture/codex-skills/maintainer-orchestrator/SKILL.md" \
-    "${requirement_texts[$index]}" \
+    "${requirements[$((index + 1))]}" \
     ""
   assert_failure \
     "$fixture" \
-    "Missing maintainer-orchestrator policy: ${requirement_labels[$index]}"
+    "Missing maintainer-orchestrator policy: ${requirements[$index]}"
 done
 
 for term in subthread Subthreads; do
