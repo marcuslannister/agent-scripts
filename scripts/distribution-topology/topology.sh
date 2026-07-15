@@ -205,7 +205,7 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
         jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
           '{sourceId:$sourceId,skill:$skill,destination:$destination,reason:"unexpected"}' >> "$output/drift.ndjson"
         ;;
-      present|absent|drift|foreign|error)
+      present|absent|drift|outdated|foreign|error)
         if ! rg -q -F $'\t'"$skill"$'\t'"$destination" "$expected" || topology_seen "$seen_file" "$key"; then
           topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid inspection output"
           continue
@@ -232,6 +232,15 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
             if [ "$local_expected" = present ]; then reason="$detail"; else reason=unexpected; fi
             jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" --arg reason "$reason" \
               '{sourceId:$sourceId,skill:$skill,destination:$destination,reason:$reason}' >> "$output/drift.ndjson"
+            ;;
+          outdated)
+            if [ "$local_expected" != present ]; then
+              topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid outdated inspection output"
+              continue
+            fi
+            jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" --arg detail "$detail" \
+              '{kind:"outdated",sourceId:$sourceId,skill:$skill,destination:$destination,reason:("outdated: " + $detail)}' \
+              >> "$output/drift.ndjson"
             ;;
           present)
             [ "$local_expected" = absent ] && jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
@@ -326,7 +335,7 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
         decisions:($decisions | sort_by((.code + "~"),((.sourceId // (.sourceIds | join(",")) // "") + "~"),((.skill // "") + "~"),((.destination // "") + "~"))),
         errors:$errors,warnings:$warnings,
         changes:(if $mode == "check" then
-          ($changes + [$sortedDrift[] | select(.reason | startswith("outdated:")) |
+          ($changes + [$sortedDrift[] | select(.kind == "outdated") |
             {action:"updated",sourceId,skill,destination}])
           else $changes end),
         skipped:($skipped | sort_by(.sourceId,.skill,.destination)),
@@ -486,7 +495,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     jq -r --arg source "$source_id" --slurpfile plan "$plan_json" '
       .[] | select(.sourceId == $source) as $drift |
       ([$plan[0][] | select(.sourceId == $drift.sourceId and .skill == $drift.skill)][0] // null) as $entry |
-      [(if ($drift.reason | startswith("outdated:")) then "refresh"
+      [(if $drift.kind == "outdated" then "refresh"
         elif $entry == null then "remove"
         elif ($entry.destinations | index($drift.destination)) != null then "install"
         else "remove" end),$drift.skill,$drift.destination] | @tsv

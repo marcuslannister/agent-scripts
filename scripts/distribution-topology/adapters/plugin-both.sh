@@ -7,6 +7,7 @@ discovery_root="${3:?discovery root required}"
 action="${4:-discover}"
 plan_path="${5:-}"
 home="${6:?home required}"
+mode="${7:-reconcile}"
 
 registry="$repo_root/scripts/distribution-topology/registry.json"
 plugin_name="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.name' "$registry")"
@@ -162,38 +163,58 @@ load_claude_available_plugin_version() {
 }
 
 load_codex_available_plugin_version() {
-  local marketplace plugin_id output count source_kind root manifest version
+  local marketplace plugin_id output count root marketplace_manifest source_kind source_path
+  local plugin_root manifest version
   marketplace="$(marketplace_for codex)"
   plugin_id="$plugin_name@$marketplace"
   PLUGIN_AVAILABLE_VERSION=
   PLUGIN_FRESHNESS_ERROR=
 
-  if ! output="$(codex plugin list --available --json 2>&1)"; then
+  if ! output="$(codex plugin marketplace list --json 2>&1)"; then
     PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: ${output//$'\n'/ }"
     return 1
   fi
-  if ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$output" \
-    || ! jq -e '(.available // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin inventory returned invalid JSON"
+  if ! jq -e '(.marketplaces // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace inventory returned invalid JSON"
     return 1
   fi
-  count="$(jq -r --arg id "$plugin_id" '[.installed[]? | select(.pluginId == $id and .installed == true)] | length' <<< "$output")"
+  count="$(jq -r --arg marketplace "$marketplace" '[.marketplaces[]? | select(.name == $marketplace)] | length' <<< "$output")"
   if [ "$count" -ne 1 ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: expected one installed plugin, found $count"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: expected one configured marketplace, found $count"
     return 1
   fi
-  source_kind="$(jq -r --arg id "$plugin_id" 'first(.installed[] | select(.pluginId == $id)).source.source // ""' <<< "$output")"
+  if ! root="$(jq -er --arg marketplace "$marketplace" '
+    first(.marketplaces[] | select(.name == $marketplace)).root | select(type == "string" and length > 0)
+  ' <<< "$output" 2>/dev/null)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace root is missing"
+    return 1
+  fi
+  marketplace_manifest="$root/.agents/plugins/marketplace.json"
+  if [ ! -r "$marketplace_manifest" ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace manifest is unreadable"
+    return 1
+  fi
+  count="$(jq -r --arg plugin "$plugin_name" '[.plugins[]? | select(.name == $plugin)] | length' "$marketplace_manifest" 2>/dev/null || printf 0)"
+  if [ "$count" -ne 1 ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace manifest has no unique plugin"
+    return 1
+  fi
+  source_kind="$(jq -r --arg plugin "$plugin_name" 'first(.plugins[] | select(.name == $plugin)).source.source // ""' "$marketplace_manifest")"
   if [ "$source_kind" != local ]; then
     PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: unsupported marketplace source $source_kind"
     return 1
   fi
-  if ! root="$(jq -er --arg id "$plugin_id" '
-    first(.installed[] | select(.pluginId == $id)).source.path | select(type == "string" and length > 0)
-  ' <<< "$output" 2>/dev/null)"; then
+  if ! source_path="$(jq -er --arg plugin "$plugin_name" '
+    first(.plugins[] | select(.name == $plugin)).source.path | select(type == "string" and length > 0)
+  ' "$marketplace_manifest" 2>/dev/null)"; then
     PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace source path is missing"
     return 1
   fi
-  manifest="$root/.codex-plugin/plugin.json"
+  case "$source_path" in
+    /*) plugin_root="$source_path" ;;
+    *) plugin_root="$root/${source_path#./}" ;;
+  esac
+  manifest="$plugin_root/.codex-plugin/plugin.json"
   if [ ! -r "$manifest" ]; then
     PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin manifest is unreadable"
     return 1
@@ -216,6 +237,36 @@ load_plugin_available_version() {
       return 1
       ;;
   esac
+}
+
+PLUGIN_FRESHNESS_STATE=
+PLUGIN_FRESHNESS_DETAIL=
+
+evaluate_plugin_freshness() {
+  local destination="$1"
+  PLUGIN_FRESHNESS_STATE=
+  PLUGIN_FRESHNESS_DETAIL=
+  if ! load_plugin_available_version "$destination"; then
+    if [ "$mode" = reconcile ] && [ "$PLUGIN_STATE" = missing ]; then
+      PLUGIN_FRESHNESS_STATE=not-installed
+      return 0
+    fi
+    PLUGIN_FRESHNESS_STATE=error
+    PLUGIN_FRESHNESS_DETAIL="$PLUGIN_FRESHNESS_ERROR"
+    return 1
+  fi
+  if [ "$PLUGIN_STATE" = missing ]; then
+    PLUGIN_FRESHNESS_STATE=not-installed
+  elif [ -z "$PLUGIN_VERSION" ]; then
+    PLUGIN_FRESHNESS_STATE=error
+    PLUGIN_FRESHNESS_DETAIL="cannot determine installed plugin version"
+    return 1
+  elif [ "$PLUGIN_VERSION" = "$PLUGIN_AVAILABLE_VERSION" ]; then
+    PLUGIN_FRESHNESS_STATE=current
+  else
+    PLUGIN_FRESHNESS_STATE=outdated
+    PLUGIN_FRESHNESS_DETAIL="installed $PLUGIN_VERSION, available $PLUGIN_AVAILABLE_VERSION"
+  fi
 }
 
 MARKETPLACE_STATE=
@@ -365,35 +416,31 @@ inspect_states() {
   local expected skill destination state detail failed=0
   while IFS=$'\t' read -r expected skill destination; do
     [ -n "$expected" ] || continue
-    if load_plugin_state "$destination"; then
+    if ! load_plugin_state "$destination"; then
+      state=error
+      detail="$PLUGIN_ERROR"
+      failed=1
+    elif ! evaluate_plugin_freshness "$destination"; then
+      state=error
+      detail="$PLUGIN_FRESHNESS_DETAIL"
+      failed=1
+    else
       case "$PLUGIN_STATE" in
         enabled)
           if [ "$expected" != present ]; then
             state=present
             detail=managed
-          elif [ -z "$PLUGIN_VERSION" ]; then
-            state=error
-            detail="cannot determine installed plugin version"
-            failed=1
-          elif ! load_plugin_available_version "$destination"; then
-            state=error
-            detail="$PLUGIN_FRESHNESS_ERROR"
-            failed=1
-          elif [ "$PLUGIN_VERSION" = "$PLUGIN_AVAILABLE_VERSION" ]; then
+          elif [ "$PLUGIN_FRESHNESS_STATE" = current ]; then
             state=present
             detail=managed
           else
-            state=drift
-            detail="outdated: installed $PLUGIN_VERSION, available $PLUGIN_AVAILABLE_VERSION"
+            state=outdated
+            detail="$PLUGIN_FRESHNESS_DETAIL"
           fi
           ;;
         disabled) state=drift; detail=disabled ;;
         missing) state=absent; detail=missing ;;
       esac
-    else
-      state=error
-      detail="$PLUGIN_ERROR"
-      failed=1
     fi
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
@@ -502,23 +549,19 @@ verify_states() {
       failed=1
       continue
     fi
-    case "$expected:$PLUGIN_STATE" in
-      present:enabled)
-        if [ -z "$PLUGIN_VERSION" ]; then
-          printf 'plugin verification failed: %s/%s -> %s: installed version is missing\n' \
-            "$source_id" "$skill" "$destination" >&2
-          failed=1
-        elif ! load_plugin_available_version "$destination"; then
-          printf 'plugin verification failed: %s/%s -> %s: %s\n' \
-            "$source_id" "$skill" "$destination" "$PLUGIN_FRESHNESS_ERROR" >&2
-          failed=1
-        elif [ "$PLUGIN_VERSION" != "$PLUGIN_AVAILABLE_VERSION" ]; then
-          printf 'plugin verification failed: %s/%s -> %s: installed %s, available %s\n' \
-            "$source_id" "$skill" "$destination" "$PLUGIN_VERSION" "$PLUGIN_AVAILABLE_VERSION" >&2
-          failed=1
-        fi
+    if ! evaluate_plugin_freshness "$destination"; then
+      printf 'plugin verification failed: %s/%s -> %s: %s\n' \
+        "$source_id" "$skill" "$destination" "$PLUGIN_FRESHNESS_DETAIL" >&2
+      failed=1
+      continue
+    fi
+    case "$expected:$PLUGIN_STATE:$PLUGIN_FRESHNESS_STATE" in
+      present:enabled:current|absent:missing:not-installed) ;;
+      present:enabled:outdated)
+        printf 'plugin verification failed: %s/%s -> %s: %s\n' \
+          "$source_id" "$skill" "$destination" "$PLUGIN_FRESHNESS_DETAIL" >&2
+        failed=1
         ;;
-      absent:missing) ;;
       *)
         printf 'plugin verification failed: %s/%s -> %s: expected %s, found %s\n' \
           "$source_id" "$skill" "$destination" "$expected" "$PLUGIN_STATE" >&2
