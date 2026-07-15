@@ -290,6 +290,7 @@ SCRIPT
 mac_release_version_from_zip() {
   local zip_name=${1##*/} zip_base
   zip_base=${zip_name%.zip}
+  zip_base=${zip_base%.app}
   if [[ "$zip_base" =~ ([0-9]+([.][0-9]+){1,2}([-.][0-9A-Za-z.]+)?)$ ]]; then
     printf '%s\n' "${BASH_REMATCH[1]}"
   else
