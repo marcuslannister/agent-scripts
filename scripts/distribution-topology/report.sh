@@ -120,11 +120,10 @@ topology_write_human() { # document
          // ($source.defaultDestinations | join(","))),
        change:"none", result:$source.result}
     ]) as $all_rows |
-    (if (($document.status == "failed" or $document.status == "invalid" or $document.status == "interrupted")
-      and (any($all_rows[]; .result == $document.status) | not)) then
+    (if ($all_rows | length) == 0
+      or (($document.status == "failed" or $document.status == "invalid" or $document.status == "interrupted")
+        and (any($all_rows[]; .result == $document.status) | not)) then
       $all_rows + [{source:"topology",destination:"-",change:$document.status,result:$document.status}]
-    elif ($all_rows | length) == 0 then
-      [{source:"topology",destination:"-",change:$document.status,result:$document.status}]
     else $all_rows end) |
     sort_by(.source,.destination,.change)[] |
     [.source, (if .destination == "" then "-" else .destination end), .change, .result] | @tsv
