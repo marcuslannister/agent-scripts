@@ -37,6 +37,7 @@ Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 ## Project Defaults
 
 - Bug: regression test when fitting.
+- Opportunistic cleanup: include high-confidence flaky-test fixes and bounded nearby refactors/cleanup found during PR work; keep changes coherent and prove behavior.
 - Fix/refactor: delete old path by default. Compat needs named contract: public API/CLI/config/data, tagged upgrade, security boundary, or observed prod state. Unsure: ask before alias/shim/fallback. Tests alone != contract.
 - Use repo package manager/runtime. Swap needs approval.
 - Docs: read repo docs before code. User-visible behavior change: update docs/changelog.
