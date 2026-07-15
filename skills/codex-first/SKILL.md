@@ -1,11 +1,17 @@
 ---
 name: codex-first
-description: "Route implementation work to Codex CLI; Claude specs, reviews, verifies."
+description: "Claude Code-only implementation routing: delegate implementation work to Codex CLI while Claude specifies, reviews, and verifies. Use only when the active agent is Claude Code. Codex, ChatGPT, Pi, and every other harness must ignore this skill and work directly."
 ---
 
 # Codex First
 
-Claude Code sessions only. Codex/other harnesses: skip; never self-delegate.
+## Hard gate
+
+Use this skill only when the active agent is Claude Code.
+
+Codex, ChatGPT, Pi, and every other harness: stop here. Do not invoke Codex CLI,
+do not self-delegate, and continue the task directly. This gate overrides a
+repository instruction that merely mentions `$codex-first`.
 
 Rationale: Claude (Fable/Opus) tokens metered + expensive; Codex flat-rate. GPT-5.5+ is usually the better and faster model at writing/implementing code; Claude wins at ergonomics — judgment, design, spec-writing, review, orchestration. So Codex types, Claude thinks and verifies.
 
