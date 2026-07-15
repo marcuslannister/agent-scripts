@@ -61,7 +61,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/verify.sh`
-- Single local/CI verifier: skill validation, Bash syntax, topology cutover policy, updater/copy regressions, maintainer policy, browser helper tests/build, and video-downloader smoke checks.
+- Single local/CI verifier: skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/build, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
