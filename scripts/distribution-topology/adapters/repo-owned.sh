@@ -27,6 +27,14 @@ canonical_path() {
   fi
 }
 
+destination_path_for() {
+  case "$1" in
+    claude) printf '%s/skills/%s\n' "$repo_root" "$2" ;;
+    codex) printf '%s/.agents/skills/%s\n' "$home" "$2" ;;
+    *) return 1 ;;
+  esac
+}
+
 case "$action" in
   discover)
     # Reserved for adapters that need isolated remote discovery.
@@ -67,10 +75,7 @@ case "$action" in
       fi
 
       source_path="$repo_root/$source_relative/$skill"
-      case "$destination" in
-        claude) destination_path="$repo_root/skills/$skill" ;;
-        codex) destination_path="$home/.agents/skills/$skill" ;;
-      esac
+      destination_path="$(destination_path_for "$destination" "$skill")"
 
       case "$operation" in
         install)
@@ -109,11 +114,11 @@ case "$action" in
     while IFS=$'\t' read -r expected_state skill destination; do
       [ -n "$expected_state" ] || continue
       source_path="$repo_root/$source_relative/$skill"
-      case "$destination" in
-        claude) destination_path="$repo_root/skills/$skill" ;;
-        codex) destination_path="$home/.agents/skills/$skill" ;;
-        *) echo "invalid repo-owned verification destination: $destination" >&2; failed=1; continue ;;
-      esac
+      if ! destination_path="$(destination_path_for "$destination" "$skill")"; then
+        echo "invalid repo-owned verification destination: $destination" >&2
+        failed=1
+        continue
+      fi
       if [ "$source_id" = repo-codex ] && [ "$destination" = claude ]; then
         echo "Codex authoring source cannot target Claude: $skill" >&2
         failed=1
