@@ -126,8 +126,6 @@ https://onecli.sh/docs/guides/credential-stubs/general-app
 
 ## When a Request Fails
 
-If the request ran inside Anvil Emacs, first confirm that the daemon inherited the OneCLI proxy. See [OneCLI requests from Anvil Emacs](../../docs/onecli-anvil-emacs-proxy.md).
-
 If you get a 401, 403, or a gateway error (e.g., `app_not_connected`):
 
 **Step 1 — Show the user a connect link.** Use the `connect_url` from the
