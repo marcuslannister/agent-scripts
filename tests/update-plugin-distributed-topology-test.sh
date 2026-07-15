@@ -7,7 +7,9 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 FIXTURE="$TMP_ROOT/waza"
 BIN="$FIXTURE/bin"
-mkdir -p "$FIXTURE/scripts" "$FIXTURE/home" "$FIXTURE/runtime" "$BIN"
+mkdir -p "$FIXTURE/scripts" "$FIXTURE/home" "$FIXTURE/runtime" "$BIN" \
+  "$FIXTURE/home/claude-marketplace/.claude-plugin" \
+  "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
 
@@ -46,6 +48,12 @@ printf '[]\n' > "$FIXTURE/home/claude-plugins.json"
 printf '[]\n' > "$FIXTURE/home/claude-marketplaces.json"
 printf '{"installed":[]}\n' > "$FIXTURE/home/codex-plugins.json"
 printf '{"marketplaces":[]}\n' > "$FIXTURE/home/codex-marketplaces.json"
+cat > "$FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" <<'JSON'
+{"name":"waza","plugins":[{"name":"waza","version":"1.0.0","source":"./"}]}
+JSON
+cat > "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json" <<'JSON'
+{"name":"waza","version":"1.0.0"}
+JSON
 
 cat > "$BIN/claude" <<'BASH'
 #!/usr/bin/env bash
@@ -55,7 +63,12 @@ case "$*" in
     cat "$HOME/claude-plugins.json"
     ;;
   'plugin marketplace list --json')
-    cat "$HOME/claude-marketplaces.json"
+    if [ "${FAKE_CLAUDE_FRESHNESS_FAIL:-0}" = 1 ]; then
+      printf 'fixture Claude freshness failure\n' >&2
+      exit 1
+    fi
+    jq --arg root "$HOME/claude-marketplace" 'map(. + {installLocation:$root})' \
+      "$HOME/claude-marketplaces.json"
     ;;
   'plugin marketplace add tw93/Waza')
     printf '[{"name":"waza"}]\n' > "$HOME/claude-marketplaces.json"
@@ -101,8 +114,19 @@ case "$*" in
   'plugin list --json')
     cat "$HOME/codex-plugins.json"
     ;;
+  'plugin list --available --json')
+    if [ "${FAKE_CODEX_FRESHNESS_FAIL:-0}" = 1 ]; then
+      printf 'fixture Codex freshness failure\n' >&2
+      exit 1
+    fi
+    jq --arg root "$HOME/codex-marketplace/plugins/waza" '
+      .installed |= map(. + {source:{source:"local",path:$root}}) |
+      .available = []
+    ' "$HOME/codex-plugins.json"
+    ;;
   'plugin marketplace list --json')
-    cat "$HOME/codex-marketplaces.json"
+    jq --arg root "$HOME/codex-marketplace" '.marketplaces |= map(. + {root:$root})' \
+      "$HOME/codex-marketplaces.json"
     ;;
   'plugin marketplace add tw93/Waza')
     printf '{"marketplaces":[{"name":"waza"}]}\n' > "$HOME/codex-marketplaces.json"
@@ -127,7 +151,9 @@ case "$*" in
       printf 'fixture Codex install failure\n' >&2
       exit 1
     fi
-    printf '{"installed":[{"pluginId":"waza@waza","marketplaceName":"waza","version":"1.0.0","installed":true,"enabled":true}]}\n' > "$HOME/codex-plugins.json"
+    jq -n --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
+      {installed:[{pluginId:"waza@waza",marketplaceName:"waza",version:$version,installed:true,enabled:true}]}
+    ' > "$HOME/codex-plugins.json"
     ;;
   'plugin remove waza@waza')
     printf '{"installed":[]}\n' > "$HOME/codex-plugins.json"
@@ -336,6 +362,50 @@ jq -e '.installed[0].enabled == false' "$CODEX_DISABLED_FIXTURE/home/codex-plugi
 
 UPDATE_FIXTURE="$TMP_ROOT/update"
 cp -R "$FIXTURE" "$UPDATE_FIXTURE"
+jq '.plugins[0].version = "2.0.0"' \
+  "$UPDATE_FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" \
+  > "$UPDATE_FIXTURE/claude-marketplace.tmp"
+mv "$UPDATE_FIXTURE/claude-marketplace.tmp" \
+  "$UPDATE_FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json"
+jq '.version = "2.0.0"' \
+  "$UPDATE_FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json" \
+  > "$UPDATE_FIXTURE/codex-plugin.tmp"
+mv "$UPDATE_FIXTURE/codex-plugin.tmp" \
+  "$UPDATE_FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json"
+cp -R "$UPDATE_FIXTURE/home" "$UPDATE_FIXTURE/home-before-check"
+set +e
+HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
+  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/check.json"
+update_check_exit=$?
+set -e
+test "$update_check_exit" -eq 1
+jq -e '
+  .status == "drift" and
+  ([.drift[] | {sourceId, skill, destination, reason}] == [
+    {"sourceId":"waza","skill":"waza","destination":"claude","reason":"outdated: installed 1.0.0, available 2.0.0"},
+    {"sourceId":"waza","skill":"waza","destination":"codex","reason":"outdated: installed 1.0.0, available 2.0.0"}
+  ]) and
+  ([.changes[] | {action, sourceId, skill, destination}] == [
+    {"action":"updated","sourceId":"waza","skill":"waza","destination":"claude"},
+    {"action":"updated","sourceId":"waza","skill":"waza","destination":"codex"}
+  ]) and
+  .errors == []
+' "$UPDATE_FIXTURE/check.json" >/dev/null
+diff -r "$UPDATE_FIXTURE/home-before-check" "$UPDATE_FIXTURE/home" >/dev/null
+set +e
+HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
+  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check \
+  > "$UPDATE_FIXTURE/check.out" 2> "$UPDATE_FIXTURE/check.err"
+update_human_exit=$?
+set -e
+test "$update_human_exit" -eq 1
+grep -F 'Drift:' "$UPDATE_FIXTURE/check.out" >/dev/null
+grep -F 'outdated: installed 1.0.0, available 2.0.0' "$UPDATE_FIXTURE/check.out" >/dev/null
+grep -F 'Planned changes:' "$UPDATE_FIXTURE/check.out" >/dev/null
+grep -F -- '- updated waza/waza -> claude' "$UPDATE_FIXTURE/check.out" >/dev/null
+grep -F -- '- updated waza/waza -> codex' "$UPDATE_FIXTURE/check.out" >/dev/null
+diff -r "$UPDATE_FIXTURE/home-before-check" "$UPDATE_FIXTURE/home" >/dev/null
+
 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 \
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
   "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --json > "$UPDATE_FIXTURE/result.json"
@@ -348,6 +418,42 @@ jq -e '
 ' "$UPDATE_FIXTURE/result.json" >/dev/null
 jq -e '.[0].version == "2.0.0"' "$UPDATE_FIXTURE/home/claude-plugins.json" >/dev/null
 jq -e '.installed[0].version == "2.0.0"' "$UPDATE_FIXTURE/home/codex-plugins.json" >/dev/null
+HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
+  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/recheck.json"
+jq -e '.status == "clean" and .drift == [] and .changes == [] and .errors == []' \
+  "$UPDATE_FIXTURE/recheck.json" >/dev/null
+
+CLAUDE_FRESHNESS_FIXTURE="$TMP_ROOT/claude-freshness-failure"
+cp -R "$FIXTURE" "$CLAUDE_FRESHNESS_FIXTURE"
+set +e
+FAKE_CLAUDE_FRESHNESS_FAIL=1 \
+HOME="$CLAUDE_FRESHNESS_FIXTURE/home" TMPDIR="$CLAUDE_FRESHNESS_FIXTURE/runtime" \
+PATH="$CLAUDE_FRESHNESS_FIXTURE/bin:$PATH" \
+  "$CLAUDE_FRESHNESS_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$CLAUDE_FRESHNESS_FIXTURE/result.json"
+claude_freshness_exit=$?
+set -e
+test "$claude_freshness_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("cannot determine available Claude plugin version") and contains("fixture Claude freshness failure"))
+' "$CLAUDE_FRESHNESS_FIXTURE/result.json" >/dev/null
+
+CODEX_FRESHNESS_FIXTURE="$TMP_ROOT/codex-freshness-failure"
+cp -R "$FIXTURE" "$CODEX_FRESHNESS_FIXTURE"
+set +e
+FAKE_CODEX_FRESHNESS_FAIL=1 \
+HOME="$CODEX_FRESHNESS_FIXTURE/home" TMPDIR="$CODEX_FRESHNESS_FIXTURE/runtime" \
+PATH="$CODEX_FRESHNESS_FIXTURE/bin:$PATH" \
+  "$CODEX_FRESHNESS_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$CODEX_FRESHNESS_FIXTURE/result.json"
+codex_freshness_exit=$?
+set -e
+test "$codex_freshness_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("cannot determine available Codex plugin version") and contains("fixture Codex freshness failure"))
+' "$CODEX_FRESHNESS_FIXTURE/result.json" >/dev/null
 
 FAILURE_FIXTURE="$TMP_ROOT/failure"
 cp -R "$FIXTURE" "$FAILURE_FIXTURE"
@@ -388,7 +494,9 @@ jq -e '
 MEM_FIXTURE="$TMP_ROOT/claude-mem"
 MEM_BIN="$MEM_FIXTURE/bin"
 mkdir -p "$MEM_FIXTURE/scripts" "$MEM_FIXTURE/home/.bun/bin" "$MEM_FIXTURE/home/.local/bin" \
-  "$MEM_FIXTURE/home/.claude-mem" "$MEM_FIXTURE/runtime" "$MEM_BIN"
+  "$MEM_FIXTURE/home/.claude-mem" "$MEM_FIXTURE/runtime" "$MEM_BIN" \
+  "$MEM_FIXTURE/home/claude-marketplace/.claude-plugin" \
+  "$MEM_FIXTURE/home/codex-marketplace/plugin/.codex-plugin"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$MEM_FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$MEM_FIXTURE/scripts/"
 jq '{version, sources: [.sources[] | select(.id == "claude-mem")]}' \
@@ -399,9 +507,15 @@ jq '[.[] | select(.sourceId == "claude-mem")]' \
 printf 'shared database fixture\n' > "$MEM_FIXTURE/home/.claude-mem/database.sqlite"
 cp "$MEM_FIXTURE/home/.claude-mem/database.sqlite" "$MEM_FIXTURE/database-before"
 printf '[]\n' > "$MEM_FIXTURE/home/claude-plugins.json"
-printf '[]\n' > "$MEM_FIXTURE/home/claude-marketplaces.json"
+printf '[{"name":"thedotmack"}]\n' > "$MEM_FIXTURE/home/claude-marketplaces.json"
 printf '{"installed":[]}\n' > "$MEM_FIXTURE/home/codex-plugins.json"
-printf '{"marketplaces":[]}\n' > "$MEM_FIXTURE/home/codex-marketplaces.json"
+printf '{"marketplaces":[{"name":"claude-mem-local"}]}\n' > "$MEM_FIXTURE/home/codex-marketplaces.json"
+cat > "$MEM_FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" <<'JSON'
+{"name":"thedotmack","plugins":[{"name":"claude-mem","version":"1.0.0","source":"./plugin"}]}
+JSON
+cat > "$MEM_FIXTURE/home/codex-marketplace/plugin/.codex-plugin/plugin.json" <<'JSON'
+{"name":"claude-mem","version":"1.0.0"}
+JSON
 
 cat > "$MEM_BIN/dependency" <<'BASH'
 #!/usr/bin/env bash
@@ -420,7 +534,10 @@ cat > "$MEM_BIN/claude" <<'BASH'
 set -euo pipefail
 case "$*" in
   'plugin list --json') cat "$HOME/claude-plugins.json" ;;
-  'plugin marketplace list --json') cat "$HOME/claude-marketplaces.json" ;;
+  'plugin marketplace list --json')
+    jq --arg root "$HOME/claude-marketplace" 'map(. + {installLocation:$root})' \
+      "$HOME/claude-marketplaces.json"
+    ;;
   'plugin marketplace add thedotmack/claude-mem')
     printf '[{"name":"thedotmack"}]\n' > "$HOME/claude-marketplaces.json"
     ;;
@@ -444,7 +561,16 @@ cat > "$MEM_BIN/codex" <<'BASH'
 set -euo pipefail
 case "$*" in
   'plugin list --json') cat "$HOME/codex-plugins.json" ;;
-  'plugin marketplace list --json') cat "$HOME/codex-marketplaces.json" ;;
+  'plugin list --available --json')
+    jq --arg root "$HOME/codex-marketplace/plugin" '
+      .installed |= map(. + {source:{source:"local",path:$root}}) |
+      .available = []
+    ' "$HOME/codex-plugins.json"
+    ;;
+  'plugin marketplace list --json')
+    jq --arg root "$HOME/codex-marketplace" '.marketplaces |= map(. + {root:$root})' \
+      "$HOME/codex-marketplaces.json"
+    ;;
   'plugin marketplace add thedotmack/claude-mem')
     printf '{"marketplaces":[{"name":"claude-mem-local"}]}\n' > "$HOME/codex-marketplaces.json"
     ;;

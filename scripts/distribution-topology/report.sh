@@ -34,8 +34,9 @@ topology_failure_document() { # message code mode
 }
 
 topology_write_human() { # document
-  local document="$1" source_id inventory defaults supported result
-  printf 'Skill topology %s\n' "$(jq -r '.mode' "$document")"
+  local document="$1" source_id inventory defaults supported result mode
+  mode="$(jq -r '.mode' "$document")"
+  printf 'Skill topology %s\n' "$mode"
   printf '%-20s%-11s%-14s%-14s%s\n' SOURCE INVENTORY DEFAULT SUPPORTED RESULT
   while IFS=$'\t' read -r source_id inventory defaults supported result; do
     printf '%-20s%-11s%-14s%-14s%s\n' "$source_id" "$inventory" "$defaults" "$supported" "$result"
@@ -43,7 +44,9 @@ topology_write_human() { # document
 
   if [ "$(jq '.drift | length' "$document")" -gt 0 ]; then printf '\nDrift:\n'; fi
   jq -r '.drift[] | "- \(.sourceId)/\(.skill) -> \(.destination): \(.reason)"' "$document"
-  if [ "$(jq '.changes | length' "$document")" -gt 0 ]; then printf '\nChanges:\n'; fi
+  if [ "$(jq '.changes | length' "$document")" -gt 0 ]; then
+    [ "$mode" = check ] && printf '\nPlanned changes:\n' || printf '\nChanges:\n'
+  fi
   jq -r '.changes[] | "- \(.action) \(.sourceId)/\(.skill) -> \(.destination)"' "$document"
 
   printf '\nCodex-root hygiene: %s\n' "$(jq -r '.hygiene.status' "$document")"
@@ -52,8 +55,7 @@ topology_write_human() { # document
   if [ "$(jq '.skipped | length' "$document")" -gt 0 ]; then printf '\nSkipped:\n'; fi
   jq -r '.skipped[] | "- \(.sourceId)/\(.skill) -> \(.destination): \(.reason)"' "$document"
 
-  local count count_label status mode
-  mode="$(jq -r '.mode' "$document")"
+  local count count_label status
   status="$(jq -r '.status' "$document")"
   if [ "$(jq '.decisions | length' "$document")" -gt 0 ]; then
     count="$(jq '.decisions | length' "$document")"

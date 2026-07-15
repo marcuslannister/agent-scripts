@@ -324,7 +324,11 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
           .unexpectedDestinations = [$sortedDrift[] | select(.sourceId == $item.sourceId and .skill == $item.skill and .reason == "unexpected") | .destination])),
         drift:$sortedDrift,
         decisions:($decisions | sort_by((.code + "~"),((.sourceId // (.sourceIds | join(",")) // "") + "~"),((.skill // "") + "~"),((.destination // "") + "~"))),
-        errors:$errors,warnings:$warnings,changes:$changes,
+        errors:$errors,warnings:$warnings,
+        changes:(if $mode == "check" then
+          ($changes + [$sortedDrift[] | select(.reason | startswith("outdated:")) |
+            {action:"updated",sourceId,skill,destination}])
+          else $changes end),
         skipped:($skipped | sort_by(.sourceId,.skill,.destination)),
         hygiene:$hygiene[0]
       }
@@ -482,7 +486,10 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     jq -r --arg source "$source_id" --slurpfile plan "$plan_json" '
       .[] | select(.sourceId == $source) as $drift |
       ([$plan[0][] | select(.sourceId == $drift.sourceId and .skill == $drift.skill)][0] // null) as $entry |
-      [(if $entry == null then "remove" elif ($entry.destinations | index($drift.destination)) != null then "install" else "remove" end),$drift.skill,$drift.destination] | @tsv
+      [(if ($drift.reason | startswith("outdated:")) then "refresh"
+        elif $entry == null then "remove"
+        elif ($entry.destinations | index($drift.destination)) != null then "install"
+        else "remove" end),$drift.skill,$drift.destination] | @tsv
     ' "$initial/drift.ndjson" --slurp >> "$action_file"
     if [ "$(topology_registry_value "$source_id" '.classification')" = plugin-both ]; then
       topology_expected_states "$source_id" "$DISCOVERY_ROOT/$source_id.refresh-states.tsv" "$plan_json"

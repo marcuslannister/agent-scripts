@@ -116,6 +116,108 @@ load_plugin_state() {
   fi
 }
 
+PLUGIN_AVAILABLE_VERSION=
+PLUGIN_FRESHNESS_ERROR=
+
+load_claude_available_plugin_version() {
+  local marketplace plugin_id output count root manifest version
+  marketplace="$(marketplace_for claude)"
+  plugin_id="$plugin_name@$marketplace"
+  PLUGIN_AVAILABLE_VERSION=
+  PLUGIN_FRESHNESS_ERROR=
+
+  if ! output="$(claude plugin marketplace list --json 2>&1)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: ${output//$'\n'/ }"
+    return 1
+  fi
+  if ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$output"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace inventory returned invalid JSON"
+    return 1
+  fi
+  count="$(jq -r --arg marketplace "$marketplace" '[.[]? | select(.name == $marketplace)] | length' <<< "$output")"
+  if [ "$count" -ne 1 ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: expected one configured marketplace, found $count"
+    return 1
+  fi
+  if ! root="$(jq -er --arg marketplace "$marketplace" '
+    first(.[] | select(.name == $marketplace)) | .installLocation | select(type == "string" and length > 0)
+  ' <<< "$output" 2>/dev/null)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace root is missing"
+    return 1
+  fi
+  manifest="$root/.claude-plugin/marketplace.json"
+  if [ ! -r "$manifest" ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace manifest is unreadable"
+    return 1
+  fi
+  if ! version="$(jq -er --arg plugin "$plugin_name" '
+    .plugins | select(type == "array") |
+    [.[] | select(.name == $plugin)] | select(length == 1) |
+    .[0].version | select(type == "string" and length > 0)
+  ' "$manifest" 2>/dev/null)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace manifest has no unique version"
+    return 1
+  fi
+  PLUGIN_AVAILABLE_VERSION="$version"
+}
+
+load_codex_available_plugin_version() {
+  local marketplace plugin_id output count source_kind root manifest version
+  marketplace="$(marketplace_for codex)"
+  plugin_id="$plugin_name@$marketplace"
+  PLUGIN_AVAILABLE_VERSION=
+  PLUGIN_FRESHNESS_ERROR=
+
+  if ! output="$(codex plugin list --available --json 2>&1)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: ${output//$'\n'/ }"
+    return 1
+  fi
+  if ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$output" \
+    || ! jq -e '(.available // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin inventory returned invalid JSON"
+    return 1
+  fi
+  count="$(jq -r --arg id "$plugin_id" '[.installed[]? | select(.pluginId == $id and .installed == true)] | length' <<< "$output")"
+  if [ "$count" -ne 1 ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: expected one installed plugin, found $count"
+    return 1
+  fi
+  source_kind="$(jq -r --arg id "$plugin_id" 'first(.installed[] | select(.pluginId == $id)).source.source // ""' <<< "$output")"
+  if [ "$source_kind" != local ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: unsupported marketplace source $source_kind"
+    return 1
+  fi
+  if ! root="$(jq -er --arg id "$plugin_id" '
+    first(.installed[] | select(.pluginId == $id)).source.path | select(type == "string" and length > 0)
+  ' <<< "$output" 2>/dev/null)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace source path is missing"
+    return 1
+  fi
+  manifest="$root/.codex-plugin/plugin.json"
+  if [ ! -r "$manifest" ]; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin manifest is unreadable"
+    return 1
+  fi
+  if ! version="$(jq -er --arg plugin "$plugin_name" '
+    select(.name == $plugin) | .version | select(type == "string" and length > 0)
+  ' "$manifest" 2>/dev/null)"; then
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin manifest has no version"
+    return 1
+  fi
+  PLUGIN_AVAILABLE_VERSION="$version"
+}
+
+load_plugin_available_version() {
+  case "$1" in
+    claude) load_claude_available_plugin_version ;;
+    codex) load_codex_available_plugin_version ;;
+    *)
+      PLUGIN_FRESHNESS_ERROR="cannot determine available plugin version for unknown destination: $1"
+      return 1
+      ;;
+  esac
+}
+
 MARKETPLACE_STATE=
 MARKETPLACE_ERROR=
 
@@ -265,7 +367,26 @@ inspect_states() {
     [ -n "$expected" ] || continue
     if load_plugin_state "$destination"; then
       case "$PLUGIN_STATE" in
-        enabled) state=present; detail=managed ;;
+        enabled)
+          if [ "$expected" != present ]; then
+            state=present
+            detail=managed
+          elif [ -z "$PLUGIN_VERSION" ]; then
+            state=error
+            detail="cannot determine installed plugin version"
+            failed=1
+          elif ! load_plugin_available_version "$destination"; then
+            state=error
+            detail="$PLUGIN_FRESHNESS_ERROR"
+            failed=1
+          elif [ "$PLUGIN_VERSION" = "$PLUGIN_AVAILABLE_VERSION" ]; then
+            state=present
+            detail=managed
+          else
+            state=drift
+            detail="outdated: installed $PLUGIN_VERSION, available $PLUGIN_AVAILABLE_VERSION"
+          fi
+          ;;
         disabled) state=drift; detail=disabled ;;
         missing) state=absent; detail=missing ;;
       esac
@@ -336,6 +457,8 @@ apply_destination() {
             codex plugin add "$plugin_id" || return 1
           ;;
         codex:enabled)
+          run_native "Codex plugin update failed for $plugin_id" \
+            codex plugin add "$plugin_id" || return 1
           ;;
       esac
       ;;
@@ -380,7 +503,22 @@ verify_states() {
       continue
     fi
     case "$expected:$PLUGIN_STATE" in
-      present:enabled|absent:missing) ;;
+      present:enabled)
+        if [ -z "$PLUGIN_VERSION" ]; then
+          printf 'plugin verification failed: %s/%s -> %s: installed version is missing\n' \
+            "$source_id" "$skill" "$destination" >&2
+          failed=1
+        elif ! load_plugin_available_version "$destination"; then
+          printf 'plugin verification failed: %s/%s -> %s: %s\n' \
+            "$source_id" "$skill" "$destination" "$PLUGIN_FRESHNESS_ERROR" >&2
+          failed=1
+        elif [ "$PLUGIN_VERSION" != "$PLUGIN_AVAILABLE_VERSION" ]; then
+          printf 'plugin verification failed: %s/%s -> %s: installed %s, available %s\n' \
+            "$source_id" "$skill" "$destination" "$PLUGIN_VERSION" "$PLUGIN_AVAILABLE_VERSION" >&2
+          failed=1
+        fi
+        ;;
+      absent:missing) ;;
       *)
         printf 'plugin verification failed: %s/%s -> %s: expected %s, found %s\n' \
           "$source_id" "$skill" "$destination" "$expected" "$PLUGIN_STATE" >&2
