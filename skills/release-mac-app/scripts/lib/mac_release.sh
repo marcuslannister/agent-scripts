@@ -1512,7 +1512,7 @@ mac_release_release() {
   elif [[ "${MAC_RELEASE_TAG_ANNOTATED:-1}" == "1" ]]; then
     git tag ${tag_args[@]+"${tag_args[@]}"} -m "${APP_NAME} ${MARKETING_VERSION}" "$TAG"
   else
-    git tag ${tag_args[@]+"${tag_args[@]}"} "$TAG"
+    git tag --no-sign ${tag_args[@]+"${tag_args[@]}"} "$TAG"
   fi
   tag_created=1
   git push ${push_tag_args[@]+"${push_tag_args[@]}"} origin "$TAG"
