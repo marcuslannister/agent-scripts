@@ -51,6 +51,14 @@ topology_init_color() {
   fi
 }
 
+topology_result_color() { # result
+  case "$1" in
+    clean|reconciled|changed) printf '%s' "$TOPOLOGY_GREEN" ;;
+    drift|decision-required|skipped) printf '%s' "$TOPOLOGY_YELLOW" ;;
+    failed|invalid|interrupted) printf '%s' "$TOPOLOGY_RED" ;;
+  esac
+}
+
 topology_progress() { # step message
   [ "$JSON_OUTPUT" -eq 0 ] || return 0
   printf '%s[%s/4] %s%s\n' "$TOPOLOGY_CYAN" "$1" "$2" "$TOPOLOGY_RESET"
@@ -62,12 +70,7 @@ topology_write_human() { # document
   printf 'Skill topology %s\n\n' "$mode"
   printf '%s%-32s %-18s %-30s %s%s\n' "$TOPOLOGY_BOLD" SOURCE DESTINATION CHANGE RESULT "$TOPOLOGY_RESET"
   while IFS=$'\t' read -r source destination change result; do
-    result_color=
-    case "$result" in
-      clean|reconciled|changed) result_color="$TOPOLOGY_GREEN" ;;
-      drift|decision-required|skipped) result_color="$TOPOLOGY_YELLOW" ;;
-      failed|invalid|interrupted) result_color="$TOPOLOGY_RED" ;;
-    esac
+    result_color="$(topology_result_color "$result")"
     printf '%-32s %-18s %-30s %s%s%s\n' \
       "$source" "$destination" "$change" "$result_color" "$result" "$TOPOLOGY_RESET"
   done < <(jq -r '
@@ -87,7 +90,9 @@ topology_write_human() { # document
       select(any($document.changes[];
         .sourceId == $drift.sourceId and .skill == $drift.skill and .destination == $drift.destination) | not) |
       {source:($drift.sourceId + "/" + $drift.skill), destination:$drift.destination,
-       change:$drift.reason, result:source_result($drift.sourceId)}
+       change:(if $document.mode == "check" and $drift.reason == "unexpected"
+         then "planned-removal" else $drift.reason end),
+       result:source_result($drift.sourceId)}
     ] + [
       $document.decisions[] |
       (.sourceId // ((.sourceIds // []) | join(",")) // "topology") as $sourceId |
@@ -105,16 +110,19 @@ topology_write_human() { # document
       $document.hygiene.entries[] |
       {source:("codex-root/" + .name), destination:$document.hygiene.legacyRoot,
        change:("legacy:" + .kind), result:$document.hygiene.status}
-    ]) as $activity |
-    ($activity + [
+    ]) as $report_rows |
+    ($report_rows + [
       $document.sources[] as $source |
-      select(any($activity[];
+      select(any($report_rows[];
         .source == $source.id or (.source | startswith($source.id + "/"))) | not) |
       {source:$source.id,
        destination:(([$document.plan[] | select(.sourceId == $source.id) | .destinations[]] | unique | join(","))
          // ($source.defaultDestinations | join(","))),
        change:"none", result:$source.result}
-    ]) |
+    ]) as $all_rows |
+    (if ($all_rows | length) == 0 then
+      [{source:"topology",destination:"-",change:$document.status,result:$document.status}]
+    else $all_rows end) |
     sort_by(.source,.destination,.change)[] |
     [.source, (if .destination == "" then "-" else .destination end), .change, .result] | @tsv
   ' "$document")
@@ -132,12 +140,7 @@ topology_write_human() { # document
     fi
     count_label="$count changes"
   fi
-  result_color=
-  case "$status" in
-    clean|reconciled) result_color="$TOPOLOGY_GREEN" ;;
-    drift|decision-required) result_color="$TOPOLOGY_YELLOW" ;;
-    failed|invalid|interrupted) result_color="$TOPOLOGY_RED" ;;
-  esac
+  result_color="$(topology_result_color "$status")"
   printf '\nResult: %s%s%s (%s)\n' "$result_color" "$status" "$TOPOLOGY_RESET" "$count_label"
 
   if [ "$(jq '.decisions | length' "$document")" -gt 0 ]; then
@@ -154,4 +157,12 @@ topology_write_human_failure() { # message code mode
   topology_failure_document "$1" "$2" "$3" > "$failure_document"
   topology_write_human "$failure_document"
   rm -f -- "$failure_document"
+}
+
+topology_write_failure() { # message code mode
+  if [ "$REQUESTED_JSON" -eq 1 ]; then
+    topology_failure_document "$1" "$2" "$3"
+  else
+    topology_write_human_failure "$1" "$2" "$3"
+  fi
 }

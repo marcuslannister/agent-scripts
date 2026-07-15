@@ -586,11 +586,7 @@ topology_interrupt() {
     wait "$ACTIVE_CHILD" 2>/dev/null || true
     ACTIVE_CHILD=
   fi
-  if [ "$REQUESTED_JSON" -eq 1 ]; then
-    topology_failure_document interrupted 130 "$MODE"
-  else
-    topology_write_human_failure interrupted 130 "$MODE"
-  fi
+  topology_write_failure interrupted 130 "$MODE"
   exit 130
 }
 
@@ -619,16 +615,12 @@ done
 if [ "$check_count" -gt 1 ] || [ "$json_count" -gt 1 ]; then topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; fi
 topology_init_color
 if [ -n "$TOPOLOGY_ERROR_MESSAGE" ]; then
-  if [ "$REQUESTED_JSON" -eq 1 ]; then topology_failure_document "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  else topology_write_human_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  fi
+  topology_write_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
   exit "$TOPOLOGY_ERROR_CODE"
 fi
 
 if ! topology_acquire_lock; then
-  if [ "$REQUESTED_JSON" -eq 1 ]; then topology_failure_document "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  else topology_write_human_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  fi
+  topology_write_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
   exit "$TOPOLOGY_ERROR_CODE"
 fi
 DISCOVERY_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/agent-scripts-topology-discovery-XXXXXX")"
@@ -649,8 +641,6 @@ if [ -n "$DOCUMENT_PATH" ]; then
   if [ "$JSON_OUTPUT" -eq 1 ]; then cat "$DOCUMENT_PATH"; else topology_write_human "$DOCUMENT_PATH"; fi
 else
   [ -n "$TOPOLOGY_ERROR_MESSAGE" ] || topology_fail "$result_code" "$([ "$INTERRUPTED" -eq 1 ] && printf interrupted || printf 'topology failed')"
-  if [ "$REQUESTED_JSON" -eq 1 ]; then topology_failure_document "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  else topology_write_human_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  fi
+  topology_write_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
 fi
 exit "$result_code"

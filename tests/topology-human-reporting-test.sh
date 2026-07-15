@@ -155,12 +155,22 @@ check_failed_exit=$?
 set -e
 test "$check_failed_exit" -eq 1
 grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$FIXTURE/check-failed.out"
+assert_row "$FIXTURE/check-failed.out" topology - failed failed
 grep -F 'Result: failed' "$FIXTURE/check-failed.out" >/dev/null
 grep -F 'error: source repo-claude discovery failed: fixture discovery failure' "$FIXTURE/check-failed.err" >/dev/null
 
 # Removals remain explicit.
 jq '.sources[0].overrides.alpha = ["claude"]' "$FIXTURE/skill-topology.json" > "$FIXTURE/manifest.tmp"
 mv "$FIXTURE/manifest.tmp" "$FIXTURE/skill-topology.json"
+set +e
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" "$COMMAND" --check \
+  > "$FIXTURE/remove-check.out" 2> "$FIXTURE/remove-check.err"
+remove_check_exit=$?
+set -e
+test "$remove_check_exit" -eq 1
+test ! -s "$FIXTURE/remove-check.err"
+assert_row "$FIXTURE/remove-check.out" repo-claude/alpha codex planned-removal drift
+
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" "$COMMAND" \
   > "$FIXTURE/removed.out" 2> "$FIXTURE/removed.err"
 test ! -s "$FIXTURE/removed.err"
