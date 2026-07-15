@@ -12,6 +12,12 @@ mode="${7:-reconcile}"
 registry="$repo_root/scripts/distribution-topology/registry.json"
 plugin_name="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.name' "$registry")"
 plugin_repo="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.repo' "$registry")"
+remote_root="$discovery_root/$source_id/repo"
+
+discover_remote_marketplace() {
+  mkdir -p "$(dirname "$remote_root")"
+  git clone --depth 1 --quiet "https://github.com/$plugin_repo.git" "$remote_root"
+}
 
 marketplace_for() {
   jq -er --arg source_id "$source_id" --arg destination "$1" \
@@ -121,34 +127,15 @@ PLUGIN_AVAILABLE_VERSION=
 PLUGIN_FRESHNESS_ERROR=
 
 load_claude_available_plugin_version() {
-  local marketplace plugin_id output count root manifest version
+  local marketplace plugin_id manifest version
   marketplace="$(marketplace_for claude)"
   plugin_id="$plugin_name@$marketplace"
+  manifest="$remote_root/.claude-plugin/marketplace.json"
   PLUGIN_AVAILABLE_VERSION=
   PLUGIN_FRESHNESS_ERROR=
 
-  if ! output="$(claude plugin marketplace list --json 2>&1)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: ${output//$'\n'/ }"
-    return 1
-  fi
-  if ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$output"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace inventory returned invalid JSON"
-    return 1
-  fi
-  count="$(jq -r --arg marketplace "$marketplace" '[.[]? | select(.name == $marketplace)] | length' <<< "$output")"
-  if [ "$count" -ne 1 ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: expected one configured marketplace, found $count"
-    return 1
-  fi
-  if ! root="$(jq -er --arg marketplace "$marketplace" '
-    first(.[] | select(.name == $marketplace)) | .installLocation | select(type == "string" and length > 0)
-  ' <<< "$output" 2>/dev/null)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace root is missing"
-    return 1
-  fi
-  manifest="$root/.claude-plugin/marketplace.json"
   if [ ! -r "$manifest" ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace manifest is unreadable"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: remote marketplace manifest is unreadable"
     return 1
   fi
   if ! version="$(jq -er --arg plugin "$plugin_name" '
@@ -156,47 +143,28 @@ load_claude_available_plugin_version() {
     [.[] | select(.name == $plugin)] | select(length == 1) |
     .[0].version | select(type == "string" and length > 0)
   ' "$manifest" 2>/dev/null)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: marketplace manifest has no unique version"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: remote marketplace manifest has no unique version"
     return 1
   fi
   PLUGIN_AVAILABLE_VERSION="$version"
 }
 
 load_codex_available_plugin_version() {
-  local marketplace plugin_id output count root marketplace_manifest source_kind source_path
+  local marketplace plugin_id marketplace_manifest count source_kind source_path
   local plugin_root manifest version
   marketplace="$(marketplace_for codex)"
   plugin_id="$plugin_name@$marketplace"
+  marketplace_manifest="$remote_root/.agents/plugins/marketplace.json"
   PLUGIN_AVAILABLE_VERSION=
   PLUGIN_FRESHNESS_ERROR=
 
-  if ! output="$(codex plugin marketplace list --json 2>&1)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: ${output//$'\n'/ }"
-    return 1
-  fi
-  if ! jq -e '(.marketplaces // []) | type == "array"' >/dev/null 2>&1 <<< "$output"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace inventory returned invalid JSON"
-    return 1
-  fi
-  count="$(jq -r --arg marketplace "$marketplace" '[.marketplaces[]? | select(.name == $marketplace)] | length' <<< "$output")"
-  if [ "$count" -ne 1 ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: expected one configured marketplace, found $count"
-    return 1
-  fi
-  if ! root="$(jq -er --arg marketplace "$marketplace" '
-    first(.marketplaces[] | select(.name == $marketplace)).root | select(type == "string" and length > 0)
-  ' <<< "$output" 2>/dev/null)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace root is missing"
-    return 1
-  fi
-  marketplace_manifest="$root/.agents/plugins/marketplace.json"
   if [ ! -r "$marketplace_manifest" ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace manifest is unreadable"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: remote marketplace manifest is unreadable"
     return 1
   fi
   count="$(jq -r --arg plugin "$plugin_name" '[.plugins[]? | select(.name == $plugin)] | length' "$marketplace_manifest" 2>/dev/null || printf 0)"
   if [ "$count" -ne 1 ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: marketplace manifest has no unique plugin"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: remote marketplace manifest has no unique plugin"
     return 1
   fi
   source_kind="$(jq -r --arg plugin "$plugin_name" 'first(.plugins[] | select(.name == $plugin)).source.source // ""' "$marketplace_manifest")"
@@ -212,17 +180,17 @@ load_codex_available_plugin_version() {
   fi
   case "$source_path" in
     /*) plugin_root="$source_path" ;;
-    *) plugin_root="$root/${source_path#./}" ;;
+    *) plugin_root="$remote_root/${source_path#./}" ;;
   esac
   manifest="$plugin_root/.codex-plugin/plugin.json"
   if [ ! -r "$manifest" ]; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin manifest is unreadable"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: remote plugin manifest is unreadable"
     return 1
   fi
   if ! version="$(jq -er --arg plugin "$plugin_name" '
     select(.name == $plugin) | .version | select(type == "string" and length > 0)
   ' "$manifest" 2>/dev/null)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: plugin manifest has no version"
+    PLUGIN_FRESHNESS_ERROR="cannot determine available Codex plugin version for $plugin_id: remote plugin manifest has no version"
     return 1
   fi
   PLUGIN_AVAILABLE_VERSION="$version"
@@ -575,6 +543,7 @@ verify_states() {
 case "$action" in
   discover)
     require_source_dependencies || exit 1
+    discover_remote_marketplace || exit 1
     printf '%s\n' "$plugin_name"
     ;;
   inspect)

@@ -10,7 +10,10 @@ BIN="$FIXTURE/bin"
 mkdir -p "$FIXTURE/scripts" "$FIXTURE/home" "$FIXTURE/runtime" "$BIN" \
   "$FIXTURE/home/claude-marketplace/.claude-plugin" \
   "$FIXTURE/home/codex-marketplace/.agents/plugins" \
-  "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin"
+  "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin" \
+  "$FIXTURE/remote-marketplace/.claude-plugin" \
+  "$FIXTURE/remote-marketplace/.agents/plugins" \
+  "$FIXTURE/remote-marketplace/plugins/waza/.codex-plugin"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
 
@@ -58,6 +61,12 @@ JSON
 cat > "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json" <<'JSON'
 {"name":"waza","version":"1.0.0"}
 JSON
+cp "$FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" \
+  "$FIXTURE/remote-marketplace/.claude-plugin/marketplace.json"
+cp "$FIXTURE/home/codex-marketplace/.agents/plugins/marketplace.json" \
+  "$FIXTURE/remote-marketplace/.agents/plugins/marketplace.json"
+cp "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json" \
+  "$FIXTURE/remote-marketplace/plugins/waza/.codex-plugin/plugin.json"
 
 cat > "$BIN/claude" <<'BASH'
 #!/usr/bin/env bash
@@ -163,7 +172,26 @@ case "$*" in
     ;;
 esac
 BASH
-chmod +x "$BIN/claude" "$BIN/codex"
+
+cat > "$BIN/git" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+test "$#" -eq 6
+test "$1" = clone
+test "$2" = --depth
+test "$3" = 1
+test "$4" = --quiet
+test "$5" = https://github.com/tw93/Waza.git
+if [ "${FAKE_GIT_CLONE_FAIL:-0}" = 1 ]; then
+  printf 'fixture remote discovery failure\n' >&2
+  exit 1
+fi
+destination="$6"
+mkdir -p "$destination"
+cp -R "${HOME%/home}/remote-marketplace/." "$destination"
+printf '%s\n' "$destination" >> "${FAKE_GIT_LOG:-/dev/null}"
+BASH
+chmod +x "$BIN/claude" "$BIN/codex" "$BIN/git"
 
 COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
 MISSING_METADATA_FIXTURE="$TMP_ROOT/missing-plugin-metadata"
@@ -228,6 +256,31 @@ jq -e '
 ' "$UNSUPPORTED_MARKETPLACE_FIXTURE/result.json" >/dev/null
 jq -e '. == []' "$UNSUPPORTED_MARKETPLACE_FIXTURE/home/claude-plugins.json" >/dev/null
 jq -e '.installed == []' "$UNSUPPORTED_MARKETPLACE_FIXTURE/home/codex-plugins.json" >/dev/null
+
+MISSING_PLUGIN_FIXTURE="$TMP_ROOT/missing-plugin-check"
+cp -R "$FIXTURE" "$MISSING_PLUGIN_FIXTURE"
+cp -R "$MISSING_PLUGIN_FIXTURE/home" "$MISSING_PLUGIN_FIXTURE/home-before-check"
+set +e
+HOME="$MISSING_PLUGIN_FIXTURE/home" TMPDIR="$MISSING_PLUGIN_FIXTURE/runtime" \
+PATH="$MISSING_PLUGIN_FIXTURE/bin:$PATH" \
+  "$MISSING_PLUGIN_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$MISSING_PLUGIN_FIXTURE/result.json"
+missing_plugin_exit=$?
+set -e
+test "$missing_plugin_exit" -eq 1
+jq -e '
+  .status == "drift" and
+  ([.drift[] | {sourceId, skill, destination, reason}] == [
+    {"sourceId":"waza","skill":"waza","destination":"claude","reason":"missing"},
+    {"sourceId":"waza","skill":"waza","destination":"codex","reason":"missing"}
+  ]) and
+  ([.changes[] | {action, sourceId, skill, destination}] == [
+    {"action":"installed","sourceId":"waza","skill":"waza","destination":"claude"},
+    {"action":"installed","sourceId":"waza","skill":"waza","destination":"codex"}
+  ]) and
+  .errors == []
+' "$MISSING_PLUGIN_FIXTURE/result.json" >/dev/null
+diff -r "$MISSING_PLUGIN_FIXTURE/home-before-check" "$MISSING_PLUGIN_FIXTURE/home" >/dev/null
 
 if ! HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/first.json"; then
@@ -361,17 +414,18 @@ jq -e '.installed[0].enabled == false' "$CODEX_DISABLED_FIXTURE/home/codex-plugi
 UPDATE_FIXTURE="$TMP_ROOT/update"
 cp -R "$FIXTURE" "$UPDATE_FIXTURE"
 jq '.plugins[0].version = "2.0.0"' \
-  "$UPDATE_FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" \
+  "$UPDATE_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json" \
   > "$UPDATE_FIXTURE/claude-marketplace.tmp"
 mv "$UPDATE_FIXTURE/claude-marketplace.tmp" \
-  "$UPDATE_FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json"
+  "$UPDATE_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json"
 jq '.version = "2.0.0"' \
-  "$UPDATE_FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json" \
+  "$UPDATE_FIXTURE/remote-marketplace/plugins/waza/.codex-plugin/plugin.json" \
   > "$UPDATE_FIXTURE/codex-plugin.tmp"
 mv "$UPDATE_FIXTURE/codex-plugin.tmp" \
-  "$UPDATE_FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin/plugin.json"
+  "$UPDATE_FIXTURE/remote-marketplace/plugins/waza/.codex-plugin/plugin.json"
 cp -R "$UPDATE_FIXTURE/home" "$UPDATE_FIXTURE/home-before-check"
 set +e
+FAKE_GIT_LOG="$UPDATE_FIXTURE/git.log" \
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
   "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/check.json"
 update_check_exit=$?
@@ -390,6 +444,8 @@ jq -e '
   .errors == []
 ' "$UPDATE_FIXTURE/check.json" >/dev/null
 diff -r "$UPDATE_FIXTURE/home-before-check" "$UPDATE_FIXTURE/home" >/dev/null
+grep -Eq "^$UPDATE_FIXTURE/runtime/agent-scripts-topology-discovery-.+/waza/repo$" \
+  "$UPDATE_FIXTURE/git.log"
 set +e
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
   "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check \
@@ -419,41 +475,21 @@ HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTU
 jq -e '.status == "clean" and .drift == [] and .changes == [] and .errors == []' \
   "$UPDATE_FIXTURE/recheck.json" >/dev/null
 
-CLAUDE_FRESHNESS_FIXTURE="$TMP_ROOT/claude-freshness-failure"
-cp -R "$FIXTURE" "$CLAUDE_FRESHNESS_FIXTURE"
-printf '[]\n' > "$CLAUDE_FRESHNESS_FIXTURE/home/claude-plugins.json"
+REMOTE_DISCOVERY_FIXTURE="$TMP_ROOT/remote-discovery-failure"
+cp -R "$FIXTURE" "$REMOTE_DISCOVERY_FIXTURE"
 set +e
-FAKE_CLAUDE_FRESHNESS_FAIL=1 \
-HOME="$CLAUDE_FRESHNESS_FIXTURE/home" TMPDIR="$CLAUDE_FRESHNESS_FIXTURE/runtime" \
-PATH="$CLAUDE_FRESHNESS_FIXTURE/bin:$PATH" \
-  "$CLAUDE_FRESHNESS_FIXTURE/scripts/update-skill-topology.sh" --check --json \
-  > "$CLAUDE_FRESHNESS_FIXTURE/result.json"
-claude_freshness_exit=$?
+FAKE_GIT_CLONE_FAIL=1 \
+HOME="$REMOTE_DISCOVERY_FIXTURE/home" TMPDIR="$REMOTE_DISCOVERY_FIXTURE/runtime" \
+PATH="$REMOTE_DISCOVERY_FIXTURE/bin:$PATH" \
+  "$REMOTE_DISCOVERY_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$REMOTE_DISCOVERY_FIXTURE/result.json"
+remote_discovery_exit=$?
 set -e
-test "$claude_freshness_exit" -eq 1
+test "$remote_discovery_exit" -eq 1
 jq -e '
   .status == "failed" and
-  any(.errors[]; contains("cannot determine available Claude plugin version") and contains("fixture Claude freshness failure"))
-' "$CLAUDE_FRESHNESS_FIXTURE/result.json" >/dev/null
-
-CODEX_FRESHNESS_FIXTURE="$TMP_ROOT/codex-freshness-failure"
-cp -R "$FIXTURE" "$CODEX_FRESHNESS_FIXTURE"
-jq '.installed[0].enabled = false' "$CODEX_FRESHNESS_FIXTURE/home/codex-plugins.json" \
-  > "$CODEX_FRESHNESS_FIXTURE/codex-disabled.tmp"
-mv "$CODEX_FRESHNESS_FIXTURE/codex-disabled.tmp" "$CODEX_FRESHNESS_FIXTURE/home/codex-plugins.json"
-set +e
-FAKE_CODEX_FRESHNESS_FAIL=1 \
-HOME="$CODEX_FRESHNESS_FIXTURE/home" TMPDIR="$CODEX_FRESHNESS_FIXTURE/runtime" \
-PATH="$CODEX_FRESHNESS_FIXTURE/bin:$PATH" \
-  "$CODEX_FRESHNESS_FIXTURE/scripts/update-skill-topology.sh" --check --json \
-  > "$CODEX_FRESHNESS_FIXTURE/result.json"
-codex_freshness_exit=$?
-set -e
-test "$codex_freshness_exit" -eq 1
-jq -e '
-  .status == "failed" and
-  any(.errors[]; contains("cannot determine available Codex plugin version") and contains("fixture Codex freshness failure"))
-' "$CODEX_FRESHNESS_FIXTURE/result.json" >/dev/null
+  any(.errors[]; contains("source waza discovery failed") and contains("fixture remote discovery failure"))
+' "$REMOTE_DISCOVERY_FIXTURE/result.json" >/dev/null
 
 FAILURE_FIXTURE="$TMP_ROOT/failure"
 cp -R "$FIXTURE" "$FAILURE_FIXTURE"
@@ -497,7 +533,10 @@ mkdir -p "$MEM_FIXTURE/scripts" "$MEM_FIXTURE/home/.bun/bin" "$MEM_FIXTURE/home/
   "$MEM_FIXTURE/home/.claude-mem" "$MEM_FIXTURE/runtime" "$MEM_BIN" \
   "$MEM_FIXTURE/home/claude-marketplace/.claude-plugin" \
   "$MEM_FIXTURE/home/codex-marketplace/.agents/plugins" \
-  "$MEM_FIXTURE/home/codex-marketplace/plugin/.codex-plugin"
+  "$MEM_FIXTURE/home/codex-marketplace/plugin/.codex-plugin" \
+  "$MEM_FIXTURE/remote-marketplace/.claude-plugin" \
+  "$MEM_FIXTURE/remote-marketplace/.agents/plugins" \
+  "$MEM_FIXTURE/remote-marketplace/plugin/.codex-plugin"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$MEM_FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$MEM_FIXTURE/scripts/"
 jq '{version, sources: [.sources[] | select(.id == "claude-mem")]}' \
@@ -520,6 +559,12 @@ JSON
 cat > "$MEM_FIXTURE/home/codex-marketplace/plugin/.codex-plugin/plugin.json" <<'JSON'
 {"name":"claude-mem","version":"1.0.0"}
 JSON
+cp "$MEM_FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" \
+  "$MEM_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json"
+cp "$MEM_FIXTURE/home/codex-marketplace/.agents/plugins/marketplace.json" \
+  "$MEM_FIXTURE/remote-marketplace/.agents/plugins/marketplace.json"
+cp "$MEM_FIXTURE/home/codex-marketplace/plugin/.codex-plugin/plugin.json" \
+  "$MEM_FIXTURE/remote-marketplace/plugin/.codex-plugin/plugin.json"
 
 cat > "$MEM_BIN/dependency" <<'BASH'
 #!/usr/bin/env bash
@@ -585,7 +630,21 @@ case "$*" in
     ;;
 esac
 BASH
-chmod +x "$MEM_BIN/claude" "$MEM_BIN/codex"
+
+cat > "$MEM_BIN/git" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+test "$#" -eq 6
+test "$1" = clone
+test "$2" = --depth
+test "$3" = 1
+test "$4" = --quiet
+test "$5" = https://github.com/thedotmack/claude-mem.git
+destination="$6"
+mkdir -p "$destination"
+cp -R "${HOME%/home}/remote-marketplace/." "$destination"
+BASH
+chmod +x "$MEM_BIN/claude" "$MEM_BIN/codex" "$MEM_BIN/git"
 
 MEM_VERIFY_FIXTURE="$TMP_ROOT/claude-mem-verify"
 cp -R "$MEM_FIXTURE" "$MEM_VERIFY_FIXTURE"

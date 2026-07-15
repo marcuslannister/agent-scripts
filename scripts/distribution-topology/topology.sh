@@ -335,8 +335,10 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
         decisions:($decisions | sort_by((.code + "~"),((.sourceId // (.sourceIds | join(",")) // "") + "~"),((.skill // "") + "~"),((.destination // "") + "~"))),
         errors:$errors,warnings:$warnings,
         changes:(if $mode == "check" then
-          ($changes + [$sortedDrift[] | select(.kind == "outdated") |
-            {action:"updated",sourceId,skill,destination}])
+          ($changes + [$sortedDrift[] |
+            if .kind == "outdated" then {action:"updated",sourceId,skill,destination}
+            elif .reason == "missing" then {action:"installed",sourceId,skill,destination}
+            else empty end])
           else $changes end),
         skipped:($skipped | sort_by(.sourceId,.skill,.destination)),
         hygiene:$hygiene[0]

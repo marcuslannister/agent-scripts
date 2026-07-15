@@ -132,7 +132,7 @@ test "$drift_exit" -eq 1
 test ! -s "$FIXTURE/drift.err"
 grep -F '[3/4] Inspecting adapters' "$FIXTURE/drift.out" >/dev/null
 grep -F '[4/4] Final verification' "$FIXTURE/drift.out" >/dev/null
-assert_row "$FIXTURE/drift.out" repo-claude/alpha codex missing drift
+assert_row "$FIXTURE/drift.out" repo-claude/alpha codex installed:missing drift
 
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" "$COMMAND" \
   > "$FIXTURE/changed.out" 2> "$FIXTURE/changed.err"
