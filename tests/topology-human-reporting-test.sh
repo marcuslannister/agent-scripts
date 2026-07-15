@@ -55,6 +55,19 @@ fi
 exec "${BASH_SOURCE[0]%/*}/repo-owned-real.sh" "$@"
 BASH
 chmod +x "$FIXTURE/scripts/distribution-topology/adapters/repo-owned.sh"
+
+mv "$FIXTURE/scripts/distribution-topology/codex-root-hygiene.sh" \
+  "$FIXTURE/scripts/distribution-topology/codex-root-hygiene-real.sh"
+cat > "$FIXTURE/scripts/distribution-topology/codex-root-hygiene.sh" <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = inspect ] && [ "${TOPOLOGY_FAIL_HYGIENE:-0}" = 1 ]; then
+  printf 'fixture hygiene failure\n' >&2
+  exit 1
+fi
+exec "${BASH_SOURCE[0]%/*}/codex-root-hygiene-real.sh" "$@"
+BASH
+chmod +x "$FIXTURE/scripts/distribution-topology/codex-root-hygiene.sh"
 COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
 
 assert_row() {
@@ -158,6 +171,16 @@ grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$FIXTURE/check-failed.out"
 assert_row "$FIXTURE/check-failed.out" topology - failed failed
 grep -F 'Result: failed' "$FIXTURE/check-failed.out" >/dev/null
 grep -F 'error: source repo-claude discovery failed: fixture discovery failure' "$FIXTURE/check-failed.err" >/dev/null
+
+set +e
+TOPOLOGY_FAIL_HYGIENE=1 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" "$COMMAND" --check \
+  > "$FIXTURE/hygiene-failed.out" 2> "$FIXTURE/hygiene-failed.err"
+hygiene_failed_exit=$?
+set -e
+test "$hygiene_failed_exit" -eq 1
+assert_row "$FIXTURE/hygiene-failed.out" repo-claude claude,codex none clean
+assert_row "$FIXTURE/hygiene-failed.out" topology - failed failed
+grep -F 'error: Codex-root hygiene inspection failed: fixture hygiene failure' "$FIXTURE/hygiene-failed.err" >/dev/null
 
 # Removals remain explicit.
 jq '.sources[0].overrides.alpha = ["claude"]' "$FIXTURE/skill-topology.json" > "$FIXTURE/manifest.tmp"
