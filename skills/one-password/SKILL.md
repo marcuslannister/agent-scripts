@@ -208,6 +208,8 @@ tmux -S "$SOCKET" send-keys -t "$WIN" -- "bash /tmp/op-debug.sh; rm -f /tmp/op-d
 
 - Never paste secrets into logs, chat, or code.
 - Path-1 `op` commands always redirect/pipe stdout+stderr; TTY-attached `op` fires a macOS App Data Protection dialog and hangs until answered.
+- Every `op` run spawns a background `op daemon` (cache flags do not prevent it in 2.35). Stale daemons can re-trigger the dialog; if popups recur with no op task running, `pkill -f 'op daemon'` is safe. If the dialog appears, answering it once (Allow or Don't Allow) persists; `op` works either way.
+- Never `eval "$(op completion zsh)"` unguarded in rc files; it runs `op` on every shell start and is a known dialog-spam source.
 - Prefer `op run` / `op inject` over writing secrets to disk.
 - Desktop app path only after explicit chat consent; the 1Password unlock prompt then handles the actual authorization — no extra chat round trip at prompt time.
 - If sign-in without app integration is needed, use `op account add`.
