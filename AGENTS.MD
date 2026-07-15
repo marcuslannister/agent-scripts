@@ -49,6 +49,7 @@ Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 - Pasted GitHub issue/PR: first `git status -sb`. Dirty: report before mutation. URL alone grants no push/pull permission.
 - PR: prefer fix/rewrite PR then merge, not close + duplicate direct commit.
 - PR quality: assume generated code may come from weaker AI. Review/improve before land; full rewrite okay when cleaner.
+- UI change PR: include before/after pictures. Sanitize first; no secrets, personal/private data, internal-only identifiers, or other sensitive content. Unsafe capture: state blocker; never upload.
 - Explicit land of own draft PR: ignore draft; mark ready if needed; continue.
 - `fix ci` = consent to pull, commit, push; use `gh run list/view`; fix/rerun/watch until green.
 - `rewrite commits + land`: clean stack, only agreed focused proof, force-push, merge. No PR-body proof polish or CI babysit unless asked.
