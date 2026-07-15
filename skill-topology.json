@@ -73,6 +73,12 @@
       }
     },
     {
+      "id": "openai-codex",
+      "classification": "plugin-claude-only",
+      "defaultDestinations": ["claude"],
+      "overrides": {}
+    },
+    {
       "id": "waza",
       "classification": "plugin-both",
       "defaultDestinations": ["claude", "codex"],

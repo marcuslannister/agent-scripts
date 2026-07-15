@@ -5,6 +5,24 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
+jq -e '
+  .sources[] | select(.id == "openai-codex") |
+  .classification == "plugin-claude-only" and
+  .defaultDestinations == ["claude"] and
+  .overrides == {}
+' "$REPO_ROOT/skill-topology.json" >/dev/null
+jq -e '
+  .[] | select(.sourceId == "openai-codex") |
+  .classification == "plugin-claude-only" and
+  .supportedDestinations == ["claude"] and
+  .command == "adapters/plugin-both.sh" and
+  .plugin == {
+    name: "codex",
+    repo: "openai/codex-plugin-cc",
+    marketplaces: {claude: "openai-codex"}
+  }
+' "$REPO_ROOT/scripts/distribution-topology/registry.json" >/dev/null
+
 FIXTURE="$TMP_ROOT/waza"
 BIN="$FIXTURE/bin"
 mkdir -p "$FIXTURE/scripts" "$FIXTURE/home" "$FIXTURE/runtime" "$BIN" \
@@ -192,6 +210,34 @@ cp -R "${HOME%/home}/remote-marketplace/." "$destination"
 printf '%s\n' "$destination" >> "${FAKE_GIT_LOG:-/dev/null}"
 BASH
 chmod +x "$BIN/claude" "$BIN/codex" "$BIN/git"
+
+OPENAI_FIXTURE="$TMP_ROOT/openai-codex"
+cp -R "$FIXTURE" "$OPENAI_FIXTURE"
+jq '{version, sources: [.sources[] | select(.id == "openai-codex")]}' \
+  "$REPO_ROOT/skill-topology.json" > "$OPENAI_FIXTURE/skill-topology.json"
+jq '[.[] | select(.sourceId == "openai-codex")]' \
+  "$REPO_ROOT/scripts/distribution-topology/registry.json" \
+  > "$OPENAI_FIXTURE/scripts/distribution-topology/registry.json"
+cat > "$OPENAI_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json" <<'JSON'
+{"name":"openai-codex","plugins":[{"name":"codex","version":"1.0.6","source":"./plugins/codex"}]}
+JSON
+printf '[{"id":"codex@openai-codex","version":"1.0.6","enabled":true}]\n' \
+  > "$OPENAI_FIXTURE/home/claude-plugins.json"
+perl -pi -e 's!tw93/Waza!openai/codex-plugin-cc!g' "$OPENAI_FIXTURE/bin/git"
+HOME="$OPENAI_FIXTURE/home" TMPDIR="$OPENAI_FIXTURE/runtime" \
+PATH="$OPENAI_FIXTURE/bin:$PATH" \
+  "$OPENAI_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$OPENAI_FIXTURE/result.json"
+if ! jq -e '
+  .status == "clean" and
+  ([.plan[] | {sourceId,skill,destinations}] == [
+    {sourceId:"openai-codex",skill:"codex",destinations:["claude"]}
+  ]) and
+  .decisions == [] and .errors == []
+' "$OPENAI_FIXTURE/result.json" >/dev/null; then
+  cat "$OPENAI_FIXTURE/result.json" >&2
+  exit 1
+fi
 
 COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
 MISSING_METADATA_FIXTURE="$TMP_ROOT/missing-plugin-metadata"

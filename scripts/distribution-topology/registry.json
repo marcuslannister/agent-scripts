@@ -47,6 +47,20 @@
     }
   },
   {
+    "sourceId": "openai-codex",
+    "classification": "plugin-claude-only",
+    "supportedDestinations": ["claude"],
+    "command": "adapters/plugin-both.sh",
+    "stateInspection": "adapter",
+    "plugin": {
+      "name": "codex",
+      "repo": "openai/codex-plugin-cc",
+      "marketplaces": {
+        "claude": "openai-codex"
+      }
+    }
+  },
+  {
     "sourceId": "waza",
     "classification": "plugin-both",
     "supportedDestinations": ["claude", "codex"],
