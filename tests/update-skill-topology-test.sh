@@ -177,8 +177,8 @@ install_repo_copy "$HUMAN_CLEANUP_ROOT/home/.agents/skills/new-skill" "$HUMAN_CL
 HOME="$HUMAN_CLEANUP_ROOT/home" TMPDIR="$HUMAN_CLEANUP_ROOT/runtime" "$HUMAN_CLEANUP_ROOT/scripts/update-skill-topology.sh" > "$HUMAN_CLEANUP_ROOT/result.out" 2> "$HUMAN_CLEANUP_ROOT/result.err"
 test ! -s "$HUMAN_CLEANUP_ROOT/result.err"
 grep -F 'Skill topology reconcile' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
-grep -F 'Changes:' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
-grep -F 'removed repo-claude/new-skill -> codex' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
+grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$HUMAN_CLEANUP_ROOT/result.out"
+grep -Eq '^repo-claude/new-skill +codex +removed +changed$' "$HUMAN_CLEANUP_ROOT/result.out"
 grep -F 'Result: reconciled (1 changes)' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
 
 SPLIT_OWNER_ROOT="$TMP_ROOT/split-owner"
@@ -367,7 +367,7 @@ HOME="$STALE_ROOT/home" TMPDIR="$STALE_ROOT/runtime" "$STALE_ROOT/scripts/update
 stale_human_exit=$?
 set -e
 test "$stale_human_exit" -eq 3
-grep -Eq '^repo-claude +2 +claude +claude,codex +decision-required$' "$STALE_ROOT/human.out"
+grep -Eq '^repo-claude/removed-skill +- +stale-override +decision-required$' "$STALE_ROOT/human.out"
 grep -F 'Result: decision-required (1 decision)' "$STALE_ROOT/human.out" >/dev/null
 grep -F 'Decision required:' "$STALE_ROOT/human.err" >/dev/null
 grep -F 'override names a skill absent from repo-claude: removed-skill' "$STALE_ROOT/human.err" >/dev/null
@@ -461,6 +461,7 @@ TMPDIR="$RUNTIME_FAILURE_ROOT/runtime" \
 runtime_human_exit=$?
 set -e
 test "$runtime_human_exit" -eq 1
+grep -Eq ' +failed$' "$RUNTIME_FAILURE_ROOT/human.out"
 grep -F 'Result: failed' "$RUNTIME_FAILURE_ROOT/human.out" >/dev/null
 grep -F 'error: source repo-claude reconciliation failed: fixture reconcile failure' "$RUNTIME_FAILURE_ROOT/human.err" >/dev/null
 grep -F 'error: source repo-claude verification failed:' "$RUNTIME_FAILURE_ROOT/human.err" >/dev/null

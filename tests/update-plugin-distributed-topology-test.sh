@@ -397,11 +397,9 @@ HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTU
 update_human_exit=$?
 set -e
 test "$update_human_exit" -eq 1
-grep -F 'Drift:' "$UPDATE_FIXTURE/check.out" >/dev/null
-grep -F 'outdated: installed 1.0.0, available 2.0.0' "$UPDATE_FIXTURE/check.out" >/dev/null
-grep -F 'Planned changes:' "$UPDATE_FIXTURE/check.out" >/dev/null
-grep -F -- '- updated waza/waza -> claude' "$UPDATE_FIXTURE/check.out" >/dev/null
-grep -F -- '- updated waza/waza -> codex' "$UPDATE_FIXTURE/check.out" >/dev/null
+grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$UPDATE_FIXTURE/check.out"
+grep -Eq '^waza/waza +claude +updated:outdated: installed 1\.0\.0, available 2\.0\.0 +drift$' "$UPDATE_FIXTURE/check.out"
+grep -Eq '^waza/waza +codex +updated:outdated: installed 1\.0\.0, available 2\.0\.0 +drift$' "$UPDATE_FIXTURE/check.out"
 diff -r "$UPDATE_FIXTURE/home-before-check" "$UPDATE_FIXTURE/home" >/dev/null
 
 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 \

@@ -9,6 +9,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Replaced the private Node topology core with one Bash implementation, preserving public command behavior while adding no-Node command and topology-suite regression coverage.
 - Reduced routine updates to agent CLIs then manifest-owned topology reconciliation, preserving ordered run-all execution, concise summary output, and aggregate failure behavior.
 - Removed all legacy per-source updater commands and generic plugin policy code without shims; added a verifier gate that enforces the private adapter handshake and rejects restoration of bulk repo publication.
+- Completed human topology reporting with live phase progress, one explicit source/destination/change/result table for every outcome, TTY-only color with `NO_COLOR`, and undecorated single-document JSON output.
 
 ## 2026-07-14 — Codex Root Hygiene and Instruction Setup
 - Moved legacy `~/.codex/skills` migration and final verification into `update-skill-topology.sh` as an independent responsibility, with non-mutating checks, collision-safe timestamped backups, partial-failure reporting, safe reruns, and separate black-box coverage.

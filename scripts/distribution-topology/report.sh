@@ -33,27 +33,91 @@ topology_failure_document() { # message code mode
   '
 }
 
-topology_write_human() { # document
-  local document="$1" source_id inventory defaults supported result mode
-  mode="$(jq -r '.mode' "$document")"
-  printf 'Skill topology %s\n' "$mode"
-  printf '%-20s%-11s%-14s%-14s%s\n' SOURCE INVENTORY DEFAULT SUPPORTED RESULT
-  while IFS=$'\t' read -r source_id inventory defaults supported result; do
-    printf '%-20s%-11s%-14s%-14s%s\n' "$source_id" "$inventory" "$defaults" "$supported" "$result"
-  done < <(jq -r '.sources[] | [.id, .inventoryCount, (.defaultDestinations | join(",")), (.supportedDestinations | join(",")), .result] | @tsv' "$document")
+TOPOLOGY_BOLD=
+TOPOLOGY_CYAN=
+TOPOLOGY_GREEN=
+TOPOLOGY_YELLOW=
+TOPOLOGY_RED=
+TOPOLOGY_RESET=
 
-  if [ "$(jq '.drift | length' "$document")" -gt 0 ]; then printf '\nDrift:\n'; fi
-  jq -r '.drift[] | "- \(.sourceId)/\(.skill) -> \(.destination): \(.reason)"' "$document"
-  if [ "$(jq '.changes | length' "$document")" -gt 0 ]; then
-    [ "$mode" = check ] && printf '\nPlanned changes:\n' || printf '\nChanges:\n'
+topology_init_color() {
+  if [ -t 1 ] && [ -z "${NO_COLOR+x}" ]; then
+    TOPOLOGY_BOLD=$'\033[1m'
+    TOPOLOGY_CYAN=$'\033[36m'
+    TOPOLOGY_GREEN=$'\033[32m'
+    TOPOLOGY_YELLOW=$'\033[33m'
+    TOPOLOGY_RED=$'\033[31m'
+    TOPOLOGY_RESET=$'\033[0m'
   fi
-  jq -r '.changes[] | "- \(.action) \(.sourceId)/\(.skill) -> \(.destination)"' "$document"
+}
 
-  printf '\nCodex-root hygiene: %s\n' "$(jq -r '.hygiene.status' "$document")"
-  jq -r '.hygiene.entries[] | "- legacy entry \(.name): \(.kind)"' "$document"
-  jq -r '.hygiene.changes[] | "- migrated \(.name) -> \(.backupPath)"' "$document"
-  if [ "$(jq '.skipped | length' "$document")" -gt 0 ]; then printf '\nSkipped:\n'; fi
-  jq -r '.skipped[] | "- \(.sourceId)/\(.skill) -> \(.destination): \(.reason)"' "$document"
+topology_progress() { # step message
+  [ "$JSON_OUTPUT" -eq 0 ] || return 0
+  printf '%s[%s/4] %s%s\n' "$TOPOLOGY_CYAN" "$1" "$2" "$TOPOLOGY_RESET"
+}
+
+topology_write_human() { # document
+  local document="$1" mode source destination change result result_color
+  mode="$(jq -r '.mode' "$document")"
+  printf 'Skill topology %s\n\n' "$mode"
+  printf '%s%-32s %-18s %-30s %s%s\n' "$TOPOLOGY_BOLD" SOURCE DESTINATION CHANGE RESULT "$TOPOLOGY_RESET"
+  while IFS=$'\t' read -r source destination change result; do
+    result_color=
+    case "$result" in
+      clean|reconciled|changed) result_color="$TOPOLOGY_GREEN" ;;
+      drift|decision-required|skipped) result_color="$TOPOLOGY_YELLOW" ;;
+      failed|invalid|interrupted) result_color="$TOPOLOGY_RED" ;;
+    esac
+    printf '%-32s %-18s %-30s %s%s%s\n' \
+      "$source" "$destination" "$change" "$result_color" "$result" "$TOPOLOGY_RESET"
+  done < <(jq -r '
+    . as $document |
+    def source_result($id):
+      ([$document.sources[] | select(.id == $id) | .result][0] // $document.status);
+    ([
+      $document.changes[] as $change |
+      ([$document.drift[] | select(
+        .sourceId == $change.sourceId and .skill == $change.skill and .destination == $change.destination
+      ) | .reason][0] // "") as $reason |
+      {source:($change.sourceId + "/" + $change.skill), destination:$change.destination,
+       change:($change.action + (if $reason == "" then "" else ":" + $reason end)),
+       result:source_result($change.sourceId)}
+    ] + [
+      $document.drift[] as $drift |
+      select(any($document.changes[];
+        .sourceId == $drift.sourceId and .skill == $drift.skill and .destination == $drift.destination) | not) |
+      {source:($drift.sourceId + "/" + $drift.skill), destination:$drift.destination,
+       change:$drift.reason, result:source_result($drift.sourceId)}
+    ] + [
+      $document.decisions[] |
+      (.sourceId // ((.sourceIds // []) | join(",")) // "topology") as $sourceId |
+      {source:($sourceId + (if .skill? then "/" + .skill else "" end)),
+       destination:(.destination // "-"), change:(.code // "decision-required"),
+       result:"decision-required"}
+    ] + [
+      $document.skipped[] |
+      {source:(.sourceId + "/" + .skill), destination, change:("skipped:" + .reason), result:"skipped"}
+    ] + [
+      $document.hygiene.changes[] |
+      {source:("codex-root/" + .name), destination:$document.hygiene.legacyRoot,
+       change:"migrated", result:$document.hygiene.status}
+    ] + [
+      $document.hygiene.entries[] |
+      {source:("codex-root/" + .name), destination:$document.hygiene.legacyRoot,
+       change:("legacy:" + .kind), result:$document.hygiene.status}
+    ]) as $activity |
+    ($activity + [
+      $document.sources[] as $source |
+      select(any($activity[];
+        .source == $source.id or (.source | startswith($source.id + "/"))) | not) |
+      {source:$source.id,
+       destination:(([$document.plan[] | select(.sourceId == $source.id) | .destinations[]] | unique | join(","))
+         // ($source.defaultDestinations | join(","))),
+       change:"none", result:$source.result}
+    ]) |
+    sort_by(.source,.destination,.change)[] |
+    [.source, (if .destination == "" then "-" else .destination end), .change, .result] | @tsv
+  ' "$document")
 
   local count count_label status
   status="$(jq -r '.status' "$document")"
@@ -68,7 +132,13 @@ topology_write_human() { # document
     fi
     count_label="$count changes"
   fi
-  printf '\nResult: %s (%s)\n' "$status" "$count_label"
+  result_color=
+  case "$status" in
+    clean|reconciled) result_color="$TOPOLOGY_GREEN" ;;
+    drift|decision-required) result_color="$TOPOLOGY_YELLOW" ;;
+    failed|invalid|interrupted) result_color="$TOPOLOGY_RED" ;;
+  esac
+  printf '\nResult: %s%s%s (%s)\n' "$result_color" "$status" "$TOPOLOGY_RESET" "$count_label"
 
   if [ "$(jq '.decisions | length' "$document")" -gt 0 ]; then
     printf 'Decision required:\n' >&2
@@ -76,4 +146,12 @@ topology_write_human() { # document
   fi
   jq -r '.warnings[] | "warning: \(.message)"' "$document" >&2
   jq -r '.errors[] | "error: \(.)"' "$document" >&2
+}
+
+topology_write_human_failure() { # message code mode
+  local failure_document
+  failure_document="$(mktemp "${TMPDIR:-/tmp}/agent-scripts-topology-failure.XXXXXX")"
+  topology_failure_document "$1" "$2" "$3" > "$failure_document"
+  topology_write_human "$failure_document"
+  rm -f -- "$failure_document"
 }

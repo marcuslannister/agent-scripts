@@ -428,6 +428,7 @@ topology_evaluate() {
       '{id:$id,classification:$classification,inventoryCount:$inventoryCount,defaultDestinations:$defaults,supportedDestinations:$supported,result:"clean"}' >> "$sources_file"
   done < <(jq -r '.sources | sort_by(.id) | .[].id' "$MANIFEST_PATH")
 
+  topology_progress 2 'Planning topology'
   jq -s '.' "$plan_file" > "$DISCOVERY_ROOT/plan.json"
   plan_json="$DISCOVERY_ROOT/plan.json"
   jq -c '
@@ -437,6 +438,11 @@ topology_evaluate() {
        message:(.[0].skill + " is claimed by multiple sources on " + .[0].destination + ": " + (map(.sourceId)|sort|join(", ")))}
   ' "$plan_json" >> "$DISCOVERY_ROOT/pre-decisions.ndjson"
 
+  if [ "$MODE" = check ]; then
+    topology_progress 3 'Inspecting adapters'
+  else
+    topology_progress 3 'Executing adapters'
+  fi
   inspect_dir="$DISCOVERY_ROOT/inspect-initial"
   topology_inspect_plan "$plan_json" "$inspect_dir" "$MODE" || return $?
   [ -s "$DISCOVERY_ROOT/pre-decisions.ndjson" ] && cat "$DISCOVERY_ROOT/pre-decisions.ndjson" >> "$inspect_dir/decisions.ndjson"
@@ -463,6 +469,7 @@ topology_evaluate() {
     topology_reconcile "$sources_file" "$plan_file" "$plan_json" "$inspect_dir" "$warnings" "$changes"
     return $?
   fi
+  topology_progress 4 'Final verification'
   topology_build_document "$MODE" "$status" "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
   DOCUMENT_PATH="$DISCOVERY_ROOT/document.json"
   return "$exit_code"
@@ -524,6 +531,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" "source $source_id reconciliation failed" "$errors"
   done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
 
+  topology_progress 4 'Verifying final topology'
   while IFS= read -r source_id; do
     expected_file="$DISCOVERY_ROOT/$source_id.verify.tsv"
     topology_expected_states "$source_id" "$expected_file" "$plan_json"
@@ -581,7 +589,7 @@ topology_interrupt() {
   if [ "$REQUESTED_JSON" -eq 1 ]; then
     topology_failure_document interrupted 130 "$MODE"
   else
-    printf 'error: interrupted\n' >&2
+    topology_write_human_failure interrupted 130 "$MODE"
   fi
   exit 130
 }
@@ -609,21 +617,23 @@ for argument in "$@"; do
   esac
 done
 if [ "$check_count" -gt 1 ] || [ "$json_count" -gt 1 ]; then topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; fi
+topology_init_color
 if [ -n "$TOPOLOGY_ERROR_MESSAGE" ]; then
   if [ "$REQUESTED_JSON" -eq 1 ]; then topology_failure_document "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  else printf 'error: %s\n' "$TOPOLOGY_ERROR_MESSAGE" >&2
+  else topology_write_human_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
   fi
   exit "$TOPOLOGY_ERROR_CODE"
 fi
 
 if ! topology_acquire_lock; then
   if [ "$REQUESTED_JSON" -eq 1 ]; then topology_failure_document "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  else printf 'error: %s\n' "$TOPOLOGY_ERROR_MESSAGE" >&2
+  else topology_write_human_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
   fi
   exit "$TOPOLOGY_ERROR_CODE"
 fi
 DISCOVERY_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/agent-scripts-topology-discovery-XXXXXX")"
 
+topology_progress 1 'Discovering sources'
 topology_evaluate
 result_code=$?
 if { [ -n "$TOPOLOGY_RECOVERED_PID" ] || [ "$TOPOLOGY_RECOVERED_PENDING" -eq 1 ]; } && [ -n "$DOCUMENT_PATH" ]; then
@@ -640,7 +650,7 @@ if [ -n "$DOCUMENT_PATH" ]; then
 else
   [ -n "$TOPOLOGY_ERROR_MESSAGE" ] || topology_fail "$result_code" "$([ "$INTERRUPTED" -eq 1 ] && printf interrupted || printf 'topology failed')"
   if [ "$REQUESTED_JSON" -eq 1 ]; then topology_failure_document "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
-  else printf 'error: %s\n' "$TOPOLOGY_ERROR_MESSAGE" >&2
+  else topology_write_human_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"
   fi
 fi
 exit "$result_code"
