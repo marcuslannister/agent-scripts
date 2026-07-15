@@ -6,6 +6,8 @@ repo_root="${2:?repo root required}"
 discovery_root="${3:?discovery root required}"
 action="${4:-discover}"
 
+source "${BASH_SOURCE[0]%/*}/../repo-owned-paths.sh"
+
 case "$source_id" in
   repo-claude) source_relative=skills ;;
   repo-codex) source_relative=codex-skills ;;
@@ -14,26 +16,6 @@ case "$source_id" in
     exit 1
     ;;
 esac
-
-canonical_path() {
-  local candidate="$1"
-  local directory base
-  directory="$(dirname "$candidate")"
-  base="$(basename "$candidate")"
-  if [ -d "$directory" ]; then
-    (cd "$directory" && printf '%s/%s\n' "$(pwd -P)" "$base")
-  else
-    printf '%s\n' "$candidate"
-  fi
-}
-
-destination_path_for() {
-  case "$1" in
-    claude) printf '%s/skills/%s\n' "$repo_root" "$2" ;;
-    codex) printf '%s/.agents/skills/%s\n' "$home" "$2" ;;
-    *) return 1 ;;
-  esac
-}
 
 case "$action" in
   discover)
@@ -74,8 +56,8 @@ case "$action" in
         continue
       fi
 
-      source_path="$repo_root/$source_relative/$skill"
-      destination_path="$(destination_path_for "$destination" "$skill")"
+      source_path="$(repo_owned_source_path "$repo_root" "$source_id" "$skill")"
+      destination_path="$(repo_owned_destination_path "$repo_root" "$home" "$destination" "$skill")"
 
       case "$operation" in
         install)
@@ -113,8 +95,8 @@ case "$action" in
 
     while IFS=$'\t' read -r expected_state skill destination; do
       [ -n "$expected_state" ] || continue
-      source_path="$repo_root/$source_relative/$skill"
-      if ! destination_path="$(destination_path_for "$destination" "$skill")"; then
+      source_path="$(repo_owned_source_path "$repo_root" "$source_id" "$skill")"
+      if ! destination_path="$(repo_owned_destination_path "$repo_root" "$home" "$destination" "$skill")"; then
         echo "invalid repo-owned verification destination: $destination" >&2
         failed=1
         continue
@@ -134,8 +116,8 @@ case "$action" in
             /*) recorded_source="$marker_source" ;;
             *) recorded_source="$repo_root/$marker_source" ;;
           esac
-          recorded_source="$(canonical_path "$recorded_source")"
-          expected_source="$(canonical_path "$source_path")"
+          recorded_source="$(repo_owned_canonical_path "$recorded_source")"
+          expected_source="$(repo_owned_canonical_path "$source_path")"
           stored_hash="$(sed -n '3p' "$marker" 2>/dev/null || true)"
           source_hash="$(compute_copy_hash "$source_path" 2>/dev/null || true)"
           copy_hash="$(compute_copy_hash "$destination_path" 2>/dev/null || true)"

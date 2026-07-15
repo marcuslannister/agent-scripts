@@ -9,6 +9,7 @@ REGISTRY_PATH="$MODULE_DIR/registry.json"
 source "$MODULE_DIR/errors.sh"
 source "$MODULE_DIR/lock.sh"
 source "$MODULE_DIR/schema.sh"
+source "$MODULE_DIR/repo-owned-paths.sh"
 source "$MODULE_DIR/state.sh"
 source "$MODULE_DIR/report.sh"
 

@@ -36,31 +36,6 @@ topology_compute_copy_hash() { # directory
 
 DESTINATION_MESSAGE=
 
-topology_canonical_path() { # candidate
-  local candidate="$1" directory base
-  directory="$(dirname "$candidate")"
-  base="$(basename "$candidate")"
-  if [ -d "$directory" ]; then
-    (cd "$directory" && printf '%s/%s\n' "$(pwd -P)" "$base")
-  else
-    printf '%s\n' "$candidate"
-  fi
-}
-
-topology_source_path() { # source_id skill
-  case "$1" in
-    repo-claude) printf '%s/skills/%s\n' "$REPO_ROOT" "$2" ;;
-    *) printf '%s/codex-skills/%s\n' "$REPO_ROOT" "$2" ;;
-  esac
-}
-
-topology_destination_path() { # destination skill
-  case "$1" in
-    claude) printf '%s/skills/%s\n' "$REPO_ROOT" "$2" ;;
-    codex) printf '%s/.agents/skills/%s\n' "$HOME" "$2" ;;
-  esac
-}
-
 topology_inspect_destination() { # source_id skill destination
   local source_id="$1" skill="$2" destination="$3"
   local installed expected marker_source marker_owner stored_hash recorded source_hash installed_hash
@@ -73,12 +48,12 @@ topology_inspect_destination() { # source_id skill destination
     return 0
   fi
 
-  installed="$(topology_destination_path "$destination" "$skill")"
+  installed="$(repo_owned_destination_path "$REPO_ROOT" "$HOME" "$destination" "$skill")"
   if [ ! -e "$installed" ]; then
     DESTINATION_KIND=absent
     return 0
   fi
-  expected="$(topology_source_path "$source_id" "$skill")"
+  expected="$(repo_owned_source_path "$REPO_ROOT" "$source_id" "$skill")"
   marker_source="$(sed -n '1p' "$installed/.agent-scripts-copy" 2>/dev/null || true)"
   marker_owner="$(sed -n '2p' "$installed/.agent-scripts-copy" 2>/dev/null || true)"
   if [ "$marker_owner" != "$COPY_OWNER" ]; then
@@ -90,8 +65,8 @@ topology_inspect_destination() { # source_id skill destination
     /*) recorded="$marker_source" ;;
     *) recorded="$REPO_ROOT/$marker_source" ;;
   esac
-  recorded="$(topology_canonical_path "$recorded")"
-  expected="$(topology_canonical_path "$expected")"
+  recorded="$(repo_owned_canonical_path "$recorded")"
+  expected="$(repo_owned_canonical_path "$expected")"
   if [ "$recorded" != "$expected" ]; then
     DESTINATION_KIND=managed
     DESTINATION_REASON=source-mismatch
