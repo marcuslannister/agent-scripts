@@ -19,11 +19,12 @@ copy_state_canonical_path() {
 refresh_source_clone() { # clone_dir repo_url
   local clone_dir="$1"
   local repo_url="$2"
+  # Adapter stdout is the source-inventory protocol.
   if [ -d "$clone_dir/.git" ]; then
-    git -C "$clone_dir" pull --ff-only
+    git -C "$clone_dir" pull --ff-only >/dev/null
   else
     mkdir -p "$(dirname "$clone_dir")"
-    git clone --depth 1 "$repo_url" "$clone_dir"
+    git clone --depth 1 "$repo_url" "$clone_dir" >/dev/null
   fi
 }
 

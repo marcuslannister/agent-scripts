@@ -30,6 +30,7 @@ if [ "${1:-}" = clone ]; then
   exit 0
 fi
 if [ "${1:-}" = -C ] && [ "${3:-}" = pull ] && [ "${4:-}" = --ff-only ]; then
+  printf 'Already up to date.\n'
   exit 0
 fi
 printf 'unexpected git call: %s\n' "$*" >&2
