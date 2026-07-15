@@ -58,6 +58,7 @@ Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 - User-facing fix/landed PR: changelog unless test/internal only.
 - Contributor PR author: no changelog edit. Maintainer/AI adds on merge and thanks contributor.
 - Explicit land/ship authorizes needed branch changes and push. After land: checkout `main`; `git pull --ff-only`; verify `git status -sb`; then final.
+- After PR merge/ship: concise prose recap, not a bullet pile; cover behavior, key surface, proof, and issue/PR state. Check for worthwhile refactor or simplification follow-ups; suggest any warranted.
 - Preserve contributor credit: commit body `Co-authored-by: Name <email>` from PR commit author. Changelog still thanks `@login` for user-visible work.
 
 ## Runtime Safety
