@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-15 — Skill Retirement
+- Removed the repo-owned `onecli-gateway` skill from Claude and Codex distribution.
+
 ## 2026-07-14 — Skill Topology Final Cutover
 - Added the OpenAI Codex plugin as a manifest-managed Claude-only source.
 - Prevented successful source-refresh output such as `Already up to date.` from contaminating the adapter inventory protocol and failing Anthropic, neat-freak, or visual-explainer reconciliation.

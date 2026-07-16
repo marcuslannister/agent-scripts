@@ -16,7 +16,6 @@
         "nano-banana-pro": ["claude", "codex"],
         "native-app-performance": ["claude", "codex"],
         "obsidian": ["claude", "codex"],
-        "onecli-gateway": ["claude", "codex"],
         "openai-image-gen": ["claude", "codex"],
         "peekaboo": ["claude", "codex"],
         "release-mac-app": ["claude", "codex"],

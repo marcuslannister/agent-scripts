@@ -34,10 +34,11 @@ test ! -e "$REPO_ROOT/skills/maintainer-orchestrator"
 jq -e '
   (.sources[] | select(.id == "repo-claude") |
     .defaultDestinations == ["claude"] and
-    (.overrides | length) == 21 and
+    (.overrides | length) == 20 and
     ([.overrides[] | select(. != ["claude", "codex"])] | length) == 0 and
     (.overrides | has("codex-first") | not) and
-    (.overrides | has("maintainer-orchestrator") | not)) and
+    (.overrides | has("maintainer-orchestrator") | not) and
+    (.overrides | has("onecli-gateway") | not)) and
   (.sources[] | select(.id == "repo-codex") |
     .defaultDestinations == ["codex"] and .overrides == {}) and
   (.sources[] | select(.id == "anthropic-skills") |
