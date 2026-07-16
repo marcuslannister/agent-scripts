@@ -1,6 +1,6 @@
 ---
 name: one-password
-description: "1Password/op: service-account first, targeted secret read/store/inject, tmux."
+description: "REQUIRED before ANY `op` command or whenever a task needs an API key, token, password, credential, or secret (OPENAI_API_KEY, ANTHROPIC_API_KEY, deploy tokens, live-test keys). Prompt-free 1Password service-account reads; wrong invocations spam macOS dialogs."
 metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op","tmux"]}}}
 ---
 
