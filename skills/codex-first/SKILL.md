@@ -70,6 +70,29 @@ Follow-up fixes — cheaper than fresh runs, keeps context. `resume` has no `-C`
   -o /tmp/codex-last.md - <"$P2" 2>/dev/null)
 ```
 
+## Liveness watchdog (long monitored runs)
+
+For runs you must not babysit, trade the stderr suppression for a log and watch its mtime; read only the `-o` file into context, never the log body.
+
+```bash
+command codex exec --yolo -C <repo> -m gpt-5.6-sol \
+  -c model_reasoning_effort="high" --enable fast_mode \
+  -o "$OUT" - <"$P" > "$LOG" 2>&1 &   # in harnesses: Bash run_in_background
+```
+
+- Capture the session id immediately: `grep -m1 "session id:" "$LOG"`. `resume --last` is cwd-filtered but races with any parallel Codex on the machine — with the id saved, recovery is deterministic.
+- Watchdog loop (Claude Code: `Monitor` tool; else a bg shell): every 60s, if the codex process is alive but `$LOG` mtime is older than ~300s, treat it as hung. Because stderr (thinking stream) is in the log, mtime stays fresh during long reasoning — 5 min of true silence is a real hang, not thinking.
+- Recovery: kill the pid, then resume the SAME session with an explicit id so no context is lost:
+
+```bash
+(cd <repo> && command codex exec resume <session-id> \
+  --dangerously-bypass-approvals-and-sandbox \
+  -o "$OUT" - <<< "You were interrupted. Continue exactly where you left off; finish the task and produce the required final report.")
+```
+
+- Exit watchdog silently when the process ends normally (the run's own completion signal covers it); emit only on staleness.
+- Verified on codex-cli 0.144.4: `codex exec resume [SESSION_ID] [PROMPT]`, `--last`, cwd-filtering, `--all`.
+
 ## Prompt contract
 
 Codex starts with zero session context. Every prompt: goal, exact repo/paths, constraints, non-goals, proof expected (exact test command), output shape ("report files changed + test output"). Spec quality decides success.
