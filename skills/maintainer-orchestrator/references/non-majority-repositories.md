@@ -12,6 +12,7 @@ Snapshot: 2026-07-01. Metric: Peter-authored non-merge commits divided by author
 | [openclaw/clawbench](https://github.com/openclaw/clawbench) | 3 / 120 | scoootscooob: 52; Codex: 26 |
 | [openclaw/clawgo](https://github.com/openclaw/clawgo) | 7 / 16 | Mariano Belinky: 7; tied, no Peter majority |
 | [openclaw/clawscan](https://github.com/openclaw/clawscan) | 0 / 120 | Patrick Erichsen: 110; Vincent Koc: 10 |
+| [openclaw/clickclack](https://github.com/openclaw/clickclack) | 191 / 578 | snapshot 2026-07-16; Shakker: 341 |
 | [openclaw/clownfish](https://github.com/openclaw/clownfish) | 42 / 931 | Vincent Koc identities: 889 |
 | [openclaw/clawrouter](https://github.com/openclaw/clawrouter) | 28 / 248 | Vincent Koc identities: 220 |
 | [openclaw/clawdinators](https://github.com/openclaw/clawdinators) | 2 / 253 | Josh Palmer identities: 251; automation identities filtered |
@@ -33,7 +34,9 @@ Snapshot: 2026-07-01. Metric: Peter-authored non-merge commits divided by author
 | [openclaw/nix-openclaw](https://github.com/openclaw/nix-openclaw) | 6 / 753 | openclaw-ci history filtered; other maintainers lead |
 | [openclaw/notcrawl](https://github.com/openclaw/notcrawl) | 18 / 147 | Vincent Koc: 123 |
 | [openclaw/openclaw-ansible](https://github.com/openclaw/openclaw-ansible) | 3 / 96 | sheeek: 47 |
+| [openclaw/openclaw-rtt](https://github.com/openclaw/openclaw-rtt) | 4 / 1,868 | snapshot 2026-07-16; other maintainers lead |
 | [openclaw/openclaw-windows-node](https://github.com/openclaw/openclaw-windows-node) | 6 / 722 | Scott Hanselman: 303 |
+| [openclaw/photoscrawl](https://github.com/openclaw/photoscrawl) | 1 / 16 | snapshot 2026-07-16; joshp123: 14 |
 | [openclaw/plugin-inspector](https://github.com/openclaw/plugin-inspector) | 8 / 168 | Vincent Koc: 146 |
 | [openclaw/releases](https://github.com/openclaw/releases) | 6 / 20 | Vincent Koc identities: 13 |
 | [openclaw/rfcs](https://github.com/openclaw/rfcs) | 4 / 35 | Gio Della-Libera: 11 |
@@ -45,3 +48,5 @@ Snapshot: 2026-07-01. Metric: Peter-authored non-merge commits divided by author
 | [martian-engineering/lossless-claw](https://github.com/martian-engineering/lossless-claw) | 1 / 440 | Josh Lehman: 245; automation identities filtered |
 
 Standing separate-project exclusions remain [openclaw/openclaw](https://github.com/openclaw/openclaw) and [openclaw/clawhub](https://github.com/openclaw/clawhub), regardless of contribution share.
+
+Owner-maintained overrides (Peter, 2026-07-16): [openclaw/clickclack](https://github.com/openclaw/clickclack), [openclaw/photoscrawl](https://github.com/openclaw/photoscrawl), and every repository whose name contains `crawl` (gitcrawl, graincrawl, notcrawl, discrawl, slacrawl, wacrawl, telecrawl, imsgcrawl, crawlkit, crawlbar, crawl-remote, gitcrawl-store, …) remain in routine orchestration scope despite non-majority commit share. Peter explicitly still maintains these; the majority gate does not apply to them.
