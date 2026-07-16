@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-16 — ChatGPT Codex CLI Discovery
+- Documented safe PATH exposure for the ChatGPT app's bundled Codex CLI without breaking its sibling helper lookup. Thanks @notorious-d-e-v.
+
 ## 2026-07-13 — GitHub Cache Hygiene
 - Kept agent GitHub reads on the Octopool shim by banning absolute real-`gh` paths outside shim diagnosis and reserving `OPENCLAW_GH_BIN` for mutating repository workflows.
 

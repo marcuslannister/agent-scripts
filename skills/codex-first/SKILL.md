@@ -55,7 +55,19 @@ command codex exec --yolo -C <repo> \
 
 - Model default: `gpt-5.6-sol`, effort `high`, fast mode on — pin all three explicitly; don't rely on user config.
 - `--yolo` is the house default; Codex may run commands/tests freely. Keep prompts scoped to the target repo.
-- `command codex` bypasses the interactive zsh wrapper; if not on PATH: `fnm exec --using default -- codex`
+- `command codex` bypasses any interactive shell alias. If codex isn't on PATH, it depends on how it was installed:
+  - node/standalone install: `fnm exec --using default -- codex`
+  - ChatGPT desktop app: the CLI ships bundled at `/Applications/ChatGPT.app/Contents/Resources/codex`. Expose **that** binary with an **exec-wrapper, not a symlink**. Ensure `~/.local/bin` stays on PATH (for zsh, persist the export in `~/.zshrc`), then:
+    ```sh
+    mkdir -p "$HOME/.local/bin"
+    export PATH="$HOME/.local/bin:$PATH"
+    if [ -e "$HOME/.local/bin/codex" ] || [ -L "$HOME/.local/bin/codex" ]; then
+      printf '%s\n' 'codex launcher already exists; leaving it unchanged' >&2
+    else
+      printf '#!/bin/sh\nexec "/Applications/ChatGPT.app/Contents/Resources/codex" "$@"\n' > "$HOME/.local/bin/codex" && chmod +x "$HOME/.local/bin/codex"
+    fi
+    ```
+    Or install the self-contained CLI via `curl -fsSL https://chatgpt.com/codex/install.sh | sh`, which needs no wrapper.
 - stderr suppressed (thinking noise bloats context); drop `2>/dev/null` only to debug a failing run
 - read `-o` file for the result; don't parse the JSONL stream
 - long runs: Bash run_in_background, read `-o` file on exit; don't kill quiet runs <30 min
