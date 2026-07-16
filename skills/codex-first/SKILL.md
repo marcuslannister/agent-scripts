@@ -1,6 +1,6 @@
 ---
 name: codex-first
-description: "Claude Code-only implementation routing: delegate implementation work to Codex CLI while Claude specifies, reviews, and verifies. Use only when the active agent is Claude Code. Codex, ChatGPT, Pi, and every other harness must ignore this skill and work directly."
+description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Use only when the active agent is Claude Code. Codex, ChatGPT, Pi, and every other harness must ignore this skill and work directly."
 ---
 
 # Codex First
@@ -20,9 +20,10 @@ Rationale: Claude (Fable/Opus) tokens metered + expensive; Codex flat-rate. GPT-
 Delegate to Codex (default for hands-on work):
 
 - implementation from a frozen spec; refactors; mechanical migrations
-- bug fixes with known repro; test writing; coverage fills
-- CI fixes, dependency bumps, scripts/tooling
-- bulk codebase exploration where raw reading ≫ the answer
+- fixing: bug fixes (known repro, or diagnose-then-fix), CI/lint/type failures; test writing; coverage fills
+- dependency bumps, scripts/tooling
+- exploration + exploratory subagents: fan out Codex for read-heavy discovery instead of Claude Explore/Task subagents whenever raw reading ≫ the answer (parallel `-o` files, one per thread)
+- git mechanics: rebasing onto latest `origin/main`, conflict resolution, and executing the PR merge/land workflow (the repo's own path, e.g. `scripts/pr`) — Codex runs the rebase/gates/merge steps; the decision, gates, and review below stay Claude's
 
 Keep in Claude:
 
@@ -30,8 +31,8 @@ Keep in Claude:
 - tasks where writing the spec IS the work (ambiguity = design)
 - tiny edits (~<20 lines, single obvious change) — delegation overhead loses
 - anything needing session tools: MCP (browser/computer-use/chronicle), 1Password, secrets
-- destructive/irreversible ops, releases, pushes, GitHub mutations — Claude-side per git rules
-- review of Codex output — never delegated, never skipped
+- releases, publishes, version bumps and their credentials — Claude-side per release rules
+- the land decision + pre-land gates (`$autoreview` clean, CI green, proof) and review of Codex output — never delegated, never skipped; Codex may run the mechanics only once Claude has decided to land and the gates pass
 
 Mixed task: Claude designs first, freezes spec, delegates build-out.
 Heuristic: prompt reads as a work order → delegate; writing it forces decisions → design, Claude.
