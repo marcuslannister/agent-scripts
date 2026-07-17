@@ -73,6 +73,7 @@ Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 - Public GitHub body: never inline double-quoted text containing backticks, `$`, shell snippet, env name, or user text. Temp file + `cat <<'EOF'` + inspect + `--body-file`.
 - Secrets: never normal-shell `env`, `set`, `export -p`, broad secret regex dump. Query exact name only; redact value.
 - After secret/env handling, public `gh` write: unset token env where possible: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
+- `op`: load `$one-password` first, always. Never hand-roll. Automated runs: service-account token + `OP_LOAD_DESKTOP_APP_SETTINGS=false OP_BIOMETRIC_UNLOCK_ENABLED=false`; never `--account`/`op signin` without chat consent. One tmux session `op-work` only. Violation = macOS App Data dialog spam at Peter.
 
 ## Git
 
