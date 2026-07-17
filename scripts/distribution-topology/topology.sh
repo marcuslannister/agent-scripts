@@ -13,6 +13,14 @@ source "$MODULE_DIR/repo-owned-paths.sh"
 source "$MODULE_DIR/state.sh"
 source "$MODULE_DIR/report.sh"
 
+# Git Bash may run Windows jq, whose default text mode emits CRLF.
+if command jq -b -n empty >/dev/null 2>&1; then
+  jq() {
+    command jq -b "$@"
+  }
+  export -f jq
+fi
+
 MODE=reconcile
 JSON_OUTPUT=0
 REQUESTED_JSON=0

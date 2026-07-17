@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMMAND="$REPO_ROOT/scripts/update-skill-topology.sh"
 TMP_ROOT="$(mktemp -d)"
+REAL_JQ="$(command -v jq)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 source "$REPO_ROOT/scripts/lib-copies.sh"
@@ -103,6 +104,31 @@ jq -e '
   (.plan[] | select(.skill == "codex-tool") | .destinations == ["codex"]) and
   ([.plan[].skill] | index("untracked-third-party") | not)
 ' "$TMP_ROOT/fixture-clean.json" >/dev/null
+
+CRLF_JQ_ROOT="$TMP_ROOT/crlf-jq"
+cp -R "$FIXTURE_BASE" "$CRLF_JQ_ROOT"
+mkdir -p "$CRLF_JQ_ROOT/bin"
+cat > "$CRLF_JQ_ROOT/bin/jq" <<BASH
+#!/usr/bin/env bash
+set -euo pipefail
+binary=0
+args=()
+for arg in "\$@"; do
+  case "\$arg" in
+    -b|--binary) binary=1 ;;
+    *) args+=("\$arg") ;;
+  esac
+done
+if [ "\$binary" -eq 1 ]; then
+  "$REAL_JQ" "\${args[@]}" | sed 's/\r$//'
+  exit \$?
+fi
+"$REAL_JQ" "\${args[@]}" | sed 's/$/\r/'
+BASH
+chmod +x "$CRLF_JQ_ROOT/bin/jq"
+PATH="$CRLF_JQ_ROOT/bin:$PATH" HOME="$CRLF_JQ_ROOT/home" TMPDIR="$CRLF_JQ_ROOT/runtime" \
+  "$CRLF_JQ_ROOT/scripts/update-skill-topology.sh" --check --json > "$CRLF_JQ_ROOT/result.json"
+jq -e '.status == "clean"' "$CRLF_JQ_ROOT/result.json" >/dev/null
 
 RECONCILE_ROOT="$TMP_ROOT/reconcile"
 cp -R "$FIXTURE_BASE" "$RECONCILE_ROOT"
