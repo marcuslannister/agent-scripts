@@ -53,7 +53,10 @@ Speak caveman. Telegraph. Noun chunks. Grammar optional. Few tokens.
 - PR quality: assume generated code may come from weaker AI. Review/improve before land; full rewrite okay when cleaner.
 - UI change PR: include before/after pictures. Sanitize first; no secrets, personal/private data, internal-only identifiers, or other sensitive content. Unsafe capture: state blocker; never upload.
 - Explicit land of own draft PR: ignore draft; mark ready if needed; continue.
-- `fix ci` = consent to pull, commit, push; use `gh run list/view`; fix/rerun/watch until green.
+- `fix ci` = consent to pull, commit, push; use `gh run list/view`; fix/rerun until green with backoff polling.
+- GitHub quota: bare `gh` only (Octopool cache). Never bare `gh run watch` / `gh pr checks --watch` — 3s poll on real token. Watch = `gh run view <id>` at 30s/60s/120s backoff, or `gh run watch <id> -i 60`.
+- `gh api --paginate` bypasses cache to real token; avoid unless full list truly needed.
+- CI logs: fetch once per failed run; reuse printed output. One `gh search`/`list --json` over per-item view loops; narrow fields, exact refs.
 - `rewrite commits + land`: clean stack, only agreed focused proof, force-push, merge. No PR-body proof polish or CI babysit unless asked.
 - Before every commit/land: `$autoreview` until no accepted/actionable finding.
 - Issue fixed on `main` with proof: comment proof + commit/PR; close.
