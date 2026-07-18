@@ -34,6 +34,7 @@ Follow the official CLI get-started steps for anything else. Don't guess install
 **2. Desktop app — explicit consent only.** For items genuinely outside Molty (personal `Private` vault, `OpenClaw-Core`). No automatic fallback.
 
 - STOP and ask in chat first: item name + why needed. Wait for yes.
+- On a VM/headless host, first try routing this flow to Peter's MacBook — see "Remote routing — desktop path only".
 - After consent: one task window in the shared `op-work` session (see below), `op signin --account my.1password.com` once, then batch every interactive read of the whole task into that same window and one `op run`/`op inject` invocation when practical. TTY reuse limits 1Password's Authorize prompts; it does not make the separate macOS App Data grant persist across new `op` PIDs.
 - No nameplate/sag pre-alerts. Audible page (`sag`) only if Peter approved the unlock in chat and the 1Password prompt then sits unanswered.
 
@@ -63,6 +64,16 @@ Exact titles; go straight to the service-account read. No enumeration needed.
 ClickClack/Barnacle Molty items are agent copies; canonical items live in the shared `OpenClaw` vault — on rotation update both.
 
 Outside Molty by design (desktop path, consent first): `OpenClaw Developer ID Release Keychain` (`OpenClaw-Core` vault), npm interactive login+OTP (`Private/Npmjs`), personal SSH/signing keys. Twilio has no API credential stored anywhere — only a console login (Private); minting one needs the console.
+
+## Remote routing — desktop path only
+
+Applies to path 2 (interactive/desktop) flows only; path 1 service-account reads always run locally, no routing.
+
+- Before any desktop-app flow on a VM/headless/non-primary host: load `$remote-mac`, check if Peter's MacBook (`steipete-mbp`, Tailscale `peters-macbook-pro-1`) is online via `tailscale status --json`.
+- Online → route the whole interactive flow there: `ssh -o ConnectTimeout=5 -o RequestTTY=no -o RemoteCommand=none steipete@steipete-mbp ...` running inside the MacBook's OWN shared `op-work` tmux session (same socket/session/window rules as local, executed remotely). 1Password prompts + Touch ID then fire where Peter is; he sees and approves them.
+- Consent rule unchanged: still ask in chat first (item + why). Routing changes WHERE the prompt appears, not whether to ask.
+- Only the needed field values cross the SSH channel; same no-print, shape-check-only rules apply on both ends. Kill the remote task window at task end.
+- MacBook offline/SSH timeout → on a VM/headless host, report what was tried and STOP; no local desktop flow there — the prompt would be invisible. Local desktop fallback only on a host with a usable GUI session + 1Password app.
 
 ## Workflow
 
