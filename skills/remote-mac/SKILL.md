@@ -104,6 +104,15 @@ clawmac healthy shape:
 - Chrome cookie/keychain issues: `security` may prompt for `Chrome Safe Storage`; Peter must enter the login keychain password, then click `Always Allow`.
 - After approval, verify over SSH with `/Users/steipete/Projects/bird/bird check` and `/Users/steipete/.openclaw/bin/bird-gui check`.
 
+## Live Testing Policy (OpenClaw)
+
+- Default for live tests on any of Peter's Macs: session-owned dev gateway — isolated `OPENCLAW_STATE_DIR` scratch dir + free port. Never bind 18789 while a real gateway runs; never `launchctl kickstart/bootout/bootstrap` or `openclaw gateway stop/restart` a service this session did not start.
+- clawmac = PRODUCTION. Any restart/stop, config/state write under `~/.openclaw`, or live test against its gateway needs explicit per-task approval from Peter in chat. One approval = one task, never standing.
+- Any shared Mac Studio gateway or dev-watch session is semi-production: same approval rule; never stop a tmux session this task did not start.
+- Tunnel footgun (megaclaw AND Peter's MacBook Pro): `127.0.0.1:18789` on those hosts is an SSH tunnel into clawmac — "localhost" tests there hit production. Same approval rule applies. Neither host runs a local gateway service.
+- DB/state for testing or migration rehearsal: production copies need explicit per-task approval naming the destination and handling. Work only on the approved copy; writing back or migrating production in place needs separate approval.
+- Heavier cross-machine/OS live E2E routes through `$crabbox`, not Peter's personal gateways.
+
 ## Safety
 
 - Do not assume host identity from a stale IP; verify hostname/user when possible.
