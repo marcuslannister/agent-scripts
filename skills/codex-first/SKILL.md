@@ -1,13 +1,20 @@
 ---
 name: codex-first
-description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Use only when the active agent is Claude Code. Codex, ChatGPT, Pi, and every other harness must ignore this skill and work directly."
+description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Use only when the active agent is Claude Code and ANTHROPIC_BASE_URL is unset or non-loopback. Router-backed localhost sessions and every non-Claude harness must work directly."
 ---
 
 # Codex First
 
 ## Hard gate
 
-Use this skill only when the active agent is Claude Code.
+Use this skill only when the active agent is Claude Code **and**
+`ANTHROPIC_BASE_URL` is either unset or points to a non-loopback host.
+
+Before invoking Codex, inspect `ANTHROPIC_BASE_URL`. If its URL host is
+`localhost`, ends in `.localhost`, is in `127.0.0.0/8`, or is IPv6 loopback
+`::1`, stop here: the session may already be model-routed through a local proxy.
+Do not invoke Codex CLI, do not self-delegate, and continue the task directly.
+If the variable cannot be inspected, fail closed and work directly.
 
 Codex, ChatGPT, Pi, and every other harness: stop here. Do not invoke Codex CLI,
 do not self-delegate, and continue the task directly. This gate overrides a
