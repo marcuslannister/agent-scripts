@@ -69,6 +69,14 @@ Use `$one-password` before handling the API key. The canonical value is the `OPE
 
 The Keychain item should allow `/usr/bin/security`. A Keychain read normally produces no prompt. A login Keychain locked after reboot, or a command launched via noninteractive SSH, can fail with error 36 (`User interaction is not allowed`). Do not work around that failure with a plaintext file or a long-lived secret daemon: unlock the host from its local graphical session, install the item there, then use Codex from that local session.
 
+Before the first fresh or resumed Codex launch on a configured machine, run the secret-safe preflight. It validates the direct-provider config, all three catalogue entries, helper executable, and non-empty helper delivery without printing the credential or helper stderr:
+
+```zsh
+ruby ~/.codex/skills/agent-scripts/codex-huge-context/scripts/preflight.rb
+```
+
+Do not mark a rollout complete or launch Codex when this fails. With `requires_openai_auth = false`, a missing Keychain delivery copy cannot fall back to the normal Codex login: the direct provider can reach `api.openai.com/v1/responses` without a bearer header and surface an opaque HTTP 401 instead. The preflight fails earlier with the bootstrap action needed. An unset `GITHUB_PAT_TOKEN` warning is independent and non-blocking for inference; it explains a concurrent GitHub MCP startup failure but must not be confused with OpenAI API authentication.
+
 ## ChatGPT connector login
 
 `requires_openai_auth = false` applies only to the custom inference provider. The root Codex login must remain ChatGPT-authenticated for ChatGPT-connected plugins to work:
@@ -79,6 +87,10 @@ codex login status
 
 If it reports API-key login and the host needs Gmail, Calendar, or similar connectors, use `codex logout` followed by `codex login` from the local user session. Do not copy `auth.json` or OAuth tokens between Macs.
 
+## Fresh and resumed sessions
+
+`-m gpt-5.6-sol` selects a model, not a provider. Fresh sessions read the root `model_provider`; session metadata then records the chosen provider. Resuming preserves that recorded provider, so a pre-rollout session can stay on ordinary `openai`, while a session created with `openai_api_direct` keeps the direct route and will repeat the 401 until Keychain delivery works. Run the preflight before both paths. After first installing the direct route, start a fresh session rather than using an older ordinary-provider session when the 1M route is required.
+
 ## Fleet rollout
 
 Use `$fleet-maintenance` and `$remote-mac` first. Read `~/Projects/manager/computers.yaml`, use live Tailscale state, deduplicate by hardware UUID, and exclude handed-off hosts. Audit all reachable hosts before mutation; mutate one host at a time.
@@ -86,7 +98,7 @@ Use `$fleet-maintenance` and `$remote-mac` first. Read `~/Projects/manager/compu
 Peter's current personal Mac scope is MacBook Pro, Mac Studio, ClawMac, MegaClaw, and MiniClaw. Verify identity and the `agent-scripts` checkout before changing any remote files. Keep a per-host result with:
 
 - config/catalog installed and both values for all three model entries;
-- Keychain item installed or exact local-session blocker;
+- preflight passed in the intended local user session, or the exact Keychain/local-session blocker;
 - `codex login status` result, without showing any credential;
 - backup path and whether a desktop restart is pending.
 
@@ -97,16 +109,18 @@ The `agent-scripts` skill checkout is normally exposed by `~/.codex/skills/agent
 Run these in the intended local user session:
 
 ```zsh
+ruby ~/.codex/skills/agent-scripts/codex-huge-context/scripts/preflight.rb
 codex login status
 jq -r '.models[] | select(.slug == "gpt-5.6-sol" or .slug == "gpt-5.6-terra" or .slug == "gpt-5.6-luna") | [.slug, .context_window, .max_context_window] | @tsv' ~/.codex/models-api-1m.json
 codex exec --skip-git-repo-check 'Reply with exactly: direct-api-1m-ok'
 ```
 
-Expect `1050000` for both window fields on all three models and the exact probe response. Restart the Codex desktop app after configuration so its app-server reloads the files. A successful direct API probe does not prove connector OAuth; confirm `codex login status` separately.
+Expect a successful preflight, `1050000` for both window fields on all three models, and the exact probe response. Restart the Codex desktop app after configuration so its app-server reloads the files. A successful direct API probe does not prove connector OAuth; confirm `codex login status` separately.
 
 ## Failure policy
 
 - API response still clamps/rejects a request: record the server response; do not claim a client catalogue override changed server entitlement.
+- HTTP 401 `Missing bearer or basic authentication in header`: rerun the preflight and repair Keychain delivery; do not switch providers or ordinary Codex authentication.
 - Keychain error 36 remotely: leave the safe configuration staged and require a local GUI unlock. Never weaken secret storage.
 - Root API-key login but connectors are required: ask the local user to complete the ChatGPT login; inference can remain on the direct provider.
 - Existing `openai_api_direct` provider differs from this contract: inspect it before changing it; do not append a duplicate TOML table.
