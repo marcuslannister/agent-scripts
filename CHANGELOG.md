@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Made `codex-first` treat the Gorilla-backed Clawdex endpoint as already model-routed, preventing recursive Codex delegation after the fleet proxy migration.
 - Added a secret-safe Codex direct-API preflight so million-token launches fail before an unauthenticated Responses request when a machine is missing its Keychain delivery copy.
 
 ## 2026-07-17 — 0.12.0

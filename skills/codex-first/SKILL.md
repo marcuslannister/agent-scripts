@@ -1,6 +1,6 @@
 ---
 name: codex-first
-description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Use only when the active agent is Claude Code and ANTHROPIC_BASE_URL is unset or non-loopback. Router-backed localhost sessions and every non-Claude harness must work directly."
+description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Use only when the active agent is Claude Code and ANTHROPIC_BASE_URL is unset or is neither loopback nor gorillaclaw.sheep-coho.ts.net. Router-backed localhost and Clawdex Gorilla sessions, and every non-Claude harness, must work directly."
 ---
 
 # Codex First
@@ -8,11 +8,13 @@ description: "Claude Code-only work routing: delegate implementation, fixing, ex
 ## Hard gate
 
 Use this skill only when the active agent is Claude Code **and**
-`ANTHROPIC_BASE_URL` is either unset or points to a non-loopback host.
+`ANTHROPIC_BASE_URL` is either unset or its URL host is neither loopback nor
+`gorillaclaw.sheep-coho.ts.net`.
 
 Before invoking Codex, inspect `ANTHROPIC_BASE_URL`. If its URL host is
-`localhost`, ends in `.localhost`, is in `127.0.0.0/8`, or is IPv6 loopback
-`::1`, stop here: the session may already be model-routed through a local proxy.
+`gorillaclaw.sheep-coho.ts.net` (the Clawdex router), `localhost`, ends in
+`.localhost`, is in `127.0.0.0/8`, or is IPv6 loopback `::1`, stop here: the
+session is already router-backed or may be model-routed through a local proxy.
 Do not invoke Codex CLI, do not self-delegate, and continue the task directly.
 If the variable cannot be inspected, fail closed and work directly.
 
