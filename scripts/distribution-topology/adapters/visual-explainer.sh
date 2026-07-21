@@ -71,10 +71,17 @@ inspect_claude_plugin() {
     printf 'error\tplugin-settings-missing\n'
     return
   fi
-  if ! enabled="$(jq -er --arg id "$plugin_id" '.enabledPlugins[$id] // false' "$settings_file" 2>/dev/null)"; then
+  if ! jq -e --arg id "$plugin_id" '
+    type == "object" and
+    ((has("enabledPlugins") | not) or
+      ((.enabledPlugins | type) == "object" and
+        ((.enabledPlugins | has($id) | not) or
+          (.enabledPlugins[$id] | type) == "boolean")))
+  ' "$settings_file" >/dev/null 2>&1; then
     printf 'error\tinvalid-plugin-settings\n'
     return
   fi
+  enabled="$(jq -r --arg id "$plugin_id" '.enabledPlugins[$id] // false' "$settings_file")"
   if [ "$enabled" != true ]; then
     printf 'drift\tdisabled\n'
     return

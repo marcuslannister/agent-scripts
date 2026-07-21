@@ -463,6 +463,47 @@ HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$VISUAL_FIXTURE/second.json" >/dev/null
 cmp -s "$VISUAL_FIXTURE/claude-calls-first" "$VISUAL_FIXTURE/home/claude-calls.log"
 
+cat > "$VISUAL_FIXTURE/home/.claude/settings.json" <<'JSON'
+{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":false}}
+JSON
+cp -R "$VISUAL_FIXTURE/home" "$VISUAL_FIXTURE/home-before-disabled-check"
+set +e
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --check --json > "$VISUAL_FIXTURE/disabled-check.json"
+disabled_check_exit=$?
+set -e
+test "$disabled_check_exit" -eq 1
+jq -e '
+  .status == "drift" and .errors == [] and
+  (.drift[] | .sourceId == "visual-explainer" and .destination == "claude" and .reason == "disabled")
+' "$VISUAL_FIXTURE/disabled-check.json" >/dev/null
+diff -r "$VISUAL_FIXTURE/home-before-disabled-check" "$VISUAL_FIXTURE/home"
+
+while IFS=$'\t' read -r case_name settings_json; do
+  printf '%s\n' "$settings_json" > "$VISUAL_FIXTURE/home/.claude/settings.json"
+  set +e
+  FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
+  HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+    "$VISUAL_COMMAND" --check --json > "$VISUAL_FIXTURE/invalid-$case_name.json"
+  invalid_settings_exit=$?
+  set -e
+  test "$invalid_settings_exit" -eq 1
+  jq -e '
+    .status == "failed" and
+    any(.errors[]; contains("visual-explainer/visual-explainer on claude: invalid-plugin-settings"))
+  ' "$VISUAL_FIXTURE/invalid-$case_name.json" >/dev/null
+done <<'CASES'
+enabled-null	{"enabledPlugins":null}
+enabled-false	{"enabledPlugins":false}
+plugin-null	{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":null}}
+plugin-string	{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":"false"}}
+CASES
+
+cat > "$VISUAL_FIXTURE/home/.claude/settings.json" <<'JSON'
+{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":true}}
+JSON
+
 cp -R "$VISUAL_FIXTURE/home" "$VISUAL_FIXTURE/home-before-check"
 FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
