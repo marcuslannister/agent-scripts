@@ -87,9 +87,9 @@ The map assumed "copy matt skills to claude + codex" was already satisfied (`mat
 
 Kicking off execution showed most of the cut-list is gated by the post-migration delivery model. Decisions taken:
 
-- **Author registry + `INDEX.md` — landed.** `skill-authors.json` (86), `scripts/generate-skill-index.sh` (with `--check` gate), generated `INDEX.md`, and a test.
+- **Author registry + `INDEX.md` — landed.** `skill-authors.json` (83 after the onecli staging cleanup), `scripts/generate-skill-index.sh` (with `--check` gate), generated `INDEX.md`, and a test.
 - **matt-skill prunes — not pursued.** With matt delivered as one Claude plugin (all 40 skills wholesale) + npx-all to Codex, individual skills can't be dropped from the Claude surface. Accepted matt as all-or-nothing; `grill-me`, `batch-grill-me`, `obsidian-vault`, `setup-matt-pocock-skills` stay.
 - **anthropic `frontend-design` / `skill-creator` → Codex-only — manifest applied, runtime deferred.** `skill-topology.json` updated; `--check` confirms the two Claude removals and both official plugins are installed. The runtime removal applies on the next healthy reconcile.
 - **Runtime reconcile deferred.** A full reconcile is currently blocked by `visual-explainer: invalid-plugin-settings` and an unsynced Codex surface — unrelated to this effort. The manifest stays source of truth.
-- **`onecli-run-workspace` — deletion pending.** Flagged to drop (no `SKILL.md`); the untracked dir removal is left to the maintainer. Drop its `skill-authors.json` entry when the dir goes.
+- **Onecli staging artifacts — removed.** `onecli-run-workspace`, `onecli-gateway`, and `onecli-run` were deleted from the untracked staging surface and removed from `skill-authors.json`.
 - **Installed-plugin cuts** (`typescript-lsp`, `superpowers`, `claude-code-setup`) remain user-global, personal-config calls — not repo state.

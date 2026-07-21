@@ -1,15 +1,14 @@
 # Handoff — skills-plugins-reorg (execution)
 
-_Session: ADR-0003 execution kickoff · 2026-07-21 · repo `marcuslannister/agent-scripts` (public) · branch `main` clean + pushed_
+_Session: ADR-0003 execution kickoff · 2026-07-21 · repo `marcuslannister/agent-scripts` (public) · branch `main`_
 
 Supersedes the wayfinder-phase handoff (map now closed; see #23 + ADR-0003).
 
 ## What the next session is for
 
-Two concrete open loops remain. Neither is started.
+One concrete open loop remains.
 
-1. **Finish the `onecli-run-workspace` prune.** The maintainer chose to delete it, but the `rm -rf` was blocked by the permission gate, so `skills/onecli-run-workspace/` is still on disk (untracked). After the maintainer runs `! rm -rf skills/onecli-run-workspace`: drop its entry from `skill-authors.json` (86 → 85), change the `length == 86` assertion in `tests/skill-index-test.sh` to `85`, regenerate the index (`scripts/generate-skill-index.sh`), run the test, commit.
-2. **Unblock + apply the deferred runtime reconcile.** The anthropic de-dupe (commit `d5c91c0`) is committed at the manifest layer but NOT applied at runtime. A full reconcile is blocked (see gotchas). Investigating the `visual-explainer: invalid-plugin-settings` failure and the unsynced Codex surface, then running a real reconcile, applies both the anthropic Claude removal and the Codex resync.
+1. **Unblock + apply the deferred runtime reconcile.** The anthropic de-dupe (commit `d5c91c0`) is committed at the manifest layer but NOT applied at runtime. A full reconcile is blocked (see gotchas). Investigating the `visual-explainer: invalid-plugin-settings` failure and the unsynced Codex surface, then running a real reconcile, applies both the anthropic Claude removal and the Codex resync.
 
 Optional / maintainer's call: installed-plugin cuts (`typescript-lsp`, `superpowers`, `claude-code-setup@claude-plugins-official`) — user-global config, not repo state.
 
@@ -23,13 +22,13 @@ Optional / maintainer's call: installed-plugin cuts (`typescript-lsp`, `superpow
   - `d5c91c0` anthropic `frontend-design`/`skill-creator` → Codex-only (manifest only)
   - `ce8a90d` author registry + generated `INDEX.md` + generator + test
   - `fe724c1` ADR-0003 execution outcomes
-- **New artifacts:** `skill-authors.json` (registry, 86), `scripts/generate-skill-index.sh` (`--check` gates freshness + fails on unattributed on-disk skill), `INDEX.md`, `tests/skill-index-test.sh`.
+- **New artifacts:** `skill-authors.json` (registry, 83), `scripts/generate-skill-index.sh` (`--check` gates freshness + fails on unattributed on-disk skill), `INDEX.md`, `tests/skill-index-test.sh`.
 
 ## Decisions already made (do not relitigate)
 
 - **matt-skill prunes: dropped.** matt now ships as one Claude plugin (`mattpocock-skills`, all 40 skills wholesale) + npx-all to Codex. No per-skill deletion on Claude → accepted all-or-nothing. `grill-me`, `batch-grill-me`, `obsidian-vault`, `setup-matt-pocock-skills` stay.
 - **Runtime apply: deferred** (manifest is source of truth).
-- **`onecli-run-workspace`: delete** (pending, open loop 1). `onecli-gateway` + `onecli-run` are kept (staging, pending #18).
+- **Onecli staging artifacts: deleted.** `onecli-run-workspace`, `onecli-gateway`, and `onecli-run` are removed.
 
 ## Gotchas (not captured elsewhere)
 
@@ -42,6 +41,5 @@ Optional / maintainer's call: installed-plugin cuts (`typescript-lsp`, `superpow
 
 ## Suggested skills
 
-- `/health` (waza) — for the `visual-explainer: invalid-plugin-settings` / config-drift blocker (open loop 2). This is agent/plugin config rot, its wheelhouse.
+- `/health` (waza) — for the `visual-explainer: invalid-plugin-settings` / config-drift blocker (open loop 1). This is agent/plugin config rot, its wheelhouse.
 - `mattpocock-skills:diagnosing-bugs` or `/hunt` (waza) — if the reconcile failure needs a tight reproduce-then-fix loop rather than a config audit.
-- `/check` (waza) or `mattpocock-skills:code-review` — before committing the registry/test edits in open loop 1.
