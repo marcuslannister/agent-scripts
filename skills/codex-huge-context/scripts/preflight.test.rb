@@ -9,13 +9,21 @@ require "tmpdir"
 
 SCRIPT = File.expand_path("preflight.rb", __dir__)
 MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna].freeze
+CONTEXT_WINDOW = 922_000
+AUTO_COMPACT_TOKEN_LIMIT = 820_000
 OUTPUT_SENTINEL = "fixture-output-must-not-appear"
 
 def assert(condition, message)
   raise message unless condition
 end
 
-def write_fixture(root, helper_body:, config_extra: "", catalog_models: MODELS)
+def write_fixture(
+  root,
+  helper_body:,
+  config_overrides: {},
+  catalog_overrides: {},
+  catalog_models: MODELS
+)
   helper = File.join(root, "fetch-key")
   catalog = File.join(root, "models.json")
   config = File.join(root, "config.toml")
@@ -26,18 +34,30 @@ def write_fixture(root, helper_body:, config_extra: "", catalog_models: MODELS)
     catalog,
     JSON.generate(
       "models" => catalog_models.map do |slug|
-        { "slug" => slug, "context_window" => 1_050_000, "max_context_window" => 1_050_000 }
+        {
+          "slug" => slug,
+          "context_window" => CONTEXT_WINDOW,
+          "max_context_window" => CONTEXT_WINDOW,
+          "auto_compact_token_limit" => AUTO_COMPACT_TOKEN_LIMIT,
+        }.merge(catalog_overrides)
       end,
     ),
   )
+
+  root_values = {
+    "model" => '"gpt-5.6-sol"',
+    "model_provider" => '"openai_api_direct"',
+    "model_context_window" => CONTEXT_WINDOW,
+    "model_auto_compact_token_limit" => AUTO_COMPACT_TOKEN_LIMIT,
+    "model_auto_compact_token_limit_scope" => '"total"',
+    "model_catalog_json" => catalog.inspect,
+  }.merge(config_overrides)
+  root_config = root_values.map { |key, value| "#{key} = #{value}" }.join("\n")
+
   File.write(
     config,
     <<~TOML,
-      model = "gpt-5.6-sol"
-      model_provider = "openai_api_direct"
-      model_context_window = 1050000
-      model_catalog_json = #{catalog.inspect}
-      #{config_extra}
+      #{root_config}
 
       [model_providers.openai_api_direct]
       name = "OpenAI API direct"
@@ -60,10 +80,10 @@ def run_preflight(config)
 end
 
 Dir.mktmpdir("codex-huge-context-test") do |root|
-  config = write_fixture(root, helper_body: "printf '%s\\n' '#{OUTPUT_SENTINEL}'")
+  config = write_fixture(root, helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'")
   stdout, stderr, process_status = run_preflight(config)
   assert(process_status.success?, "valid fixture failed: #{stderr}")
-  assert(stdout.include?("preflight: ok"), "success message missing")
+  assert(stdout.include?("safe-context preflight: ok"), "success message missing")
   assert(stderr.include?("GITHUB_PAT_TOKEN is unset"), "independent GitHub MCP warning missing")
   assert(!"#{stdout}\n#{stderr}".include?(OUTPUT_SENTINEL), "credential leaked on successful preflight")
 end
@@ -71,7 +91,7 @@ end
 Dir.mktmpdir("codex-huge-context-test") do |root|
   config = write_fixture(
     root,
-    helper_body: "printf '%s\\n' '#{OUTPUT_SENTINEL}'; printf '%s\\n' '#{OUTPUT_SENTINEL}' >&2; exit 44",
+    helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'; printf '%s\n' '#{OUTPUT_SENTINEL}' >&2; exit 44",
   )
   stdout, stderr, process_status = run_preflight(config)
   assert(!process_status.success?, "failed helper unexpectedly passed")
@@ -87,14 +107,67 @@ Dir.mktmpdir("codex-huge-context-test") do |root|
 end
 
 Dir.mktmpdir("codex-huge-context-test") do |root|
-  config = write_fixture(root, helper_body: "printf '%s\\n' '#{OUTPUT_SENTINEL}'", config_extra: "model_auto_compact_token_limit = 233000")
+  config = write_fixture(
+    root,
+    helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+    config_overrides: { "model_context_window" => 1_050_000 },
+  )
   _stdout, stderr, process_status = run_preflight(config)
-  assert(!process_status.success?, "legacy compaction limit unexpectedly passed")
-  assert(stderr.include?("remove model_auto_compact_token_limit"), "legacy compaction failure is unclear")
+  assert(!process_status.success?, "unsafe raw context window unexpectedly passed")
+  assert(stderr.include?("model_context_window must be 922000"), "context-window failure is unclear")
 end
 
 Dir.mktmpdir("codex-huge-context-test") do |root|
-  config = write_fixture(root, helper_body: "printf '%s\\n' '#{OUTPUT_SENTINEL}'", catalog_models: MODELS.take(2))
+  config = write_fixture(
+    root,
+    helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+    config_overrides: { "model_auto_compact_token_limit" => 945_000 },
+  )
+  _stdout, stderr, process_status = run_preflight(config)
+  assert(!process_status.success?, "unsafe compaction threshold unexpectedly passed")
+  assert(stderr.include?("model_auto_compact_token_limit must be 820000"), "compaction failure is unclear")
+end
+
+Dir.mktmpdir("codex-huge-context-test") do |root|
+  config = write_fixture(
+    root,
+    helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+    config_overrides: { "model_auto_compact_token_limit_scope" => '"body_after_prefix"' },
+  )
+  _stdout, stderr, process_status = run_preflight(config)
+  assert(!process_status.success?, "unsafe compaction scope unexpectedly passed")
+  assert(stderr.include?("model_auto_compact_token_limit_scope must be \"total\""), "scope failure is unclear")
+end
+
+Dir.mktmpdir("codex-huge-context-test") do |root|
+  config = write_fixture(
+    root,
+    helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+    catalog_overrides: { "auto_compact_token_limit" => 900_000 },
+  )
+  _stdout, stderr, process_status = run_preflight(config)
+  assert(!process_status.success?, "unsafe catalogue threshold unexpectedly passed")
+  assert(stderr.include?("gpt-5.6-sol.auto_compact_token_limit must be 820000"), "catalogue failure is unclear")
+end
+
+[100, nil, 95.0].each do |unsafe_percent|
+  Dir.mktmpdir("codex-huge-context-test") do |root|
+    config = write_fixture(
+      root,
+      helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+      catalog_overrides: { "effective_context_window_percent" => unsafe_percent },
+    )
+    _stdout, stderr, process_status = run_preflight(config)
+    assert(!process_status.success?, "unsafe effective-window percentage unexpectedly passed: #{unsafe_percent.inspect}")
+    assert(
+      stderr.include?("gpt-5.6-sol.effective_context_window_percent must be omitted or integer 95"),
+      "effective-window failure is unclear",
+    )
+  end
+end
+
+Dir.mktmpdir("codex-huge-context-test") do |root|
+  config = write_fixture(root, helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'", catalog_models: MODELS.take(2))
   _stdout, stderr, process_status = run_preflight(config)
   assert(!process_status.success?, "incomplete model catalogue unexpectedly passed")
   assert(stderr.include?("model catalogue is missing gpt-5.6-luna"), "catalogue failure is unclear")

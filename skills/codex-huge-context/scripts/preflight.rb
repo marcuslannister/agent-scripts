@@ -7,7 +7,9 @@ require "optparse"
 require "shellwords"
 
 MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna].freeze
-CONTEXT_WINDOW = 1_050_000
+CONTEXT_WINDOW = 922_000
+AUTO_COMPACT_TOKEN_LIMIT = 820_000
+AUTO_COMPACT_TOKEN_LIMIT_SCOPE = "total"
 
 class PreflightError < StandardError; end
 
@@ -88,9 +90,16 @@ def validate_config(sections)
 
   require_value(root["model_provider"], "openai_api_direct", "model_provider")
   require_value(root["model_context_window"], CONTEXT_WINDOW, "model_context_window")
-  if root.key?("model_auto_compact_token_limit")
-    raise PreflightError, "remove model_auto_compact_token_limit so the old compaction limit cannot win"
-  end
+  require_value(
+    root["model_auto_compact_token_limit"],
+    AUTO_COMPACT_TOKEN_LIMIT,
+    "model_auto_compact_token_limit",
+  )
+  require_value(
+    root["model_auto_compact_token_limit_scope"],
+    AUTO_COMPACT_TOKEN_LIMIT_SCOPE,
+    "model_auto_compact_token_limit_scope",
+  )
 
   require_value(provider["base_url"], "https://api.openai.com/v1", "openai_api_direct.base_url")
   require_value(provider["wire_api"], "responses", "openai_api_direct.wire_api")
@@ -118,8 +127,18 @@ def validate_catalog(path)
     model = models.find { |entry| entry.is_a?(Hash) && entry["slug"] == slug }
     raise PreflightError, "model catalogue is missing #{slug}" unless model
 
-    %w[context_window max_context_window].each do |field|
-      require_value(model[field], CONTEXT_WINDOW, "#{slug}.#{field}")
+    require_value(model["context_window"], CONTEXT_WINDOW, "#{slug}.context_window")
+    require_value(model["max_context_window"], CONTEXT_WINDOW, "#{slug}.max_context_window")
+    require_value(
+      model["auto_compact_token_limit"],
+      AUTO_COMPACT_TOKEN_LIMIT,
+      "#{slug}.auto_compact_token_limit",
+    )
+    if model.key?("effective_context_window_percent")
+      effective_percent = model["effective_context_window_percent"]
+      unless effective_percent.is_a?(Integer) && effective_percent == 95
+        raise PreflightError, "#{slug}.effective_context_window_percent must be omitted or integer 95"
+      end
     end
   end
 rescue JSON::ParserError
@@ -182,9 +201,9 @@ begin
   validate_catalog(catalog_path)
   run_auth_helper(auth_command, timeout_ms)
 
-  puts "Codex direct API 1M preflight: ok"
+  puts "Codex direct API safe-context preflight: ok"
   warn "Note: GITHUB_PAT_TOKEN is unset; GitHub MCP may fail independently." if ENV.fetch("GITHUB_PAT_TOKEN", "").empty?
 rescue PreflightError => error
-  warn "Codex direct API 1M preflight failed: #{error.message}"
+  warn "Codex direct API safe-context preflight failed: #{error.message}"
   exit 1
 end
