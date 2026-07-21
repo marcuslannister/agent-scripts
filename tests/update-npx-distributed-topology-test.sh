@@ -175,8 +175,11 @@ run_topology() { # fixture upstream output [extra env...]
 jq -e '
   (.sources[] | select(.id == "matt-skills") |
     .classification == "npx-only" and
-    .defaultDestinations == ["claude", "codex"] and
+    .defaultDestinations == ["codex"] and
     .overrides["code-review"] == ["codex"]) and
+  (.sources[] | select(.id == "matt-plugin") |
+    .classification == "plugin-claude-only" and
+    .defaultDestinations == ["claude"]) and
   ([.sources[] | select(.id == "find-skills")] | length) == 0
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
 

@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-21 — Matt Skills Plugin Migration
+- Split the Matt skills source into a Codex-only npx source and a Claude-only `mattpocock-skills` plugin source, moving Claude delivery from gitignored copies to the plugin marketplace while leaving Codex npx delivery unchanged.
+- Added a marketplace-manifest version fallback that resolves the plugin's own `plugin.json` when the marketplace entry omits a version, and updated the topology real-manifest guard for the split.
+
 ## 2026-07-15 — Skill Retirement
 - Removed the repo-owned `onecli-gateway` skill from Claude and Codex distribution.
 

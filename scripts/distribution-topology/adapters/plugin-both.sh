@@ -127,7 +127,7 @@ PLUGIN_AVAILABLE_VERSION=
 PLUGIN_FRESHNESS_ERROR=
 
 load_claude_available_plugin_version() {
-  local marketplace plugin_id manifest version
+  local marketplace plugin_id manifest version source_path plugin_root plugin_manifest
   marketplace="$(marketplace_for claude)"
   plugin_id="$plugin_name@$marketplace"
   manifest="$remote_root/.claude-plugin/marketplace.json"
@@ -138,15 +138,34 @@ load_claude_available_plugin_version() {
     PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: remote marketplace manifest is unreadable"
     return 1
   fi
-  if ! version="$(jq -er --arg plugin "$plugin_name" '
+  if version="$(jq -er --arg plugin "$plugin_name" '
     .plugins | select(type == "array") |
     [.[] | select(.name == $plugin)] | select(length == 1) |
     .[0].version | select(type == "string" and length > 0)
   ' "$manifest" 2>/dev/null)"; then
-    PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: remote marketplace manifest has no unique version"
-    return 1
+    PLUGIN_AVAILABLE_VERSION="$version"
+    return 0
   fi
-  PLUGIN_AVAILABLE_VERSION="$version"
+  if source_path="$(jq -er --arg plugin "$plugin_name" '
+    .plugins | select(type == "array") |
+    [.[] | select(.name == $plugin)] | select(length == 1) |
+    .[0].source | select(type == "string" and length > 0)
+  ' "$manifest" 2>/dev/null)"; then
+    case "$source_path" in
+      /*) plugin_root="$source_path" ;;
+      *) plugin_root="$remote_root/${source_path#./}" ;;
+    esac
+    plugin_root="${plugin_root%/}"
+    plugin_manifest="$plugin_root/.claude-plugin/plugin.json"
+    if [ -r "$plugin_manifest" ] && version="$(jq -er --arg plugin "$plugin_name" '
+      select(.name == $plugin) | .version | select(type == "string" and length > 0)
+    ' "$plugin_manifest" 2>/dev/null)"; then
+      PLUGIN_AVAILABLE_VERSION="$version"
+      return 0
+    fi
+  fi
+  PLUGIN_FRESHNESS_ERROR="cannot determine available Claude plugin version for $plugin_id: remote marketplace manifest has no unique version"
+  return 1
 }
 
 load_codex_available_plugin_version() {

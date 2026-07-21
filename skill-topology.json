@@ -37,10 +37,16 @@
     {
       "id": "matt-skills",
       "classification": "npx-only",
-      "defaultDestinations": ["claude", "codex"],
+      "defaultDestinations": ["codex"],
       "overrides": {
         "code-review": ["codex"]
       }
+    },
+    {
+      "id": "matt-plugin",
+      "classification": "plugin-claude-only",
+      "defaultDestinations": ["claude"],
+      "overrides": {}
     },
     {
       "id": "anthropic-skills",

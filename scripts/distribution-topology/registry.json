@@ -14,9 +14,23 @@
   {
     "sourceId": "matt-skills",
     "classification": "npx-only",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": ["codex"],
     "command": "adapters/npx-source.sh",
     "stateInspection": "adapter"
+  },
+  {
+    "sourceId": "matt-plugin",
+    "classification": "plugin-claude-only",
+    "supportedDestinations": ["claude"],
+    "command": "adapters/plugin-both.sh",
+    "stateInspection": "adapter",
+    "plugin": {
+      "name": "mattpocock-skills",
+      "repo": "mattpocock/skills",
+      "marketplaces": {
+        "claude": "mattpocock"
+      }
+    }
   },
   {
     "sourceId": "anthropic-skills",
