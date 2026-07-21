@@ -54,10 +54,10 @@
       "defaultDestinations": ["claude", "codex"],
       "overrides": {
         "docx": ["claude", "codex"],
-        "frontend-design": ["claude", "codex"],
+        "frontend-design": ["codex"],
         "pdf": ["claude", "codex"],
         "pptx": ["claude", "codex"],
-        "skill-creator": ["claude", "codex"],
+        "skill-creator": ["codex"],
         "xlsx": ["claude", "codex"]
       }
     },
