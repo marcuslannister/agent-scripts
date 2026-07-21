@@ -45,8 +45,14 @@ jq -e '
   (.sources[] | select(.id == "anthropic-skills") |
     .classification == "source-only" and
     .defaultDestinations == ["claude", "codex"] and
-    ([.overrides | keys[]] == ["docx", "frontend-design", "pdf", "pptx", "skill-creator", "xlsx"]) and
-    ([.overrides[] | select(. != ["claude", "codex"])] | length) == 0)
+    (.overrides == {
+      "docx": ["claude", "codex"],
+      "frontend-design": ["codex"],
+      "pdf": ["claude", "codex"],
+      "pptx": ["claude", "codex"],
+      "skill-creator": ["codex"],
+      "xlsx": ["claude", "codex"]
+    }))
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
 
 make_fixture() {

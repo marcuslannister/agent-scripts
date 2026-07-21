@@ -387,8 +387,14 @@ case "$*" in
     : > "$HOME/.claude/plugins/visual-marketplace"
     ;;
   'plugin marketplace update visual-explainer-marketplace')
+    printf 'Updated marketplace visual-explainer-marketplace\n'
     ;;
   'plugin install visual-explainer@visual-explainer-marketplace'|'plugin update visual-explainer@visual-explainer-marketplace')
+    printf 'Updated plugin visual-explainer\n'
+    if [ "${FAKE_VISUAL_FAIL_UPDATE:-0}" = 1 ]; then
+      printf 'fixture update failure\n'
+      exit 1
+    fi
     [ "${FAKE_VISUAL_NO_STATE:-0}" = 1 ] && exit 0
     cat > "$HOME/.claude/plugins/installed_plugins.json" <<JSON
 {"plugins":{"visual-explainer@visual-explainer-marketplace":[{"gitCommitSha":"$FAKE_VISUAL_SHA"}]}}
@@ -479,6 +485,33 @@ jq -e '
   (.drift[] | .sourceId == "visual-explainer" and .destination == "claude" and .reason == "disabled")
 ' "$VISUAL_FIXTURE/disabled-check.json" >/dev/null
 diff -r "$VISUAL_FIXTURE/home-before-disabled-check" "$VISUAL_FIXTURE/home"
+
+set +e
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_NO_STATE=1 \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/disabled-reconcile.json"
+disabled_reconcile_exit=$?
+set -e
+test "$disabled_reconcile_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("source visual-explainer verification failed")) and
+  any(.errors[]; contains("final verification failed: visual-explainer/visual-explainer -> claude: disabled")) and
+  (any(.errors[]; contains("returned invalid reconcile output")) | not)
+' "$VISUAL_FIXTURE/disabled-reconcile.json" >/dev/null
+
+set +e
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_FAIL_UPDATE=1 \
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/update-failure.json"
+update_failure_exit=$?
+set -e
+test "$update_failure_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("failed to update Claude plugin visual-explainer@visual-explainer-marketplace: Updated plugin visual-explainer fixture update failure")) and
+  ([.changes[] | select(.skill == "visual-explainer" and .destination == "claude")] | length) == 0
+' "$VISUAL_FIXTURE/update-failure.json" >/dev/null
 
 while IFS=$'\t' read -r case_name settings_json; do
   printf '%s\n' "$settings_json" > "$VISUAL_FIXTURE/home/.claude/settings.json"

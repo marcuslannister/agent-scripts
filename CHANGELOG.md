@@ -7,6 +7,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## 2026-07-21 — Skill Author Index
 - Added an explicit per-skill author registry (`skill-authors.json`, all 83 skills) and `scripts/generate-skill-index.sh`, which generates `INDEX.md` grouping every distributed skill by true upstream author; `skills/` stays flat (ADR-0003, #26). `--check` gates freshness and fails on any unattributed on-disk skill.
 - Removed the remaining untracked onecli staging artifacts and their author-registry entries.
+- Prevented Claude plugin command output from contaminating visual-explainer reconciliation records while preserving actionable mutation failures, and aligned topology tests with Codex-only Anthropic overrides.
 
 ## 2026-07-21 — Matt Skills Plugin Migration
 - Split the Matt skills source into a Codex-only npx source and a Claude-only `mattpocock-skills` plugin source, moving Claude delivery from gitignored copies to the plugin marketplace while leaving Codex npx delivery unchanged.

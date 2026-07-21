@@ -157,6 +157,16 @@ plugin_is_installed() {
     && jq -e --arg id "$plugin_id" '((.plugins[$id] // []) | length) > 0' "$installed_file" >/dev/null 2>&1
 }
 
+run_native() {
+  local label="$1" output
+  shift
+  if output="$("$@" 2>&1)"; then
+    return 0
+  fi
+  printf '%s: %s\n' "$label" "${output//$'\n'/ }" >&2
+  return 1
+}
+
 reconcile_claude_plugin() { # install|remove
   local operation="$1"
   local marketplace_output
@@ -168,20 +178,25 @@ reconcile_claude_plugin() { # install|remove
       fi
       if printf '%s\n' "$marketplace_output" \
         | grep -qE "(^|[^[:alnum:]_.-])${marketplace}([^[:alnum:]_.-]|$)"; then
-        claude plugin marketplace update "$marketplace"
+        run_native "failed to update Claude marketplace $marketplace" \
+          claude plugin marketplace update "$marketplace" || return 1
       else
-        claude plugin marketplace add nicobailon/visual-explainer
+        run_native 'failed to add visual-explainer Claude marketplace' \
+          claude plugin marketplace add nicobailon/visual-explainer || return 1
       fi
       if plugin_is_installed; then
-        claude plugin update "$plugin_id"
+        run_native "failed to update Claude plugin $plugin_id" \
+          claude plugin update "$plugin_id" || return 1
       else
-        claude plugin install "$plugin_id"
+        run_native "failed to install Claude plugin $plugin_id" \
+          claude plugin install "$plugin_id" || return 1
       fi
       printf 'installed\tvisual-explainer\tclaude\n'
       ;;
     remove)
       if plugin_is_installed; then
-        claude plugin uninstall "$plugin_id"
+        run_native "failed to uninstall Claude plugin $plugin_id" \
+          claude plugin uninstall "$plugin_id" || return 1
         printf 'removed\tvisual-explainer\tclaude\n'
       fi
       ;;
