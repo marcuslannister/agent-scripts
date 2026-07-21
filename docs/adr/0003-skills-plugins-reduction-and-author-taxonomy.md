@@ -82,3 +82,14 @@ The map assumed "copy matt skills to claude + codex" was already satisfied (`mat
 - The registry and `INDEX.md` generator are new artifacts; `skills/` stays flat (no moves).
 - Synced-set prunes require topology-level excludes; installed-plugin cuts are personal, per-machine config, not repo state.
 - Advice only: no skill deletions, `skill-topology.json` edits, or `INDEX.md` generation are performed by this ADR.
+
+## Execution outcomes (2026-07-21)
+
+Kicking off execution showed most of the cut-list is gated by the post-migration delivery model. Decisions taken:
+
+- **Author registry + `INDEX.md` — landed.** `skill-authors.json` (86), `scripts/generate-skill-index.sh` (with `--check` gate), generated `INDEX.md`, and a test.
+- **matt-skill prunes — not pursued.** With matt delivered as one Claude plugin (all 40 skills wholesale) + npx-all to Codex, individual skills can't be dropped from the Claude surface. Accepted matt as all-or-nothing; `grill-me`, `batch-grill-me`, `obsidian-vault`, `setup-matt-pocock-skills` stay.
+- **anthropic `frontend-design` / `skill-creator` → Codex-only — manifest applied, runtime deferred.** `skill-topology.json` updated; `--check` confirms the two Claude removals and both official plugins are installed. The runtime removal applies on the next healthy reconcile.
+- **Runtime reconcile deferred.** A full reconcile is currently blocked by `visual-explainer: invalid-plugin-settings` and an unsynced Codex surface — unrelated to this effort. The manifest stays source of truth.
+- **`onecli-run-workspace` — deletion pending.** Flagged to drop (no `SKILL.md`); the untracked dir removal is left to the maintainer. Drop its `skill-authors.json` entry when the dir goes.
+- **Installed-plugin cuts** (`typescript-lsp`, `superpowers`, `claude-code-setup`) remain user-global, personal-config calls — not repo state.
