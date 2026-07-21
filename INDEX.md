@@ -4,11 +4,10 @@ Generated from `skill-authors.json` by `scripts/generate-skill-index.sh` — do 
 
 Every distributed skill grouped by true upstream author, independent of delivery mechanism (repo, synced copy, or plugin). See ADR-0003 and issue #26.
 
-## marcus (5)
+## marcus (4)
 
 - onecli-gateway
 - onecli-run
-- onecli-run-workspace
 - review-claudemd
 - validate-skills
 

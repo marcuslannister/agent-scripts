@@ -5,8 +5,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="$REPO_ROOT/skill-authors.json"
 GEN="$REPO_ROOT/scripts/generate-skill-index.sh"
 
-# Registry shape (per issue #26: explicit per-skill registry, all 86 stated).
-jq -e '.skills | length == 86' "$REGISTRY" >/dev/null
+# Registry shape (per issue #26: explicit per-skill registry, all 85 stated).
+jq -e '.skills | length == 85' "$REGISTRY" >/dev/null
 jq -e '.authorOrder == ["marcus","steipete","matt","anthropic","khazix"]' "$REGISTRY" >/dev/null
 jq -e '[.skills[]] | unique == ["anthropic","khazix","marcus","matt","steipete"]' "$REGISTRY" >/dev/null
 
