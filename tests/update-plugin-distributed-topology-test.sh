@@ -25,7 +25,7 @@ jq -e '
 
 FIXTURE="$TMP_ROOT/waza"
 BIN="$FIXTURE/bin"
-mkdir -p "$FIXTURE/scripts" "$FIXTURE/home" "$FIXTURE/runtime" "$BIN" \
+mkdir -p "$FIXTURE/scripts" "$FIXTURE/home/.codex" "$FIXTURE/runtime" "$BIN" \
   "$FIXTURE/home/claude-marketplace/.claude-plugin" \
   "$FIXTURE/home/codex-marketplace/.agents/plugins" \
   "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin" \
@@ -70,6 +70,10 @@ printf '[]\n' > "$FIXTURE/home/claude-plugins.json"
 printf '[]\n' > "$FIXTURE/home/claude-marketplaces.json"
 printf '{"installed":[]}\n' > "$FIXTURE/home/codex-plugins.json"
 printf '{"marketplaces":[]}\n' > "$FIXTURE/home/codex-marketplaces.json"
+cat > "$FIXTURE/home/.codex/config.toml" <<'TOML'
+[plugins."waza@waza"]
+enabled = true
+TOML
 cat > "$FIXTURE/home/claude-marketplace/.claude-plugin/marketplace.json" <<'JSON'
 {"name":"waza","plugins":[{"name":"waza","version":"1.0.0","source":"./"}]}
 JSON
@@ -154,7 +158,14 @@ cat > "$BIN/codex" <<'BASH'
 set -euo pipefail
 case "$*" in
   'plugin list --json')
-    cat "$HOME/codex-plugins.json"
+    enabled="$(awk '
+      $0 == "[plugins.\"waza@waza\"]" { in_plugin = 1; next }
+      in_plugin && /^\[/ { exit }
+      in_plugin && /^enabled[[:space:]]*=/ { print $3; exit }
+    ' "$HOME/.codex/config.toml")"
+    jq --argjson enabled "${enabled:-true}" \
+      '.installed |= map(if .pluginId == "waza@waza" then .enabled = $enabled else . end)' \
+      "$HOME/codex-plugins.json"
     ;;
   'plugin marketplace list --json')
     if [ "${FAKE_CODEX_FRESHNESS_FAIL:-0}" = 1 ]; then
@@ -181,9 +192,10 @@ case "$*" in
       printf 'fixture Codex install failure\n' >&2
       exit 1
     fi
+    perl -pi -e 's/^enabled = false$/enabled = true/' "$HOME/.codex/config.toml"
     if jq -e '.installed[]? | select(.pluginId == "waza@waza")' "$HOME/codex-plugins.json" >/dev/null; then
       jq --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
-        .installed |= map(if .pluginId == "waza@waza" then .version = $version else . end)
+        .installed |= map(if .pluginId == "waza@waza" then .version = $version | .enabled = true else . end)
       ' "$HOME/codex-plugins.json" > "$HOME/codex-plugins.tmp"
       mv "$HOME/codex-plugins.tmp" "$HOME/codex-plugins.json"
     else
@@ -454,12 +466,18 @@ cp -R "$FIXTURE" "$CODEX_DISABLED_FIXTURE"
 jq '.installed |= map(if .pluginId == "waza@waza" then .enabled = false else . end)' \
   "$CODEX_DISABLED_FIXTURE/home/codex-plugins.json" > "$CODEX_DISABLED_FIXTURE/disabled.tmp"
 mv "$CODEX_DISABLED_FIXTURE/disabled.tmp" "$CODEX_DISABLED_FIXTURE/home/codex-plugins.json"
+cat > "$CODEX_DISABLED_FIXTURE/home/.codex/config.toml" <<'TOML'
+[plugins."waza@waza"]
+enabled = false
+TOML
 HOME="$CODEX_DISABLED_FIXTURE/home" TMPDIR="$CODEX_DISABLED_FIXTURE/runtime" \
 PATH="$CODEX_DISABLED_FIXTURE/bin:$PATH" \
   "$CODEX_DISABLED_FIXTURE/scripts/update-skill-topology.sh" --json > "$CODEX_DISABLED_FIXTURE/result.json"
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' \
   "$CODEX_DISABLED_FIXTURE/result.json" >/dev/null
-jq -e '.installed[0].enabled == false' "$CODEX_DISABLED_FIXTURE/home/codex-plugins.json" >/dev/null
+HOME="$CODEX_DISABLED_FIXTURE/home" PATH="$CODEX_DISABLED_FIXTURE/bin:$PATH" \
+  codex plugin list --json | jq -e '.installed[0].enabled == false' >/dev/null
+rg -q '^enabled = false$' "$CODEX_DISABLED_FIXTURE/home/.codex/config.toml"
 
 UPDATE_FIXTURE="$TMP_ROOT/update"
 cp -R "$FIXTURE" "$UPDATE_FIXTURE"
@@ -516,6 +534,14 @@ mv "$DISABLED_UPDATE_FIXTURE/claude-disabled.tmp" "$DISABLED_UPDATE_FIXTURE/home
 jq '.installed |= map(if .pluginId == "waza@waza" then .enabled = false else . end)' \
   "$DISABLED_UPDATE_FIXTURE/home/codex-plugins.json" > "$DISABLED_UPDATE_FIXTURE/codex-disabled.tmp"
 mv "$DISABLED_UPDATE_FIXTURE/codex-disabled.tmp" "$DISABLED_UPDATE_FIXTURE/home/codex-plugins.json"
+cat > "$DISABLED_UPDATE_FIXTURE/home/.codex/config.toml" <<'TOML'
+[plugins."waza@waza"]
+enabled = false
+
+[unrelated]
+enabled = false
+value = "preserved"
+TOML
 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 FAKE_CLAUDE_ENABLE_ON_UPDATE=1 \
 HOME="$DISABLED_UPDATE_FIXTURE/home" TMPDIR="$DISABLED_UPDATE_FIXTURE/runtime" \
 PATH="$DISABLED_UPDATE_FIXTURE/bin:$PATH" \
@@ -529,8 +555,16 @@ jq -e '
 ' "$DISABLED_UPDATE_FIXTURE/result.json" >/dev/null
 jq -e '.[0].version == "2.0.0" and .[0].enabled == false' \
   "$DISABLED_UPDATE_FIXTURE/home/claude-plugins.json" >/dev/null
-jq -e '.installed[0].version == "2.0.0" and .installed[0].enabled == false' \
-  "$DISABLED_UPDATE_FIXTURE/home/codex-plugins.json" >/dev/null
+HOME="$DISABLED_UPDATE_FIXTURE/home" PATH="$DISABLED_UPDATE_FIXTURE/bin:$PATH" \
+  codex plugin list --json | jq -e \
+  '.installed[0].version == "2.0.0" and .installed[0].enabled == false' >/dev/null
+awk '
+  $0 == "[plugins.\"waza@waza\"]" { in_plugin = 1; next }
+  in_plugin && /^\[/ { exit !found }
+  in_plugin && /^enabled = false$/ { found = 1 }
+  END { exit !found }
+' "$DISABLED_UPDATE_FIXTURE/home/.codex/config.toml"
+rg -q '^value = "preserved"$' "$DISABLED_UPDATE_FIXTURE/home/.codex/config.toml"
 test "$(grep -Fxc 'plugin enable waza@waza' "$DISABLED_UPDATE_FIXTURE/home/claude-mutations.log" || true)" -eq 0
 grep -Fx 'plugin disable waza@waza' "$DISABLED_UPDATE_FIXTURE/home/claude-mutations.log" >/dev/null
 

@@ -312,6 +312,39 @@ run_native() {
   return 1
 }
 
+set_codex_plugin_enabled() {
+  local plugin_id="$1"
+  local enabled="$2"
+  local config_file="$home/.codex/config.toml"
+  local temp_file="$home/.codex/config.toml.agent-scripts.$$"
+  [ -f "$config_file" ] || {
+    printf 'Codex config is missing while restoring plugin %s state\n' "$plugin_id" >&2
+    return 1
+  }
+  if ! awk -v target="[plugins.\"$plugin_id\"]" -v value="$enabled" '
+    $0 == target { in_target = 1; found = 1; print; next }
+    in_target && /^\[/ {
+      if (!updated) print "enabled = " value
+      in_target = 0
+    }
+    in_target && /^enabled[[:space:]]*=/ {
+      print "enabled = " value
+      updated = 1
+      next
+    }
+    { print }
+    END {
+      if (in_target && !updated) print "enabled = " value
+      if (!found) exit 1
+    }
+  ' "$config_file" > "$temp_file"; then
+    rm -f "$temp_file"
+    printf 'Codex plugin %s has no config section to restore\n' "$plugin_id" >&2
+    return 1
+  fi
+  mv "$temp_file" "$config_file"
+}
+
 upgrade_codex_marketplace() {
   local marketplace="$1"
   local attempt
@@ -506,6 +539,9 @@ apply_destination() {
         codex:disabled)
           run_native "Codex plugin update failed for $plugin_id" \
             codex plugin add "$plugin_id" || return 1
+          if load_plugin_state codex && [ "$PLUGIN_STATE" = enabled ]; then
+            set_codex_plugin_enabled "$plugin_id" false || return 1
+          fi
           ;;
       esac
       ;;
