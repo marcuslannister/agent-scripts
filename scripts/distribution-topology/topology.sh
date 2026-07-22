@@ -163,7 +163,7 @@ topology_mark_seen() { # seen_file key
 topology_inspect_adapter() { # source_id plan_json output_dir mode
   local source_id="$1" plan_json="$2" output="$3" mode="$4"
   local expected="$DISCOVERY_ROOT/$source_id.inspect.tsv" command line state skill destination detail extra key detail_key
-  local seen_file="$DISCOVERY_ROOT/$source_id.seen"
+  local seen_file="$DISCOVERY_ROOT/$source_id.seen" migration_file migration_record
   : > "$seen_file"
   topology_expected_states "$source_id" "$expected" "$plan_json"
   command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
@@ -266,6 +266,34 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
     topology_seen "$seen_file" "$key" || topology_append_json_string "$output/errors.ndjson" \
       "source $source_id returned incomplete inspection for $skill -> $destination"
   done < "$expected"
+
+  migration_file="$DISCOVERY_ROOT/$source_id.migrations.ndjson"
+  [ -f "$migration_file" ] || return 0
+  while IFS= read -r migration_record || [ -n "$migration_record" ]; do
+    if ! jq -e --arg source "$source_id" '
+      type == "object" and .sourceId == $source and
+      (.skill | type == "string") and
+      (.gate == "pending" or .gate == "blocked" or .gate == "verified") and
+      ([.native[].destination] == ["claude","codex"]) and
+      all(.native[]; .status == "verified" or .status == "missing" or
+        .status == "outdated" or .status == "error") and
+      ([.copies[].destination] == ["claude","codex"]) and
+      all(.copies[];
+        (.state == "present" or .state == "absent") and
+        (.action == "retain" or .action == "remove" or .action == "none") and
+        (.afterGate == "remove" or .afterGate == "none"))
+    ' >/dev/null 2>&1 <<< "$migration_record"; then
+      topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid migration output"
+      continue
+    fi
+    printf '%s\n' "$migration_record" >> "$output/migrations.ndjson"
+    while IFS=$'\t' read -r skill destination; do
+      jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
+        '{sourceId:$sourceId,skill:$skill,destination:$destination,reason:"duplicate-copy"}' \
+        >> "$output/drift.ndjson"
+    done < <(jq -r 'select(.gate == "verified") | .skill as $skill | .copies[] |
+      select(.action == "remove") | [$skill,.destination] | @tsv' <<< "$migration_record")
+  done < "$migration_file"
 }
 
 topology_inspect_plan() { # plan_json output_dir mode
@@ -275,6 +303,7 @@ topology_inspect_plan() { # plan_json output_dir mode
   : > "$output/decisions.ndjson"
   : > "$output/errors.ndjson"
   : > "$output/skipped.ndjson"
+  : > "$output/migrations.ndjson"
 
   while IFS=$'\t' read -r source_id skill; do
     [ "$(topology_registry_value "$source_id" '.stateInspection // "topology"')" = adapter ] && continue
@@ -332,7 +361,8 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
     --slurpfile sources "$sources" --slurpfile plan "$plan" \
     --slurpfile drift "$inspect/drift.ndjson" --slurpfile decisions "$inspect/decisions.ndjson" \
     --slurpfile errors "$errors" --slurpfile warnings "$warnings" --slurpfile changes "$changes" \
-    --slurpfile skipped "$inspect/skipped.ndjson" --slurpfile hygiene "$hygiene" '
+    --slurpfile skipped "$inspect/skipped.ndjson" --slurpfile migrations "$inspect/migrations.ndjson" \
+    --slurpfile hygiene "$hygiene" '
       ($drift | sort_by(.sourceId,.skill,.destination)) as $sortedDrift |
       {
         schemaVersion:1, mode:$mode, status:$status,
@@ -347,9 +377,11 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
           ($changes + [$sortedDrift[] |
             if .kind == "outdated" then {action:"updated",sourceId,skill,destination}
             elif .reason == "missing" then {action:"installed",sourceId,skill,destination}
+            elif .reason == "duplicate-copy" then {action:"copy-removed",sourceId,skill,destination}
             else empty end])
           else $changes end),
         skipped:($skipped | sort_by(.sourceId,.skill,.destination)),
+        migrations:($migrations | sort_by(.sourceId,.skill)),
         hygiene:$hygiene[0]
       }
     ' > "$output"
@@ -479,11 +511,62 @@ topology_evaluate() {
   if [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && [ ! -s "$inspect_dir/errors.ndjson" ]; then
     topology_reconcile "$sources_file" "$plan_file" "$plan_json" "$inspect_dir" "$warnings" "$changes"
     return $?
+  elif [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && \
+    jq -e 'any(.reason == "duplicate-copy")' "$inspect_dir/drift.ndjson" --slurp >/dev/null; then
+    topology_cleanup_verified_migrations "$plan_json" "$inspect_dir" "$base_errors" "$changes"
+    inspect_dir="$DISCOVERY_ROOT/inspect-cleanup-final"
+    topology_inspect_plan "$plan_json" "$inspect_dir" "$MODE" || return $?
   fi
   topology_progress 4 'Final verification'
   topology_build_document "$MODE" "$status" "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
   DOCUMENT_PATH="$DISCOVERY_ROOT/document.json"
   return "$exit_code"
+}
+
+topology_run_adapter_reconcile() { # source-id action-file errors changes protocol failure-label
+  local source_id="$1" action_file="$2" errors="$3" changes="$4" protocol="$5" failure_label="$6"
+  local command line action skill destination extra
+  command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
+  topology_run_process "$command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" reconcile \
+    "$action_file" "$HOME" reconcile || return $?
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -n "$line" ] || continue
+    IFS=$'\t' read -r action skill destination extra <<< "$line"
+    case "$protocol:$action" in
+      cleanup:copy-removed|reconcile:installed|reconcile:removed|reconcile:updated|reconcile:copy-removed) ;;
+      *)
+        topology_append_json_string "$errors" "source $source_id returned invalid $protocol output"
+        continue
+        ;;
+    esac
+    if [ -n "${extra:-}" ] || ! topology_is_name "${skill:-}" \
+      || { [ "$destination" != claude ] && [ "$destination" != codex ]; }; then
+      topology_append_json_string "$errors" "source $source_id returned invalid $protocol output"
+      continue
+    fi
+    jq -cn --arg action "$action" --arg sourceId "$source_id" --arg skill "$skill" \
+      --arg destination "$destination" \
+      '{action:$action,sourceId:$sourceId,skill:$skill,destination:$destination}' >> "$changes"
+  done < "$PROCESS_OUT"
+  [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" "$failure_label" "$errors"
+}
+
+topology_cleanup_verified_migrations() { # plan-json initial-inspect errors changes
+  local plan_json="$1" initial="$2" errors="$3" changes="$4"
+  local source_id action_file expected_file
+
+  while IFS= read -r source_id; do
+    action_file="$DISCOVERY_ROOT/$source_id.cleanup.tsv"
+    jq -r --arg source "$source_id" '
+      .[] | select(.sourceId == $source and .reason == "duplicate-copy") |
+      ["cleanup",.skill,.destination] | @tsv
+    ' "$initial/drift.ndjson" --slurp > "$action_file"
+    expected_file="$DISCOVERY_ROOT/$source_id.refresh-states.tsv"
+    topology_expected_states "$source_id" "$expected_file" "$plan_json"
+    topology_run_adapter_reconcile "$source_id" "$action_file" "$errors" "$changes" cleanup \
+      "source $source_id gated cleanup failed" || return $?
+  done < <(jq -r 'map(select(.reason == "duplicate-copy") | .sourceId) | unique[]' \
+    "$initial/drift.ndjson" --slurp)
 }
 
 topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings changes
@@ -514,6 +597,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
       .[] | select(.sourceId == $source) as $drift |
       ([$plan[0][] | select(.sourceId == $drift.sourceId and .skill == $drift.skill)][0] // null) as $entry |
       [(if $drift.kind == "outdated" then "refresh"
+        elif $drift.reason == "duplicate-copy" then "cleanup"
         elif $entry == null then "remove"
         elif ($entry.destinations | index($drift.destination)) != null then "install"
         else "remove" end),$drift.skill,$drift.destination] | @tsv
@@ -526,20 +610,8 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
       done < "$DISCOVERY_ROOT/$source_id.refresh-states.tsv"
     fi
     LC_ALL=C sort -t $'\t' -k2,2 -k3,3 "$action_file" -o "$action_file"
-    command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
-    topology_run_process "$command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" reconcile "$action_file" "$HOME" reconcile || return $?
-    while IFS= read -r line || [ -n "$line" ]; do
-      [ -n "$line" ] || continue
-      IFS=$'\t' read -r action skill destination extra <<< "$line"
-      if [ -n "${extra:-}" ] || { [ "$action" != installed ] && [ "$action" != removed ] && [ "$action" != updated ]; } \
-        || ! topology_is_name "${skill:-}" || { [ "$destination" != claude ] && [ "$destination" != codex ]; }; then
-        topology_append_json_string "$errors" "source $source_id returned invalid reconcile output"
-        continue
-      fi
-      jq -cn --arg action "$action" --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
-        '{action:$action,sourceId:$sourceId,skill:$skill,destination:$destination}' >> "$changes"
-    done < "$PROCESS_OUT"
-    [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" "source $source_id reconciliation failed" "$errors"
+    topology_run_adapter_reconcile "$source_id" "$action_file" "$errors" "$changes" reconcile \
+      "source $source_id reconciliation failed" || return $?
   done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
 
   topology_progress 4 'Verifying final topology'

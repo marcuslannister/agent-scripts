@@ -28,7 +28,7 @@ The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills 
 _Avoid_: Codex surface, Codex-only surface
 
 **Dual-plugin skill**:
-A skill maintained by its authoritative upstream and exposed through both Claude Code's and Codex's native plugin systems. Classification is per skill, not per repository; native install and reconcile happen per plugin bundle. Plugin bundle metadata lists the expected skill identities.
+A skill maintained by its authoritative upstream and exposed through both Claude Code's and Codex's native plugin systems. Classification and duplicate cleanup are scoped to the expected skill identity, not the repository; native install and reconcile happen per plugin bundle. Existing copies remain until one gate verifies both native paths, then every duplicate of only that skill is removed regardless of copy provenance.
 _Avoid_: plugin-both, plugin-both repo, source-wide dual classification
 
 **Plugin-Claude-only repo**:

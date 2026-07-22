@@ -10,6 +10,8 @@ home="${6:?home required}"
 mode="${7:-reconcile}"
 
 registry="$repo_root/scripts/distribution-topology/registry.json"
+classification="$(jq -er --arg source_id "$source_id" \
+  '.[] | select(.sourceId == $source_id) | .classification' "$registry")"
 plugin_repo="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.repo' "$registry")"
 remote_root="$discovery_root/$source_id/repo"
 
@@ -524,7 +526,9 @@ scan_unknown_plugins() {
 }
 
 inspect_states() {
-  local expected skill destination state detail failed=0 skill_detail
+  local expected skill destination state detail failed=0 skill_detail native_status
+  local native_status_file="$discovery_root/$source_id.native-status.tsv"
+  : > "$native_status_file"
   while IFS=$'\t' read -r expected skill destination; do
     [ -n "$expected" ] || continue
     if ! load_plugin_state "$destination"; then
@@ -571,9 +575,76 @@ inspect_states() {
         fi
       fi
     fi
+    case "$state" in
+      present) native_status=verified ;;
+      absent) native_status=missing ;;
+      outdated) native_status=outdated ;;
+      *) native_status=error ;;
+    esac
+    printf '%s\t%s\t%s\n' "$skill" "$destination" "$native_status" >> "$native_status_file"
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
+  emit_dual_plugin_migrations "$native_status_file"
   return "$failed"
+}
+
+dual_plugin_copy_path() { # skill destination
+  case "$2" in
+    claude) printf '%s/skills/%s\n' "$repo_root" "$1" ;;
+    codex) printf '%s/.agents/skills/%s\n' "$home" "$1" ;;
+  esac
+}
+
+dual_plugin_skill_targets_both() { # skill expected-states-file
+  local skill="$1" expected_file="$2"
+  awk -F '\t' -v skill="$skill" '
+    $1 == "present" && $2 == skill && $3 == "claude" { claude = 1 }
+    $1 == "present" && $2 == skill && $3 == "codex" { codex = 1 }
+    END { exit !(claude && codex) }
+  ' "$expected_file"
+}
+
+emit_dual_plugin_migrations() { # native-status-file
+  local native_status_file="$1" output="$discovery_root/$source_id.migrations.ndjson"
+  local skill destination native_status gate copy_path copy_state action after_gate
+  local native_json copies_json
+  : > "$output"
+  [ "$classification" = dual-plugin ] || return 0
+
+  while IFS= read -r skill; do
+    dual_plugin_skill_targets_both "$skill" "$plan_path" || continue
+    native_json='[]'
+    gate=verified
+    for destination in claude codex; do
+      native_status="$(awk -F '\t' -v skill="$skill" -v destination="$destination" \
+        '$1 == skill && $2 == destination { print $3; exit }' "$native_status_file")"
+      [ "$native_status" = verified ] || gate="$([ "$mode" = check ] && printf pending || printf blocked)"
+      native_json="$(jq -c --arg destination "$destination" --arg status "$native_status" \
+        '. + [{destination:$destination,status:$status}]' <<< "$native_json")"
+    done
+
+    copies_json='[]'
+    for destination in claude codex; do
+      copy_path="$(dual_plugin_copy_path "$skill" "$destination")"
+      if [ -e "$copy_path" ] || [ -L "$copy_path" ]; then
+        copy_state=present
+        if [ "$gate" = verified ]; then action=remove; else action=retain; fi
+        after_gate=remove
+      else
+        copy_state=absent
+        action=none
+        after_gate=none
+      fi
+      copies_json="$(jq -c --arg destination "$destination" --arg state "$copy_state" \
+        --arg action "$action" --arg afterGate "$after_gate" \
+        '. + [{destination:$destination,state:$state,action:$action,afterGate:$afterGate}]' \
+        <<< "$copies_json")"
+    done
+    jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg gate "$gate" \
+      --argjson native "$native_json" --argjson copies "$copies_json" \
+      '{sourceId:$sourceId,skill:$skill,gate:$gate,native:$native,copies:$copies}' >> "$output"
+  done < <(jq -r --arg source_id "$source_id" \
+    '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry")
 }
 
 apply_destination() {
@@ -672,17 +743,56 @@ apply_destination() {
 
 reconcile_states() {
   local operation skill destination failed=0
+  local applied_destinations="$discovery_root/$source_id.applied-destinations"
+  : > "$applied_destinations"
   while IFS=$'\t' read -r operation skill destination; do
     [ -n "$operation" ] || continue
-    apply_destination "$operation" "$skill" "$destination" || failed=1
+    case "$operation" in
+      cleanup) ;;
+      install|refresh)
+        if ! rg -Fxq -- "$destination" "$applied_destinations"; then
+          printf '%s\n' "$destination" >> "$applied_destinations"
+          apply_destination "$operation" "$skill" "$destination" || failed=1
+        fi
+        ;;
+      *) apply_destination "$operation" "$skill" "$destination" || failed=1 ;;
+    esac
   done < "$plan_path"
+  [ "$failed" -eq 0 ] || return "$failed"
+  [ "$classification" = dual-plugin ] || return 0
+  remove_dual_plugin_copies "$discovery_root/$source_id.refresh-states.tsv"
+}
+
+remove_dual_plugin_copies() { # expected-states-file
+  local expected_file="$1" skill destination copy_path failed=0
+  while IFS= read -r skill; do
+    dual_plugin_skill_targets_both "$skill" "$expected_file" || continue
+    if ! verify_states_file "$expected_file" "$skill"; then
+      failed=1
+      continue
+    fi
+    for destination in claude codex; do
+      copy_path="$(dual_plugin_copy_path "$skill" "$destination")"
+      if { [ -e "$copy_path" ] || [ -L "$copy_path" ]; } && rm -rf -- "$copy_path"; then
+        printf 'copy-removed\t%s\t%s\n' "$skill" "$destination"
+      elif [ -e "$copy_path" ] || [ -L "$copy_path" ]; then
+        printf 'duplicate copy cleanup failed: %s/%s -> %s\n' \
+          "$source_id" "$skill" "$destination" >&2
+        failed=1
+      fi
+    done
+  done < <(jq -r --arg source_id "$source_id" \
+    '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry")
   return "$failed"
 }
 
-verify_states() {
+verify_states_file() { # expected-states-file
+  local expected_file="$1"
+  local only_skill="${2:-}"
   local expected skill destination failed=0 skill_detail
   while IFS=$'\t' read -r expected skill destination; do
     [ -n "$expected" ] || continue
+    [ -z "$only_skill" ] || [ "$skill" = "$only_skill" ] || continue
     if ! load_plugin_state "$destination"; then
       printf 'plugin verification failed: %s/%s -> %s: %s\n' "$source_id" "$skill" "$destination" "$PLUGIN_ERROR" >&2
       failed=1
@@ -716,8 +826,12 @@ verify_states() {
         failed=1
       fi
     fi
-  done < "$plan_path"
+  done < "$expected_file"
   return "$failed"
+}
+
+verify_states() {
+  verify_states_file "$plan_path"
 }
 
 case "$action" in

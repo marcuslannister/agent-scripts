@@ -27,7 +27,7 @@ topology_failure_document() { # message code mode
     {
       schemaVersion: 1, mode: $mode, status: $status,
       sources: [], plan: [], drift: [], decisions: [], errors: [$message],
-      warnings: [], changes: [], skipped: [],
+      warnings: [], changes: [], skipped: [], migrations: [],
       hygiene: {status: "failed", legacyRoot: "", entries: [], changes: [], errors: [$message]}
     }
   '
@@ -102,6 +102,16 @@ topology_write_human() { # document
     ] + [
       $document.skipped[] |
       {source:(.sourceId + "/" + .skill), destination, change:("skipped:" + .reason), result:"skipped"}
+    ] + [
+      $document.migrations[] |
+      {source:(.sourceId + "/" + .skill), destination:"claude,codex",
+       change:("gate:" + .gate), result:source_result(.sourceId)}
+    ] + [
+      $document.migrations[] as $migration | $migration.copies[] |
+      select(.action != "none") |
+      {source:($migration.sourceId + "/" + $migration.skill), destination,
+       change:(if .action == "retain" then "copy-retained-until-gate" else "planned-copy-removal" end),
+       result:source_result($migration.sourceId)}
     ] + [
       $document.hygiene.changes[] |
       {source:("codex-root/" + .name), destination:$document.hygiene.legacyRoot,

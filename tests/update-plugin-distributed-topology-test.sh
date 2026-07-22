@@ -198,6 +198,11 @@ case "$*" in
         "$HOME/claude-plugins.json" > "$HOME/claude-plugins.tmp"
       mv "$HOME/claude-plugins.tmp" "$HOME/claude-plugins.json"
     fi
+    if [ -n "${FAKE_DROP_SKILL_ON_UPDATE:-}" ] && \
+      [ -d "$HOME/plugin-roots/claude/waza/skills/$FAKE_DROP_SKILL_ON_UPDATE" ]; then
+      mv "$HOME/plugin-roots/claude/waza/skills/$FAKE_DROP_SKILL_ON_UPDATE" \
+        "$HOME/dropped-claude-$FAKE_DROP_SKILL_ON_UPDATE"
+    fi
     if [ "${FAKE_CLAUDE_ENABLE_ON_UPDATE:-0}" = 1 ]; then
       jq 'map(if .id == "waza@waza" then .enabled = true else . end)' \
         "$HOME/claude-plugins.json" > "$HOME/claude-plugins.tmp"
@@ -277,6 +282,11 @@ case "$*" in
       jq -n --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" --arg path "$HOME/plugin-roots/codex/waza" '
         {installed:[{pluginId:"waza@waza",marketplaceName:"waza",version:$version,installed:true,enabled:true,source:{source:"local",path:$path}}]}
       ' > "$HOME/codex-plugins.json"
+    fi
+    if [ -n "${FAKE_DROP_SKILL_ON_UPDATE:-}" ] && \
+      [ -d "$HOME/plugin-roots/codex/waza/skills/$FAKE_DROP_SKILL_ON_UPDATE" ]; then
+      mv "$HOME/plugin-roots/codex/waza/skills/$FAKE_DROP_SKILL_ON_UPDATE" \
+        "$HOME/dropped-codex-$FAKE_DROP_SKILL_ON_UPDATE"
     fi
     ;;
   'plugin remove waza@waza')
@@ -429,6 +439,230 @@ jq -e '
   .errors == []
 ' "$MISSING_PLUGIN_FIXTURE/result.json" >/dev/null
 diff -r "$MISSING_PLUGIN_FIXTURE/home-before-check" "$MISSING_PLUGIN_FIXTURE/home" >/dev/null
+
+# End-to-end dual-plugin migration: preview, partial native success, gated copy
+# retention, verified cleanup, unrelated-copy preservation, and idempotence.
+MIGRATION_FIXTURE="$TMP_ROOT/dual-plugin-migration"
+cp -R "$FIXTURE" "$MIGRATION_FIXTURE"
+mkdir -p "$MIGRATION_FIXTURE/skills/waza" \
+  "$MIGRATION_FIXTURE/skills/not-native" \
+  "$MIGRATION_FIXTURE/home/.agents/skills/waza" \
+  "$MIGRATION_FIXTURE/home/.agents/skills/not-native"
+printf '# tracked Waza copy\n' > "$MIGRATION_FIXTURE/skills/waza/SKILL.md"
+printf '# unrelated tracked copy\n' > "$MIGRATION_FIXTURE/skills/not-native/SKILL.md"
+git -C "$MIGRATION_FIXTURE" init -q
+git -C "$MIGRATION_FIXTURE" add skills/waza/SKILL.md skills/not-native/SKILL.md
+printf '# hand edit\n' >> "$MIGRATION_FIXTURE/skills/waza/SKILL.md"
+printf '# managed Waza copy\n' > "$MIGRATION_FIXTURE/home/.agents/skills/waza/SKILL.md"
+printf '%s\n%s\n%s\n' \
+  "$MIGRATION_FIXTURE/remote-marketplace/skills" waza stale-hash \
+  > "$MIGRATION_FIXTURE/home/.agents/skills/waza/.agent-scripts-copy"
+printf '# unrelated untracked copy\n' \
+  > "$MIGRATION_FIXTURE/home/.agents/skills/not-native/SKILL.md"
+
+cp -R "$MIGRATION_FIXTURE/home" "$MIGRATION_FIXTURE/home-before-check"
+cp "$MIGRATION_FIXTURE/skills/waza/SKILL.md" "$MIGRATION_FIXTURE/waza-before-check"
+set +e
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
+PATH="$MIGRATION_FIXTURE/bin:$PATH" \
+  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$MIGRATION_FIXTURE/check.json"
+migration_check_exit=$?
+set -e
+test "$migration_check_exit" -eq 1
+jq -e '
+  .status == "drift" and
+  (.migrations == [{
+    sourceId:"waza",
+    skill:"waza",
+    gate:"pending",
+    native:[
+      {destination:"claude",status:"missing"},
+      {destination:"codex",status:"missing"}
+    ],
+    copies:[
+      {destination:"claude",state:"present",action:"retain",afterGate:"remove"},
+      {destination:"codex",state:"present",action:"retain",afterGate:"remove"}
+    ]
+  }])
+' "$MIGRATION_FIXTURE/check.json" >/dev/null
+diff -r "$MIGRATION_FIXTURE/home-before-check" "$MIGRATION_FIXTURE/home" >/dev/null
+cmp -s "$MIGRATION_FIXTURE/waza-before-check" "$MIGRATION_FIXTURE/skills/waza/SKILL.md"
+
+set +e
+FAKE_CODEX_INSTALL_FAIL=1 \
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
+PATH="$MIGRATION_FIXTURE/bin:$PATH" \
+  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MIGRATION_FIXTURE/partial.json"
+migration_partial_exit=$?
+set -e
+test "$migration_partial_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  (.migrations[0].gate == "blocked") and
+  ([.migrations[0].native[] | .status] == ["verified","missing"]) and
+  all(.migrations[0].copies[]; .state == "present" and .action == "retain") and
+  any(.errors[]; contains("Codex plugin install failed")) and
+  ([.changes[] | select(.action == "copy-removed")] == [])
+' "$MIGRATION_FIXTURE/partial.json" >/dev/null
+test -f "$MIGRATION_FIXTURE/skills/waza/SKILL.md"
+test -f "$MIGRATION_FIXTURE/home/.agents/skills/waza/SKILL.md"
+
+HOME="$MIGRATION_FIXTURE/home" PATH="$MIGRATION_FIXTURE/bin:$PATH" \
+  codex plugin add waza@waza
+cp -R "$MIGRATION_FIXTURE/home" "$MIGRATION_FIXTURE/home-before-ready-check"
+set +e
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
+PATH="$MIGRATION_FIXTURE/bin:$PATH" \
+  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$MIGRATION_FIXTURE/ready-check.json"
+migration_ready_check_exit=$?
+set -e
+test "$migration_ready_check_exit" -eq 1
+jq -e '
+  .status == "drift" and .errors == [] and
+  (.migrations[0].gate == "verified") and
+  all(.migrations[0].native[]; .status == "verified") and
+  all(.migrations[0].copies[]; .state == "present" and .action == "remove") and
+  ([.changes[] | select(.action == "copy-removed") | .destination] == ["claude","codex"])
+' "$MIGRATION_FIXTURE/ready-check.json" >/dev/null
+diff -r "$MIGRATION_FIXTURE/home-before-ready-check" "$MIGRATION_FIXTURE/home" >/dev/null
+
+CLEANUP_FAILURE_FIXTURE="$TMP_ROOT/dual-plugin-cleanup-failure"
+cp -R "$MIGRATION_FIXTURE" "$CLEANUP_FAILURE_FIXTURE"
+cat > "$CLEANUP_FAILURE_FIXTURE/bin/rm" <<'BASH'
+#!/usr/bin/env bash
+for argument in "$@"; do
+  case "$argument" in */skills/waza) exit 1 ;; esac
+done
+exec /bin/rm "$@"
+BASH
+chmod +x "$CLEANUP_FAILURE_FIXTURE/bin/rm"
+set +e
+HOME="$CLEANUP_FAILURE_FIXTURE/home" TMPDIR="$CLEANUP_FAILURE_FIXTURE/runtime" \
+PATH="$CLEANUP_FAILURE_FIXTURE/bin:$PATH" \
+  "$CLEANUP_FAILURE_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$CLEANUP_FAILURE_FIXTURE/result.json"
+cleanup_failure_exit=$?
+set -e
+test "$cleanup_failure_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  (.migrations[0].gate == "verified") and
+  all(.migrations[0].copies[]; .state == "present" and .action == "remove") and
+  any(.errors[]; contains("duplicate copy cleanup failed: waza/waza -> claude")) and
+  any(.errors[]; contains("duplicate copy cleanup failed: waza/waza -> codex")) and
+  ([.changes[] | select(.action == "copy-removed")] == [])
+' "$CLEANUP_FAILURE_FIXTURE/result.json" >/dev/null
+test -f "$CLEANUP_FAILURE_FIXTURE/skills/waza/SKILL.md"
+test -f "$CLEANUP_FAILURE_FIXTURE/home/.agents/skills/waza/SKILL.md"
+test ! -e "$CLEANUP_FAILURE_FIXTURE/home/.agents/skills/waza/.fallback-copy"
+
+mv "$MIGRATION_FIXTURE/home/.agents/skills/waza/.agent-scripts-copy" \
+  "$MIGRATION_FIXTURE/unmarked-waza-copy-marker"
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
+PATH="$MIGRATION_FIXTURE/bin:$PATH" \
+  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MIGRATION_FIXTURE/full.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and
+  (.migrations[0].gate == "verified") and
+  all(.migrations[0].native[]; .status == "verified") and
+  all(.migrations[0].copies[]; .state == "absent" and .action == "none") and
+  ([.changes[] | select(.action == "copy-removed") | .destination] == ["claude","codex"])
+' "$MIGRATION_FIXTURE/full.json" >/dev/null
+test ! -e "$MIGRATION_FIXTURE/skills/waza"
+test ! -e "$MIGRATION_FIXTURE/home/.agents/skills/waza"
+test -f "$MIGRATION_FIXTURE/skills/not-native/SKILL.md"
+test -f "$MIGRATION_FIXTURE/home/.agents/skills/not-native/SKILL.md"
+test -f "$MIGRATION_FIXTURE/unmarked-waza-copy-marker"
+
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
+PATH="$MIGRATION_FIXTURE/bin:$PATH" \
+  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MIGRATION_FIXTURE/repeat.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and
+  ([.changes[] | select(.action == "copy-removed")] == []) and
+  (.migrations[0].gate == "verified") and
+  all(.migrations[0].copies[]; .state == "absent" and .action == "none")
+' "$MIGRATION_FIXTURE/repeat.json" >/dev/null
+
+# One multi-skill plugin bundle mutates once per CLI. A skill withdrawn during
+# update blocks only its own copy cleanup; another verified skill still migrates.
+seed_multi_skill_duplicates() {
+  local root="$1" skill
+  mkdir -p "$root/skills/think" "$root/skills/write" \
+    "$root/home/.agents/skills/think" "$root/home/.agents/skills/write"
+  for skill in think write; do
+    printf '# duplicate\n' > "$root/skills/$skill/SKILL.md"
+    printf '# duplicate\n' > "$root/home/.agents/skills/$skill/SKILL.md"
+  done
+}
+
+MULTI_SKILL_FIXTURE="$TMP_ROOT/multi-skill-migration"
+cp -R "$FIXTURE" "$MULTI_SKILL_FIXTURE"
+jq '.sources[0].overrides = {}' "$MULTI_SKILL_FIXTURE/skill-topology.json" \
+  > "$MULTI_SKILL_FIXTURE/manifest.tmp"
+mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/skill-topology.json"
+jq '.[0].plugin.skills = ["think","write"]' \
+  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json" \
+  > "$MULTI_SKILL_FIXTURE/registry.tmp"
+mv "$MULTI_SKILL_FIXTURE/registry.tmp" \
+  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json"
+mkdir -p "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/write" \
+  "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/write"
+printf '# Write\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/write/SKILL.md"
+printf '# Write\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/write/SKILL.md"
+seed_multi_skill_duplicates "$MULTI_SKILL_FIXTURE"
+HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
+PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
+  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MULTI_SKILL_FIXTURE/installed.json"
+test "$(rg -Fxc 'plugin install waza@waza' \
+  "$MULTI_SKILL_FIXTURE/home/claude-mutations.log" || true)" -eq 1
+test "$(rg -Fxc 'plugin add waza@waza' \
+  "$MULTI_SKILL_FIXTURE/home/codex-mutations.log" || true)" -eq 1
+test ! -e "$MULTI_SKILL_FIXTURE/skills/think"
+test ! -e "$MULTI_SKILL_FIXTURE/skills/write"
+test ! -e "$MULTI_SKILL_FIXTURE/home/.agents/skills/think"
+test ! -e "$MULTI_SKILL_FIXTURE/home/.agents/skills/write"
+
+seed_multi_skill_duplicates "$MULTI_SKILL_FIXTURE"
+jq 'map(.version = "0.9.0")' "$MULTI_SKILL_FIXTURE/home/claude-plugins.json" \
+  > "$MULTI_SKILL_FIXTURE/claude-plugins.tmp"
+mv "$MULTI_SKILL_FIXTURE/claude-plugins.tmp" "$MULTI_SKILL_FIXTURE/home/claude-plugins.json"
+jq '.installed |= map(.version = "0.9.0")' "$MULTI_SKILL_FIXTURE/home/codex-plugins.json" \
+  > "$MULTI_SKILL_FIXTURE/codex-plugins.tmp"
+mv "$MULTI_SKILL_FIXTURE/codex-plugins.tmp" "$MULTI_SKILL_FIXTURE/home/codex-plugins.json"
+: > "$MULTI_SKILL_FIXTURE/home/claude-mutations.log"
+: > "$MULTI_SKILL_FIXTURE/home/codex-mutations.log"
+set +e
+FAKE_PLUGIN_UPDATE_VERSION=1.0.0 FAKE_DROP_SKILL_ON_UPDATE=write \
+HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
+PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
+  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MULTI_SKILL_FIXTURE/withdrawn.json"
+multi_skill_exit=$?
+set -e
+test "$multi_skill_exit" -eq 1
+test "$(rg -Fxc 'plugin update waza@waza' \
+  "$MULTI_SKILL_FIXTURE/home/claude-mutations.log" || true)" -eq 1
+test "$(rg -Fxc 'plugin add waza@waza' \
+  "$MULTI_SKILL_FIXTURE/home/codex-mutations.log" || true)" -eq 1
+test ! -e "$MULTI_SKILL_FIXTURE/skills/think"
+test ! -e "$MULTI_SKILL_FIXTURE/home/.agents/skills/think"
+test -f "$MULTI_SKILL_FIXTURE/skills/write/SKILL.md"
+test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/write/SKILL.md"
+jq -e '
+  .status == "failed" and
+  any(.migrations[]; .skill == "think" and .gate == "verified") and
+  any(.migrations[]; .skill == "write" and .gate == "blocked") and
+  ([.changes[] | select(.action == "copy-removed" and .skill == "think") | .destination]
+    == ["claude","codex"]) and
+  ([.changes[] | select(.action == "copy-removed" and .skill == "write")] == [])
+' "$MULTI_SKILL_FIXTURE/withdrawn.json" >/dev/null
 
 if ! HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/first.json"; then
@@ -933,9 +1167,16 @@ mv "$MULTI_SKILL_FIXTURE/registry.tmp" \
 # Keep real component skill "think" so bundle identity "waza" still resolves;
 # ghost-skill is absent from both install roots.
 mkdir -p "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/think" \
-  "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/think"
+  "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/think" \
+  "$MULTI_SKILL_FIXTURE/skills/waza" "$MULTI_SKILL_FIXTURE/skills/ghost-skill" \
+  "$MULTI_SKILL_FIXTURE/home/.agents/skills/waza" \
+  "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill"
 printf '# Waza think\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/think/SKILL.md"
 printf '# Waza think\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/think/SKILL.md"
+printf '# duplicate\n' > "$MULTI_SKILL_FIXTURE/skills/waza/SKILL.md"
+printf '# duplicate\n' > "$MULTI_SKILL_FIXTURE/skills/ghost-skill/SKILL.md"
+printf '# duplicate\n' > "$MULTI_SKILL_FIXTURE/home/.agents/skills/waza/SKILL.md"
+printf '# duplicate\n' > "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill/SKILL.md"
 jq --arg path "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza" \
   'map(if .id == "waza@waza" then .installPath = $path else . end)' \
   "$MULTI_SKILL_FIXTURE/home/claude-plugins.json" > "$MULTI_SKILL_FIXTURE/claude-plugins.tmp"
@@ -960,6 +1201,33 @@ jq -e '
     and contains("expected skill not discoverable in installed plugin")) and
   all(.errors[]; contains("ghost-skill") or (contains("waza/waza") | not))
 ' "$MULTI_SKILL_FIXTURE/check.json" >/dev/null
+test -f "$MULTI_SKILL_FIXTURE/skills/waza/SKILL.md"
+test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/waza/SKILL.md"
+test -f "$MULTI_SKILL_FIXTURE/skills/ghost-skill/SKILL.md"
+test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill/SKILL.md"
+
+set +e
+HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
+PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
+  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MULTI_SKILL_FIXTURE/reconcile.json"
+multi_skill_reconcile_exit=$?
+set -e
+test "$multi_skill_reconcile_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  ([.changes[] | select(.action == "copy-removed" and .skill == "waza") | .destination]
+    == ["claude","codex"]) and
+  ([.changes[] | select(.action == "copy-removed" and .skill == "ghost-skill")] == []) and
+  any(.migrations[]; .skill == "waza" and .gate == "verified" and
+    all(.copies[]; .state == "absent" and .action == "none")) and
+  any(.migrations[]; .skill == "ghost-skill" and .gate == "blocked" and
+    all(.copies[]; .state == "present" and .action == "retain"))
+' "$MULTI_SKILL_FIXTURE/reconcile.json" >/dev/null
+test ! -e "$MULTI_SKILL_FIXTURE/skills/waza"
+test ! -e "$MULTI_SKILL_FIXTURE/home/.agents/skills/waza"
+test -f "$MULTI_SKILL_FIXTURE/skills/ghost-skill/SKILL.md"
+test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill/SKILL.md"
 
 # Exact component skill identity succeeds when present on both CLIs.
 COMPONENT_SKILL_FIXTURE="$TMP_ROOT/component-skill"
