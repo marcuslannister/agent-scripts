@@ -77,6 +77,7 @@
 
 ## Runtime Safety
 
+- Low disk space: empty Trash and/or delete old caches, then push and sync across Peter's Macs and continue.
 - zsh: never variable `status`.
 - zsh multi-item loop: array. Scalar string does not word-split like bash.
 - Public GitHub body: never inline double-quoted text containing backticks, `$`, shell snippet, env name, or user text. Temp file + `cat <<'EOF'` + inspect + `--body-file`.
