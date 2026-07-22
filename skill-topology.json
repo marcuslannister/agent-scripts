@@ -85,7 +85,7 @@
     },
     {
       "id": "waza",
-      "classification": "plugin-both",
+      "classification": "dual-plugin",
       "defaultDestinations": ["claude", "codex"],
       "overrides": {
         "waza": ["claude", "codex"]
@@ -93,7 +93,7 @@
     },
     {
       "id": "claude-mem",
-      "classification": "plugin-both",
+      "classification": "dual-plugin",
       "defaultDestinations": ["claude", "codex"],
       "overrides": {
         "claude-mem": ["claude", "codex"]

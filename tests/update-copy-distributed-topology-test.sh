@@ -451,7 +451,8 @@ cat > "$VISUAL_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
     "plugin": {
       "name": "visual-explainer",
       "repo": "nicobailon/visual-explainer",
-      "marketplaces": {"claude": "visual-explainer-marketplace"}
+      "marketplaces": {"claude": "visual-explainer-marketplace"},
+      "skills": ["visual-explainer"]
     }
   }
 ]

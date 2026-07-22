@@ -6,7 +6,7 @@ topology_is_name() {
 
 topology_is_classification() {
   case "$1" in
-    repo-owned|npx-only|source-only|plugin-both|plugin-claude-only) return 0 ;;
+    repo-owned|npx-only|source-only|dual-plugin|plugin-claude-only) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -102,7 +102,7 @@ topology_validate_plugin() { # file index label classification
     topology_fail 2 "$label requires plugin metadata for a plugin source"
     return 2
   fi
-  topology_validate_fields "$file" ".[${index}].plugin" '["name","repo","marketplaces"]' '["name","repo","marketplaces"]' "$label plugin" || return $?
+  topology_validate_fields "$file" ".[${index}].plugin" '["name","repo","marketplaces","skills"]' '["name","repo","marketplaces","skills"]' "$label plugin" || return $?
   value="$(jq -r ".[${index}].plugin.name" "$file")"
   jq -e ".[${index}].plugin.name | type == \"string\"" "$file" >/dev/null \
     && topology_is_name "$value" \
@@ -126,7 +126,7 @@ topology_validate_plugin() { # file index label classification
       return 2
     fi
   done < <(jq -r ".[${index}].plugin.marketplaces | keys[]" "$file")
-  for destination in claude $([ "$classification" = plugin-both ] && printf codex); do
+  for destination in claude $([ "$classification" = dual-plugin ] && printf codex); do
     value="$(jq -r --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] // empty" "$file")"
     if ! jq -e --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] | type == \"string\"" "$file" >/dev/null \
       || ! topology_is_name "$value"; then
@@ -134,6 +134,20 @@ topology_validate_plugin() { # file index label classification
       return 2
     fi
   done
+  if ! jq -e ".[${index}].plugin.skills | type == \"array\" and length > 0" "$file" >/dev/null; then
+    topology_fail 2 "$label plugin skills must be a non-empty array"
+    return 2
+  fi
+  if ! jq -e ".[${index}].plugin.skills | length == (unique | length)" "$file" >/dev/null; then
+    topology_fail 2 "$label plugin skills contains a duplicate skill"
+    return 2
+  fi
+  while IFS= read -r skill; do
+    if ! topology_is_name "$skill"; then
+      topology_fail 2 "$label plugin skills contains an invalid skill name: $skill"
+      return 2
+    fi
+  done < <(jq -r ".[${index}].plugin.skills[] | tostring" "$file")
 }
 
 topology_validate_registry() { # file
@@ -172,7 +186,7 @@ topology_validate_registry() { # file
     state="$(jq -r "if .[$index] | has(\"stateInspection\") then .[$index].stateInspection else \"topology\" end" "$file")"
     case "$state" in topology|adapter) ;; *) topology_fail 2 "$label has an invalid stateInspection"; return 2 ;; esac
     plugin_kind=0
-    case "$classification" in plugin-both|plugin-claude-only) plugin_kind=1 ;; esac
+    case "$classification" in dual-plugin|plugin-claude-only) plugin_kind=1 ;; esac
     if [ "$plugin_kind" -eq 1 ]; then
       topology_validate_plugin "$file" "$index" "$label" "$classification" || return $?
     elif jq -e ".[$index] | has(\"plugin\")" "$file" >/dev/null; then

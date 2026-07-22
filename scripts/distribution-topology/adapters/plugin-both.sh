@@ -617,7 +617,7 @@ case "$action" in
   discover)
     require_source_dependencies || exit 1
     discover_remote_marketplace || exit 1
-    printf '%s\n' "$plugin_name"
+    jq -er --arg source_id "$source_id"       '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry"
     ;;
   inspect)
     failed=0

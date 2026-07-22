@@ -344,10 +344,11 @@ jq -e '.status == "invalid" and (.errors[0] | contains("no registered adapter"))
 
 CLASSIFICATION_ROOT="$TMP_ROOT/classification-mismatch"
 cp -R "$FIXTURE_BASE" "$CLASSIFICATION_ROOT"
-jq '.[0].classification = "plugin-both" | .[0].plugin = {
+jq '.[0].classification = "dual-plugin" | .[0].plugin = {
   "name":"fixture",
   "repo":"fixture/repo",
-  "marketplaces":{"claude":"fixture","codex":"fixture"}
+  "marketplaces":{"claude":"fixture","codex":"fixture"},
+  "skills":["fixture"]
 }' "$CLASSIFICATION_ROOT/scripts/distribution-topology/registry.json" > "$CLASSIFICATION_ROOT/registry.tmp"
 mv "$CLASSIFICATION_ROOT/registry.tmp" "$CLASSIFICATION_ROOT/scripts/distribution-topology/registry.json"
 run_fixture_json "$CLASSIFICATION_ROOT"

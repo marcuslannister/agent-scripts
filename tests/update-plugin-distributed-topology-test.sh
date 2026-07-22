@@ -19,9 +19,60 @@ jq -e '
   .plugin == {
     name: "codex",
     repo: "openai/codex-plugin-cc",
-    marketplaces: {claude: "openai-codex"}
+    marketplaces: {claude: "openai-codex"},
+    skills: ["codex"]
   }
 ' "$REPO_ROOT/scripts/distribution-topology/registry.json" >/dev/null
+
+jq -e '
+  ([.sources[] | select(.id == "waza" or .id == "claude-mem") | {
+    id, classification, defaultDestinations, overrides
+  }] | length) == 2 and
+  all(.sources[] | select(.id == "waza" or .id == "claude-mem");
+    .classification == "dual-plugin" and .defaultDestinations == ["claude","codex"])
+' "$REPO_ROOT/skill-topology.json" >/dev/null
+jq -e '
+  ([.[] | select(.sourceId == "waza" or .sourceId == "claude-mem")] | length) == 2 and
+  all(.[] | select(.sourceId == "waza" or .sourceId == "claude-mem");
+    .classification == "dual-plugin" and
+    (.plugin.skills | type == "array" and length > 0) and
+    (.plugin.skills | length == (unique | length))) and
+  (.[] | select(.sourceId == "waza") | .plugin.skills == ["waza"]) and
+  (.[] | select(.sourceId == "claude-mem") | .plugin.skills == ["claude-mem"])
+' "$REPO_ROOT/scripts/distribution-topology/registry.json" >/dev/null
+
+RETIRED_CLASSIFICATION_FIXTURE="$TMP_ROOT/retired-plugin-both"
+mkdir -p "$RETIRED_CLASSIFICATION_FIXTURE/scripts" "$RETIRED_CLASSIFICATION_FIXTURE/home" "$RETIRED_CLASSIFICATION_FIXTURE/runtime"
+cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$RETIRED_CLASSIFICATION_FIXTURE/scripts/"
+cp -R "$REPO_ROOT/scripts/distribution-topology" "$RETIRED_CLASSIFICATION_FIXTURE/scripts/"
+jq '{version, sources: [.sources[] | select(.id == "waza") | .classification = "plugin-both"]}'   "$REPO_ROOT/skill-topology.json" > "$RETIRED_CLASSIFICATION_FIXTURE/skill-topology.json"
+jq '[.[] | select(.sourceId == "waza") | .classification = "plugin-both"]'   "$REPO_ROOT/scripts/distribution-topology/registry.json"   > "$RETIRED_CLASSIFICATION_FIXTURE/scripts/distribution-topology/registry.json"
+set +e
+HOME="$RETIRED_CLASSIFICATION_FIXTURE/home" TMPDIR="$RETIRED_CLASSIFICATION_FIXTURE/runtime" PATH="/usr/bin:/bin:/usr/sbin:/sbin"   "$RETIRED_CLASSIFICATION_FIXTURE/scripts/update-skill-topology.sh" --check --json   > "$RETIRED_CLASSIFICATION_FIXTURE/result.json"
+retired_exit=$?
+set -e
+test "$retired_exit" -eq 2
+jq -e '
+  .status == "invalid" and
+  (.errors[0] | contains("unknown classification: plugin-both"))
+' "$RETIRED_CLASSIFICATION_FIXTURE/result.json" >/dev/null
+
+MISSING_SKILLS_FIXTURE="$TMP_ROOT/missing-plugin-skills"
+mkdir -p "$MISSING_SKILLS_FIXTURE/scripts" "$MISSING_SKILLS_FIXTURE/home" "$MISSING_SKILLS_FIXTURE/runtime"
+cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$MISSING_SKILLS_FIXTURE/scripts/"
+cp -R "$REPO_ROOT/scripts/distribution-topology" "$MISSING_SKILLS_FIXTURE/scripts/"
+jq '{version, sources: [.sources[] | select(.id == "waza")]}'   "$REPO_ROOT/skill-topology.json" > "$MISSING_SKILLS_FIXTURE/skill-topology.json"
+jq '[.[] | select(.sourceId == "waza") | .plugin |= del(.skills)]'   "$REPO_ROOT/scripts/distribution-topology/registry.json"   > "$MISSING_SKILLS_FIXTURE/scripts/distribution-topology/registry.json"
+set +e
+HOME="$MISSING_SKILLS_FIXTURE/home" TMPDIR="$MISSING_SKILLS_FIXTURE/runtime" PATH="/usr/bin:/bin:/usr/sbin:/sbin"   "$MISSING_SKILLS_FIXTURE/scripts/update-skill-topology.sh" --check --json   > "$MISSING_SKILLS_FIXTURE/result.json"
+missing_skills_exit=$?
+set -e
+test "$missing_skills_exit" -eq 2
+jq -e '
+  .status == "invalid" and
+  (.errors[0] | contains("plugin is missing required field: skills")
+    or contains("plugin skills must be a non-empty array"))
+' "$MISSING_SKILLS_FIXTURE/result.json" >/dev/null
 
 FIXTURE="$TMP_ROOT/waza"
 BIN="$FIXTURE/bin"
@@ -41,7 +92,7 @@ cat > "$FIXTURE/skill-topology.json" <<'JSON'
   "sources": [
     {
       "id": "waza",
-      "classification": "plugin-both",
+      "classification": "dual-plugin",
       "defaultDestinations": ["claude", "codex"],
       "overrides": {"waza": ["claude", "codex"]}
     }
@@ -53,14 +104,15 @@ cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "waza",
-    "classification": "plugin-both",
+    "classification": "dual-plugin",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
     "plugin": {
       "name": "waza",
       "repo": "tw93/Waza",
-      "marketplaces": {"claude": "waza", "codex": "waza"}
+      "marketplaces": {"claude": "waza", "codex": "waza"},
+      "skills": ["waza"]
     }
   }
 ]
@@ -634,7 +686,7 @@ jq -e '
     id, classification, defaultDestinations, overrides
   }] | length) == 2 and
   all(.sources[] | select(.id == "waza" or .id == "claude-mem");
-    .classification == "plugin-both" and .defaultDestinations == ["claude","codex"])
+    .classification == "dual-plugin" and .defaultDestinations == ["claude","codex"])
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
 
 MEM_FIXTURE="$TMP_ROOT/claude-mem"

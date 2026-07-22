@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-21 — Dual-Plugin Skill Model
+- Replaced the source-wide `plugin-both` classification with per-skill `dual-plugin` terminology in the glossary, topology manifest, adapter registry, and reporting fixtures.
+- Required plugin bundle metadata to declare expected skill identities (`plugin.skills`) for later runtime verification; dual-native Claude/Codex reconciliation stays on the existing private adapter path.
+
 ## 2026-07-21 — Skill Author Index
 - Added an explicit per-skill author registry (`skill-authors.json`, all 83 skills) and `scripts/generate-skill-index.sh`, which generates `INDEX.md` grouping every distributed skill by true upstream author; `skills/` stays flat (ADR-0003, #26). `--check` gates freshness and fails on any unattributed on-disk skill.
 - Removed the remaining untracked onecli staging artifacts and their author-registry entries.

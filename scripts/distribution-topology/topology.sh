@@ -518,7 +518,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
         elif ($entry.destinations | index($drift.destination)) != null then "install"
         else "remove" end),$drift.skill,$drift.destination] | @tsv
     ' "$initial/drift.ndjson" --slurp >> "$action_file"
-    if [ "$(topology_registry_value "$source_id" '.classification')" = plugin-both ]; then
+    if [ "$(topology_registry_value "$source_id" '.classification')" = dual-plugin ]; then
       topology_expected_states "$source_id" "$DISCOVERY_ROOT/$source_id.refresh-states.tsv" "$plan_json"
       while IFS=$'\t' read -r state skill destination; do
         [ "$state" = present ] || continue

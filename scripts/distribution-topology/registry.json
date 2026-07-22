@@ -29,7 +29,8 @@
       "repo": "mattpocock/skills",
       "marketplaces": {
         "claude": "mattpocock"
-      }
+      },
+      "skills": ["mattpocock-skills"]
     }
   },
   {
@@ -57,7 +58,8 @@
       "repo": "nicobailon/visual-explainer",
       "marketplaces": {
         "claude": "visual-explainer-marketplace"
-      }
+      },
+      "skills": ["visual-explainer"]
     }
   },
   {
@@ -71,12 +73,13 @@
       "repo": "openai/codex-plugin-cc",
       "marketplaces": {
         "claude": "openai-codex"
-      }
+      },
+      "skills": ["codex"]
     }
   },
   {
     "sourceId": "waza",
-    "classification": "plugin-both",
+    "classification": "dual-plugin",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
@@ -86,12 +89,13 @@
       "marketplaces": {
         "claude": "waza",
         "codex": "waza"
-      }
+      },
+      "skills": ["waza"]
     }
   },
   {
     "sourceId": "claude-mem",
-    "classification": "plugin-both",
+    "classification": "dual-plugin",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
@@ -101,7 +105,8 @@
       "marketplaces": {
         "claude": "thedotmack",
         "codex": "claude-mem-local"
-      }
+      },
+      "skills": ["claude-mem"]
     }
   }
 ]

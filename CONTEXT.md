@@ -27,8 +27,9 @@ Skills authored and tracked in this repo. Entries under `skills/` default to Cla
 The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills that target only Codex.
 _Avoid_: Codex surface, Codex-only surface
 
-**Plugin-both repo**:
-A repo shipping plugin manifests for both Claude Code and Codex; managed by each CLI's native marketplace commands, never by copies.
+**Dual-plugin skill**:
+A skill maintained by its authoritative upstream and exposed through both Claude Code's and Codex's native plugin systems. Classification is per skill, not per repository; native install and reconcile happen per plugin bundle. Plugin bundle metadata lists the expected skill identities.
+_Avoid_: plugin-both, plugin-both repo, source-wide dual classification
 
 **Plugin-Claude-only repo**:
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is served by whatever the repo offers (installer or copy).
