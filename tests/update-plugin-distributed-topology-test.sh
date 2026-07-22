@@ -129,6 +129,17 @@ case "$*" in
         "$HOME/claude-plugins.json" > "$HOME/claude-plugins.tmp"
       mv "$HOME/claude-plugins.tmp" "$HOME/claude-plugins.json"
     fi
+    if [ "${FAKE_CLAUDE_ENABLE_ON_UPDATE:-0}" = 1 ]; then
+      jq 'map(if .id == "waza@waza" then .enabled = true else . end)' \
+        "$HOME/claude-plugins.json" > "$HOME/claude-plugins.tmp"
+      mv "$HOME/claude-plugins.tmp" "$HOME/claude-plugins.json"
+    fi
+    printf '%s\n' "$*" >> "$HOME/claude-mutations.log"
+    ;;
+  'plugin disable waza@waza')
+    jq 'map(if .id == "waza@waza" then .enabled = false else . end)' \
+      "$HOME/claude-plugins.json" > "$HOME/claude-plugins.tmp"
+    mv "$HOME/claude-plugins.tmp" "$HOME/claude-plugins.json"
     printf '%s\n' "$*" >> "$HOME/claude-mutations.log"
     ;;
   *)
@@ -163,12 +174,6 @@ case "$*" in
       printf 'fixture Codex marketplace failure\n' >&2
       exit 1
     fi
-    if [ -n "${FAKE_PLUGIN_UPDATE_VERSION:-}" ]; then
-      jq --arg version "$FAKE_PLUGIN_UPDATE_VERSION" \
-        '.installed |= map(if .pluginId == "waza@waza" then .version = $version else . end)' \
-        "$HOME/codex-plugins.json" > "$HOME/codex-plugins.tmp"
-      mv "$HOME/codex-plugins.tmp" "$HOME/codex-plugins.json"
-    fi
     ;;
   'plugin add waza@waza')
     printf '%s\n' "$*" >> "$HOME/codex-mutations.log"
@@ -176,9 +181,16 @@ case "$*" in
       printf 'fixture Codex install failure\n' >&2
       exit 1
     fi
-    jq -n --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
-      {installed:[{pluginId:"waza@waza",marketplaceName:"waza",version:$version,installed:true,enabled:true}]}
-    ' > "$HOME/codex-plugins.json"
+    if jq -e '.installed[]? | select(.pluginId == "waza@waza")' "$HOME/codex-plugins.json" >/dev/null; then
+      jq --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
+        .installed |= map(if .pluginId == "waza@waza" then .version = $version else . end)
+      ' "$HOME/codex-plugins.json" > "$HOME/codex-plugins.tmp"
+      mv "$HOME/codex-plugins.tmp" "$HOME/codex-plugins.json"
+    else
+      jq -n --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
+        {installed:[{pluginId:"waza@waza",marketplaceName:"waza",version:$version,installed:true,enabled:true}]}
+      ' > "$HOME/codex-plugins.json"
+    fi
     ;;
   'plugin remove waza@waza')
     printf '{"installed":[]}\n' > "$HOME/codex-plugins.json"
@@ -432,29 +444,21 @@ mv "$CLAUDE_DISABLED_FIXTURE/disabled.tmp" "$CLAUDE_DISABLED_FIXTURE/home/claude
 HOME="$CLAUDE_DISABLED_FIXTURE/home" TMPDIR="$CLAUDE_DISABLED_FIXTURE/runtime" \
 PATH="$CLAUDE_DISABLED_FIXTURE/bin:$PATH" \
   "$CLAUDE_DISABLED_FIXTURE/scripts/update-skill-topology.sh" --json > "$CLAUDE_DISABLED_FIXTURE/result.json"
-jq -e '
-  .status == "reconciled" and
-  (.changes[] | .action == "installed" and .sourceId == "waza" and .destination == "claude")
-' "$CLAUDE_DISABLED_FIXTURE/result.json" >/dev/null
-jq -e '.[0].enabled == true' "$CLAUDE_DISABLED_FIXTURE/home/claude-plugins.json" >/dev/null
-grep -Fx 'plugin enable waza@waza' "$CLAUDE_DISABLED_FIXTURE/home/claude-mutations.log" >/dev/null
+jq -e '.status == "reconciled" and .changes == [] and .errors == []' \
+  "$CLAUDE_DISABLED_FIXTURE/result.json" >/dev/null
+jq -e '.[0].enabled == false' "$CLAUDE_DISABLED_FIXTURE/home/claude-plugins.json" >/dev/null
+test "$(grep -Fxc 'plugin enable waza@waza' "$CLAUDE_DISABLED_FIXTURE/home/claude-mutations.log" || true)" -eq 0
 
 CODEX_DISABLED_FIXTURE="$TMP_ROOT/codex-disabled"
 cp -R "$FIXTURE" "$CODEX_DISABLED_FIXTURE"
 jq '.installed |= map(if .pluginId == "waza@waza" then .enabled = false else . end)' \
   "$CODEX_DISABLED_FIXTURE/home/codex-plugins.json" > "$CODEX_DISABLED_FIXTURE/disabled.tmp"
 mv "$CODEX_DISABLED_FIXTURE/disabled.tmp" "$CODEX_DISABLED_FIXTURE/home/codex-plugins.json"
-set +e
 HOME="$CODEX_DISABLED_FIXTURE/home" TMPDIR="$CODEX_DISABLED_FIXTURE/runtime" \
 PATH="$CODEX_DISABLED_FIXTURE/bin:$PATH" \
   "$CODEX_DISABLED_FIXTURE/scripts/update-skill-topology.sh" --json > "$CODEX_DISABLED_FIXTURE/result.json"
-codex_disabled_exit=$?
-set -e
-test "$codex_disabled_exit" -eq 1
-jq -e '
-  .status == "failed" and
-  any(.errors[]; contains("waza@waza is installed but disabled") and contains("Codex config"))
-' "$CODEX_DISABLED_FIXTURE/result.json" >/dev/null
+jq -e '.status == "reconciled" and .changes == [] and .errors == []' \
+  "$CODEX_DISABLED_FIXTURE/result.json" >/dev/null
 jq -e '.installed[0].enabled == false' "$CODEX_DISABLED_FIXTURE/home/codex-plugins.json" >/dev/null
 
 UPDATE_FIXTURE="$TMP_ROOT/update"
@@ -503,6 +507,32 @@ grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$UPDATE_FIXTURE/check.out"
 grep -Eq '^waza/waza +claude +updated:outdated: installed 1\.0\.0, available 2\.0\.0 +drift$' "$UPDATE_FIXTURE/check.out"
 grep -Eq '^waza/waza +codex +updated:outdated: installed 1\.0\.0, available 2\.0\.0 +drift$' "$UPDATE_FIXTURE/check.out"
 diff -r "$UPDATE_FIXTURE/home-before-check" "$UPDATE_FIXTURE/home" >/dev/null
+
+DISABLED_UPDATE_FIXTURE="$TMP_ROOT/disabled-update"
+cp -R "$UPDATE_FIXTURE" "$DISABLED_UPDATE_FIXTURE"
+jq 'map(if .id == "waza@waza" then .enabled = false else . end)' \
+  "$DISABLED_UPDATE_FIXTURE/home/claude-plugins.json" > "$DISABLED_UPDATE_FIXTURE/claude-disabled.tmp"
+mv "$DISABLED_UPDATE_FIXTURE/claude-disabled.tmp" "$DISABLED_UPDATE_FIXTURE/home/claude-plugins.json"
+jq '.installed |= map(if .pluginId == "waza@waza" then .enabled = false else . end)' \
+  "$DISABLED_UPDATE_FIXTURE/home/codex-plugins.json" > "$DISABLED_UPDATE_FIXTURE/codex-disabled.tmp"
+mv "$DISABLED_UPDATE_FIXTURE/codex-disabled.tmp" "$DISABLED_UPDATE_FIXTURE/home/codex-plugins.json"
+FAKE_PLUGIN_UPDATE_VERSION=2.0.0 FAKE_CLAUDE_ENABLE_ON_UPDATE=1 \
+HOME="$DISABLED_UPDATE_FIXTURE/home" TMPDIR="$DISABLED_UPDATE_FIXTURE/runtime" \
+PATH="$DISABLED_UPDATE_FIXTURE/bin:$PATH" \
+  "$DISABLED_UPDATE_FIXTURE/scripts/update-skill-topology.sh" --json > "$DISABLED_UPDATE_FIXTURE/result.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and
+  ([.changes[] | {action, destination}] == [
+    {"action":"updated","destination":"claude"},
+    {"action":"updated","destination":"codex"}
+  ])
+' "$DISABLED_UPDATE_FIXTURE/result.json" >/dev/null
+jq -e '.[0].version == "2.0.0" and .[0].enabled == false' \
+  "$DISABLED_UPDATE_FIXTURE/home/claude-plugins.json" >/dev/null
+jq -e '.installed[0].version == "2.0.0" and .installed[0].enabled == false' \
+  "$DISABLED_UPDATE_FIXTURE/home/codex-plugins.json" >/dev/null
+test "$(grep -Fxc 'plugin enable waza@waza' "$DISABLED_UPDATE_FIXTURE/home/claude-mutations.log" || true)" -eq 0
+grep -Fx 'plugin disable waza@waza' "$DISABLED_UPDATE_FIXTURE/home/claude-mutations.log" >/dev/null
 
 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 \
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \

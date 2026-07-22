@@ -82,17 +82,15 @@ inspect_claude_plugin() {
     return
   fi
   enabled="$(jq -r --arg id "$plugin_id" '.enabledPlugins[$id] // false' "$settings_file")"
-  if [ "$enabled" != true ]; then
-    printf 'drift\tdisabled\n'
-    return
-  fi
   installed_commit="$(jq -r --arg id "$plugin_id" '(.plugins[$id] // [] | last | .gitCommitSha) // empty' "$installed_file" 2>/dev/null || true)"
   if [ -z "$installed_commit" ]; then
     printf 'drift\tunstamped\n'
   elif [ "$installed_commit" != "$source_commit" ]; then
     printf 'drift\tcontent-mismatch\n'
-  else
+  elif [ "$enabled" = true ]; then
     printf 'present\tmanaged\n'
+  else
+    printf 'present\tmanaged-disabled\n'
   fi
 }
 
@@ -157,6 +155,12 @@ plugin_is_installed() {
     && jq -e --arg id "$plugin_id" '((.plugins[$id] // []) | length) > 0' "$installed_file" >/dev/null 2>&1
 }
 
+plugin_is_enabled() {
+  local settings_file="$home/.claude/settings.json"
+  [ -f "$settings_file" ] \
+    && jq -e --arg id "$plugin_id" '.enabledPlugins[$id] == true' "$settings_file" >/dev/null 2>&1
+}
+
 run_native() {
   local label="$1" output
   shift
@@ -169,7 +173,11 @@ run_native() {
 
 reconcile_claude_plugin() { # install|remove
   local operation="$1"
-  local marketplace_output
+  local marketplace_output was_enabled=true was_installed=false
+  if plugin_is_installed; then
+    was_installed=true
+    plugin_is_enabled || was_enabled=false
+  fi
   case "$operation" in
     install)
       if ! marketplace_output="$(claude plugin marketplace list 2>&1)"; then
@@ -184,14 +192,19 @@ reconcile_claude_plugin() { # install|remove
         run_native 'failed to add visual-explainer Claude marketplace' \
           claude plugin marketplace add nicobailon/visual-explainer || return 1
       fi
-      if plugin_is_installed; then
+      if [ "$was_installed" = true ]; then
         run_native "failed to update Claude plugin $plugin_id" \
           claude plugin update "$plugin_id" || return 1
+        if [ "$was_enabled" = false ] && plugin_is_enabled; then
+          run_native "failed to restore disabled Claude plugin $plugin_id" \
+            claude plugin disable "$plugin_id" || return 1
+        fi
+        printf 'updated\tvisual-explainer\tclaude\n'
       else
         run_native "failed to install Claude plugin $plugin_id" \
           claude plugin install "$plugin_id" || return 1
+        printf 'installed\tvisual-explainer\tclaude\n'
       fi
-      printf 'installed\tvisual-explainer\tclaude\n'
       ;;
     remove)
       if plugin_is_installed; then

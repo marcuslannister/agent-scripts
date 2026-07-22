@@ -399,9 +399,21 @@ case "$*" in
     cat > "$HOME/.claude/plugins/installed_plugins.json" <<JSON
 {"plugins":{"visual-explainer@visual-explainer-marketplace":[{"gitCommitSha":"$FAKE_VISUAL_SHA"}]}}
 JSON
-    cat > "$HOME/.claude/settings.json" <<'JSON'
-{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":true}}
-JSON
+    enabled=true
+    if [ -f "$HOME/.claude/settings.json" ] && jq -e --arg id 'visual-explainer@visual-explainer-marketplace' \
+      '.enabledPlugins | type == "object" and has($id)' "$HOME/.claude/settings.json" >/dev/null; then
+      enabled="$(jq -r --arg id 'visual-explainer@visual-explainer-marketplace' '.enabledPlugins[$id]' \
+        "$HOME/.claude/settings.json")"
+    fi
+    if [ "${FAKE_VISUAL_ENABLE_ON_UPDATE:-0}" = 1 ] && [ "$1 $2" = 'plugin update' ]; then
+      enabled=true
+    fi
+    printf '{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":%s}}\n' "$enabled" \
+      > "$HOME/.claude/settings.json"
+    ;;
+  'plugin disable visual-explainer@visual-explainer-marketplace')
+    printf '{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":false}}\n' \
+      > "$HOME/.claude/settings.json"
     ;;
   'plugin uninstall visual-explainer@visual-explainer-marketplace')
     printf '{"plugins":{}}\n' > "$HOME/.claude/plugins/installed_plugins.json"
@@ -473,33 +485,33 @@ cat > "$VISUAL_FIXTURE/home/.claude/settings.json" <<'JSON'
 {"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":false}}
 JSON
 cp -R "$VISUAL_FIXTURE/home" "$VISUAL_FIXTURE/home-before-disabled-check"
-set +e
 FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
   "$VISUAL_COMMAND" --check --json > "$VISUAL_FIXTURE/disabled-check.json"
-disabled_check_exit=$?
-set -e
-test "$disabled_check_exit" -eq 1
-jq -e '
-  .status == "drift" and .errors == [] and
-  (.drift[] | .sourceId == "visual-explainer" and .destination == "claude" and .reason == "disabled")
-' "$VISUAL_FIXTURE/disabled-check.json" >/dev/null
+jq -e '.status == "clean" and .drift == [] and .errors == []' \
+  "$VISUAL_FIXTURE/disabled-check.json" >/dev/null
 diff -r "$VISUAL_FIXTURE/home-before-disabled-check" "$VISUAL_FIXTURE/home"
 
-set +e
-FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_NO_STATE=1 \
+jq --arg id 'visual-explainer@visual-explainer-marketplace' \
+  '.plugins[$id][-1].gitCommitSha = "outdated"' \
+  "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json" > "$VISUAL_FIXTURE/installed.tmp"
+mv "$VISUAL_FIXTURE/installed.tmp" "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json"
+FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_ENABLE_ON_UPDATE=1 \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
   "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/disabled-reconcile.json"
-disabled_reconcile_exit=$?
-set -e
-test "$disabled_reconcile_exit" -eq 1
 jq -e '
-  .status == "failed" and
-  any(.errors[]; contains("source visual-explainer verification failed")) and
-  any(.errors[]; contains("final verification failed: visual-explainer/visual-explainer -> claude: disabled")) and
-  (any(.errors[]; contains("returned invalid reconcile output")) | not)
+  .status == "reconciled" and .errors == [] and
+  (.changes[] | .action == "updated" and .sourceId == "visual-explainer" and .destination == "claude")
 ' "$VISUAL_FIXTURE/disabled-reconcile.json" >/dev/null
+jq -e '.enabledPlugins["visual-explainer@visual-explainer-marketplace"] == false' \
+  "$VISUAL_FIXTURE/home/.claude/settings.json" >/dev/null
+grep -Fx 'plugin disable visual-explainer@visual-explainer-marketplace' \
+  "$VISUAL_FIXTURE/home/claude-calls.log" >/dev/null
 
+jq --arg id 'visual-explainer@visual-explainer-marketplace' \
+  '.plugins[$id][-1].gitCommitSha = "outdated"' \
+  "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json" > "$VISUAL_FIXTURE/installed.tmp"
+mv "$VISUAL_FIXTURE/installed.tmp" "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json"
 set +e
 FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_FAIL_UPDATE=1 \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
@@ -533,6 +545,10 @@ plugin-null	{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":n
 plugin-string	{"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":"false"}}
 CASES
 
+jq --arg id 'visual-explainer@visual-explainer-marketplace' --arg sha "$VISUAL_SHA" \
+  '.plugins[$id][-1].gitCommitSha = $sha' \
+  "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json" > "$VISUAL_FIXTURE/installed.tmp"
+mv "$VISUAL_FIXTURE/installed.tmp" "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json"
 cat > "$VISUAL_FIXTURE/home/.claude/settings.json" <<'JSON'
 {"enabledPlugins":{"visual-explainer@visual-explainer-marketplace":true}}
 JSON

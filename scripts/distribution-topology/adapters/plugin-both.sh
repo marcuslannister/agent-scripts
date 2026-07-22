@@ -425,7 +425,18 @@ inspect_states() {
             detail="$PLUGIN_FRESHNESS_DETAIL"
           fi
           ;;
-        disabled) state=drift; detail=disabled ;;
+        disabled)
+          if [ "$expected" != present ]; then
+            state=present
+            detail=managed-disabled
+          elif [ "$PLUGIN_FRESHNESS_STATE" = current ]; then
+            state=present
+            detail=managed-disabled
+          else
+            state=outdated
+            detail="$PLUGIN_FRESHNESS_DETAIL"
+          fi
+          ;;
         missing) state=absent; detail=missing ;;
       esac
     fi
@@ -466,10 +477,6 @@ apply_destination() {
       return 0
       ;;
     install|refresh)
-      if [ "$destination" = codex ] && [ "$before_state" = disabled ]; then
-        printf 'Codex plugin %s is installed but disabled; re-enable it in Codex config before retrying\n' "$plugin_id" >&2
-        return 1
-      fi
       ensure_marketplace "$destination" || return 1
       case "$destination:$before_state" in
         claude:missing)
@@ -477,10 +484,12 @@ apply_destination() {
             claude plugin install "$plugin_id" || return 1
           ;;
         claude:disabled)
-          run_native "Claude plugin enable failed for $plugin_id" \
-            claude plugin enable "$plugin_id" || return 1
           run_native "Claude plugin update failed for $plugin_id" \
             claude plugin update "$plugin_id" || return 1
+          if load_plugin_state claude && [ "$PLUGIN_STATE" = enabled ]; then
+            run_native "Claude plugin disable failed for $plugin_id" \
+              claude plugin disable "$plugin_id" || return 1
+          fi
           ;;
         claude:enabled)
           run_native "Claude plugin update failed for $plugin_id" \
@@ -491,6 +500,10 @@ apply_destination() {
             codex plugin add "$plugin_id" || return 1
           ;;
         codex:enabled)
+          run_native "Codex plugin update failed for $plugin_id" \
+            codex plugin add "$plugin_id" || return 1
+          ;;
+        codex:disabled)
           run_native "Codex plugin update failed for $plugin_id" \
             codex plugin add "$plugin_id" || return 1
           ;;
@@ -506,7 +519,12 @@ apply_destination() {
     printf '%s\n' "$PLUGIN_ERROR" >&2
     return 1
   fi
-  if [ "$PLUGIN_STATE" != enabled ]; then
+  if [ "$PLUGIN_STATE" != "$before_state" ] && [ "$before_state" != missing ]; then
+    printf '%s plugin %s changed state from %s to %s after %s\n' \
+      "$destination" "$plugin_id" "$before_state" "$PLUGIN_STATE" "$operation" >&2
+    return 1
+  fi
+  if [ "$before_state" = missing ] && [ "$PLUGIN_STATE" != enabled ]; then
     printf '%s plugin %s remains %s after %s\n' "$destination" "$plugin_id" "$PLUGIN_STATE" "$operation" >&2
     return 1
   fi
@@ -543,8 +561,8 @@ verify_states() {
       continue
     fi
     case "$expected:$PLUGIN_STATE:$PLUGIN_FRESHNESS_STATE" in
-      present:enabled:current|absent:missing:not-installed) ;;
-      present:enabled:outdated)
+      present:enabled:current|present:disabled:current|absent:missing:not-installed) ;;
+      present:enabled:outdated|present:disabled:outdated)
         printf 'plugin verification failed: %s/%s -> %s: %s\n' \
           "$source_id" "$skill" "$destination" "$PLUGIN_FRESHNESS_DETAIL" >&2
         failed=1
