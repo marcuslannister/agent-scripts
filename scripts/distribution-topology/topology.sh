@@ -362,10 +362,112 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
     --slurpfile drift "$inspect/drift.ndjson" --slurpfile decisions "$inspect/decisions.ndjson" \
     --slurpfile errors "$errors" --slurpfile warnings "$warnings" --slurpfile changes "$changes" \
     --slurpfile skipped "$inspect/skipped.ndjson" --slurpfile migrations "$inspect/migrations.ndjson" \
+    --slurpfile nativeEvents "$DISCOVERY_ROOT/native-reconciliation.ndjson" \
     --slurpfile hygiene "$hygiene" '
       ($drift | sort_by(.sourceId,.skill,.destination)) as $sortedDrift |
+      ($migrations | sort_by(.sourceId,.skill)) as $sortedMigrations |
+      (if $mode == "check" then
+        ($changes + [$sortedDrift[] |
+          if .kind == "outdated" then {action:"updated",sourceId,skill,destination}
+          elif .reason == "missing" then {action:"installed",sourceId,skill,destination}
+          elif .reason == "duplicate-copy" then {action:"copy-removed",sourceId,skill,destination}
+          else empty end])
+        else $changes end) as $reportedChanges |
+      (
+        [$reportedChanges[] as $change |
+          select($change.action == "installed" or $change.action == "updated") |
+          select(any($sortedMigrations[];
+            .sourceId == $change.sourceId and
+            .skill == $change.skill and
+            any(.native[]; .destination == $change.destination))) |
+          {
+            kind:"native-reconciliation",
+            phase:(if $mode == "check" then "plan" else "apply" end),
+            sourceId:$change.sourceId,
+            skill:$change.skill,
+            destination:$change.destination,
+            action:(if $change.action == "installed" then "install" else "update" end),
+            status:(if $mode == "check" then "planned" else "applied" end)
+          }
+        ] +
+        $nativeEvents +
+        [$sortedMigrations[] as $migration | $migration.native[] as $native |
+          {
+            kind:"runtime-verification",
+            sourceId:$migration.sourceId,
+            skill:$migration.skill,
+            destination:$native.destination,
+            status:(if $native.status == "verified" then "verified"
+              elif $native.status == "error" then "failed" else "blocked" end)
+          } + (if $native.status == "verified" then {} else {
+            reason:([$sortedDrift[] | select(
+              .sourceId == $migration.sourceId and
+              .skill == $migration.skill and
+              .destination == $native.destination
+            ) | .reason][0] // $native.status)
+          } end)
+        ] +
+        [$sortedMigrations[] as $migration | $migration.copies[] |
+          select(.action == "retain") |
+          {
+            kind:"copy-retained",
+            sourceId:$migration.sourceId,
+            skill:$migration.skill,
+            destination:.destination,
+            status:"retained",
+            reason:("gate-" + $migration.gate)
+          }
+        ] +
+        [$reportedChanges[] as $change |
+          select($change.action == "copy-removed") |
+          {
+            kind:"copy-removal",
+            sourceId:$change.sourceId,
+            skill:$change.skill,
+            destination:$change.destination,
+            status:(if $mode == "check" then "planned" else "removed" end)
+          }
+        ] +
+        [$sortedMigrations[] as $migration | $migration.copies[] |
+          select(.action == "remove") as $copy |
+          select(any($reportedChanges[];
+            .action == "copy-removed" and
+            .sourceId == $migration.sourceId and
+            .skill == $migration.skill and
+            .destination == $copy.destination) | not) |
+          {
+            kind:"copy-removal",
+            sourceId:$migration.sourceId,
+            skill:$migration.skill,
+            destination:$copy.destination,
+            status:(if $mode == "check" then "planned" else "blocked" end)
+          }
+        ] +
+        [$errors[] | {kind:"blocking-failure",status:"failed",message:.}]
+      ) as $events |
+      (($status == "failed") and
+        (any($sortedMigrations[]; .gate == "blocked") or
+         any($events[];
+           (.kind == "native-reconciliation" and .status == "failed") or
+           (.kind == "runtime-verification" and .status == "failed") or
+           (.kind == "copy-removal" and .status == "blocked")))) as $recoveryRequired |
+      (if $status == "failed" or $status == "invalid" or
+          $status == "interrupted" or $status == "decision-required" then "failed"
+       elif $mode == "check" and $status == "clean" then "clean"
+       elif $mode == "check" then "drift"
+       elif (($reportedChanges | length) + (($hygiene[0].changes // []) | length)) > 0 then "changed"
+       else "clean" end) as $state |
       {
         schemaVersion:1, mode:$mode, status:$status,
+        policy:{scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"},
+        recovery:{
+          required:$recoveryRequired,
+          actions:(if $recoveryRequired then
+            ["upstream-repair","native-rollback","manifest-decision"] else [] end)
+        },
+        state:$state,
+        idempotent:($state == "clean"),
+        events:$events,
         sources:$sources,
         plan:($plan | map(. as $item |
           .missingDestinations = [$sortedDrift[] | select(.sourceId == $item.sourceId and .skill == $item.skill and .reason == "missing") | .destination] |
@@ -373,15 +475,9 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
         drift:$sortedDrift,
         decisions:($decisions | sort_by((.code + "~"),((.sourceId // (.sourceIds | join(",")) // "") + "~"),((.skill // "") + "~"),((.destination // "") + "~"))),
         errors:$errors,warnings:$warnings,
-        changes:(if $mode == "check" then
-          ($changes + [$sortedDrift[] |
-            if .kind == "outdated" then {action:"updated",sourceId,skill,destination}
-            elif .reason == "missing" then {action:"installed",sourceId,skill,destination}
-            elif .reason == "duplicate-copy" then {action:"copy-removed",sourceId,skill,destination}
-            else empty end])
-          else $changes end),
+        changes:$reportedChanges,
         skipped:($skipped | sort_by(.sourceId,.skill,.destination)),
-        migrations:($migrations | sort_by(.sourceId,.skill)),
+        migrations:$sortedMigrations,
         hygiene:$hygiene[0]
       }
     ' > "$output"
@@ -393,6 +489,7 @@ topology_evaluate() {
   local sources_file="$DISCOVERY_ROOT/sources.ndjson" plan_file="$DISCOVERY_ROOT/plan.ndjson"
   local base_errors="$DISCOVERY_ROOT/base-errors.ndjson" warnings="$DISCOVERY_ROOT/warnings.ndjson" changes="$DISCOVERY_ROOT/changes.ndjson"
   : > "$sources_file"; : > "$plan_file"; : > "$base_errors"; : > "$warnings"; : > "$changes"
+  : > "$DISCOVERY_ROOT/native-reconciliation.ndjson"
 
   topology_validate_manifest "$MANIFEST_PATH" || return $?
   topology_validate_registry "$REGISTRY_PATH" || return $?
@@ -525,7 +622,7 @@ topology_evaluate() {
 
 topology_run_adapter_reconcile() { # source-id action-file errors changes protocol failure-label
   local source_id="$1" action_file="$2" errors="$3" changes="$4" protocol="$5" failure_label="$6"
-  local command line action skill destination extra
+  local command line action skill destination extra native_action
   command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
   topology_run_process "$command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" reconcile \
     "$action_file" "$HOME" reconcile || return $?
@@ -533,6 +630,28 @@ topology_run_adapter_reconcile() { # source-id action-file errors changes protoc
     [ -n "$line" ] || continue
     IFS=$'\t' read -r action skill destination extra <<< "$line"
     case "$protocol:$action" in
+      reconcile:native-failed)
+        case "${extra:-}" in
+          install) native_action=install ;;
+          refresh) native_action=update ;;
+          remove) native_action=remove ;;
+          *)
+            topology_append_json_string "$errors" "source $source_id returned invalid $protocol output"
+            continue
+            ;;
+        esac
+        if ! topology_is_name "${skill:-}" \
+          || { [ "$destination" != claude ] && [ "$destination" != codex ]; }; then
+          topology_append_json_string "$errors" "source $source_id returned invalid $protocol output"
+          continue
+        fi
+        jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
+          --arg action "$native_action" \
+          '{kind:"native-reconciliation",phase:"apply",sourceId:$sourceId,skill:$skill,
+            destination:$destination,action:$action,status:"failed"}' \
+          >> "$DISCOVERY_ROOT/native-reconciliation.ndjson"
+        continue
+        ;;
       cleanup:copy-removed|reconcile:installed|reconcile:removed|reconcile:updated|reconcile:copy-removed) ;;
       *)
         topology_append_json_string "$errors" "source $source_id returned invalid $protocol output"

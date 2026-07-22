@@ -647,6 +647,33 @@ emit_dual_plugin_migrations() { # native-status-file
     '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry")
 }
 
+emit_native_result() { # result skill destination [operation]
+  local result="$1" fallback_skill="$2" destination="$3" operation="${4:-}"
+  local skill emitted=0 expected_file="$discovery_root/$source_id.refresh-states.tsv"
+
+  if [ "$classification" = dual-plugin ] && [ -f "$expected_file" ]; then
+    while IFS= read -r skill; do
+      dual_plugin_skill_targets_both "$skill" "$expected_file" || continue
+      if [ -n "$operation" ]; then
+        printf '%s\t%s\t%s\t%s\n' "$result" "$skill" "$destination" "$operation"
+      else
+        printf '%s\t%s\t%s\n' "$result" "$skill" "$destination"
+      fi
+      emitted=1
+    done < <(jq -r --arg source_id "$source_id" \
+      '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry")
+  fi
+
+  if [ "$emitted" -eq 1 ]; then
+    return 0
+  fi
+  if [ -n "$operation" ]; then
+    printf '%s\t%s\t%s\t%s\n' "$result" "$fallback_skill" "$destination" "$operation"
+  else
+    printf '%s\t%s\t%s\n' "$result" "$fallback_skill" "$destination"
+  fi
+}
+
 apply_destination() {
   local operation="$1"
   local skill="$2"
@@ -735,9 +762,9 @@ apply_destination() {
   fi
 
   if [ "$operation" = install ]; then
-    printf 'installed\t%s\t%s\n' "$skill" "$destination"
+    emit_native_result installed "$skill" "$destination"
   elif [ "$before_version" != "$PLUGIN_VERSION" ]; then
-    printf 'updated\t%s\t%s\n' "$skill" "$destination"
+    emit_native_result updated "$skill" "$destination"
   fi
 }
 
@@ -752,10 +779,20 @@ reconcile_states() {
       install|refresh)
         if ! rg -Fxq -- "$destination" "$applied_destinations"; then
           printf '%s\n' "$destination" >> "$applied_destinations"
-          apply_destination "$operation" "$skill" "$destination" || failed=1
+          if ! apply_destination "$operation" "$skill" "$destination"; then
+            [ "$classification" != dual-plugin ] ||
+              emit_native_result native-failed "$skill" "$destination" "$operation"
+            failed=1
+          fi
         fi
         ;;
-      *) apply_destination "$operation" "$skill" "$destination" || failed=1 ;;
+      *)
+        if ! apply_destination "$operation" "$skill" "$destination"; then
+          [ "$classification" != dual-plugin ] ||
+            emit_native_result native-failed "$skill" "$destination" "$operation"
+          failed=1
+        fi
+        ;;
     esac
   done < "$plan_path"
   [ "$failed" -eq 0 ] || return "$failed"

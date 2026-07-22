@@ -26,6 +26,10 @@ topology_failure_document() { # message code mode
     (if $code == 2 then "invalid" elif $code == 130 then "interrupted" else "failed" end) as $status |
     {
       schemaVersion: 1, mode: $mode, status: $status,
+      policy: {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"},
+      recovery: {required:false,actions:[]},
+      state: "failed", idempotent: false,
+      events: [{kind:"blocking-failure",status:"failed",message:$message}],
       sources: [], plan: [], drift: [], decisions: [], errors: [$message],
       warnings: [], changes: [], skipped: [], migrations: [],
       hygiene: {status: "failed", legacyRoot: "", entries: [], changes: [], errors: [$message]}
@@ -53,8 +57,8 @@ topology_init_color() {
 
 topology_result_color() { # result
   case "$1" in
-    clean|reconciled|changed) printf '%s' "$TOPOLOGY_GREEN" ;;
-    drift|decision-required|skipped) printf '%s' "$TOPOLOGY_YELLOW" ;;
+    clean|reconciled|changed|verified|applied|removed) printf '%s' "$TOPOLOGY_GREEN" ;;
+    drift|decision-required|skipped|planned|blocked|retained) printf '%s' "$TOPOLOGY_YELLOW" ;;
     failed|invalid|interrupted) printf '%s' "$TOPOLOGY_RED" ;;
   esac
 }
@@ -79,6 +83,12 @@ topology_write_human() { # document
       ([$document.sources[] | select(.id == $id) | .result][0] // $document.status);
     ([
       $document.changes[] as $change |
+      select(any($document.events[];
+        (.kind == "native-reconciliation" or .kind == "copy-removal") and
+        .sourceId == $change.sourceId and
+        .skill == $change.skill and
+        .destination == $change.destination
+      ) | not) |
       ([$document.drift[] | select(
         .sourceId == $change.sourceId and .skill == $change.skill and .destination == $change.destination
       ) | .reason][0] // "") as $reason |
@@ -103,15 +113,24 @@ topology_write_human() { # document
       $document.skipped[] |
       {source:(.sourceId + "/" + .skill), destination, change:("skipped:" + .reason), result:"skipped"}
     ] + [
-      $document.migrations[] |
-      {source:(.sourceId + "/" + .skill), destination:"claude,codex",
-       change:("gate:" + .gate), result:source_result(.sourceId)}
-    ] + [
-      $document.migrations[] as $migration | $migration.copies[] |
-      select(.action != "none") |
-      {source:($migration.sourceId + "/" + $migration.skill), destination,
-       change:(if .action == "retain" then "copy-retained-until-gate" else "planned-copy-removal" end),
-       result:source_result($migration.sourceId)}
+      $document.events[] |
+      {
+        source:((.sourceId // "topology") +
+          (if .skill? then "/" + .skill else "" end)),
+        destination:(.destination // "-"),
+        change:(
+          if .kind == "native-reconciliation" then
+            "native-" + .phase + ":" + .action
+          elif .kind == "runtime-verification" then
+            "runtime-verification" + (if .reason? then ":" + .reason else "" end)
+          elif .kind == "copy-retained" then
+            "copy-retained:" + .reason
+          elif .kind == "copy-removal" then
+            "copy-removal"
+          else "blocking-failure" end
+        ),
+        result:.status
+      }
     ] + [
       $document.hygiene.changes[] |
       {source:("codex-root/" + .name), destination:$document.hygiene.legacyRoot,
@@ -132,7 +151,8 @@ topology_write_human() { # document
     ]) as $all_rows |
     (if ($all_rows | length) == 0
       or (($document.status == "failed" or $document.status == "invalid" or $document.status == "interrupted")
-        and (any($all_rows[]; .result == $document.status) | not)) then
+        and (any($all_rows[];
+          .change == $document.status and .result == $document.status) | not)) then
       $all_rows + [{source:"topology",destination:"-",change:$document.status,result:$document.status}]
     else $all_rows end) |
     sort_by(.source,.destination,.change)[] |
@@ -161,6 +181,10 @@ topology_write_human() { # document
   fi
   jq -r '.warnings[] | "warning: \(.message)"' "$document" >&2
   jq -r '.errors[] | "error: \(.)"' "$document" >&2
+  if jq -e '.recovery.required == true' "$document" >/dev/null; then
+    printf 'Recovery: upstream repair, native rollback, or explicit manifest decision.
+' >&2
+  fi
 }
 
 topology_write_human_failure() { # message code mode

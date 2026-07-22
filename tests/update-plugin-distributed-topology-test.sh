@@ -486,8 +486,30 @@ jq -e '
     ]
   }])
 ' "$MIGRATION_FIXTURE/check.json" >/dev/null
+jq -e '
+  .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
+  .recovery == {required:false,actions:[]} and
+  .state == "drift" and .idempotent == false and
+  any(.events[]; .kind == "native-reconciliation" and .phase == "plan" and
+    .destination == "claude" and .action == "install" and .status == "planned") and
+  any(.events[]; .kind == "runtime-verification" and .destination == "codex" and
+    .status == "blocked" and .reason == "missing") and
+  ([.events[] | select(.kind == "copy-retained") | .destination] == ["claude","codex"])
+' "$MIGRATION_FIXTURE/check.json" >/dev/null
 diff -r "$MIGRATION_FIXTURE/home-before-check" "$MIGRATION_FIXTURE/home" >/dev/null
 cmp -s "$MIGRATION_FIXTURE/waza-before-check" "$MIGRATION_FIXTURE/skills/waza/SKILL.md"
+
+set +e
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" PATH="$MIGRATION_FIXTURE/bin:$PATH"   "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --check   > "$MIGRATION_FIXTURE/check.out" 2> "$MIGRATION_FIXTURE/check.err"
+migration_human_check_exit=$?
+set -e
+test "$migration_human_check_exit" -eq 1
+test ! -s "$MIGRATION_FIXTURE/check.err"
+rg -q '^waza/waza +claude +native-plan:install +planned$' "$MIGRATION_FIXTURE/check.out"
+rg -q '^waza/waza +codex +runtime-verification:missing +blocked$' "$MIGRATION_FIXTURE/check.out"
+rg -q '^waza/waza +claude +copy-retained:gate-pending +retained$' "$MIGRATION_FIXTURE/check.out"
+! rg -q '^waza/waza +(claude|codex|claude,codex) +(installed:|gate:|copy-retained-until-gate|planned-copy-removal)' \
+  "$MIGRATION_FIXTURE/check.out"
 
 set +e
 FAKE_CODEX_INSTALL_FAIL=1 \
@@ -499,15 +521,39 @@ migration_partial_exit=$?
 set -e
 test "$migration_partial_exit" -eq 1
 jq -e '
-  .status == "failed" and
+  .status == "failed" and .state == "failed" and .idempotent == false and
+  .recovery == {
+    required:true,
+    actions:["upstream-repair","native-rollback","manifest-decision"]
+  } and
   (.migrations[0].gate == "blocked") and
   ([.migrations[0].native[] | .status] == ["verified","missing"]) and
+  any(.events[]; .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "claude" and .action == "install" and .status == "applied") and
+  any(.events[]; .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "codex" and .action == "install" and .status == "failed") and
+  any(.events[]; .kind == "runtime-verification" and .destination == "codex" and
+    .status == "blocked" and .reason == "missing") and
+  ([.events[] | select(.kind == "copy-retained") | .destination] == ["claude","codex"]) and
+  any(.events[]; .kind == "blocking-failure" and
+    (.message | contains("Codex plugin install failed"))) and
   all(.migrations[0].copies[]; .state == "present" and .action == "retain") and
   any(.errors[]; contains("Codex plugin install failed")) and
   ([.changes[] | select(.action == "copy-removed")] == [])
 ' "$MIGRATION_FIXTURE/partial.json" >/dev/null
 test -f "$MIGRATION_FIXTURE/skills/waza/SKILL.md"
 test -f "$MIGRATION_FIXTURE/home/.agents/skills/waza/SKILL.md"
+
+set +e
+FAKE_CODEX_INSTALL_FAIL=1 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" PATH="$MIGRATION_FIXTURE/bin:$PATH"   "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh"   > "$MIGRATION_FIXTURE/partial.out" 2> "$MIGRATION_FIXTURE/partial.err"
+migration_partial_human_exit=$?
+set -e
+test "$migration_partial_human_exit" -eq 1
+rg -q '^waza/waza +codex +native-apply:install +failed$' "$MIGRATION_FIXTURE/partial.out"
+rg -q '^waza/waza +codex +runtime-verification:missing +blocked$' "$MIGRATION_FIXTURE/partial.out"
+rg -q '^waza/waza +codex +copy-retained:gate-blocked +retained$' "$MIGRATION_FIXTURE/partial.out"
+rg -Fq 'Recovery: upstream repair, native rollback, or explicit manifest decision.' \
+  "$MIGRATION_FIXTURE/partial.err"
 
 HOME="$MIGRATION_FIXTURE/home" PATH="$MIGRATION_FIXTURE/bin:$PATH" \
   codex plugin add waza@waza
@@ -521,13 +567,27 @@ migration_ready_check_exit=$?
 set -e
 test "$migration_ready_check_exit" -eq 1
 jq -e '
-  .status == "drift" and .errors == [] and
+  .status == "drift" and .state == "drift" and .idempotent == false and
+  .errors == [] and .recovery == {required:false,actions:[]} and
   (.migrations[0].gate == "verified") and
   all(.migrations[0].native[]; .status == "verified") and
+  ([.events[] | select(.kind == "runtime-verification" and .status == "verified") |
+    .destination] == ["claude","codex"]) and
+  ([.events[] | select(.kind == "copy-removal" and .status == "planned") |
+    .destination] == ["claude","codex"]) and
   all(.migrations[0].copies[]; .state == "present" and .action == "remove") and
   ([.changes[] | select(.action == "copy-removed") | .destination] == ["claude","codex"])
 ' "$MIGRATION_FIXTURE/ready-check.json" >/dev/null
 diff -r "$MIGRATION_FIXTURE/home-before-ready-check" "$MIGRATION_FIXTURE/home" >/dev/null
+
+HUMAN_REMOVAL_FIXTURE="$TMP_ROOT/dual-plugin-human-removal"
+cp -R "$MIGRATION_FIXTURE" "$HUMAN_REMOVAL_FIXTURE"
+HOME="$HUMAN_REMOVAL_FIXTURE/home" TMPDIR="$HUMAN_REMOVAL_FIXTURE/runtime" PATH="$HUMAN_REMOVAL_FIXTURE/bin:$PATH"   "$HUMAN_REMOVAL_FIXTURE/scripts/update-skill-topology.sh"   > "$HUMAN_REMOVAL_FIXTURE/result.out" 2> "$HUMAN_REMOVAL_FIXTURE/result.err"
+test ! -s "$HUMAN_REMOVAL_FIXTURE/result.err"
+rg -q '^waza/waza +claude +copy-removal +removed$' "$HUMAN_REMOVAL_FIXTURE/result.out"
+rg -q '^waza/waza +codex +copy-removal +removed$' "$HUMAN_REMOVAL_FIXTURE/result.out"
+! rg -q '^waza/waza +(claude|codex|claude,codex) +(copy-removed|gate:|planned-copy-removal)' \
+  "$HUMAN_REMOVAL_FIXTURE/result.out"
 
 CLEANUP_FAILURE_FIXTURE="$TMP_ROOT/dual-plugin-cleanup-failure"
 cp -R "$MIGRATION_FIXTURE" "$CLEANUP_FAILURE_FIXTURE"
@@ -548,9 +608,17 @@ cleanup_failure_exit=$?
 set -e
 test "$cleanup_failure_exit" -eq 1
 jq -e '
-  .status == "failed" and
+  .status == "failed" and .state == "failed" and .idempotent == false and
+  .recovery == {
+    required:true,
+    actions:["upstream-repair","native-rollback","manifest-decision"]
+  } and
   (.migrations[0].gate == "verified") and
   all(.migrations[0].copies[]; .state == "present" and .action == "remove") and
+  ([.events[] | select(.kind == "copy-removal" and .status == "blocked") |
+    .destination] == ["claude","codex"]) and
+  any(.events[]; .kind == "blocking-failure" and
+    (.message | contains("duplicate copy cleanup failed"))) and
   any(.errors[]; contains("duplicate copy cleanup failed: waza/waza -> claude")) and
   any(.errors[]; contains("duplicate copy cleanup failed: waza/waza -> codex")) and
   ([.changes[] | select(.action == "copy-removed")] == [])
@@ -566,9 +634,12 @@ PATH="$MIGRATION_FIXTURE/bin:$PATH" \
   "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
   > "$MIGRATION_FIXTURE/full.json"
 jq -e '
-  .status == "reconciled" and .errors == [] and
+  .status == "reconciled" and .state == "changed" and .idempotent == false and
+  .errors == [] and .recovery == {required:false,actions:[]} and
   (.migrations[0].gate == "verified") and
   all(.migrations[0].native[]; .status == "verified") and
+  ([.events[] | select(.kind == "copy-removal" and .status == "removed") |
+    .destination] == ["claude","codex"]) and
   all(.migrations[0].copies[]; .state == "absent" and .action == "none") and
   ([.changes[] | select(.action == "copy-removed") | .destination] == ["claude","codex"])
 ' "$MIGRATION_FIXTURE/full.json" >/dev/null
@@ -583,8 +654,10 @@ PATH="$MIGRATION_FIXTURE/bin:$PATH" \
   "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
   > "$MIGRATION_FIXTURE/repeat.json"
 jq -e '
-  .status == "reconciled" and .errors == [] and
+  .status == "reconciled" and .state == "clean" and .idempotent == true and
+  .errors == [] and .recovery == {required:false,actions:[]} and
   ([.changes[] | select(.action == "copy-removed")] == []) and
+  ([.events[] | select(.kind == "copy-removal")] == []) and
   (.migrations[0].gate == "verified") and
   all(.migrations[0].copies[]; .state == "absent" and .action == "none")
 ' "$MIGRATION_FIXTURE/repeat.json" >/dev/null
@@ -624,10 +697,88 @@ test "$(rg -Fxc 'plugin install waza@waza' \
   "$MULTI_SKILL_FIXTURE/home/claude-mutations.log" || true)" -eq 1
 test "$(rg -Fxc 'plugin add waza@waza' \
   "$MULTI_SKILL_FIXTURE/home/codex-mutations.log" || true)" -eq 1
+jq -e '
+  ([.events[] | select(
+    .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "claude" and .action == "install" and .status == "applied"
+  ) | .skill] == ["think","write"]) and
+  ([.events[] | select(
+    .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "codex" and .action == "install" and .status == "applied"
+  ) | .skill] == ["think","write"])
+' "$MULTI_SKILL_FIXTURE/installed.json" >/dev/null
+
+MULTI_SKILL_NATIVE_FAILURE_FIXTURE="$TMP_ROOT/multi-skill-native-failure"
+cp -R "$MULTI_SKILL_FIXTURE" "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE"
+jq 'map(.version = "0.9.0")' \
+  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home/claude-plugins.json" \
+  > "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/claude-plugins.tmp"
+mv "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/claude-plugins.tmp" \
+  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home/claude-plugins.json"
+jq '.installed |= map(.version = "0.9.0")' \
+  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home/codex-plugins.json" \
+  > "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/codex-plugins.tmp"
+mv "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/codex-plugins.tmp" \
+  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home/codex-plugins.json"
+set +e
+FAKE_CLAUDE_MARKETPLACE_FAIL=1 FAKE_PLUGIN_UPDATE_VERSION=1.0.0 \
+PLUGIN_RETRY_DELAY_SECONDS=0 \
+HOME="$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home" \
+TMPDIR="$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/runtime" \
+PATH="$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/bin:$PATH" \
+  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/scripts/update-skill-topology.sh" --json \
+  > "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/result.json"
+multi_skill_native_failure_exit=$?
+set -e
+test "$multi_skill_native_failure_exit" -eq 1
+jq -e '
+  .status == "failed" and .recovery.required == true and
+  ([.events[] | select(
+    .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "claude" and .action == "update" and .status == "failed"
+  ) | .skill] == ["think","write"]) and
+  ([.events[] | select(
+    .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "codex" and .action == "update" and .status == "applied"
+  ) | .skill] == ["think","write"])
+' "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/result.json" >/dev/null
+test ! -e "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/skills/think"
+test ! -e "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/skills/write"
+test ! -e "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home/.agents/skills/think"
+test ! -e "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home/.agents/skills/write"
+
 test ! -e "$MULTI_SKILL_FIXTURE/skills/think"
 test ! -e "$MULTI_SKILL_FIXTURE/skills/write"
 test ! -e "$MULTI_SKILL_FIXTURE/home/.agents/skills/think"
 test ! -e "$MULTI_SKILL_FIXTURE/home/.agents/skills/write"
+
+POST_MIGRATION_REGRESSION_FIXTURE="$TMP_ROOT/post-migration-regression"
+cp -R "$MULTI_SKILL_FIXTURE" "$POST_MIGRATION_REGRESSION_FIXTURE"
+jq 'map(.version = "0.9.0")' "$POST_MIGRATION_REGRESSION_FIXTURE/home/claude-plugins.json"   > "$POST_MIGRATION_REGRESSION_FIXTURE/claude-plugins.tmp"
+mv "$POST_MIGRATION_REGRESSION_FIXTURE/claude-plugins.tmp"   "$POST_MIGRATION_REGRESSION_FIXTURE/home/claude-plugins.json"
+jq '.installed |= map(.version = "0.9.0")'   "$POST_MIGRATION_REGRESSION_FIXTURE/home/codex-plugins.json"   > "$POST_MIGRATION_REGRESSION_FIXTURE/codex-plugins.tmp"
+mv "$POST_MIGRATION_REGRESSION_FIXTURE/codex-plugins.tmp"   "$POST_MIGRATION_REGRESSION_FIXTURE/home/codex-plugins.json"
+set +e
+FAKE_PLUGIN_UPDATE_VERSION=1.0.0 FAKE_DROP_SKILL_ON_UPDATE=write HOME="$POST_MIGRATION_REGRESSION_FIXTURE/home" TMPDIR="$POST_MIGRATION_REGRESSION_FIXTURE/runtime" PATH="$POST_MIGRATION_REGRESSION_FIXTURE/bin:$PATH"   "$POST_MIGRATION_REGRESSION_FIXTURE/scripts/update-skill-topology.sh" --json   > "$POST_MIGRATION_REGRESSION_FIXTURE/result.json"
+post_migration_regression_exit=$?
+set -e
+test "$post_migration_regression_exit" -eq 1
+test ! -e "$POST_MIGRATION_REGRESSION_FIXTURE/skills/write"
+test ! -e "$POST_MIGRATION_REGRESSION_FIXTURE/home/.agents/skills/write"
+jq -e '
+  .status == "failed" and .state == "failed" and .idempotent == false and
+  .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
+  .recovery == {
+    required:true,
+    actions:["upstream-repair","native-rollback","manifest-decision"]
+  } and
+  any(.migrations[]; .skill == "write" and .gate == "blocked" and
+    all(.copies[]; .state == "absent" and .action == "none")) and
+  ([.events[] | select(.kind == "runtime-verification" and .skill == "write" and
+    .status == "failed" and .reason == "error") | .destination] == ["claude","codex"]) and
+  ([.events[] | select(.kind == "copy-retained" or .kind == "copy-removal")] == []) and
+  any(.events[]; .kind == "blocking-failure")
+' "$POST_MIGRATION_REGRESSION_FIXTURE/result.json" >/dev/null
 
 seed_multi_skill_duplicates "$MULTI_SKILL_FIXTURE"
 jq 'map(.version = "0.9.0")' "$MULTI_SKILL_FIXTURE/home/claude-plugins.json" \
@@ -834,8 +985,13 @@ update_human_exit=$?
 set -e
 test "$update_human_exit" -eq 1
 grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$UPDATE_FIXTURE/check.out"
-grep -Eq '^waza/waza +claude +updated:outdated: installed 1\.0\.0, available 2\.0\.0 +drift$' "$UPDATE_FIXTURE/check.out"
-grep -Eq '^waza/waza +codex +updated:outdated: installed 1\.0\.0, available 2\.0\.0 +drift$' "$UPDATE_FIXTURE/check.out"
+rg -q '^waza/waza +claude +native-plan:update +planned$' "$UPDATE_FIXTURE/check.out"
+rg -q '^waza/waza +codex +native-plan:update +planned$' "$UPDATE_FIXTURE/check.out"
+rg -q '^waza/waza +claude +runtime-verification:outdated: installed 1\.0\.0, available 2\.0\.0 +blocked$' \
+  "$UPDATE_FIXTURE/check.out"
+rg -q '^waza/waza +codex +runtime-verification:outdated: installed 1\.0\.0, available 2\.0\.0 +blocked$' \
+  "$UPDATE_FIXTURE/check.out"
+! rg -q '^waza/waza +(claude|codex) +updated:outdated:' "$UPDATE_FIXTURE/check.out"
 diff -r "$UPDATE_FIXTURE/home-before-check" "$UPDATE_FIXTURE/home" >/dev/null
 
 DISABLED_UPDATE_FIXTURE="$TMP_ROOT/disabled-update"
@@ -912,6 +1068,71 @@ jq -e '
   .status == "failed" and
   any(.errors[]; contains("source waza discovery failed") and contains("fixture remote discovery failure"))
 ' "$REMOTE_DISCOVERY_FIXTURE/result.json" >/dev/null
+
+OUTAGE_FIXTURE="$TMP_ROOT/marketplace-outage"
+cp -R "$FIXTURE" "$OUTAGE_FIXTURE"
+set +e
+FAKE_CLAUDE_MARKETPLACE_FAIL=1 PLUGIN_RETRY_DELAY_SECONDS=0 \
+HOME="$OUTAGE_FIXTURE/home" TMPDIR="$OUTAGE_FIXTURE/runtime" PATH="$OUTAGE_FIXTURE/bin:$PATH" \
+  "$OUTAGE_FIXTURE/scripts/update-skill-topology.sh" --json > "$OUTAGE_FIXTURE/result.json"
+outage_exit=$?
+set -e
+test "$outage_exit" -eq 1
+jq -e '
+  .status == "failed" and .state == "failed" and .idempotent == false and
+  .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
+  .recovery == {
+    required:true,
+    actions:["upstream-repair","native-rollback","manifest-decision"]
+  } and
+  all(.migrations[];
+    .gate == "verified" and
+    all(.native[]; .status == "verified") and
+    all(.copies[]; .state == "absent" and .action == "none")) and
+  any(.events[]; .kind == "native-reconciliation" and .phase == "apply" and
+    .destination == "claude" and .action == "update" and .status == "failed") and
+  ([.events[] | select(.kind == "copy-retained" or .kind == "copy-removal")] == [])
+' "$OUTAGE_FIXTURE/result.json" >/dev/null
+test ! -e "$OUTAGE_FIXTURE/skills/waza"
+test ! -e "$OUTAGE_FIXTURE/home/.agents/skills/waza"
+
+jq '.plugins[0].version = "2.0.0"' \
+  "$OUTAGE_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json" \
+  > "$OUTAGE_FIXTURE/claude-marketplace.tmp"
+mv "$OUTAGE_FIXTURE/claude-marketplace.tmp" \
+  "$OUTAGE_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json"
+jq '.version = "2.0.0"' \
+  "$OUTAGE_FIXTURE/remote-marketplace/plugins/waza/.codex-plugin/plugin.json" \
+  > "$OUTAGE_FIXTURE/codex-plugin.tmp"
+mv "$OUTAGE_FIXTURE/codex-plugin.tmp" \
+  "$OUTAGE_FIXTURE/remote-marketplace/plugins/waza/.codex-plugin/plugin.json"
+mkdir -p "$OUTAGE_FIXTURE/skills/waza" "$OUTAGE_FIXTURE/home/.agents/skills/waza"
+printf '# retained Claude copy\n' > "$OUTAGE_FIXTURE/skills/waza/SKILL.md"
+printf '# retained Codex copy\n' > "$OUTAGE_FIXTURE/home/.agents/skills/waza/SKILL.md"
+cp "$OUTAGE_FIXTURE/skills/waza/SKILL.md" "$OUTAGE_FIXTURE/claude-copy.before"
+cp "$OUTAGE_FIXTURE/home/.agents/skills/waza/SKILL.md" "$OUTAGE_FIXTURE/codex-copy.before"
+set +e
+FAKE_CLAUDE_MARKETPLACE_FAIL=1 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 PLUGIN_RETRY_DELAY_SECONDS=0 \
+HOME="$OUTAGE_FIXTURE/home" TMPDIR="$OUTAGE_FIXTURE/runtime" PATH="$OUTAGE_FIXTURE/bin:$PATH" \
+  "$OUTAGE_FIXTURE/scripts/update-skill-topology.sh" --json > "$OUTAGE_FIXTURE/copies.json"
+outage_copies_exit=$?
+set -e
+test "$outage_copies_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
+  .recovery.required == true and
+  all(.migrations[];
+    .gate == "blocked" and
+    ([.native[] | .status] == ["outdated","verified"]) and
+    all(.copies[]; .state == "present" and .action == "retain")) and
+  any(.events[]; .kind == "native-reconciliation" and .destination == "claude" and
+    .action == "update" and .status == "failed") and
+  ([.events[] | select(.kind == "copy-retained") | .destination] == ["claude","codex"]) and
+  ([.events[] | select(.kind == "copy-removal")] == [])
+' "$OUTAGE_FIXTURE/copies.json" >/dev/null
+cmp -s "$OUTAGE_FIXTURE/claude-copy.before" "$OUTAGE_FIXTURE/skills/waza/SKILL.md"
+cmp -s "$OUTAGE_FIXTURE/codex-copy.before" "$OUTAGE_FIXTURE/home/.agents/skills/waza/SKILL.md"
 
 FAILURE_FIXTURE="$TMP_ROOT/failure"
 cp -R "$FIXTURE" "$FAILURE_FIXTURE"
@@ -1195,6 +1416,11 @@ set -e
 test "$multi_skill_exit" -eq 1
 jq -e '
   .status == "failed" and
+  .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
+  .recovery == {
+    required:true,
+    actions:["upstream-repair","native-rollback","manifest-decision"]
+  } and
   any(.errors[]; contains("cannot verify waza/ghost-skill on claude")
     and contains("expected skill not discoverable in installed plugin")) and
   any(.errors[]; contains("cannot verify waza/ghost-skill on codex")
@@ -1216,6 +1442,11 @@ set -e
 test "$multi_skill_reconcile_exit" -eq 1
 jq -e '
   .status == "failed" and
+  .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
+  .recovery == {
+    required:true,
+    actions:["upstream-repair","native-rollback","manifest-decision"]
+  } and
   ([.changes[] | select(.action == "copy-removed" and .skill == "waza") | .destination]
     == ["claude","codex"]) and
   ([.changes[] | select(.action == "copy-removed" and .skill == "ghost-skill")] == []) and

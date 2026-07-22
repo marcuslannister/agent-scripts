@@ -31,6 +31,14 @@ _Avoid_: Codex surface, Codex-only surface
 A skill maintained by its authoritative upstream and exposed through both Claude Code's and Codex's native plugin systems. Classification and duplicate cleanup are scoped to the expected skill identity, not the repository; native install and reconcile happen per plugin bundle. Existing copies remain until one gate verifies both native paths, then every duplicate of only that skill is removed regardless of copy provenance.
 _Avoid_: plugin-both, plugin-both repo, source-wide dual classification
 
+**Native verification gate**:
+The per-skill condition requiring both native plugins to be installed, enabled, current, and to expose the expected runtime skill. Duplicate copies stay present while the gate is pending or blocked; both are removed only after verification.
+_Avoid_: plugin installed, bundle verified
+
+**Plugin-managed recovery**:
+Failure handling that preserves native plugins as the desired distribution mechanism. Allowed actions are upstream repair, native rollback, or a new explicit manifest decision; reconciliation never creates or recreates a fallback copy.
+_Avoid_: automatic fallback, temporary copy
+
 **Plugin-Claude-only repo**:
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is served by whatever the repo offers (installer or copy).
 
