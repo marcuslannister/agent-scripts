@@ -80,9 +80,15 @@ mkdir -p "$FIXTURE/scripts" "$FIXTURE/home/.codex" "$FIXTURE/runtime" "$BIN" \
   "$FIXTURE/home/claude-marketplace/.claude-plugin" \
   "$FIXTURE/home/codex-marketplace/.agents/plugins" \
   "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin" \
+  "$FIXTURE/home/plugin-roots/claude/waza/skills/think" \
+  "$FIXTURE/home/plugin-roots/codex/waza/skills/think" \
   "$FIXTURE/remote-marketplace/.claude-plugin" \
   "$FIXTURE/remote-marketplace/.agents/plugins" \
-  "$FIXTURE/remote-marketplace/plugins/waza/.codex-plugin"
+  "$FIXTURE/remote-marketplace/plugins/waza/.codex-plugin" \
+  "$FIXTURE/remote-marketplace/skills/think"
+printf '# Waza think\n' > "$FIXTURE/home/plugin-roots/claude/waza/skills/think/SKILL.md"
+printf '# Waza think\n' > "$FIXTURE/home/plugin-roots/codex/waza/skills/think/SKILL.md"
+printf '# Waza think\n' > "$FIXTURE/remote-marketplace/skills/think/SKILL.md"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
 
@@ -147,7 +153,9 @@ cat > "$BIN/claude" <<'BASH'
 set -euo pipefail
 case "$*" in
   'plugin list --json')
-    cat "$HOME/claude-plugins.json"
+    jq --arg path "$HOME/plugin-roots/claude/waza" '
+      map(if .id == "waza@waza" then .installPath = $path else . end)
+    ' "$HOME/claude-plugins.json"
     ;;
   'plugin marketplace list --json')
     if [ "${FAKE_CLAUDE_FRESHNESS_FAIL:-0}" = 1 ]; then
@@ -169,7 +177,12 @@ case "$*" in
     fi
     ;;
   'plugin install waza@waza')
-    printf '[{"id":"waza@waza","version":"1.0.0","enabled":true}]\n' > "$HOME/claude-plugins.json"
+    mkdir -p "$HOME/plugin-roots/claude/waza/skills/think"
+    [ -f "$HOME/plugin-roots/claude/waza/skills/think/SKILL.md" ] || \
+      printf '# Waza think\n' > "$HOME/plugin-roots/claude/waza/skills/think/SKILL.md"
+    jq -n --arg path "$HOME/plugin-roots/claude/waza" \
+      '[{id:"waza@waza",version:"1.0.0",enabled:true,installPath:$path}]' \
+      > "$HOME/claude-plugins.json"
     printf '%s\n' "$*" >> "$HOME/claude-mutations.log"
     ;;
   'plugin enable waza@waza')
@@ -215,9 +228,14 @@ case "$*" in
       in_plugin && /^\[/ { exit }
       in_plugin && /^enabled[[:space:]]*=/ { print $3; exit }
     ' "$HOME/.codex/config.toml")"
-    jq --argjson enabled "${enabled:-true}" \
-      '.installed |= map(if .pluginId == "waza@waza" then .enabled = $enabled else . end)' \
-      "$HOME/codex-plugins.json"
+    jq --argjson enabled "${enabled:-true}" --arg path "$HOME/plugin-roots/codex/waza" '
+      .installed |= map(
+        if .pluginId == "waza@waza" then
+          .enabled = $enabled
+          | .source = ((.source // {}) + {source:"local", path:$path})
+        else . end
+      )
+    ' "$HOME/codex-plugins.json"
     ;;
   'plugin marketplace list --json')
     if [ "${FAKE_CODEX_FRESHNESS_FAIL:-0}" = 1 ]; then
@@ -244,15 +262,20 @@ case "$*" in
       printf 'fixture Codex install failure\n' >&2
       exit 1
     fi
+    mkdir -p "$HOME/plugin-roots/codex/waza/skills/think"
+    [ -f "$HOME/plugin-roots/codex/waza/skills/think/SKILL.md" ] || \
+      printf '# Waza think\n' > "$HOME/plugin-roots/codex/waza/skills/think/SKILL.md"
     perl -pi -e 's/^enabled = false$/enabled = true/' "$HOME/.codex/config.toml"
     if jq -e '.installed[]? | select(.pluginId == "waza@waza")' "$HOME/codex-plugins.json" >/dev/null; then
-      jq --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
-        .installed |= map(if .pluginId == "waza@waza" then .version = $version | .enabled = true else . end)
+      jq --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" --arg path "$HOME/plugin-roots/codex/waza" '
+        .installed |= map(if .pluginId == "waza@waza" then
+          .version = $version | .enabled = true | .source = {source:"local",path:$path}
+        else . end)
       ' "$HOME/codex-plugins.json" > "$HOME/codex-plugins.tmp"
       mv "$HOME/codex-plugins.tmp" "$HOME/codex-plugins.json"
     else
-      jq -n --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" '
-        {installed:[{pluginId:"waza@waza",marketplaceName:"waza",version:$version,installed:true,enabled:true}]}
+      jq -n --arg version "${FAKE_PLUGIN_UPDATE_VERSION:-1.0.0}" --arg path "$HOME/plugin-roots/codex/waza" '
+        {installed:[{pluginId:"waza@waza",marketplaceName:"waza",version:$version,installed:true,enabled:true,source:{source:"local",path:$path}}]}
       ' > "$HOME/codex-plugins.json"
     fi
     ;;
@@ -297,7 +320,10 @@ jq '[.[] | select(.sourceId == "openai-codex")]' \
 cat > "$OPENAI_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json" <<'JSON'
 {"name":"openai-codex","plugins":[{"name":"codex","version":"1.0.6","source":"./plugins/codex"}]}
 JSON
-printf '[{"id":"codex@openai-codex","version":"1.0.6","enabled":true}]\n' \
+mkdir -p "$OPENAI_FIXTURE/home/plugin-roots/claude/codex/skills/codex-cli-runtime"
+printf '# Codex runtime\n' > "$OPENAI_FIXTURE/home/plugin-roots/claude/codex/skills/codex-cli-runtime/SKILL.md"
+jq -n --arg path "$OPENAI_FIXTURE/home/plugin-roots/claude/codex" \
+  '[{id:"codex@openai-codex",version:"1.0.6",enabled:true,installPath:$path}]' \
   > "$OPENAI_FIXTURE/home/claude-plugins.json"
 perl -pi -e 's!tw93/Waza!openai/codex-plugin-cc!g' "$OPENAI_FIXTURE/bin/git"
 HOME="$OPENAI_FIXTURE/home" TMPDIR="$OPENAI_FIXTURE/runtime" \
@@ -459,24 +485,24 @@ grep -Fx 'plugin remove waza@waza' "$REMOVE_FIXTURE/home/codex-mutations.log" >/
 
 UNKNOWN_FIXTURE="$TMP_ROOT/unknown"
 cp -R "$FIXTURE" "$UNKNOWN_FIXTURE"
-cat > "$UNKNOWN_FIXTURE/home/claude-plugins.json" <<'JSON'
+jq -n --arg path "$UNKNOWN_FIXTURE/home/plugin-roots/claude/waza" '
 [
-  {"id":"waza@waza","version":"1.0.0","enabled":true},
-  {"id":"frontend-design@claude-plugins-official","version":"1.0.0","enabled":true},
-  {"id":"rogue@custom-market","version":"1.0.0","enabled":true}
+  {id:"waza@waza",version:"1.0.0",enabled:true,installPath:$path},
+  {id:"frontend-design@claude-plugins-official",version:"1.0.0",enabled:true},
+  {id:"rogue@custom-market",version:"1.0.0",enabled:true}
 ]
-JSON
-cat > "$UNKNOWN_FIXTURE/home/codex-plugins.json" <<'JSON'
+' > "$UNKNOWN_FIXTURE/home/claude-plugins.json"
+jq -n --arg path "$UNKNOWN_FIXTURE/home/plugin-roots/codex/waza" '
 {
-  "installed": [
-    {"pluginId":"waza@waza","marketplaceName":"waza","version":"1.0.0","installed":true,"enabled":true},
-    {"pluginId":"documents@openai-primary-runtime","marketplaceName":"openai-primary-runtime","version":"1.0.0","installed":true,"enabled":true},
-    {"pluginId":"browser@openai-bundled","marketplaceName":"openai-bundled","version":"1.0.0","installed":true,"enabled":true},
-    {"pluginId":"rogue@custom-market","marketplaceName":"custom-market","version":"1.0.0","installed":true,"enabled":true},
-    {"pluginId":"rogue-openai@openai-community","marketplaceName":"openai-community","version":"1.0.0","installed":true,"enabled":true}
+  installed: [
+    {pluginId:"waza@waza",marketplaceName:"waza",version:"1.0.0",installed:true,enabled:true,source:{source:"local",path:$path}},
+    {pluginId:"documents@openai-primary-runtime",marketplaceName:"openai-primary-runtime",version:"1.0.0",installed:true,enabled:true},
+    {pluginId:"browser@openai-bundled",marketplaceName:"openai-bundled",version:"1.0.0",installed:true,enabled:true},
+    {pluginId:"rogue@custom-market",marketplaceName:"custom-market",version:"1.0.0",installed:true,enabled:true},
+    {pluginId:"rogue-openai@openai-community",marketplaceName:"openai-community",version:"1.0.0",installed:true,enabled:true}
   ]
 }
-JSON
+' > "$UNKNOWN_FIXTURE/home/codex-plugins.json"
 cp "$UNKNOWN_FIXTURE/home/claude-mutations.log" "$UNKNOWN_FIXTURE/claude-mutations-before"
 cp "$UNKNOWN_FIXTURE/home/codex-mutations.log" "$UNKNOWN_FIXTURE/codex-mutations-before"
 set +e
@@ -744,7 +770,11 @@ cat > "$MEM_BIN/claude" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-  'plugin list --json') cat "$HOME/claude-plugins.json" ;;
+  'plugin list --json')
+    jq --arg path "$HOME/plugin-roots/claude/claude-mem" '
+      map(if .id == "claude-mem@thedotmack" then .installPath = $path else . end)
+    ' "$HOME/claude-plugins.json"
+    ;;
   'plugin marketplace list --json')
     jq --arg root "$HOME/claude-marketplace" 'map(. + {installLocation:$root})' \
       "$HOME/claude-marketplaces.json"
@@ -755,7 +785,10 @@ case "$*" in
   'plugin marketplace update thedotmack') ;;
   'plugin install claude-mem@thedotmack')
     if [ "${FAKE_MEM_NO_STATE:-0}" != 1 ]; then
-      printf '[{"id":"claude-mem@thedotmack","version":"1.0.0","enabled":true}]\n' \
+      mkdir -p "$HOME/plugin-roots/claude/claude-mem/skills/mem-search"
+      printf '# mem-search\n' > "$HOME/plugin-roots/claude/claude-mem/skills/mem-search/SKILL.md"
+      jq -n --arg path "$HOME/plugin-roots/claude/claude-mem" \
+        '[{id:"claude-mem@thedotmack",version:"1.0.0",enabled:true,installPath:$path}]' \
         > "$HOME/claude-plugins.json"
     fi
     ;;
@@ -771,7 +804,15 @@ cat > "$MEM_BIN/codex" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-  'plugin list --json') cat "$HOME/codex-plugins.json" ;;
+  'plugin list --json')
+    jq --arg path "$HOME/plugin-roots/codex/claude-mem" '
+      .installed |= map(
+        if .pluginId == "claude-mem@claude-mem-local" then
+          .source = ((.source // {}) + {source:"local", path:$path})
+        else . end
+      )
+    ' "$HOME/codex-plugins.json"
+    ;;
   'plugin marketplace list --json')
     jq --arg root "$HOME/codex-marketplace" '.marketplaces |= map(. + {root:$root})' \
       "$HOME/codex-marketplaces.json"
@@ -782,7 +823,10 @@ case "$*" in
   'plugin marketplace upgrade claude-mem-local') ;;
   'plugin add claude-mem@claude-mem-local')
     if [ "${FAKE_MEM_NO_STATE:-0}" != 1 ]; then
-      printf '{"installed":[{"pluginId":"claude-mem@claude-mem-local","marketplaceName":"claude-mem-local","version":"1.0.0","installed":true,"enabled":true}]}\n' \
+      mkdir -p "$HOME/plugin-roots/codex/claude-mem/skills/mem-search"
+      printf '# mem-search\n' > "$HOME/plugin-roots/codex/claude-mem/skills/mem-search/SKILL.md"
+      jq -n --arg path "$HOME/plugin-roots/codex/claude-mem" \
+        '{installed:[{pluginId:"claude-mem@claude-mem-local",marketplaceName:"claude-mem-local",version:"1.0.0",installed:true,enabled:true,source:{source:"local",path:$path}}]}' \
         > "$HOME/codex-plugins.json"
     fi
     ;;
@@ -836,5 +880,158 @@ jq -e '
   any(.errors[]; contains("final verification failed: claude-mem/claude-mem"))
 ' "$MEM_VERIFY_FIXTURE/result.json" >/dev/null
 cmp -s "$MEM_VERIFY_FIXTURE/database-before" "$MEM_VERIFY_FIXTURE/home/.claude-mem/database.sqlite"
+
+
+# Runtime skill discovery: plugin installed but expected skill omitted on both CLIs.
+MISSING_RUNTIME_SKILL_FIXTURE="$TMP_ROOT/missing-runtime-skill"
+cp -R "$FIXTURE" "$MISSING_RUNTIME_SKILL_FIXTURE"
+jq --arg path "$MISSING_RUNTIME_SKILL_FIXTURE/home/plugin-roots/claude/waza" \
+  'map(if .id == "waza@waza" then .installPath = $path else . end)' \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/home/claude-plugins.json" \
+  > "$MISSING_RUNTIME_SKILL_FIXTURE/claude-plugins.tmp"
+mv "$MISSING_RUNTIME_SKILL_FIXTURE/claude-plugins.tmp" \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/home/claude-plugins.json"
+jq --arg path "$MISSING_RUNTIME_SKILL_FIXTURE/home/plugin-roots/codex/waza" \
+  '.installed |= map(if .pluginId == "waza@waza" then .source = {source:"local",path:$path} else . end)' \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/home/codex-plugins.json" \
+  > "$MISSING_RUNTIME_SKILL_FIXTURE/codex-plugins.tmp"
+mv "$MISSING_RUNTIME_SKILL_FIXTURE/codex-plugins.tmp" \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/home/codex-plugins.json"
+rm -rf "$MISSING_RUNTIME_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills" \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills"
+mkdir -p "$MISSING_RUNTIME_SKILL_FIXTURE/home/plugin-roots/claude/waza" \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/home/plugin-roots/codex/waza"
+cp -R "$MISSING_RUNTIME_SKILL_FIXTURE/home" "$MISSING_RUNTIME_SKILL_FIXTURE/home-before-check"
+set +e
+HOME="$MISSING_RUNTIME_SKILL_FIXTURE/home" TMPDIR="$MISSING_RUNTIME_SKILL_FIXTURE/runtime" \
+PATH="$MISSING_RUNTIME_SKILL_FIXTURE/bin:$PATH" \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$MISSING_RUNTIME_SKILL_FIXTURE/check.json"
+missing_runtime_check_exit=$?
+set -e
+test "$missing_runtime_check_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("cannot verify waza/waza on claude")
+    and contains("expected skill not discoverable in installed plugin")) and
+  any(.errors[]; contains("cannot verify waza/waza on codex")
+    and contains("expected skill not discoverable in installed plugin"))
+' "$MISSING_RUNTIME_SKILL_FIXTURE/check.json" >/dev/null
+diff -r "$MISSING_RUNTIME_SKILL_FIXTURE/home-before-check" "$MISSING_RUNTIME_SKILL_FIXTURE/home" >/dev/null
+
+# Multi-skill bundle: one declared expected skill missing from runtime inventory.
+MULTI_SKILL_FIXTURE="$TMP_ROOT/multi-skill-bundle"
+cp -R "$FIXTURE" "$MULTI_SKILL_FIXTURE"
+jq '.sources[0].overrides = {"waza":["claude","codex"],"ghost-skill":["claude","codex"]}' \
+  "$MULTI_SKILL_FIXTURE/skill-topology.json" > "$MULTI_SKILL_FIXTURE/manifest.tmp"
+mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/skill-topology.json"
+jq '.[0].plugin.skills = ["waza","ghost-skill"]' \
+  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json" \
+  > "$MULTI_SKILL_FIXTURE/registry.tmp"
+mv "$MULTI_SKILL_FIXTURE/registry.tmp" \
+  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json"
+# Keep real component skill "think" so bundle identity "waza" still resolves;
+# ghost-skill is absent from both install roots.
+mkdir -p "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/think" \
+  "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/think"
+printf '# Waza think\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/think/SKILL.md"
+printf '# Waza think\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/think/SKILL.md"
+jq --arg path "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza" \
+  'map(if .id == "waza@waza" then .installPath = $path else . end)' \
+  "$MULTI_SKILL_FIXTURE/home/claude-plugins.json" > "$MULTI_SKILL_FIXTURE/claude-plugins.tmp"
+mv "$MULTI_SKILL_FIXTURE/claude-plugins.tmp" "$MULTI_SKILL_FIXTURE/home/claude-plugins.json"
+jq --arg path "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza" \
+  '.installed |= map(if .pluginId == "waza@waza" then .source = {source:"local",path:$path} else . end)' \
+  "$MULTI_SKILL_FIXTURE/home/codex-plugins.json" > "$MULTI_SKILL_FIXTURE/codex-plugins.tmp"
+mv "$MULTI_SKILL_FIXTURE/codex-plugins.tmp" "$MULTI_SKILL_FIXTURE/home/codex-plugins.json"
+set +e
+HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
+PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
+  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$MULTI_SKILL_FIXTURE/check.json"
+multi_skill_exit=$?
+set -e
+test "$multi_skill_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("cannot verify waza/ghost-skill on claude")
+    and contains("expected skill not discoverable in installed plugin")) and
+  any(.errors[]; contains("cannot verify waza/ghost-skill on codex")
+    and contains("expected skill not discoverable in installed plugin")) and
+  all(.errors[]; contains("ghost-skill") or (contains("waza/waza") | not))
+' "$MULTI_SKILL_FIXTURE/check.json" >/dev/null
+
+# Exact component skill identity succeeds when present on both CLIs.
+COMPONENT_SKILL_FIXTURE="$TMP_ROOT/component-skill"
+cp -R "$FIXTURE" "$COMPONENT_SKILL_FIXTURE"
+jq '.sources[0].overrides = {"think":["claude","codex"]}' \
+  "$COMPONENT_SKILL_FIXTURE/skill-topology.json" > "$COMPONENT_SKILL_FIXTURE/manifest.tmp"
+mv "$COMPONENT_SKILL_FIXTURE/manifest.tmp" "$COMPONENT_SKILL_FIXTURE/skill-topology.json"
+jq '.[0].plugin.skills = ["think"]' \
+  "$COMPONENT_SKILL_FIXTURE/scripts/distribution-topology/registry.json" \
+  > "$COMPONENT_SKILL_FIXTURE/registry.tmp"
+mv "$COMPONENT_SKILL_FIXTURE/registry.tmp" \
+  "$COMPONENT_SKILL_FIXTURE/scripts/distribution-topology/registry.json"
+jq --arg path "$COMPONENT_SKILL_FIXTURE/home/plugin-roots/claude/waza" \
+  'map(if .id == "waza@waza" then .installPath = $path else . end)' \
+  "$COMPONENT_SKILL_FIXTURE/home/claude-plugins.json" > "$COMPONENT_SKILL_FIXTURE/claude-plugins.tmp"
+mv "$COMPONENT_SKILL_FIXTURE/claude-plugins.tmp" "$COMPONENT_SKILL_FIXTURE/home/claude-plugins.json"
+jq --arg path "$COMPONENT_SKILL_FIXTURE/home/plugin-roots/codex/waza" \
+  '.installed |= map(if .pluginId == "waza@waza" then .source = {source:"local",path:$path} else . end)' \
+  "$COMPONENT_SKILL_FIXTURE/home/codex-plugins.json" > "$COMPONENT_SKILL_FIXTURE/codex-plugins.tmp"
+mv "$COMPONENT_SKILL_FIXTURE/codex-plugins.tmp" "$COMPONENT_SKILL_FIXTURE/home/codex-plugins.json"
+HOME="$COMPONENT_SKILL_FIXTURE/home" TMPDIR="$COMPONENT_SKILL_FIXTURE/runtime" \
+PATH="$COMPONENT_SKILL_FIXTURE/bin:$PATH" \
+  "$COMPONENT_SKILL_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$COMPONENT_SKILL_FIXTURE/check.json"
+jq -e '
+  .status == "clean" and
+  ([.plan[] | {sourceId,skill,destinations}] == [
+    {sourceId:"waza",skill:"think",destinations:["claude","codex"]}
+  ]) and
+  .errors == []
+' "$COMPONENT_SKILL_FIXTURE/check.json" >/dev/null
+
+# Native marketplace identifiers may differ while sharing one bundle name.
+DIFFERENT_IDENTIFIERS_FIXTURE="$TMP_ROOT/different-identifiers"
+cp -R "$FIXTURE" "$DIFFERENT_IDENTIFIERS_FIXTURE"
+jq '.[0].plugin.identifiers = {claude:"waza-claude",codex:"waza-codex"}' \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/scripts/distribution-topology/registry.json" \
+  > "$DIFFERENT_IDENTIFIERS_FIXTURE/registry.tmp"
+mv "$DIFFERENT_IDENTIFIERS_FIXTURE/registry.tmp" \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/scripts/distribution-topology/registry.json"
+perl -pi -e 's/waza\@waza/waza-claude\@waza/g' "$DIFFERENT_IDENTIFIERS_FIXTURE/bin/claude"
+perl -pi -e 's/waza\@waza/waza-claude\@waza/g' \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/home/claude-plugins.json" \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/home/.codex/config.toml"
+perl -pi -e 's/waza\@waza/waza-codex\@waza/g' "$DIFFERENT_IDENTIFIERS_FIXTURE/bin/codex"
+perl -pi -e 's/waza\@waza/waza-codex\@waza/g' \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/home/codex-plugins.json"
+HOME="$DIFFERENT_IDENTIFIERS_FIXTURE/home" TMPDIR="$DIFFERENT_IDENTIFIERS_FIXTURE/runtime" \
+PATH="$DIFFERENT_IDENTIFIERS_FIXTURE/bin:$PATH" \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$DIFFERENT_IDENTIFIERS_FIXTURE/check.json"
+jq -e '.status == "clean" and .errors == []' \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/check.json" >/dev/null
+
+# Missing install root => skill discovery fails closed after plugin listing success.
+NO_INSTALL_PATH_FIXTURE="$TMP_ROOT/no-install-path"
+cp -R "$FIXTURE" "$NO_INSTALL_PATH_FIXTURE"
+rm -rf "$NO_INSTALL_PATH_FIXTURE/home/plugin-roots"
+set +e
+HOME="$NO_INSTALL_PATH_FIXTURE/home" TMPDIR="$NO_INSTALL_PATH_FIXTURE/runtime" \
+PATH="$NO_INSTALL_PATH_FIXTURE/bin:$PATH" \
+  "$NO_INSTALL_PATH_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  > "$NO_INSTALL_PATH_FIXTURE/check.json"
+no_path_exit=$?
+set -e
+test "$no_path_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("cannot verify waza/waza on claude")
+    and contains("install path is missing")) and
+  any(.errors[]; contains("cannot verify waza/waza on codex")
+    and contains("install path is missing"))
+' "$NO_INSTALL_PATH_FIXTURE/check.json" >/dev/null
 
 echo "plugin-distributed topology tests passed"

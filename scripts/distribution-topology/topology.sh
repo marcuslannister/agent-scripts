@@ -116,7 +116,7 @@ topology_write_native_allowlist() {
     .sources[] as $source |
     $registry[0][] | select(.sourceId == $source.id and (.plugin? != null)) |
     .plugin as $plugin | .plugin.marketplaces | to_entries[] |
-    "\(.key)\t\($plugin.name)@\(.value)"
+    "\(.key)\t\(($plugin.identifiers[.key] // $plugin.name) + "@" + .value)"
   ' "$MANIFEST_PATH" | LC_ALL=C sort > "$DISCOVERY_ROOT/native-plugins.tsv"
 }
 

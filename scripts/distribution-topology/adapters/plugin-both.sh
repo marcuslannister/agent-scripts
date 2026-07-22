@@ -10,9 +10,18 @@ home="${6:?home required}"
 mode="${7:-reconcile}"
 
 registry="$repo_root/scripts/distribution-topology/registry.json"
-plugin_name="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.name' "$registry")"
 plugin_repo="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.repo' "$registry")"
 remote_root="$discovery_root/$source_id/repo"
+
+plugin_bundle_name_for() {
+  jq -er --arg source_id "$source_id" \
+    '.[] | select(.sourceId == $source_id) | .plugin.name' "$registry"
+}
+
+plugin_name_for() {
+  jq -er --arg source_id "$source_id" --arg destination "$1" \
+    '.[] | select(.sourceId == $source_id) | (.plugin.identifiers[$destination] // .plugin.name)' "$registry"
+}
 
 discover_remote_marketplace() {
   mkdir -p "$(dirname "$remote_root")"
@@ -22,6 +31,10 @@ discover_remote_marketplace() {
 marketplace_for() {
   jq -er --arg source_id "$source_id" --arg destination "$1" \
     '.[] | select(.sourceId == $source_id) | .plugin.marketplaces[$destination]' "$registry"
+}
+
+plugin_id_for() {
+  printf '%s@%s' "$(plugin_name_for "$1")" "$(marketplace_for "$1")"
 }
 
 if [ "$source_id" = claude-mem ]; then
@@ -56,6 +69,7 @@ load_plugin_inventory() {
           id: .id,
           version: (.version // ""),
           enabled: (.enabled // false),
+          installPath: (.installPath // ""),
           system: (.id | endswith("@claude-plugins-official"))
         })
       ' <<< "$output")"
@@ -77,6 +91,7 @@ load_plugin_inventory() {
                 id: .pluginId,
                 version: (.version // ""),
                 enabled: (.enabled // false),
+                installPath: ((.source.path // .path // "") | tostring),
                 system: (
                   (.marketplaceName // "") == "openai-primary-runtime"
                   or (.marketplaceName // "") == "openai-bundled"
@@ -100,7 +115,7 @@ load_plugin_state() {
   local destination="$1"
   local marketplace plugin_id record
   marketplace="$(marketplace_for "$destination")"
-  plugin_id="$plugin_name@$marketplace"
+  plugin_id="$(plugin_id_for "$destination")"
   PLUGIN_STATE=
   PLUGIN_VERSION=
   PLUGIN_ERROR=
@@ -123,13 +138,81 @@ load_plugin_state() {
   fi
 }
 
+PLUGIN_RUNTIME_SKILLS=
+PLUGIN_RUNTIME_SKILLS_ERROR=
+
+load_plugin_runtime_skills() {
+  local destination="$1"
+  local marketplace plugin_id install_path
+  marketplace="$(marketplace_for "$destination")"
+  plugin_id="$(plugin_id_for "$destination")"
+  PLUGIN_RUNTIME_SKILLS=
+  PLUGIN_RUNTIME_SKILLS_ERROR=
+
+  if [ -z "${PLUGIN_INVENTORY_JSON:-}" ]; then
+    if ! load_plugin_inventory "$destination"; then
+      PLUGIN_RUNTIME_SKILLS_ERROR="$PLUGIN_INVENTORY_ERROR"
+      return 1
+    fi
+  fi
+
+  install_path="$(jq -r --arg id "$plugin_id" '
+    first(.[]? | select(.id == $id) | .installPath // empty) // empty
+  ' <<< "$PLUGIN_INVENTORY_JSON")"
+  if [ -z "$install_path" ]; then
+    PLUGIN_RUNTIME_SKILLS_ERROR="installed plugin $plugin_id has no install path for skill discovery"
+    return 1
+  fi
+  if [ ! -d "$install_path" ]; then
+    PLUGIN_RUNTIME_SKILLS_ERROR="installed plugin $plugin_id install path is missing"
+    return 1
+  fi
+
+  PLUGIN_RUNTIME_SKILLS="$(
+    find "$install_path" -type f -name SKILL.md -print 2>/dev/null \
+      | while IFS= read -r skill_file; do
+          basename "$(dirname "$skill_file")"
+        done \
+      | LC_ALL=C sort -u
+  )"
+}
+
+plugin_skill_is_discoverable() {
+  local skill="$1"
+  local destination="$2"
+  if [ -n "$PLUGIN_RUNTIME_SKILLS" ] && printf '%s\n' "$PLUGIN_RUNTIME_SKILLS" | grep -Fxq -- "$skill"; then
+    return 0
+  fi
+  # A bundle identity is runtime-discoverable when its native install exposes
+  # at least one skill component; component identities use the exact match above.
+  if [ "$skill" = "$(plugin_bundle_name_for)" ] && [ -n "$PLUGIN_RUNTIME_SKILLS" ]; then
+    return 0
+  fi
+  return 1
+}
+
+require_plugin_skill_discoverable() {
+  local skill="$1"
+  local destination="$2"
+  if ! load_plugin_runtime_skills "$destination"; then
+    printf '%s\n' "$PLUGIN_RUNTIME_SKILLS_ERROR"
+    return 1
+  fi
+  if ! plugin_skill_is_discoverable "$skill" "$destination"; then
+    printf 'expected skill not discoverable in installed plugin'
+    return 1
+  fi
+  return 0
+}
+
 PLUGIN_AVAILABLE_VERSION=
 PLUGIN_FRESHNESS_ERROR=
 
 load_claude_available_plugin_version() {
-  local marketplace plugin_id manifest version source_path plugin_root plugin_manifest
+  local marketplace plugin_id plugin_name manifest version source_path plugin_root plugin_manifest
   marketplace="$(marketplace_for claude)"
-  plugin_id="$plugin_name@$marketplace"
+  plugin_name="$(plugin_bundle_name_for)"
+  plugin_id="$(plugin_id_for claude)"
   manifest="$remote_root/.claude-plugin/marketplace.json"
   PLUGIN_AVAILABLE_VERSION=
   PLUGIN_FRESHNESS_ERROR=
@@ -169,10 +252,11 @@ load_claude_available_plugin_version() {
 }
 
 load_codex_available_plugin_version() {
-  local marketplace plugin_id marketplace_manifest count source_kind source_path
+  local marketplace plugin_id plugin_name marketplace_manifest count source_kind source_path
   local plugin_root manifest version
   marketplace="$(marketplace_for codex)"
-  plugin_id="$plugin_name@$marketplace"
+  plugin_name="$(plugin_bundle_name_for)"
+  plugin_id="$(plugin_id_for codex)"
   marketplace_manifest="$remote_root/.agents/plugins/marketplace.json"
   PLUGIN_AVAILABLE_VERSION=
   PLUGIN_FRESHNESS_ERROR=
@@ -365,7 +449,7 @@ ensure_marketplace() {
     return 1
   fi
 
-  case "$destination:$MARKETPLACE_STATE" in
+  if ! case "$destination:$MARKETPLACE_STATE" in
     claude:missing)
       run_native "Claude marketplace add failed for $marketplace" \
         claude plugin marketplace add "$plugin_repo"
@@ -382,6 +466,13 @@ ensure_marketplace() {
       upgrade_codex_marketplace "$marketplace"
       ;;
   esac
+  then
+    return 1
+  fi
+  if ! load_marketplace_state "$destination" || [ "$MARKETPLACE_STATE" != present ]; then
+    printf '%s marketplace %s is not present after registration/update\n' "$destination" "$marketplace" >&2
+    return 1
+  fi
 }
 
 
@@ -433,7 +524,7 @@ scan_unknown_plugins() {
 }
 
 inspect_states() {
-  local expected skill destination state detail failed=0
+  local expected skill destination state detail failed=0 skill_detail
   while IFS=$'\t' read -r expected skill destination; do
     [ -n "$expected" ] || continue
     if ! load_plugin_state "$destination"; then
@@ -472,6 +563,13 @@ inspect_states() {
           ;;
         missing) state=absent; detail=missing ;;
       esac
+      if [ "$expected" = present ] && [ "$state" = present ]; then
+        if ! skill_detail="$(require_plugin_skill_discoverable "$skill" "$destination")"; then
+          state=error
+          detail="$skill_detail"
+          failed=1
+        fi
+      fi
     fi
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
@@ -484,7 +582,7 @@ apply_destination() {
   local destination="$3"
   local marketplace plugin_id before_state before_version
   marketplace="$(marketplace_for "$destination")"
-  plugin_id="$plugin_name@$marketplace"
+  plugin_id="$(plugin_id_for "$destination")"
 
   if ! load_plugin_state "$destination"; then
     printf '%s\n' "$PLUGIN_ERROR" >&2
@@ -582,7 +680,7 @@ reconcile_states() {
 }
 
 verify_states() {
-  local expected skill destination failed=0
+  local expected skill destination failed=0 skill_detail
   while IFS=$'\t' read -r expected skill destination; do
     [ -n "$expected" ] || continue
     if ! load_plugin_state "$destination"; then
@@ -602,13 +700,22 @@ verify_states() {
         printf 'plugin verification failed: %s/%s -> %s: %s\n' \
           "$source_id" "$skill" "$destination" "$PLUGIN_FRESHNESS_DETAIL" >&2
         failed=1
+        continue
         ;;
       *)
         printf 'plugin verification failed: %s/%s -> %s: expected %s, found %s\n' \
           "$source_id" "$skill" "$destination" "$expected" "$PLUGIN_STATE" >&2
         failed=1
+        continue
         ;;
     esac
+    if [ "$expected" = present ]; then
+      if ! skill_detail="$(require_plugin_skill_discoverable "$skill" "$destination")"; then
+        printf 'plugin verification failed: %s/%s -> %s: %s\n' \
+          "$source_id" "$skill" "$destination" "$skill_detail" >&2
+        failed=1
+      fi
+    fi
   done < "$plan_path"
   return "$failed"
 }

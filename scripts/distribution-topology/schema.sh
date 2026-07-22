@@ -102,7 +102,7 @@ topology_validate_plugin() { # file index label classification
     topology_fail 2 "$label requires plugin metadata for a plugin source"
     return 2
   fi
-  topology_validate_fields "$file" ".[${index}].plugin" '["name","repo","marketplaces","skills"]' '["name","repo","marketplaces","skills"]' "$label plugin" || return $?
+  topology_validate_fields "$file" ".[${index}].plugin" '["name","repo","marketplaces","identifiers","skills"]' '["name","repo","marketplaces","skills"]' "$label plugin" || return $?
   value="$(jq -r ".[${index}].plugin.name" "$file")"
   jq -e ".[${index}].plugin.name | type == \"string\"" "$file" >/dev/null \
     && topology_is_name "$value" \
@@ -126,6 +126,24 @@ topology_validate_plugin() { # file index label classification
       return 2
     fi
   done < <(jq -r ".[${index}].plugin.marketplaces | keys[]" "$file")
+  if jq -e ".[${index}].plugin | has(\"identifiers\")" "$file" >/dev/null; then
+    if ! jq -e ".[${index}].plugin.identifiers | type == \"object\" and length > 0" "$file" >/dev/null; then
+      topology_fail 2 "$label plugin identifiers must be a non-empty object"
+      return 2
+    fi
+    while IFS= read -r destination; do
+      case "$destination" in
+        claude|codex) ;;
+        *) topology_fail 2 "$label plugin identifiers contains unknown destination: $destination"; return 2 ;;
+      esac
+      value="$(jq -r --arg destination "$destination" ".[${index}].plugin.identifiers[\$destination] // empty" "$file")"
+      if ! jq -e --arg destination "$destination" ".[${index}].plugin.identifiers[\$destination] | type == \"string\"" "$file" >/dev/null \
+        || ! topology_is_name "$value"; then
+        topology_fail 2 "$label plugin has an invalid native $destination identifier"
+        return 2
+      fi
+    done < <(jq -r ".[${index}].plugin.identifiers | keys[]" "$file")
+  fi
   for destination in claude $([ "$classification" = dual-plugin ] && printf codex); do
     value="$(jq -r --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] // empty" "$file")"
     if ! jq -e --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] | type == \"string\"" "$file" >/dev/null \
