@@ -90,7 +90,13 @@ command codex exec --yolo -C <repo> \
 - stderr suppressed (thinking noise bloats context); drop `2>/dev/null` only to debug a failing run
 - read `-o` file for the result; don't parse the JSONL stream
 - long runs: Bash run_in_background, read `-o` file on exit; don't kill quiet runs <30 min
-- parallel independent tasks OK: separate repos/dirs, separate `-o` files
+- **Harness visibility (Claude Code): every codex run gets its own harness-tracked
+  background command (`run_in_background: true`) — one sidebar chip per worker,
+  completion notification included. Chain setup steps (installs, worktree prep)
+  INSIDE that tracked command. Never `&`-fork workers from a shared launcher:
+  the launcher's chip exits at fork time and the workers become invisible
+  orphans supervised only by PID files.**
+- parallel independent tasks OK: separate repos/dirs, separate `-o` files, one tracked background command per worker
 - outside a git repo add `--skip-git-repo-check`
 
 Follow-up fixes — cheaper than fresh runs, keeps context. `resume` has no `-C`/`--yolo`: run from the repo dir, spell the long flag:
@@ -108,7 +114,10 @@ For runs you must not babysit, trade the stderr suppression for a log and watch 
 ```bash
 command codex exec --yolo -C <repo> -m gpt-5.6-sol \
   -c model_reasoning_effort="high" --enable fast_mode \
-  -o "$OUT" - <"$P" > "$LOG" 2>&1 &   # in harnesses: Bash run_in_background
+  -o "$OUT" - <"$P" > "$LOG" 2>&1
+# Claude Code: run the line above as its own Bash run_in_background call
+# (tracked chip + completion notification). Append `&` + a PID file ONLY in
+# environments without tracked backgrounding.
 ```
 
 - Capture the session id immediately: `grep -m1 "session id:" "$LOG"`. `resume --last` is cwd-filtered but races with any parallel Codex on the machine — with the id saved, recovery is deterministic.
