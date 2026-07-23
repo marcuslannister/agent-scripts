@@ -28,7 +28,7 @@ Use the same safe input policy for the three direct-provider catalogue models:
 - `gpt-5.6-terra`
 - `gpt-5.6-luna`
 
-Codex applies its normal 95% effective-window reserve to the 922,000-token input allowance, so it reports and guards about 875,900 usable tokens. Set automatic compaction to 820,000 total active tokens. That leaves about 55,900 tokens inside Codex's effective guard and 102,000 tokens before the provider's absolute input ceiling for the next prompt, tool schemas and results, instructions, serialization overhead, and compaction itself. This headroom is intentional: Codex 0.144.6 checks compaction at turn boundaries and after completed responses, so a large incoming prompt or tool result can otherwise cross the provider's real limit before compaction runs.
+Codex applies its normal 95% effective-window reserve to the 922,000-token input allowance, so it reports and guards about 875,900 usable tokens. Set automatic compaction to 700,000 total active tokens. That leaves about 175,900 tokens inside Codex's effective guard and 222,000 tokens before the provider's safe input ceiling for the next prompt, tool schemas and results, instructions, serialization overhead, and compaction itself. This larger margin is intentional: Codex 0.144.6 checks already-recorded context before adding the next user message and context updates, and a terminal response that crosses the threshold may not compact until the following turn. The observed large-context workload grew by about 144,000 tokens in one turn, which made the former 820,000 threshold too aggressive.
 
 Long-context requests above 272,000 input tokens use the provider's higher long-context pricing. Do not enable this route accidentally for workloads that do not benefit from it.
 
@@ -40,7 +40,7 @@ Long-context requests above 272,000 input tokens use the provider's higher long-
 {
   "context_window": 922000,
   "max_context_window": 922000,
-  "auto_compact_token_limit": 820000
+  "auto_compact_token_limit": 700000
 }
 ```
 
@@ -52,7 +52,7 @@ The root section of `~/.codex/config.toml` needs:
 model = "gpt-5.6-sol"
 model_provider = "openai_api_direct"
 model_context_window = 922000
-model_auto_compact_token_limit = 820000
+model_auto_compact_token_limit = 700000
 model_auto_compact_token_limit_scope = "total"
 model_catalog_json = "/Users/steipete/.codex/models-api-1m.json"
 
@@ -147,15 +147,15 @@ jq -r '.models[] | select(.slug == "gpt-5.6-sol" or .slug == "gpt-5.6-terra" or 
 codex exec --skip-git-repo-check 'Reply with exactly: direct-api-safe-context-ok' </dev/null
 ```
 
-Expect a successful preflight, `922000`, `922000`, and `820000` for every catalogue model, ChatGPT login for connector-capable hosts, and the exact probe response. A successful direct API probe does not prove connector OAuth; confirm `codex login status` separately.
+Expect a successful preflight, `922000`, `922000`, and `700000` for every catalogue model, ChatGPT login for connector-capable hosts, and the exact probe response. A successful direct API probe does not prove connector OAuth; confirm `codex login status` separately.
 
 For final TUI proof, send the prompt text and Enter as separate terminal actions. Do not treat echoed input as the model's response.
 
 ## Failure policy
 
 - API response still clamps or rejects a request: record the server response; do not claim a client catalogue override changed server entitlement.
-- Context overflow below 820,000 active tokens: preserve the session file and inspect the last token-accounting events before lowering the threshold further.
-- Context overflow above 820,000 without compaction: verify the running app-server version and loaded configuration; an old server can retain the previous threshold.
+- Context overflow below 700,000 active tokens: preserve the session file and inspect the last token-accounting events before lowering the threshold further.
+- Context overflow above 700,000 without compaction: verify the running app-server version and loaded configuration; an old server can retain the previous threshold.
 - HTTP 401 `Missing bearer or basic authentication in header`: rerun the preflight and repair Keychain delivery; do not switch providers or ordinary Codex authentication.
 - Keychain error 36 remotely: leave the safe configuration staged and require a local GUI unlock. Never weaken secret storage.
 - Root API-key login but connectors are required: ask the local user to complete the ChatGPT login; inference can remain on the direct provider.

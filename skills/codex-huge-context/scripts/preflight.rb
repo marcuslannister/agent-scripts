@@ -8,7 +8,7 @@ require "shellwords"
 
 MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna].freeze
 CONTEXT_WINDOW = 922_000
-AUTO_COMPACT_TOKEN_LIMIT = 820_000
+AUTO_COMPACT_TOKEN_LIMIT = 700_000
 AUTO_COMPACT_TOKEN_LIMIT_SCOPE = "total"
 
 class PreflightError < StandardError; end

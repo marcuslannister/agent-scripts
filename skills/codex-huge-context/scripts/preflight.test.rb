@@ -10,7 +10,7 @@ require "tmpdir"
 SCRIPT = File.expand_path("preflight.rb", __dir__)
 MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna].freeze
 CONTEXT_WINDOW = 922_000
-AUTO_COMPACT_TOKEN_LIMIT = 820_000
+AUTO_COMPACT_TOKEN_LIMIT = 700_000
 OUTPUT_SENTINEL = "fixture-output-must-not-appear"
 
 def assert(condition, message)
@@ -125,7 +125,7 @@ Dir.mktmpdir("codex-huge-context-test") do |root|
   )
   _stdout, stderr, process_status = run_preflight(config)
   assert(!process_status.success?, "unsafe compaction threshold unexpectedly passed")
-  assert(stderr.include?("model_auto_compact_token_limit must be 820000"), "compaction failure is unclear")
+  assert(stderr.include?("model_auto_compact_token_limit must be 700000"), "compaction failure is unclear")
 end
 
 Dir.mktmpdir("codex-huge-context-test") do |root|
@@ -147,7 +147,7 @@ Dir.mktmpdir("codex-huge-context-test") do |root|
   )
   _stdout, stderr, process_status = run_preflight(config)
   assert(!process_status.success?, "unsafe catalogue threshold unexpectedly passed")
-  assert(stderr.include?("gpt-5.6-sol.auto_compact_token_limit must be 820000"), "catalogue failure is unclear")
+  assert(stderr.include?("gpt-5.6-sol.auto_compact_token_limit must be 700000"), "catalogue failure is unclear")
 end
 
 [100, nil, 95.0].each do |unsafe_percent|
