@@ -127,6 +127,19 @@ HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/second.json"
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$FIXTURE/second.json" >/dev/null
 
+mv "$FIXTURE/skills/frontend-design/SKILL.md" "$FIXTURE/frontend-design.missing"
+FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$COMMAND" --json > "$FIXTURE/missing-tracked.json"
+jq -e '
+  .status == "reconciled" and
+  ([.plan[] | select(.skill == "frontend-design" and .sourceId == "anthropic-skills")] | length) == 0 and
+  .changes == [] and .errors == [] and .decisions == []
+' "$FIXTURE/missing-tracked.json" >/dev/null
+test ! -e "$FIXTURE/skills/frontend-design/SKILL.md"
+test ! -e "$FIXTURE/home/.agents/skills/frontend-design"
+mv "$FIXTURE/frontend-design.missing" "$FIXTURE/skills/frontend-design/SKILL.md"
+
 for surface in "$FIXTURE/skills" "$FIXTURE/home/.agents/skills"; do
   mkdir -p "$surface/old-anthropic" "$surface/other-owner" "$surface/hand-made"
   printf '%s\n%s\n' "$FIXTURE/home/Projects/anthropic-skills/skills/old-anthropic" anthropic-skills \

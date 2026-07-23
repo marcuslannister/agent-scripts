@@ -55,8 +55,7 @@ discover_source() {
     [ -f "$skill_file" ] || continue
     skill="$(basename "$(dirname "$skill_file")")"
     case "$skill" in ''|*[!a-z0-9-]*) printf 'invalid source inventory skill: %s\n' "$skill" >&2; return 1 ;; esac
-    if [ -f "$repo_root/skills/$skill/SKILL.md" ] \
-      && git -C "$repo_root" ls-files --error-unmatch -- "skills/$skill/SKILL.md" >/dev/null 2>&1; then
+    if git -C "$repo_root" ls-files --error-unmatch -- "skills/$skill/SKILL.md" >/dev/null 2>&1; then
       continue
     fi
     printf '%s\n' "$skill"
