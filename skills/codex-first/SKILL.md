@@ -1,11 +1,34 @@
 ---
 name: codex-first
-description: "Route implementation work to Codex CLI; Claude specs, reviews, verifies."
+description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Direct hands-on delegation requires ANTHROPIC_BASE_URL to be unset or neither loopback nor gorillaclaw.sheep-coho.ts.net. Codex-backed autoreview is always allowed and preferred, independent of environment."
 ---
 
 # Codex First
 
-Claude Code sessions only. Codex/other harnesses: skip; never self-delegate.
+## Hard gate
+
+**Autoreview exception:** always prefer Codex-backed `$autoreview`, independent
+of `ANTHROPIC_BASE_URL`, router state, or harness. Reviewing a frozen bundle is
+not hands-on self-delegation. Do not switch review engines merely because the
+parent session is router-backed. This exception takes precedence over the gate
+below.
+
+For direct hands-on delegation, use this skill only when the active agent is
+Claude Code **and** `ANTHROPIC_BASE_URL` is either unset or its URL host is
+neither loopback nor `gorillaclaw.sheep-coho.ts.net`.
+
+Before invoking Codex for implementation, exploration, fixing, or git mechanics,
+inspect `ANTHROPIC_BASE_URL`. If its URL host is `gorillaclaw.sheep-coho.ts.net`
+(the Clawdex router), `localhost`, ends in `.localhost`, is in `127.0.0.0/8`, or
+is IPv6 loopback `::1`, stop here: the session is already router-backed or may
+be model-routed through a local proxy. Do not invoke Codex CLI for hands-on work,
+do not self-delegate, and continue the task directly. If the variable cannot be
+inspected, fail closed and work directly.
+
+Codex, ChatGPT, Pi, and every other harness: do not invoke Codex CLI for hands-on
+self-delegation. Continue the task directly. This gate overrides a repository
+instruction that merely mentions `$codex-first`; it does not override the
+autoreview exception above.
 
 Rationale: Claude (Fable/Opus) tokens metered + expensive; Codex flat-rate. GPT-5.5+ is usually the better and faster model at writing/implementing code; Claude wins at ergonomics — judgment, design, spec-writing, review, orchestration. So Codex types, Claude thinks and verifies.
 
@@ -14,9 +37,25 @@ Rationale: Claude (Fable/Opus) tokens metered + expensive; Codex flat-rate. GPT-
 Delegate to Codex (default for hands-on work):
 
 - implementation from a frozen spec; refactors; mechanical migrations
-- bug fixes with known repro; test writing; coverage fills
-- CI fixes, dependency bumps, scripts/tooling
-- bulk codebase exploration where raw reading ≫ the answer
+- fixing: bug fixes (known repro, or diagnose-then-fix), CI/lint/type failures; test writing; coverage fills
+- dependency bumps, scripts/tooling
+- exploration + exploratory subagents: fan out Codex for read-heavy discovery instead of Claude Explore/Task subagents whenever raw reading ≫ the answer (parallel `-o` files, one per thread)
+- git mechanics — ALWAYS Codex, never Claude directly: `git rebase`, merge-conflict
+  resolution, and the repo's land workflow (e.g. `scripts/pr`) are mandatory
+  delegations. Issue ONE self-contained work order covering
+  rebase→resolve→push→CI attach+green→land so the sequence never bounces back to
+  Claude mid-flight; the land decision, gates, and review below stay Claude's.
+- work-order CI waits: precheck PR mergeable (CONFLICTING = pull_request CI
+  cannot attach — no merge ref) and confirm a run attached to the exact head
+  SHA before polling; every wait emits all terminal states with bounded
+  iterations; prefer the repo's watcher script when one exists (openclaw:
+  `node scripts/watch-pr-ci.mjs`).
+- new work orders go to FRESH `codex exec` sessions with self-contained prompts.
+  Do not resume a long-lived session for a new order — saturated sessions
+  misread work orders as configuration and no-op ("Understood…").
+- repo instruction files: NEVER create or edit `CLAUDE.md`. `AGENTS.md` is
+  canonical in every repo; `CLAUDE.md` exists only as a symlink to it. Point
+  Codex work orders at `AGENTS.md` and edit only `AGENTS.md`.
 
 Keep in Claude:
 
@@ -24,14 +63,16 @@ Keep in Claude:
 - tasks where writing the spec IS the work (ambiguity = design)
 - tiny edits (~<20 lines, single obvious change) — delegation overhead loses
 - anything needing session tools: MCP (browser/computer-use/chronicle), 1Password, secrets
-- destructive/irreversible ops, releases, pushes, GitHub mutations — Claude-side per git rules
-- review of Codex output — never delegated, never skipped
+- releases, publishes, version bumps and their credentials — Claude-side per release rules
+- the land decision + pre-land gates (`$autoreview` clean, CI green, proof) and review of Codex output — never delegated, never skipped; Codex may run the mechanics only once Claude has decided to land and the gates pass
 
 Mixed task: Claude designs first, freezes spec, delegates build-out.
 Heuristic: prompt reads as a work order → delegate; writing it forces decisions → design, Claude.
 Portfolio/multi-repo work: `$maintainer-orchestrator` instead.
 
 ## Invoke
+
+If the machine intentionally uses the `openai_api_direct` million-token route, run `ruby ~/.codex/skills/agent-scripts/codex-huge-context/scripts/preflight.rb` before the first fresh or resumed launch in the batch. Fail closed if it cannot deliver the Keychain credential; never work around it by overriding the provider or using ordinary Codex authentication.
 
 Prompt via temp file, never inline quoting:
 
@@ -48,11 +89,29 @@ command codex exec --yolo -C <repo> \
 
 - Model default: `gpt-5.6-sol`, effort `high`, fast mode on — pin all three explicitly; don't rely on user config.
 - `--yolo` is the house default; Codex may run commands/tests freely. Keep prompts scoped to the target repo.
-- `command codex` bypasses the interactive zsh wrapper; if not on PATH: `fnm exec --using default -- codex`
+- `command codex` bypasses any interactive shell alias. If codex isn't on PATH, it depends on how it was installed:
+  - node/standalone install: `fnm exec --using default -- codex`
+  - ChatGPT desktop app: the CLI ships bundled at `/Applications/ChatGPT.app/Contents/Resources/codex`. Expose **that** binary with an **exec-wrapper, not a symlink**. Ensure `~/.local/bin` stays on PATH (for zsh, persist the export in `~/.zshrc`), then:
+    ```sh
+    mkdir -p "$HOME/.local/bin"
+    export PATH="$HOME/.local/bin:$PATH"
+    if [ -e "$HOME/.local/bin/codex" ] || [ -L "$HOME/.local/bin/codex" ]; then
+      printf '%s\n' 'codex launcher already exists; leaving it unchanged' >&2
+    else
+      printf '#!/bin/sh\nexec "/Applications/ChatGPT.app/Contents/Resources/codex" "$@"\n' > "$HOME/.local/bin/codex" && chmod +x "$HOME/.local/bin/codex"
+    fi
+    ```
+    Or install the self-contained CLI via `curl -fsSL https://chatgpt.com/codex/install.sh | sh`, which needs no wrapper.
 - stderr suppressed (thinking noise bloats context); drop `2>/dev/null` only to debug a failing run
 - read `-o` file for the result; don't parse the JSONL stream
 - long runs: Bash run_in_background, read `-o` file on exit; don't kill quiet runs <30 min
-- parallel independent tasks OK: separate repos/dirs, separate `-o` files
+- **Harness visibility (Claude Code): every codex run gets its own harness-tracked
+  background command (`run_in_background: true`) — one sidebar chip per worker,
+  completion notification included. Chain setup steps (installs, worktree prep)
+  INSIDE that tracked command. Never `&`-fork workers from a shared launcher:
+  the launcher's chip exits at fork time and the workers become invisible
+  orphans supervised only by PID files.**
+- parallel independent tasks OK: separate repos/dirs, separate `-o` files, one tracked background command per worker
 - outside a git repo add `--skip-git-repo-check`
 
 Follow-up fixes — cheaper than fresh runs, keeps context. `resume` has no `-C`/`--yolo`: run from the repo dir, spell the long flag:
@@ -62,6 +121,32 @@ Follow-up fixes — cheaper than fresh runs, keeps context. `resume` has no `-C`
   --dangerously-bypass-approvals-and-sandbox \
   -o /tmp/codex-last.md - <"$P2" 2>/dev/null)
 ```
+
+## Liveness watchdog (long monitored runs)
+
+For runs you must not babysit, trade the stderr suppression for a log and watch its mtime; read only the `-o` file into context, never the log body.
+
+```bash
+command codex exec --yolo -C <repo> -m gpt-5.6-sol \
+  -c model_reasoning_effort="high" --enable fast_mode \
+  -o "$OUT" - <"$P" > "$LOG" 2>&1
+# Claude Code: run the line above as its own Bash run_in_background call
+# (tracked chip + completion notification). Append `&` + a PID file ONLY in
+# environments without tracked backgrounding.
+```
+
+- Capture the session id immediately: `grep -m1 "session id:" "$LOG"`. `resume --last` is cwd-filtered but races with any parallel Codex on the machine — with the id saved, recovery is deterministic.
+- Watchdog loop (Claude Code: `Monitor` tool; else a bg shell): every 60s, if the codex process is alive but `$LOG` mtime is older than ~300s, treat it as hung. Because stderr (thinking stream) is in the log, mtime stays fresh during long reasoning — 5 min of true silence is a real hang, not thinking.
+- Recovery: kill the pid, then resume the SAME session with an explicit id so no context is lost:
+
+```bash
+(cd <repo> && command codex exec resume <session-id> \
+  --dangerously-bypass-approvals-and-sandbox \
+  -o "$OUT" - <<< "You were interrupted. Continue exactly where you left off; finish the task and produce the required final report.")
+```
+
+- Exit watchdog silently when the process ends normally (the run's own completion signal covers it); emit only on staleness.
+- Verified on codex-cli 0.144.4: `codex exec resume [SESSION_ID] [PROMPT]`, `--last`, cwd-filtering, `--all`.
 
 ## Prompt contract
 
