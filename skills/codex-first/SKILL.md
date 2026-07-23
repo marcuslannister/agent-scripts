@@ -40,7 +40,22 @@ Delegate to Codex (default for hands-on work):
 - fixing: bug fixes (known repro, or diagnose-then-fix), CI/lint/type failures; test writing; coverage fills
 - dependency bumps, scripts/tooling
 - exploration + exploratory subagents: fan out Codex for read-heavy discovery instead of Claude Explore/Task subagents whenever raw reading ≫ the answer (parallel `-o` files, one per thread)
-- git mechanics: rebasing onto latest `origin/main`, conflict resolution, and executing the PR merge/land workflow (the repo's own path, e.g. `scripts/pr`) — Codex runs the rebase/gates/merge steps; the decision, gates, and review below stay Claude's
+- git mechanics — ALWAYS Codex, never Claude directly: `git rebase`, merge-conflict
+  resolution, and the repo's land workflow (e.g. `scripts/pr`) are mandatory
+  delegations. Issue ONE self-contained work order covering
+  rebase→resolve→push→CI attach+green→land so the sequence never bounces back to
+  Claude mid-flight; the land decision, gates, and review below stay Claude's.
+- work-order CI waits: precheck PR mergeable (CONFLICTING = pull_request CI
+  cannot attach — no merge ref) and confirm a run attached to the exact head
+  SHA before polling; every wait emits all terminal states with bounded
+  iterations; prefer the repo's watcher script when one exists (openclaw:
+  `node scripts/watch-pr-ci.mjs`).
+- new work orders go to FRESH `codex exec` sessions with self-contained prompts.
+  Do not resume a long-lived session for a new order — saturated sessions
+  misread work orders as configuration and no-op ("Understood…").
+- repo instruction files: NEVER create or edit `CLAUDE.md`. `AGENTS.md` is
+  canonical in every repo; `CLAUDE.md` exists only as a symlink to it. Point
+  Codex work orders at `AGENTS.md` and edit only `AGENTS.md`.
 
 Keep in Claude:
 
