@@ -21,7 +21,10 @@ _Avoid_: automatic mirror, default copy
 ### Source classification
 
 **Repo-owned source**:
-Skills authored and tracked in this repo. Entries under `skills/` default to Claude; entries under `codex-skills/` default to Codex.
+Skills tracked in this repo. The tracked `skills/` tree mirrors `steipete/agent-scripts:main` and defaults to Claude; `codex-skills/` entries default to Codex.
+
+**Upstream mirror precedence**:
+A tracked `skills/<name>/SKILL.md` owns that skill identity. Copy-source discovery omits the same name, so one skill cannot be distributed by both repo-owned and source-only classifications.
 
 **Codex authoring source**:
 The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills that target only Codex.

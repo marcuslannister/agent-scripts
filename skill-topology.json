@@ -21,10 +21,8 @@
         "release-mac-app": ["claude", "codex"],
         "reminders": ["claude", "codex"],
         "remote-mac": ["claude", "codex"],
-        "review-claudemd": ["claude", "codex"],
         "skill-cleaner": ["claude", "codex"],
         "ssh-doctor": ["claude", "codex"],
-        "validate-skills": ["claude", "codex"],
         "video-transcript-downloader": ["claude", "codex"]
       }
     },
@@ -54,7 +52,6 @@
       "defaultDestinations": ["claude", "codex"],
       "overrides": {
         "docx": ["claude", "codex"],
-        "frontend-design": ["codex"],
         "pdf": ["claude", "codex"],
         "pptx": ["claude", "codex"],
         "skill-creator": ["codex"],

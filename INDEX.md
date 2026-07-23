@@ -9,27 +9,61 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - review-claudemd
 - validate-skills
 
-## steipete (19)
+## steipete (53)
 
+- agent-transcript
+- beeper
+- browser-use
+- clawsweeper-status
+- clickclack
+- cloudflare-registrar
+- codex-debugging
 - codex-first
+- codex-huge-context
 - create-cli
+- discord-clawd
+- domain-dns-ops
+- fleet-maintenance
+- frontend-design
 - github-author-context
 - github-cache-hygiene
 - github-deep-review
 - github-project-triage
+- hopper-debugger
+- instruments-profiling
 - mac-maintenance
+- maintainer-orchestrator
 - markdown-converter
 - nano-banana-pro
 - native-app-performance
+- notcrawl
+- npm
 - obsidian
+- one-password
 - openai-image-gen
+- openclaw-relay
+- oracle
 - peekaboo
 - release-mac-app
+- release-tweets
 - reminders
 - remote-mac
 - skill-cleaner
+- sonos
+- speaking
 - ssh-doctor
+- swift-concurrency-expert
+- swiftui-liquid-glass
+- swiftui-performance-audit
+- swiftui-view-refactor
+- things-todo
+- twilio-sms
 - video-transcript-downloader
+- vm-lab
+- whatsapp
+- wrangler
+- xcode-sync
+- xurl
 
 ## matt (40)
 
@@ -74,7 +108,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - writing-great-skills
 - writing-shape
 
-## anthropic (17)
+## anthropic (16)
 
 - algorithmic-art
 - brand-guidelines
@@ -82,7 +116,6 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - claude-api
 - doc-coauthoring
 - docx
-- frontend-design
 - internal-comms
 - mcp-builder
 - pdf

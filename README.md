@@ -5,7 +5,7 @@ Shared agent instructions, skills, and small portable helpers for Peter's local 
 This repo is the canonical place for:
 - `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
 - `skill-topology.json`: versioned desired distribution for registered skill sources
-- `skills/`: repo-owned Claude-authored skills plus untracked third-party copies
+- `skills/`: exact tracked mirror of `steipete/agent-scripts:main`; copy adapters may add ignored third-party surface copies
 - `codex-skills/`: repo-owned Codex-only authoring source
 - `scripts/`: dependency-light helpers used across projects
 - `hooks/`: local guardrails such as skill validation
@@ -30,12 +30,12 @@ Rules:
 
 Global discovery — one skills root per CLI:
 - Claude Code: `~/.claude/skills -> ~/Projects/agent-scripts/skills`
-- Codex: `~/.agents/skills` only; default `scripts/update-skill-topology.sh` reconciliation installs repo-owned skills approved by `skill-topology.json`. Claude-authored skills default to Claude, 21 named skills explicitly reach both surfaces, `codex-first` remains Claude-only, and `maintainer-orchestrator` is authored under `codex-skills/` for Codex only.
+- Codex: `~/.agents/skills` only; default `scripts/update-skill-topology.sh` reconciliation installs repo-owned skills approved by `skill-topology.json`. Mirrored skills default to Claude, 18 named skills explicitly reach both surfaces, and `codex-first` remains Claude-only.
 - The old `~/.codex/skills` root is legacy. `scripts/update-skill-topology.sh` independently migrates every non-system entry into collision-safe timestamped backups and verifies that only Codex's `.system` entry may remain.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
-- Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`.
+- Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`. Upstream mirror rollback: `docs/upstream-skills-mirror-rollback.md`.
 
-Shared personal skills live as real folders in `skills/`. Copy-distributed third-party skills arrive through private topology adapters as untracked rsync copies behind marker-delimited ignore blocks (tracked `.gitignore` or repo-local `.git/info/exclude`); `skills/` contains no symlinks.
+Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, including upstream-owned symlinks. Tracked mirror names win source collisions. Copy-distributed third-party skills may arrive through private topology adapters as untracked rsync copies behind marker-delimited ignore blocks (tracked `.gitignore` or repo-local `.git/info/exclude`).
 
 ## Agent Instructions
 
@@ -79,7 +79,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. Their mechanics now live only in `scripts/distribution-topology/adapters/`.
 
 Topology authoring:
-- Put repo-owned Claude skills under `skills/`; they default to Claude.
+- Refresh tracked `skills/` from the upstream `steipete/agent-scripts:main` mirror; do not add fork-only content there. Mirrored skills default to Claude.
 - Put repo-owned Codex-only skills under `codex-skills/`; they default to Codex.
 - For an external skill-bearing source, add exactly one `skill-topology.json` source and one private adapter registration. Record destination defaults and named exceptions in the manifest; never add another public updater.
 - Run `scripts/update-skill-topology.sh --check`, then `scripts/verify.sh` before commit.

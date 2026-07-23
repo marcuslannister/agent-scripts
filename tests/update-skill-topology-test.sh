@@ -30,15 +30,17 @@ grep -F '2   invalid usage or manifest' <<< "$help_output" >/dev/null
 grep -F '3   user decision required' <<< "$help_output" >/dev/null
 grep -F '130 interrupted' <<< "$help_output" >/dev/null
 
-test -f "$REPO_ROOT/codex-skills/maintainer-orchestrator/SKILL.md"
-test ! -e "$REPO_ROOT/skills/maintainer-orchestrator"
+test -f "$REPO_ROOT/skills/maintainer-orchestrator/SKILL.md"
+test ! -e "$REPO_ROOT/codex-skills/maintainer-orchestrator"
 jq -e '
   (.sources[] | select(.id == "repo-claude") |
     .defaultDestinations == ["claude"] and
-    (.overrides | length) == 20 and
+    (.overrides | length) == 18 and
     ([.overrides[] | select(. != ["claude", "codex"])] | length) == 0 and
     (.overrides | has("codex-first") | not) and
     (.overrides | has("maintainer-orchestrator") | not) and
+    (.overrides | has("review-claudemd") | not) and
+    (.overrides | has("validate-skills") | not) and
     (.overrides | has("onecli-gateway") | not)) and
   (.sources[] | select(.id == "repo-codex") |
     .defaultDestinations == ["codex"] and .overrides == {}) and
@@ -47,7 +49,6 @@ jq -e '
     .defaultDestinations == ["claude", "codex"] and
     (.overrides == {
       "docx": ["claude", "codex"],
-      "frontend-design": ["codex"],
       "pdf": ["claude", "codex"],
       "pptx": ["claude", "codex"],
       "skill-creator": ["codex"],

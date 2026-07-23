@@ -5,8 +5,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="$REPO_ROOT/skill-authors.json"
 GEN="$REPO_ROOT/scripts/generate-skill-index.sh"
 
-# Registry shape (per issue #26: explicit per-skill registry, all 83 stated).
-jq -e '.skills | length == 83' "$REGISTRY" >/dev/null
+# Registry shape (per issue #26: explicit per-skill registry, all 116 stated).
+jq -e '.skills | length == 116' "$REGISTRY" >/dev/null
 jq -e '.skills | has("onecli-gateway") | not' "$REGISTRY" >/dev/null
 jq -e '.skills | has("onecli-run") | not' "$REGISTRY" >/dev/null
 jq -e '.authorOrder == ["marcus","steipete","matt","anthropic","khazix"]' "$REGISTRY" >/dev/null
@@ -16,7 +16,7 @@ jq -e '[.skills[]] | unique == ["anthropic","khazix","marcus","matt","steipete"]
 jq -e '.skills["peekaboo"] == "steipete"' "$REGISTRY" >/dev/null
 jq -e '.skills["review-claudemd"] == "marcus"' "$REGISTRY" >/dev/null
 jq -e '.skills["grilling"] == "matt"' "$REGISTRY" >/dev/null
-jq -e '.skills["frontend-design"] == "anthropic"' "$REGISTRY" >/dev/null
+jq -e '.skills["frontend-design"] == "steipete"' "$REGISTRY" >/dev/null
 jq -e '.skills["neat-freak"] == "khazix"' "$REGISTRY" >/dev/null
 
 # Every on-disk skill is attributed and the committed INDEX.md is fresh.

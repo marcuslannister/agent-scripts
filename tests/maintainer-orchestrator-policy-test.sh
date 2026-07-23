@@ -19,12 +19,12 @@ create_fixture() {
 
   mkdir -p \
     "$fixture/scripts" \
-    "$fixture/codex-skills/maintainer-orchestrator/agents"
+    "$fixture/skills/maintainer-orchestrator/agents"
   cp "$REPO_ROOT/scripts/test-maintainer-orchestrator-policy" "$fixture/scripts/"
-  cp "$REPO_ROOT/codex-skills/maintainer-orchestrator/SKILL.md" \
-    "$fixture/codex-skills/maintainer-orchestrator/SKILL.md"
-  cp "$REPO_ROOT/codex-skills/maintainer-orchestrator/agents/openai.yaml" \
-    "$fixture/codex-skills/maintainer-orchestrator/agents/openai.yaml"
+  cp "$REPO_ROOT/skills/maintainer-orchestrator/SKILL.md" \
+    "$fixture/skills/maintainer-orchestrator/SKILL.md"
+  cp "$REPO_ROOT/skills/maintainer-orchestrator/agents/openai.yaml" \
+    "$fixture/skills/maintainer-orchestrator/agents/openai.yaml"
 
   printf '%s\n' "$fixture"
 }
@@ -105,7 +105,7 @@ requirements=(
 for ((index = 0; index < ${#requirements[@]}; index += 2)); do
   fixture="$(create_fixture "missing-$((index / 2))")"
   replace_text \
-    "$fixture/codex-skills/maintainer-orchestrator/SKILL.md" \
+    "$fixture/skills/maintainer-orchestrator/SKILL.md" \
     "${requirements[$((index + 1))]}" \
     ""
   assert_failure \
@@ -115,7 +115,7 @@ done
 
 for term in subthread Subthreads; do
   fixture="$(create_fixture "ambiguous-$term")"
-  printf '\n%s\n' "$term" >>"$fixture/codex-skills/maintainer-orchestrator/SKILL.md"
+  printf '\n%s\n' "$term" >>"$fixture/skills/maintainer-orchestrator/SKILL.md"
   assert_failure "$fixture" "Ambiguous task subthread terminology"
 done
 
@@ -129,7 +129,7 @@ forbidden_fan_out=(
 for index in "${!forbidden_fan_out[@]}"; do
   fixture="$(create_fixture "fan-out-$index")"
   printf '\n%s\n' "${forbidden_fan_out[$index]}" \
-    >>"$fixture/codex-skills/maintainer-orchestrator/SKILL.md"
+    >>"$fixture/skills/maintainer-orchestrator/SKILL.md"
   assert_failure "$fixture" "Task-thread fan-out remains"
 done
 
@@ -141,18 +141,18 @@ metadata_requirements=(
 for index in "${!metadata_requirements[@]}"; do
   fixture="$(create_fixture "metadata-$index")"
   replace_text \
-    "$fixture/codex-skills/maintainer-orchestrator/agents/openai.yaml" \
+    "$fixture/skills/maintainer-orchestrator/agents/openai.yaml" \
     "${metadata_requirements[$index]}" \
     ""
   assert_failure "$fixture" "Stale maintainer-orchestrator default prompt"
 done
 
 missing_skill_fixture="$(create_fixture missing-skill)"
-rm "$missing_skill_fixture/codex-skills/maintainer-orchestrator/SKILL.md"
+rm "$missing_skill_fixture/skills/maintainer-orchestrator/SKILL.md"
 assert_failure "$missing_skill_fixture" "Missing maintainer-orchestrator skill:"
 
 missing_metadata_fixture="$(create_fixture missing-metadata)"
-rm "$missing_metadata_fixture/codex-skills/maintainer-orchestrator/agents/openai.yaml"
+rm "$missing_metadata_fixture/skills/maintainer-orchestrator/agents/openai.yaml"
 assert_failure "$missing_metadata_fixture" "Missing maintainer-orchestrator metadata:"
 
 echo "maintainer-orchestrator policy tests passed"

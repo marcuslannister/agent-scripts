@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
-SKILL_PATH="$SCRIPT_DIR/../codex-skills/maintainer-orchestrator/SKILL.md"
-METADATA_PATH="$SCRIPT_DIR/../codex-skills/maintainer-orchestrator/agents/openai.yaml"
+SKILL_PATH="$SCRIPT_DIR/../skills/maintainer-orchestrator/SKILL.md"
+METADATA_PATH="$SCRIPT_DIR/../skills/maintainer-orchestrator/agents/openai.yaml"
 
 if [ ! -r "$SKILL_PATH" ]; then
   printf 'Missing maintainer-orchestrator skill: %s\n' "$SKILL_PATH" >&2

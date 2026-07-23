@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-23 — Upstream Skills Mirror
+- Replaced tracked `skills/` with the exact 53-skill `steipete/agent-scripts:main` tree, refreshed author attribution, and retired the duplicate Codex-authored `maintainer-orchestrator` copy (#33).
+- Made tracked mirror identities win copy-source overlaps and documented recovery of the pre-mirror tree plus reproducible ignored copies.
+
 ## 2026-07-21 — Dual-Plugin Skill Model
 - Replaced the source-wide `plugin-both` classification with per-skill `dual-plugin` terminology in the glossary, topology manifest, adapter registry, and reporting fixtures.
 - Required plugin bundle metadata to declare expected skill identities (`plugin.skills`) for later runtime verification; dual-native Claude/Codex reconciliation stays on the existing private adapter path.

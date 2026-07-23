@@ -2,6 +2,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REAL_GIT="$(command -v git)"
+export REAL_GIT
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
@@ -14,11 +16,14 @@ cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
 
 ANTHROPIC_SKILLS=(docx frontend-design pdf pptx skill-creator xlsx)
+DISTRIBUTED_ANTHROPIC_SKILLS=(docx pdf pptx skill-creator xlsx)
 for skill in "${ANTHROPIC_SKILLS[@]}"; do
   mkdir -p "$UPSTREAM/skills/$skill"
   printf '%s\n' '---' "name: $skill" 'description: "fixture"' '---' > "$UPSTREAM/skills/$skill/SKILL.md"
 done
-mkdir -p "$UPSTREAM/.git"
+mkdir -p "$UPSTREAM/.git" "$FIXTURE/skills/frontend-design"
+printf '%s\n' '---' 'name: frontend-design' 'description: "repo fixture"' '---' \
+  > "$FIXTURE/skills/frontend-design/SKILL.md"
 
 cat > "$BIN/git" <<'BASH'
 #!/usr/bin/env bash
@@ -33,8 +38,7 @@ if [ "${1:-}" = -C ] && [ "${3:-}" = pull ] && [ "${4:-}" = --ff-only ]; then
   printf 'Already up to date.\n'
   exit 0
 fi
-printf 'unexpected git call: %s\n' "$*" >&2
-exit 1
+exec "$REAL_GIT" "$@"
 BASH
 chmod +x "$BIN/git"
 
@@ -43,12 +47,17 @@ cat > "$FIXTURE/skill-topology.json" <<'JSON'
   "version": 1,
   "sources": [
     {
+      "id": "repo-claude",
+      "classification": "repo-owned",
+      "defaultDestinations": ["claude"],
+      "overrides": {}
+    },
+    {
       "id": "anthropic-skills",
       "classification": "source-only",
       "defaultDestinations": ["claude", "codex"],
       "overrides": {
         "docx": ["claude", "codex"],
-        "frontend-design": ["claude", "codex"],
         "pdf": ["claude", "codex"],
         "pptx": ["claude", "codex"],
         "skill-creator": ["claude", "codex"],
@@ -62,6 +71,12 @@ JSON
 cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
 [
   {
+    "sourceId": "repo-claude",
+    "classification": "repo-owned",
+    "supportedDestinations": ["claude", "codex"],
+    "command": "adapters/repo-owned.sh"
+  },
+  {
     "sourceId": "anthropic-skills",
     "classification": "source-only",
     "supportedDestinations": ["claude", "codex"],
@@ -70,6 +85,9 @@ cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
   }
 ]
 JSON
+
+"$REAL_GIT" -C "$FIXTURE" init -q
+"$REAL_GIT" -C "$FIXTURE" add skills/frontend-design/SKILL.md
 
 COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
@@ -80,21 +98,29 @@ jq -e '
   .status == "reconciled" and
   ([.sources[] | {id, inventoryCount, defaultDestinations, supportedDestinations}] == [{
     "id":"anthropic-skills",
-    "inventoryCount":6,
+    "inventoryCount":5,
     "defaultDestinations":["claude","codex"],
     "supportedDestinations":["claude","codex"]
+  }, {
+    "id":"repo-claude",
+    "inventoryCount":1,
+    "defaultDestinations":["claude"],
+    "supportedDestinations":["claude","codex"]
   }]) and
-  ([.changes[] | select(.action == "installed")] | length) == 12 and
+  ([.changes[] | select(.action == "installed")] | length) == 10 and
   .errors == [] and .decisions == []
 ' "$FIXTURE/first.json" >/dev/null
 
-for skill in "${ANTHROPIC_SKILLS[@]}"; do
+for skill in "${DISTRIBUTED_ANTHROPIC_SKILLS[@]}"; do
   for destination in "$FIXTURE/skills/$skill" "$FIXTURE/home/.agents/skills/$skill"; do
     test -f "$destination/SKILL.md"
     test "$(sed -n '2p' "$destination/.agent-scripts-copy")" = anthropic-skills
     test -n "$(sed -n '3p' "$destination/.agent-scripts-copy")"
   done
 done
+test "$(sed -n '3p' "$FIXTURE/skills/frontend-design/SKILL.md")" = 'description: "repo fixture"'
+test ! -e "$FIXTURE/skills/frontend-design/.agent-scripts-copy"
+test ! -e "$FIXTURE/home/.agents/skills/frontend-design"
 
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
@@ -194,8 +220,7 @@ fi
 if [ "${1:-}" = -C ] && [ "${3:-}" = pull ] && [ "${4:-}" = --ff-only ]; then
   exit 0
 fi
-printf 'unexpected git call: %s\n' "$*" >&2
-exit 1
+exec "$REAL_GIT" "$@"
 BASH
 chmod +x "$KHAZIX_BIN/git"
 
