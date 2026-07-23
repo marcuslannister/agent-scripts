@@ -30,6 +30,10 @@ A tracked `skills/<name>/SKILL.md` owns that skill identity. Copy-source discove
 The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills that target only Codex.
 _Avoid_: Codex surface, Codex-only surface
 
+**Foreign skill staging**:
+The repo `other-skills/<owner>/` holding area, not an agent surface. Source-only and npx-only inventories reconcile here before any later selection-to-surface step. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
+_Avoid_: Claude surface, Codex surface, automatic install
+
 **Dual-plugin skill**:
 A skill maintained by its authoritative upstream and exposed through both Claude Code's and Codex's native plugin systems. Classification and duplicate cleanup are scoped to the expected skill identity, not the repository; native install and reconcile happen per plugin bundle. Existing copies remain until one gate verifies both native paths, then every duplicate of only that skill is removed regardless of copy provenance.
 _Avoid_: plugin-both, plugin-both repo, source-wide dual classification
@@ -46,7 +50,7 @@ _Avoid_: automatic fallback, temporary copy
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is served by whatever the repo offers (installer or copy).
 
 **npx-only repo**:
-A skill repo distributed solely through a manifest-scoped skills CLI adapter (`npx skills add`). Generic global updates are not policy.
+A skills-CLI-shaped source whose complete inventory is cloned and staged under `other-skills/matt/`. The reconciler removes its old managed agent-surface installs; generic global updates are not policy.
 
 **Source-only repo**:
 A skill repo with no installer or plugin manifest; cloned under `~/Projects` and copied into a surface.

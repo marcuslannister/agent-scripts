@@ -55,10 +55,11 @@ compute_copy_hash() { # dir
   )
 }
 
-install_skill_copy() { # source_dir dest_dir owner
+install_skill_copy() { # source_dir dest_dir owner [marker_source]
   local src="$1"
   local dst="$2"
   local owner="$3"
+  local marker_source="${4:-$src}"
   local marker="${dst}/.agent-scripts-copy"
 
   if [ ! -d "$src" ]; then
@@ -100,9 +101,9 @@ install_skill_copy() { # source_dir dest_dir owner
   # write a valid two-line marker rather than fail the install.
   local hash
   if hash="$(compute_copy_hash "$src")" && [ -n "$hash" ]; then
-    printf '%s\n%s\n%s\n' "$src" "$owner" "$hash" > "$marker" || return 1
+    printf '%s\n%s\n%s\n' "$marker_source" "$owner" "$hash" > "$marker" || return 1
   else
-    printf '%s\n%s\n' "$src" "$owner" > "$marker" || return 1
+    printf '%s\n%s\n' "$marker_source" "$owner" > "$marker" || return 1
   fi
 }
 
