@@ -11,17 +11,22 @@ The upstream mirror replaced `skills/` at pre-mirror commit
 `560183d190cdbb8b629e07f2eead0aec362bd782`. The ignored third-party copies
 removed during the cutover remain reproducible from their registered sources.
 
-Start from a clean checkout. Revert all four mirror implementation commits without
-committing yet; this restores the former tracked tree, topology policy, tests,
-and Codex authoring copy together:
+Start from a clean checkout. Restore every implementation-owned path from the
+pre-mirror baseline. The rollback guide itself stays present:
 
 ```bash
 git status -sb
-git revert --no-commit \
-  50a56052ef3a3567e5a2a6cad2a6d5c8b1c15eeb \
-  9d0bfb0e4be07853b17de64722a12dea9096d534 \
-  c96b5f8608166054c4afdbceaa1f11838de424a4 \
-  dd2fdd271bae97e5f862e5631e550fe65076b696
+git restore --source=560183d190cdbb8b629e07f2eead0aec362bd782 \
+  --staged --worktree -- \
+  CHANGELOG.md CONTEXT.md INDEX.md README.md \
+  codex-skills/maintainer-orchestrator \
+  scripts/distribution-topology/adapters/copy-source.sh \
+  scripts/test-maintainer-orchestrator-policy \
+  skill-authors.json skill-topology.json skills \
+  tests/maintainer-orchestrator-policy-test.sh \
+  tests/skill-index-test.sh \
+  tests/update-copy-distributed-topology-test.sh \
+  tests/update-skill-topology-test.sh
 ```
 
 Recreate the ignored source-owned copies through the restored reconciler policy.
