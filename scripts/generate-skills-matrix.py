@@ -179,7 +179,10 @@ print("Config truth on this machine, point-in-time (mutable — retoggling a plu
       "`[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no "
       "toggle and are counted *always-on*. On Codex only Waza and claude-mem ship "
       "as native plugins; every other skill is an always-on `~/.agents/skills` "
-      "copy.\n")
+      "copy. Claude Code's `/skills` picker reports fewer — it lists only "
+      "enabled, plugin-*registered* skills (excluding disabled plugins, "
+      "unregistered sub-skills in category folders, and plain repo copies), so "
+      "this table, which counts every `SKILL.md` on disk, runs higher.\n")
 print("| Agent | Enabled | Disabled | Always-on | Total |")
 print("|---|---|---|---|---|")
 for label, s in (("Claude", c_state), ("Codex", z_state)):

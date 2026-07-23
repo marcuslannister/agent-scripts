@@ -134,7 +134,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 
 ## Enable-state
 
-Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to plugin-delivered skills — Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads `[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no toggle and are counted *always-on*. On Codex only Waza and claude-mem ship as native plugins; every other skill is an always-on `~/.agents/skills` copy.
+Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to plugin-delivered skills — Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads `[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no toggle and are counted *always-on*. On Codex only Waza and claude-mem ship as native plugins; every other skill is an always-on `~/.agents/skills` copy. Claude Code's `/skills` picker reports fewer — it lists only enabled, plugin-*registered* skills (excluding disabled plugins, unregistered sub-skills in category folders, and plain repo copies), so this table, which counts every `SKILL.md` on disk, runs higher.
 
 | Agent | Enabled | Disabled | Always-on | Total |
 |---|---|---|---|---|
