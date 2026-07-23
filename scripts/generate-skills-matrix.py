@@ -6,7 +6,8 @@ codex-skills/ dirs, and Codex's ~/.agents/skills/ + native plugin cache to
 list every skill both agents can see. Prints markdown to stdout; paste the
 table + Repos section into docs/skills-matrix.md.
 """
-import os, glob
+import os, glob, json, re
+from collections import Counter
 
 HOME = os.path.expanduser("~")
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -120,6 +121,69 @@ for display in sorted(rows.keys()):
     print(f"| `{display}` | {r['source']} | {r['type']} | {agent} | ~{r['tokens']} |")
 
 print(f"\n<!-- total={len(rows)} both={both} claude_only={claude_only} codex_only={codex_only} total_claude={total_claude} total_codex={total_codex} -->")
+
+# --- enable-state: config truth on this machine (mutable, point-in-time) ---
+def _json(p):
+    try:
+        with open(p) as f: return json.load(f)
+    except Exception:
+        return {}
+
+CLAUDE_ENABLED = _json(f"{HOME}/.claude/settings.json").get("enabledPlugins", {})
+try:
+    _cfg = open(f"{HOME}/.codex/config.toml").read()
+except Exception:
+    _cfg = ""
+CODEX_ENABLED = {m.group(1): (m.group(2) == "true")
+                 for m in re.finditer(r'\[plugins\."([^"]+)"\]\s*\nenabled\s*=\s*(true|false)', _cfg)}
+
+# display namespace/name -> Claude plugin key in enabledPlugins
+CLAUDE_PLUGIN_KEY = {
+    "claude-mem": "claude-mem@thedotmack",
+    "codex": "codex@openai-codex",
+    "waza": "waza@waza",
+    "mattpocock-skills": "mattpocock-skills@mattpocock",
+    "frontend-design": "frontend-design@claude-plugins-official",
+    "skill-creator": "skill-creator@claude-plugins-official",
+    "visual-explainer": "visual-explainer@visual-explainer-marketplace",
+    "claude-automation-recommender": "claude-code-setup@claude-plugins-official",
+    "remember": "remember@claude-plugins-official",
+}
+# On Codex only Waza + claude-mem ship as native plugins; every other skill is a
+# plain ~/.agents/skills copy with no enable toggle -> always-on.
+CODEX_PLUGIN_KEY = {"waza": "waza@waza", "claude-mem": "claude-mem@claude-mem-local"}
+
+def claude_state(display, typ):
+    if typ != "plugin":
+        return "always-on"
+    key = CLAUDE_PLUGIN_KEY.get(display.split(":")[0]) or CLAUDE_PLUGIN_KEY.get(display)
+    return "enabled" if CLAUDE_ENABLED.get(key) else "disabled"  # missing/False -> inactive
+
+def codex_state(display):
+    key = CODEX_PLUGIN_KEY.get(display.split(":")[0])
+    if key is None:
+        return "always-on"
+    return "enabled" if CODEX_ENABLED.get(key) else "disabled"
+
+c_state, z_state = Counter(), Counter()
+for display, r in rows.items():
+    if r["claude"]:
+        c_state[claude_state(display, r["type"])] += 1
+    if r["codex"]:
+        z_state[codex_state(display)] += 1
+
+print("\n## Enable-state\n")
+print("Config truth on this machine, point-in-time (mutable — retoggling a plugin "
+      "changes these). *Enabled/disabled* apply only to plugin-delivered skills — "
+      "Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads "
+      "`[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no "
+      "toggle and are counted *always-on*. On Codex only Waza and claude-mem ship "
+      "as native plugins; every other skill is an always-on `~/.agents/skills` "
+      "copy.\n")
+print("| Agent | Enabled | Disabled | Always-on | Total |")
+print("|---|---|---|---|---|")
+for label, s in (("Claude", c_state), ("Codex", z_state)):
+    print(f"| {label} | {s['enabled']} | {s['disabled']} | {s['always-on']} | {sum(s.values())} |")
 
 print("\n## Repos\n")
 print("| Repo | URL |")

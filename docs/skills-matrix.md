@@ -9,7 +9,7 @@ Every skill installed on this machine, both agents, one flat table. Generated on
 
 Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-remote`, `chatgpt-global` — browser/visualize/sites/artifact-templates) and Claude's `typescript-lsp` (no SKILL.md, not skill-shaped). These aren't part of this repo's managed skill ecosystem.
 
-118 skills total — 116 on Claude, 112 on Codex, 110 on both, 6 Claude-only, 2 Codex-only.
+116 skills total — 115 on Claude, 111 on Codex, 110 on both, 5 Claude-only, 1 Codex-only.
 
 | Skill | Source | Type | Agent | ~Tokens |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `mattpocock-skills:teach` | mattpocock/skills | plugin | claude, codex | ~2374 |
 | `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | claude, codex | ~726 |
 | `mattpocock-skills:to-spec` | mattpocock/skills | plugin | claude, codex | ~766 |
-| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | claude, codex | ~1415 |
+| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | claude, codex | ~1438 |
 | `mattpocock-skills:triage` | mattpocock/skills | plugin | claude, codex | ~1628 |
 | `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | claude, codex | ~1220 |
 | `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | claude, codex | ~2948 |
@@ -101,13 +101,11 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `native-app-performance` | marcuslannister/agent-scripts | skill | claude, codex | ~486 |
 | `neat-freak` | marcuslannister/agent-scripts | skill | claude, codex | ~1903 |
 | `obsidian` | marcuslannister/agent-scripts | skill | claude, codex | ~916 |
-| `onecli-gateway` | onecli (no public repo) | skill | codex | ~1891 |
 | `openai-image-gen` | marcuslannister/agent-scripts | skill | claude, codex | ~248 |
 | `pdf` | marcuslannister/agent-scripts | skill | claude, codex | ~2009 |
 | `peekaboo` | steipete/Peekaboo | skill | claude, codex | ~734 |
 | `pptx` | marcuslannister/agent-scripts | skill | claude, codex | ~5162 |
 | `release-mac-app` | marcuslannister/agent-scripts | skill | claude, codex | ~1666 |
-| `remember` | anthropics/claude-plugins-official | plugin | claude | ~343 |
 | `reminders` | marcuslannister/agent-scripts | skill | claude, codex | ~661 |
 | `remote-mac` | marcuslannister/agent-scripts | skill | claude, codex | ~1707 |
 | `review-claudemd` | marcuslannister/agent-scripts | skill | claude, codex | ~884 |
@@ -119,30 +117,39 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `theme-factory` | marcuslannister/agent-scripts | skill | claude, codex | ~781 |
 | `validate-skills` | marcuslannister/agent-scripts | skill | claude, codex | ~231 |
 | `video-transcript-downloader` | marcuslannister/agent-scripts | skill | claude, codex | ~558 |
-| `visual-explainer` | nicobailon/visual-explainer | plugin | claude, codex | ~1684 |
+| `visual-explainer` | nicobailon/visual-explainer | plugin | claude, codex | ~9330 |
 | `waza:check` | tw93/Waza | plugin | claude, codex | ~10617 |
 | `waza:health` | tw93/Waza | plugin | claude, codex | ~6320 |
-| `waza:hunt` | tw93/Waza | plugin | claude, codex | ~4572 |
-| `waza:learn` | tw93/Waza | plugin | claude, codex | ~2440 |
-| `waza:read` | tw93/Waza | plugin | claude, codex | ~2106 |
-| `waza:think` | tw93/Waza | plugin | claude, codex | ~3854 |
+| `waza:hunt` | tw93/Waza | plugin | claude, codex | ~4928 |
+| `waza:learn` | tw93/Waza | plugin | claude, codex | ~2565 |
+| `waza:read` | tw93/Waza | plugin | claude, codex | ~2156 |
+| `waza:think` | tw93/Waza | plugin | claude, codex | ~3908 |
 | `waza:ui` | tw93/Waza | plugin | claude, codex | ~5058 |
 | `waza:write` | tw93/Waza | plugin | claude, codex | ~5735 |
 | `web-artifacts-builder` | marcuslannister/agent-scripts | skill | claude, codex | ~768 |
 | `webapp-testing` | marcuslannister/agent-scripts | skill | claude, codex | ~965 |
 | `xlsx` | marcuslannister/agent-scripts | skill | claude, codex | ~2136 |
 
+<!-- total=116 both=110 claude_only=5 codex_only=1 total_claude=115 total_codex=111 -->
+
+## Enable-state
+
+Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to plugin-delivered skills — Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads `[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no toggle and are counted *always-on*. On Codex only Waza and claude-mem ship as native plugins; every other skill is an always-on `~/.agents/skills` copy.
+
+| Agent | Enabled | Disabled | Always-on | Total |
+|---|---|---|---|---|
+| Claude | 62 | 12 | 41 | 115 |
+| Codex | 18 | 8 | 85 | 111 |
+
 ## Repos
 
 | Repo | URL |
 |---|---|
-| `marcuslannister/agent-scripts` | https://github.com/marcuslannister/agent-scripts |
 | `anthropics/claude-plugins-official` | https://github.com/anthropics/claude-plugins-official |
-| `thedotmack/claude-mem` | https://github.com/thedotmack/claude-mem |
-| `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
+| `marcuslannister/agent-scripts` | https://github.com/marcuslannister/agent-scripts |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |
-| `tw93/Waza` | https://github.com/tw93/Waza |
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |
+| `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
 | `steipete/Peekaboo` | https://github.com/steipete/Peekaboo |
-
-`onecli` (`onecli-gateway`) has no discoverable public GitHub repo — internal tool, `author: onecli` frontmatter tag only, no repo URL found.
+| `thedotmack/claude-mem` | https://github.com/thedotmack/claude-mem |
+| `tw93/Waza` | https://github.com/tw93/Waza |
