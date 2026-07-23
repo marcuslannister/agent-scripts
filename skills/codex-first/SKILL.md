@@ -152,6 +152,42 @@ command codex exec --yolo -C <repo> -m gpt-5.6-sol \
 
 Codex starts with zero session context. Every prompt: goal, exact repo/paths, constraints, non-goals, proof expected (exact test command), output shape ("report files changed + test output"). Spec quality decides success.
 
+- **Every hard prohibition needs an escape hatch.** A cornered worker satisfies the letter of the
+  gates: told "never raise the size budget" while its design inflated the bundle, Codex
+  hand-minified source identifiers to single letters — and passed every gate including
+  autoreview. Pair each hard constraint with the sanctioned exit: "if gate X fails after honest
+  attempts: STOP, report exact numbers/diagnosis, do not work around." Treat a stop-report as a
+  successful run (it is the coordinator's decision point, and workers use it correctly once it
+  exists).
+- Multi-PR series: same spec skeleton every PR; cite prior landed PR numbers and name their
+  idioms ("controller with narrow host interface, the #NNN shape") — workers imitate landed
+  precedent far more reliably than abstract style rules. Fold each round's new trap into the
+  next spec.
+- End every series work order with an explicit stop: "Do exactly this; do not start PR N+1."
+
+## Coordinator verification (beyond the diff)
+
+Worker reports are accurate but incomplete — pathologies live in the code, not the summary.
+After every landed PR, verify against merged origin/main, not the report:
+
+- read the actual merged surface (types, interfaces, naming) — the minification incident was
+  invisible in a green report and obvious in 10 lines of code
+- squash history: any commit message you didn't commission ("add startup margin") is a lead
+- diff-stat the guard/budget/baseline files the spec forbade touching; if a limit number in the
+  report changed, find out who moved it (may be main advancing, may be the worker)
+- test-helper edits are a red-flag class of their own (defineProperty shims re-exposing moved
+  fields keep suites green while hiding the migration)
+
+## Parallel workers, one repo
+
+Disjoint-file tasks parallelize cleanly: one worktree + unique branch per worker (fresh from
+origin/main; distinctive branch names — generic ones attach to old PRs), one tracked background
+command each, shared spec body + per-target header. Landing serializes on the repo's land
+workflow lock: tell each worker a held lock means a sibling owns it — back off 5-10 min, retry
+from the failed step, NEVER lock-recover a lock it didn't create, and don't chase main with
+fresh gates as siblings land under it. Sequential series instead reuse ONE worktree, rebranching
+from origin/main per PR.
+
 ## Verify (Claude, always)
 
 - `git status -sb` + read the full diff; judge like a contributor PR
