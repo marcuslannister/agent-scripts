@@ -29,9 +29,14 @@ topology_validate_fields() { # file jq_path allowed_json required_json label
   fi
 }
 
-topology_validate_destinations() { # file jq_path label
-  local file="$1" path="$2" label="$3" unknown
-  if ! jq -e "$path | type == \"array\" and length > 0" "$file" >/dev/null 2>&1; then
+topology_validate_destinations() { # file jq_path label [allow_empty]
+  local file="$1" path="$2" label="$3" allow_empty="${4:-false}" unknown
+  if [ "$allow_empty" = true ]; then
+    if ! jq -e "$path | type == \"array\"" "$file" >/dev/null 2>&1; then
+      topology_fail 2 "$label must be a destination array"
+      return 2
+    fi
+  elif ! jq -e "$path | type == \"array\" and length > 0" "$file" >/dev/null 2>&1; then
     topology_fail 2 "$label must be a non-empty destination array"
     return 2
   fi
@@ -91,7 +96,7 @@ topology_validate_manifest() { # file
         topology_fail 2 "$label has an invalid override skill name: $skill"
         return 2
       fi
-      topology_validate_destinations "$file" ".sources[$index].overrides[\"$skill\"]" "$label override $skill" || return $?
+      topology_validate_destinations "$file" ".sources[$index].overrides[\"$skill\"]" "$label override $skill" true || return $?
     done < <(jq -r ".sources[$index].overrides | keys[]" "$file")
   done
 }

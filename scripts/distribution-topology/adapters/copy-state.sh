@@ -132,6 +132,45 @@ inspect_copy_state() { # content_source marker_source destination owner repo_roo
   fi
 }
 
+install_staged_surface_copy() { # staging_root skill surface destination owner repo_root
+  local staging_root="$1" skill="$2" surface="$3" destination="$4" owner="$5" repo_root="$6"
+  local state detail
+  IFS=$'\t' read -r state detail < <(
+    inspect_copy_state "$staging_root/$skill" "$staging_root/$skill" \
+      "$surface/$skill" "$owner" "$repo_root"
+  )
+  if [ "$state" = foreign ] || [ "$state" = error ]; then
+    printf 'refusing unsafe copy adoption: %s -> %s (%s)\n' "$skill" "$destination" "$detail" >&2
+    return 1
+  fi
+  install_skill_copy "$staging_root/$skill" "$surface/$skill" "$owner" \
+    "$staging_root/$skill" >/dev/null
+}
+
+ensure_staged_skill() { # skill; caller supplies inspect_stage_state/install_staged_skill
+  local skill="$1" state detail
+  IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
+  if [ "$state" = foreign ] || [ "$state" = error ]; then
+    printf 'refusing unsafe staging adoption: %s (%s)\n' "$skill" "$detail" >&2
+    return 1
+  fi
+  [ "$state" = present ] || install_staged_skill "$skill"
+}
+
+refresh_owned_staged_surface_copy() { # plan staging_root skill surface destination owner
+  local plan="$1" staging_root="$2" skill="$3" surface="$4" destination="$5" owner="$6"
+  local marker_owner
+  if awk -F '\t' -v skill="$skill" -v destination="$destination" \
+    '$1 == "remove" && $2 == skill && $3 == destination { found = 1 } END { exit !found }' "$plan"; then
+    return 0
+  fi
+  marker_owner="$(sed -n '2p' "$surface/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+  [ "$marker_owner" = "$owner" ] || return 0
+  install_skill_copy "$staging_root/$skill" "$surface/$skill" "$owner" \
+    "$staging_root/$skill" >/dev/null
+  printf 'installed\t%s\t%s\n' "$skill" "$destination"
+}
+
 emit_copy_inspection() { # plan source_root marker_root surface destination owner repo_root
   local plan_path="$1"
   local source_root="$2"

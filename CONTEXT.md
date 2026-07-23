@@ -31,7 +31,7 @@ The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills 
 _Avoid_: Codex surface, Codex-only surface
 
 **Foreign skill staging**:
-The repo `other-skills/<owner>/` holding area, not an agent surface. Source-only and npx-only inventories reconcile here before any later selection-to-surface step. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
+The repo `other-skills/<owner>/` holding area, not an agent surface. Source-only and npx-only inventories reconcile here first; manifest-approved destinations then copy each selected skill from staging to the matching agent surface. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
 _Avoid_: Claude surface, Codex surface, automatic install
 
 **Dual-plugin skill**:
@@ -50,10 +50,10 @@ _Avoid_: automatic fallback, temporary copy
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is served by whatever the repo offers (installer or copy).
 
 **npx-only repo**:
-A skills-CLI-shaped source whose complete inventory is cloned and staged under `other-skills/matt/`. The reconciler removes its old managed agent-surface installs; generic global updates are not policy.
+A skills-CLI-shaped source whose complete inventory is cloned and staged under `other-skills/matt/`. Destination-approved skills copy from staging to Codex; Matt reaches Claude through its separate plugin source. The reconciler removes legacy npx installs; generic global updates are not policy.
 
 **Source-only repo**:
-A skill repo with no installer or plugin manifest; staged under the matching `other-skills/<owner>/` holding area, not an agent surface.
+A skill repo with no installer or plugin manifest. Its complete inventory stages under the matching `other-skills/<owner>/`; only destination-approved skills copy onward to agent surfaces.
 
 ### Install artifacts
 
@@ -73,7 +73,7 @@ Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden file
 _Avoid_: reusing it as an identity or cache key — it only answers "did content change since last sync".
 
 **Topology manifest**:
-`skill-topology.json`, the only desired-distribution policy. One entry per skill-bearing source; source defaults plus named overrides declare destinations.
+`skill-topology.json`, the only desired-distribution policy. One entry per skill-bearing source; source defaults plus named overrides declare destinations. An empty named override selects no agent surface while preserving the staged skill.
 
 **Private adapter**:
 An implementation under `scripts/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.

@@ -18,6 +18,7 @@ retired_repo="vercel-labs/skills"
 owner="matt-skills"
 retired_owner="cli-skills"
 lock="$home/.agents/.skill-lock.json"
+codex_root="$home/.agents/skills"
 claude_root="$repo_root/skills"
 state_root="$discovery_root/$source_id"
 upstream_root_file="$state_root/upstream-root"
@@ -128,11 +129,12 @@ inspect_staging_state() { # expected skill destination current-lock
       lock_source="$(lock_source_for "$current_lock" "$skill")"
       if [ "$lock_source" = "$upstream_repo" ] \
         || { [ "$skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; }; then
-        printf 'present\tmanaged\n'
-      elif [ -z "$lock_source" ]; then
-        printf 'absent\tmissing\n'
-      else
+        printf 'drift\tlegacy-npx\n'
+      elif [ -n "$lock_source" ]; then
         printf 'foreign\t%s\n' "$lock_source"
+      else
+        inspect_copy_state "$staging_root/$skill" "$staging_root/$skill" \
+          "$codex_root/$skill" "$owner" "$repo_root"
       fi
       ;;
     claude)
@@ -167,6 +169,14 @@ emit_inspection() {
       printf 'npx-decision\t%s\tcodex\t%s\n' "$lock_skill" "$lock_source"
     fi
   done < "$current_lock"
+  for marker in "$codex_root"/*/.agent-scripts-copy; do
+    [ -f "$marker" ] || continue
+    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+    [ "$marker_owner" = "$owner" ] || continue
+    orphan="$(basename "$(dirname "$marker")")"
+    awk -F '\t' -v skill="$orphan" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file" && continue
+    printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
+  done
   for marker in "$claude_root"/*/.agent-scripts-copy; do
     [ -f "$marker" ] || continue
     marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
@@ -208,6 +218,22 @@ remove_lock_entries() { # names...
   mv "$tmp" "$lock"
 }
 
+inspect_stage_state() { # skill
+  inspect_staging_state present "$1" staging "$lock_snapshot"
+}
+
+install_staged_skill() { # skill
+  local skill="$1" upstream_path marker_path
+  upstream_path="$(upstream_path_for "$skill")"
+  marker_path="$(marker_path_for "$skill")"
+  install_skill_copy "$upstream_path" "$staging_root/$skill" "$owner" "$marker_path" >/dev/null
+}
+
+refresh_installed_codex_copy() { # skill
+  refresh_owned_staged_surface_copy "$plan_path" "$staging_root" "$1" \
+    "$codex_root" codex "$owner"
+}
+
 refresh_staging_ignore() {
   local marker marker_owner name entries=()
   mkdir -p "$staging_root"
@@ -227,7 +253,7 @@ refresh_staging_ignore() {
 
 reconcile_states() {
   local current_lock="$state_root/pre-reconcile-lock.tsv"
-  local operation skill destination lock_source upstream_path marker_path marker_owner
+  local operation skill destination lock_source state detail marker_owner
   local failed=0 operation_failed
   local matt_removals=() retired_removals=()
   read_lock_inventory "$current_lock"
@@ -236,7 +262,8 @@ reconcile_states() {
     return 1
   fi
   while IFS=$'\t' read -r operation skill destination; do
-    [ "$operation:$destination" = remove:codex ] || continue
+    [ "$destination" = codex ] || continue
+    case "$operation" in install|remove) ;; *) continue ;; esac
     lock_source="$(lock_source_for "$current_lock" "$skill")"
     if [ "$lock_source" = "$upstream_repo" ]; then
       matt_removals+=("$skill")
@@ -255,10 +282,21 @@ reconcile_states() {
     operation_failed=0
     case "$operation:$destination" in
       install:staging)
-        upstream_path="$(upstream_path_for "$skill")"
-        marker_path="$(marker_path_for "$skill")"
-        install_skill_copy "$upstream_path" "$staging_root/$skill" "$owner" "$marker_path" >/dev/null \
-          || operation_failed=1
+        IFS=$'\t' read -r state detail < <(
+          inspect_staging_state present "$skill" staging "$current_lock"
+        )
+        ensure_staged_skill "$skill" || operation_failed=1
+        if [ "$operation_failed" -eq 0 ] && [ "$state" = drift ]; then
+          refresh_installed_codex_copy "$skill" || operation_failed=1
+        fi
+        ;;
+      install:codex)
+        if ! ensure_staged_skill "$skill"; then
+          operation_failed=1
+        elif ! install_staged_surface_copy "$staging_root" "$skill" "$codex_root" \
+          codex "$owner" "$repo_root"; then
+          operation_failed=1
+        fi
         ;;
       remove:staging)
         marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
@@ -273,6 +311,10 @@ reconcile_states() {
         fi
         ;;
       remove:codex)
+        marker_owner="$(sed -n '2p' "$codex_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+        if [ "$marker_owner" = "$owner" ]; then
+          rm -rf -- "${codex_root:?}/$skill" || operation_failed=1
+        fi
         ;;
       *)
         printf 'unknown staging operation: %s %s\n' "$operation" "$destination" >&2

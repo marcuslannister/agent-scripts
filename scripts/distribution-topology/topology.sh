@@ -142,8 +142,14 @@ topology_expected_states() { # source_id output_tsv plan_json
     if [ "$classification" = source-only ] || [ "$classification" = npx-only ]; then
       printf 'present\t%s\tstaging\n' "$skill" >> "$output"
       while IFS= read -r destination; do
-        topology_claimed_by_other "$plan_json" "$source_id" "$skill" "$destination" && continue
-        printf 'absent\t%s\t%s\n' "$skill" "$destination" >> "$output"
+        desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
+          .[] | select(.sourceId == $source and .skill == $skill) | (.destinations | index($destination) != null)
+        ' "$plan_json")"
+        if [ "$desired" != true ] && topology_claimed_by_other "$plan_json" "$source_id" "$skill" "$destination"; then
+          continue
+        fi
+        [ "$desired" = true ] && printf 'present\t%s\t%s\n' "$skill" "$destination" >> "$output" \
+          || printf 'absent\t%s\t%s\n' "$skill" "$destination" >> "$output"
       done < <(topology_registry_value "$source_id" '.supportedDestinations[]')
       continue
     fi

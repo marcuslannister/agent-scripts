@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## 2026-07-23 — Foreign Skill Staging
 - Moved source-only and npx-only inventories out of agent surfaces into owner-grouped `other-skills/{marcus,anthropics,matt}/`, tracking Marcus content while ignoring reproducible Anthropic and Matt copies (#34).
+- Installed only manifest-selected staged skills per agent, using Claude plugins for plugin-classified sources and staged copies for Codex (#35).
 
 ## 2026-07-23 — Upstream Skills Mirror
 - Replaced tracked `skills/` with the exact 53-skill `steipete/agent-scripts:main` tree, refreshed author attribution, and retired the duplicate Codex-authored `maintainer-orchestrator` copy (#33).

@@ -115,7 +115,7 @@ inspect_staging_state() { # expected skill destination
     return
   fi
   surface="$(surface_for_destination "$destination")"
-  inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
+  inspect_copy_state "$staging_root/$skill" "$staging_root/$skill" \
     "$surface/$skill" "$owner" "$repo_root"
 }
 
@@ -161,6 +161,16 @@ remove_owned_legacy_copy() { # skill destination
   rm -rf -- "${surface:?}/$skill"
 }
 
+refresh_installed_surface_copies() { # skill
+  local skill="$1" destination surface failed=0
+  for destination in claude codex; do
+    surface="$(surface_for_destination "$destination")"
+    refresh_owned_staged_surface_copy "$plan_path" "$staging_root" "$skill" \
+      "$surface" "$destination" "$owner" || failed=1
+  done
+  return "$failed"
+}
+
 refresh_staging_ignore() {
   local marker marker_owner name entries=()
   mkdir -p "$staging_root"
@@ -175,22 +185,36 @@ refresh_staging_ignore() {
       entries+=("other-skills/$staging_owner/$name")
     fi
   done
+  for marker in "$repo_root/skills"/*/.agent-scripts-copy; do
+    [ -f "$marker" ] || continue
+    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+    [ "$marker_owner" = "$owner" ] || continue
+    name="$(basename "$(dirname "$marker")")"
+    entries+=("skills/$name")
+  done
   regen_gitignore_block "$repo_root/.gitignore" "$owner" update-skill-topology.sh \
     ${entries[@]+"${entries[@]}"}
 }
 
 reconcile_staging() {
-  local operation skill destination state detail marker_owner failed=0 operation_failed
+  local operation skill destination state detail marker_owner surface failed=0 operation_failed
   while IFS=$'\t' read -r operation skill destination; do
     operation_failed=0
     case "$operation:$destination" in
       install:staging)
         IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
-        if [ "$state" = foreign ] || [ "$state" = error ]; then
-          printf 'refusing unsafe staging adoption: %s (%s)\n' "$skill" "$detail" >&2
+        ensure_staged_skill "$skill" || operation_failed=1
+        if [ "$operation_failed" -eq 0 ] && [ "$state" = drift ]; then
+          refresh_installed_surface_copies "$skill" || operation_failed=1
+        fi
+        ;;
+      install:claude|install:codex)
+        surface="$(surface_for_destination "$destination")"
+        if ! ensure_staged_skill "$skill"; then
           operation_failed=1
-        else
-          install_staged_skill "$skill" || operation_failed=1
+        elif ! install_staged_surface_copy "$staging_root" "$skill" "$surface" \
+          "$destination" "$owner" "$repo_root"; then
+          operation_failed=1
         fi
         ;;
       remove:staging)
