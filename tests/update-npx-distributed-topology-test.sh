@@ -194,6 +194,7 @@ jq -e '
   (.plan[] | select(.skill == "new-skill") | .destinations == ["claude", "codex"]) and
   (.plan[] | select(.skill == "code-review") | .destinations == ["codex"]) and
   ([.changes[] | select(.action == "removed" and .skill == "old-name")] | length) == 2 and
+  ([.changes[] | select(.action == "installed" and .destination == "staging")] | length) == 3 and
   ([.changes[] | select(.action == "removed" and .skill == "find-skills")] | length) == 2
 ' "$FIXTURE/first.json" >/dev/null
 for skill in alpha code-review new-skill; do

@@ -105,38 +105,47 @@ marker_path_for() { # skill
   printf '%s/Projects/matt-skills/%s\n' "$home" "$relative"
 }
 
-inspect_projected_state() { # expected skill destination current-lock
-  local expected="$1" skill="$2" destination="$3" current_lock="$4"
-  local upstream_path marker_path lock_source marker_owner legacy=0
-  if ! upstream_path="$(upstream_path_for "$skill" 2>/dev/null)"; then
-    if [ "$destination" = codex ]; then
+inspect_staging_state() { # expected skill destination current-lock
+  local _expected="$1" skill="$2" destination="$3" current_lock="$4"
+  local upstream_path marker_path lock_source marker_owner
+  case "$destination" in
+    staging)
+      if ! upstream_path="$(upstream_path_for "$skill" 2>/dev/null)"; then
+        marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+        if [ ! -e "$staging_root/$skill" ]; then
+          printf 'absent\tremoved\n'
+        elif [ "$marker_owner" = "$owner" ]; then
+          printf 'present\tmanaged\n'
+        else
+          printf 'foreign\tunowned\n'
+        fi
+        return
+      fi
+      marker_path="$(marker_path_for "$skill")"
+      inspect_copy_state "$upstream_path" "$marker_path" "$staging_root/$skill" "$owner" "$repo_root"
+      ;;
+    codex)
       lock_source="$(lock_source_for "$current_lock" "$skill")"
-      if [ -n "$lock_source" ]; then printf 'drift\tlegacy-surface\n'; else printf 'absent\tremoved\n'; fi
-    else
+      if [ "$lock_source" = "$upstream_repo" ] \
+        || { [ "$skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; }; then
+        printf 'present\tmanaged\n'
+      elif [ -z "$lock_source" ]; then
+        printf 'absent\tmissing\n'
+      else
+        printf 'foreign\t%s\n' "$lock_source"
+      fi
+      ;;
+    claude)
       marker_owner="$(sed -n '2p' "$claude_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
       if [ "$marker_owner" = "$owner" ] || [ "$marker_owner" = "$retired_owner" ]; then
-        printf 'drift\tlegacy-surface\n'
+        printf 'present\tmanaged\n'
+      elif [ -e "$claude_root/$skill" ]; then
+        printf 'foreign\tunowned\n'
       else
-        printf 'absent\tremoved\n'
+        printf 'absent\tmissing\n'
       fi
-    fi
-    return
-  fi
-  marker_path="$(marker_path_for "$skill")"
-  if [ "$destination" = codex ]; then
-    lock_source="$(lock_source_for "$current_lock" "$skill")"
-    [ "$lock_source" = "$upstream_repo" ] && legacy=1
-  else
-    marker_owner="$(sed -n '2p' "$claude_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] && legacy=1
-  fi
-  if [ "$legacy" -eq 1 ]; then
-    printf 'drift\tlegacy-surface\n'
-  elif [ "$expected" = present ]; then
-    inspect_copy_state "$upstream_path" "$marker_path" "$staging_root/$skill" "$owner" "$repo_root"
-  else
-    printf 'absent\tstaged-only\n'
-  fi
+      ;;
+  esac
 }
 
 emit_inspection() {
@@ -144,7 +153,7 @@ emit_inspection() {
   local expected skill destination state detail lock_skill lock_source marker marker_owner orphan
   read_lock_inventory "$current_lock"
   while IFS=$'\t' read -r expected skill destination; do
-    IFS=$'\t' read -r state detail < <(inspect_projected_state "$expected" "$skill" "$destination" "$current_lock")
+    IFS=$'\t' read -r state detail < <(inspect_staging_state "$expected" "$skill" "$destination" "$current_lock")
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
   while IFS=$'\t' read -r lock_skill lock_source; do
@@ -173,11 +182,7 @@ emit_inspection() {
     [ "$marker_owner" = "$owner" ] || continue
     orphan="$(basename "$(dirname "$marker")")"
     awk -F '\t' -v skill="$orphan" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file" && continue
-    lock_source="$(lock_source_for "$current_lock" "$orphan")"
-    if [ -z "$lock_source" ] \
-      && [ "$(sed -n '2p' "$claude_root/$orphan/.agent-scripts-copy" 2>/dev/null || true)" != "$owner" ]; then
-      printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
-    fi
+    printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
   done
 }
 
@@ -222,36 +227,23 @@ refresh_staging_ignore() {
 
 reconcile_states() {
   local current_lock="$state_root/pre-reconcile-lock.tsv"
-  local operation skill destination lock_skill lock_source upstream_path marker_path marker_owner failed=0
-  local skills_file="$state_root/reconcile-skills"
+  local operation skill destination lock_source upstream_path marker_path marker_owner
+  local failed=0 operation_failed
   local matt_removals=() retired_removals=()
   read_lock_inventory "$current_lock"
   if ! cmp -s "$lock_snapshot" "$current_lock"; then
     printf 'skills lock changed after Matt preflight\n' >&2
     return 1
   fi
-  cut -f2 "$plan_path" | LC_ALL=C sort -u > "$skills_file"
-  while IFS= read -r skill; do
-    if rg -q -F $'install\t'"$skill"$'\t' "$plan_path"; then
-      upstream_path="$(upstream_path_for "$skill")"
-      marker_path="$(marker_path_for "$skill")"
-      if ! install_skill_copy "$upstream_path" "$staging_root/$skill" "$owner" "$marker_path" >/dev/null; then
-        failed=1
-      fi
-    elif ! rg -Fxq -- "$skill" "$inventory_file"; then
-      if [ "$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)" = "$owner" ]; then
-        rm -rf -- "${staging_root:?}/$skill" || failed=1
-      fi
-    fi
-  done < "$skills_file"
-  while IFS=$'\t' read -r lock_skill lock_source; do
-    rg -q -F $'\t'"$lock_skill"$'\t' "$plan_path" || continue
+  while IFS=$'\t' read -r operation skill destination; do
+    [ "$operation:$destination" = remove:codex ] || continue
+    lock_source="$(lock_source_for "$current_lock" "$skill")"
     if [ "$lock_source" = "$upstream_repo" ]; then
-      matt_removals+=("$lock_skill")
-    elif [ "$lock_skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; then
-      retired_removals+=("$lock_skill")
+      matt_removals+=("$skill")
+    elif [ "$skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; then
+      retired_removals+=("$skill")
     fi
-  done < "$current_lock"
+  done < "$plan_path"
   if [ "${#matt_removals[@]}" -gt 0 ] || [ "${#retired_removals[@]}" -gt 0 ]; then
     if ! run_skills remove "${matt_removals[@]}" "${retired_removals[@]}" --global --agent codex --yes; then
       printf 'Matt skills removal failed\n' >&2
@@ -260,17 +252,41 @@ reconcile_states() {
     remove_lock_entries "${matt_removals[@]}" "${retired_removals[@]}"
   fi
   while IFS=$'\t' read -r operation skill destination; do
-    if [ "$destination" = claude ]; then
-      marker_owner="$(sed -n '2p' "$claude_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-      if [ "$marker_owner" = "$owner" ] || [ "$marker_owner" = "$retired_owner" ]; then
-        rm -rf -- "${claude_root:?}/$skill" || failed=1
-      fi
-    fi
-    case "$operation" in
-      install) printf 'installed\t%s\t%s\n' "$skill" "$destination" ;;
-      remove) printf 'removed\t%s\t%s\n' "$skill" "$destination" ;;
-      *) printf 'unknown staging operation: %s\n' "$operation" >&2; failed=1 ;;
+    operation_failed=0
+    case "$operation:$destination" in
+      install:staging)
+        upstream_path="$(upstream_path_for "$skill")"
+        marker_path="$(marker_path_for "$skill")"
+        install_skill_copy "$upstream_path" "$staging_root/$skill" "$owner" "$marker_path" >/dev/null \
+          || operation_failed=1
+        ;;
+      remove:staging)
+        marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+        if [ "$marker_owner" = "$owner" ]; then
+          rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
+        fi
+        ;;
+      remove:claude)
+        marker_owner="$(sed -n '2p' "$claude_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+        if [ "$marker_owner" = "$owner" ] || [ "$marker_owner" = "$retired_owner" ]; then
+          rm -rf -- "${claude_root:?}/$skill" || operation_failed=1
+        fi
+        ;;
+      remove:codex)
+        ;;
+      *)
+        printf 'unknown staging operation: %s %s\n' "$operation" "$destination" >&2
+        operation_failed=1
+        ;;
     esac
+    if [ "$operation_failed" -eq 0 ]; then
+      case "$operation" in
+        install) printf 'installed\t%s\t%s\n' "$skill" "$destination" ;;
+        remove) printf 'removed\t%s\t%s\n' "$skill" "$destination" ;;
+      esac
+    else
+      failed=1
+    fi
   done < "$plan_path"
   refresh_staging_ignore || failed=1
   return "$failed"
@@ -281,7 +297,7 @@ verify_states() {
   local expected skill destination state detail failed=0
   read_lock_inventory "$current_lock"
   while IFS=$'\t' read -r expected skill destination; do
-    IFS=$'\t' read -r state detail < <(inspect_projected_state "$expected" "$skill" "$destination" "$current_lock")
+    IFS=$'\t' read -r state detail < <(inspect_staging_state "$expected" "$skill" "$destination" "$current_lock")
     case "$expected:$state" in
       present:present|absent:absent|absent:foreign) ;;
       *) printf 'Matt staging verification failed: %s -> %s (%s)\n' "$skill" "$destination" "$detail" >&2; failed=1 ;;

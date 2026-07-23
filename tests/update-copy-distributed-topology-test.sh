@@ -107,7 +107,7 @@ jq -e '
     "defaultDestinations":["claude"],
     "supportedDestinations":["claude","codex"]
   }]) and
-  ([.changes[] | select(.action == "installed")] | length) == 12 and
+  ([.changes[] | select(.action == "installed" and .destination == "staging")] | length) == 6 and
   .errors == [] and .decisions == []
 ' "$FIXTURE/first.json" >/dev/null
 
@@ -190,7 +190,7 @@ set -e
 test "$check_drift_exit" -eq 1
 jq -e '
   .status == "drift" and
-  ([.drift[] | select(.skill == "docx" and .reason == "content-mismatch")] | length) == 2
+  ([.drift[] | select(.skill == "docx" and .destination == "staging" and .reason == "content-mismatch")] | length) == 1
 ' "$FIXTURE/check-drift.json" >/dev/null
 diff -r "$FIXTURE/home-before-check" "$FIXTURE/home"
 diff -r "$FIXTURE/skills-before-check" "$FIXTURE/skills"
@@ -273,6 +273,10 @@ cat > "$KHAZIX_FIXTURE/skill-topology.json" <<'JSON'
 }
 JSON
 "$REAL_GIT" -C "$KHAZIX_FIXTURE" init -q
+mkdir -p "$KHAZIX_FIXTURE/other-skills/marcus/retired-tracked"
+printf '%s\n' '---' 'name: retired-tracked' 'description: "fixture"' '---' \
+  > "$KHAZIX_FIXTURE/other-skills/marcus/retired-tracked/SKILL.md"
+"$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/marcus/retired-tracked/SKILL.md
 cat > "$KHAZIX_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
 [
   {
@@ -290,12 +294,13 @@ HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$
   "$KHAZIX_FIXTURE/scripts/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/result.json"
 jq -e '
   .status == "reconciled" and
-  ([.changes[] | select(.skill == "neat-freak" and .action == "installed")] | length) == 2 and
+  ([.changes[] | select(.skill == "neat-freak" and .action == "installed" and .destination == "staging")] | length) == 1 and
   (.plan[] | select(.skill == "neat-freak") | .destinations == ["claude", "codex"])
 ' "$KHAZIX_FIXTURE/result.json" >/dev/null
 test -f "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/SKILL.md"
 test ! -e "$KHAZIX_FIXTURE/skills/neat-freak"
 test ! -e "$KHAZIX_FIXTURE/home/.agents/skills/neat-freak"
+test ! -e "$KHAZIX_FIXTURE/other-skills/marcus/retired-tracked"
 if grep -Fx 'other-skills/marcus/neat-freak' "$KHAZIX_FIXTURE/.gitignore" >/dev/null; then exit 1; fi
 grep -Fx 'other-skills/marcus/neat-freak/.agent-scripts-copy' "$KHAZIX_FIXTURE/.gitignore" >/dev/null
 "$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/marcus/neat-freak/SKILL.md
@@ -304,7 +309,7 @@ mv "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/.agent-scripts-copy" \
 printf 'tracked source update\n' >> "$KHAZIX_FIXTURE/home/Projects/khazix-skills/neat-freak/SKILL.md"
 HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
   "$KHAZIX_FIXTURE/scripts/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/tracked-update.json"
-jq -e '.status == "reconciled" and (.changes[] | .skill == "neat-freak" and .action == "installed")' \
+jq -e '.status == "reconciled" and (.changes[] | .skill == "neat-freak" and .action == "installed" and .destination == "staging")' \
   "$KHAZIX_FIXTURE/tracked-update.json" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/SKILL.md" >/dev/null
 test -f "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/.agent-scripts-copy"
@@ -353,7 +358,7 @@ set -e
 test "$contract_exit" -eq 1
 jq -e '
   .status == "failed" and .changes == [] and
-  ([.errors[] | select(contains("returned incomplete inspection"))] | length) == 2
+  ([.errors[] | select(contains("returned incomplete inspection"))] | length) == 3
 ' "$CONTRACT_FIXTURE/result.json" >/dev/null
 test ! -e "$CONTRACT_FIXTURE/other-skills/marcus/neat-freak"
 

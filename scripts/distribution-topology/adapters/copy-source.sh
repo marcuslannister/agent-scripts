@@ -90,7 +90,8 @@ tracked_stage_skill() { # skill
 
 inspect_stage_state() { # skill
   local skill="$1"
-  if [ ! -f "$staging_root/$skill/.agent-scripts-copy" ] && tracked_stage_skill "$skill"; then
+  if [ -f "$staging_root/$skill/SKILL.md" ] \
+    && [ ! -f "$staging_root/$skill/.agent-scripts-copy" ] && tracked_stage_skill "$skill"; then
     printf 'drift\ttracked-update\n'
   else
     inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
@@ -101,32 +102,27 @@ inspect_stage_state() { # skill
 install_staged_skill() { # skill
   local skill="$1"
   if [ ! -f "$staging_root/$skill/.agent-scripts-copy" ] && tracked_stage_skill "$skill"; then
+    mkdir -p "$staging_root/$skill"
     printf '%s\n%s\n' "$marker_root/$skill" "$owner" > "$staging_root/$skill/.agent-scripts-copy"
   fi
   install_skill_copy "$source_root/$skill" "$staging_root/$skill" "$owner" >/dev/null
 }
 
-inspect_projected_state() { # expected skill destination
-  local expected="$1" skill="$2" destination="$3" surface stage_state stage_detail legacy_state
-  surface="$(surface_for_destination "$destination")"
-  IFS=$'\t' read -r stage_state stage_detail < <(inspect_stage_state "$skill")
-  IFS=$'\t' read -r legacy_state _ < <(
-    inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
-      "$surface/$skill" "$owner" "$repo_root"
-  )
-  if [ "$legacy_state" = present ] || [ "$legacy_state" = drift ]; then
-    printf 'drift\tlegacy-surface\n'
-  elif [ "$expected" = present ]; then
-    printf '%s\t%s\n' "$stage_state" "$stage_detail"
-  else
-    printf 'absent\tstaged-only\n'
+inspect_staging_state() { # expected skill destination
+  local _expected="$1" skill="$2" destination="$3" surface
+  if [ "$destination" = staging ]; then
+    inspect_stage_state "$skill"
+    return
   fi
+  surface="$(surface_for_destination "$destination")"
+  inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
+    "$surface/$skill" "$owner" "$repo_root"
 }
 
 emit_staging_inspection() {
   local expected skill destination state detail
   while IFS=$'\t' read -r expected skill destination; do
-    IFS=$'\t' read -r state detail < <(inspect_projected_state "$expected" "$skill" "$destination")
+    IFS=$'\t' read -r state detail < <(inspect_staging_state "$expected" "$skill" "$destination")
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
 
@@ -146,17 +142,14 @@ emit_staging_inspection() {
     done
   done
 
-  for marker in "$staging_root"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || continue
-    orphan="$(basename "$(dirname "$marker")")"
+  local skill_file
+  for skill_file in "$staging_root"/*/SKILL.md; do
+    [ -f "$skill_file" ] || continue
+    orphan="$(basename "$(dirname "$skill_file")")"
+    marker_owner="$(sed -n '2p' "$staging_root/$orphan/.agent-scripts-copy" 2>/dev/null || true)"
+    [ "$marker_owner" = "$owner" ] || tracked_stage_skill "$orphan" || continue
     rg -Fxq -- "$orphan" "$discovery_root/$source_id.inventory" && continue
-    if [ "$(sed -n '2p' "$repo_root/skills/$orphan/.agent-scripts-copy" 2>/dev/null || true)" != "$owner" ]; then
-      printf 'orphan\t%s\tclaude\tmanaged\n' "$orphan"
-    elif [ "$(sed -n '2p' "$home/.agents/skills/$orphan/.agent-scripts-copy" 2>/dev/null || true)" != "$owner" ]; then
-      printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
-    fi
+    printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
   done
 }
 
@@ -187,32 +180,41 @@ refresh_staging_ignore() {
 }
 
 reconcile_staging() {
-  local skill operation destination state detail failed=0
-  local skills_file="$discovery_root/$source_id.reconcile-skills"
-  cut -f2 "$plan_path" | LC_ALL=C sort -u > "$skills_file"
-  while IFS= read -r skill; do
-    if rg -q -F $'install\t'"$skill"$'\t' "$plan_path"; then
-      IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
-      if [ "$state" = foreign ] || [ "$state" = error ]; then
-        printf 'refusing unsafe staging adoption: %s (%s)\n' "$skill" "$detail" >&2
-        failed=1
-      elif ! install_staged_skill "$skill"; then
-        failed=1
-      fi
-    elif ! rg -Fxq -- "$skill" "$discovery_root/$source_id.inventory"; then
-      if [ "$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)" = "$owner" ]; then
-        rm -rf -- "${staging_root:?}/$skill" || failed=1
-      fi
-    fi
-  done < "$skills_file"
-
+  local operation skill destination state detail marker_owner failed=0 operation_failed
   while IFS=$'\t' read -r operation skill destination; do
-    remove_owned_legacy_copy "$skill" "$destination" || failed=1
-    case "$operation" in
-      install) printf 'installed\t%s\t%s\n' "$skill" "$destination" ;;
-      remove) printf 'removed\t%s\t%s\n' "$skill" "$destination" ;;
-      *) printf 'unknown staging operation: %s\n' "$operation" >&2; failed=1 ;;
+    operation_failed=0
+    case "$operation:$destination" in
+      install:staging)
+        IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
+        if [ "$state" = foreign ] || [ "$state" = error ]; then
+          printf 'refusing unsafe staging adoption: %s (%s)\n' "$skill" "$detail" >&2
+          operation_failed=1
+        else
+          install_staged_skill "$skill" || operation_failed=1
+        fi
+        ;;
+      remove:staging)
+        marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+        if [ "$marker_owner" = "$owner" ] || tracked_stage_skill "$skill"; then
+          rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
+        fi
+        ;;
+      remove:claude|remove:codex)
+        remove_owned_legacy_copy "$skill" "$destination" || operation_failed=1
+        ;;
+      *)
+        printf 'unknown staging operation: %s %s\n' "$operation" "$destination" >&2
+        operation_failed=1
+        ;;
     esac
+    if [ "$operation_failed" -eq 0 ]; then
+      case "$operation" in
+        install) printf 'installed\t%s\t%s\n' "$skill" "$destination" ;;
+        remove) printf 'removed\t%s\t%s\n' "$skill" "$destination" ;;
+      esac
+    else
+      failed=1
+    fi
   done < "$plan_path"
   refresh_staging_ignore || failed=1
   return "$failed"
@@ -221,7 +223,7 @@ reconcile_staging() {
 verify_staging() {
   local expected skill destination state detail failed=0
   while IFS=$'\t' read -r expected skill destination; do
-    IFS=$'\t' read -r state detail < <(inspect_projected_state "$expected" "$skill" "$destination")
+    IFS=$'\t' read -r state detail < <(inspect_staging_state "$expected" "$skill" "$destination")
     case "$expected:$state" in
       present:present|absent:absent|absent:foreign) ;;
       *) printf 'staging verification failed: %s -> %s (%s)\n' "$skill" "$destination" "$detail" >&2; failed=1 ;;

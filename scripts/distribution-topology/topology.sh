@@ -135,9 +135,18 @@ topology_claimed_by_other() { # plan source skill destination
 }
 
 topology_expected_states() { # source_id output_tsv plan_json
-  local source_id="$1" output="$2" plan_json="$3" skill destination desired
+  local source_id="$1" output="$2" plan_json="$3" skill destination desired classification
+  classification="$(topology_registry_value "$source_id" '.classification')"
   : > "$output"
   while IFS= read -r skill; do
+    if [ "$classification" = source-only ] || [ "$classification" = npx-only ]; then
+      printf 'present\t%s\tstaging\n' "$skill" >> "$output"
+      while IFS= read -r destination; do
+        topology_claimed_by_other "$plan_json" "$source_id" "$skill" "$destination" && continue
+        printf 'absent\t%s\t%s\n' "$skill" "$destination" >> "$output"
+      done < <(topology_registry_value "$source_id" '.supportedDestinations[]')
+      continue
+    fi
     while IFS= read -r destination; do
       [ "$source_id" = repo-claude ] && [ "$destination" = claude ] && continue
       desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
@@ -176,7 +185,7 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
     [ -n "$line" ] || continue
     IFS=$'\t' read -r state skill destination detail extra <<< "$line"
     if [ -n "${extra:-}" ] || ! topology_is_name "${skill:-}" \
-      || { [ "$destination" != claude ] && [ "$destination" != codex ]; } || [ -z "${detail:-}" ]; then
+      || { [ "$destination" != claude ] && [ "$destination" != codex ] && [ "$destination" != staging ]; } || [ -z "${detail:-}" ]; then
       topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid inspection output"
       continue
     fi
@@ -659,7 +668,7 @@ topology_run_adapter_reconcile() { # source-id action-file errors changes protoc
         ;;
     esac
     if [ -n "${extra:-}" ] || ! topology_is_name "${skill:-}" \
-      || { [ "$destination" != claude ] && [ "$destination" != codex ]; }; then
+      || { [ "$destination" != claude ] && [ "$destination" != codex ] && [ "$destination" != staging ]; }; then
       topology_append_json_string "$errors" "source $source_id returned invalid $protocol output"
       continue
     fi
@@ -717,7 +726,9 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
       ([$plan[0][] | select(.sourceId == $drift.sourceId and .skill == $drift.skill)][0] // null) as $entry |
       [(if $drift.kind == "outdated" then "refresh"
         elif $drift.reason == "duplicate-copy" then "cleanup"
+        elif $drift.reason == "unexpected" then "remove"
         elif $entry == null then "remove"
+        elif $drift.destination == "staging" then "install"
         elif ($entry.destinations | index($drift.destination)) != null then "install"
         else "remove" end),$drift.skill,$drift.destination] | @tsv
     ' "$initial/drift.ndjson" --slurp >> "$action_file"

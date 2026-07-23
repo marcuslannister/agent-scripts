@@ -53,7 +53,7 @@ A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is serv
 A skills-CLI-shaped source whose complete inventory is cloned and staged under `other-skills/matt/`. The reconciler removes its old managed agent-surface installs; generic global updates are not policy.
 
 **Source-only repo**:
-A skill repo with no installer or plugin manifest; cloned under `~/Projects` and copied into a surface.
+A skill repo with no installer or plugin manifest; staged under the matching `other-skills/<owner>/` holding area, not an agent surface.
 
 ### Install artifacts
 
