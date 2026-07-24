@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-24 — Khazix Staging Rename
+- Fixed `khazix-skills` staging under `other-skills/khazix/` instead of the colliding `other-skills/marcus/` name (that bucket belongs to the unrelated `marcus`-authored repo-owned skills), and de-fragilized two tests that had asserted a specific live skill-selection value instead of manifest structure.
+
 ## 2026-07-24 — Live-Host Matrix Reconciliation
 - Bootstrapped the real `~/.claude/skills` managed root, missing on this host since #38 landed, and reconciled it clean, closing #37.
 - Trimmed the Claude/Codex skill selection to a curated subset via `docs/skills-matrix.md` hand-edits, applying the removals through the reconciler and regenerating the manifest override block.
