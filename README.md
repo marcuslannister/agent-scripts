@@ -62,7 +62,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `scripts/verify.sh`
-- Single local/CI verifier: skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/build, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
+- Single local/CI verifier: skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `scripts/update-skill-topology.sh`
@@ -108,7 +108,7 @@ Topology authoring:
 `scripts/browser-tools.ts`
 - Standalone Chrome DevTools helper.
 - Common commands: `start --profile`, `nav <url>`, `eval '<js>'`, `screenshot`, `console`, `network`, `search --content "<query>"`, `content <url>`, `inspect`, `kill --all --force`.
-- Build optional binary with `bun build scripts/browser-tools.ts --compile --target bun --outfile bin/browser-tools`.
+- Requires Node.js 22.18 or newer; run with `node scripts/browser-tools.ts --help`.
 
 ## Syncing
 

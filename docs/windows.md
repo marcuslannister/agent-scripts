@@ -7,8 +7,5 @@ read_when:
 # Windows notes
 
 - Install Git for Windows and ensure git is on PATH.
-- Install Bun (needed to run the Bun-based shims in `bin/`): `irm https://bun.sh/install.ps1 | iex`. The installer drops `bun.exe` in `%USERPROFILE%\.bun\bin` and adds it to the user PATH; restart shells to pick it up.
-- Running the shims from PowerShell:
-  - `bun bin/docs-list`
-
-> Note: Windows may not honor the UNIX shebang line when launching shims in `bin/` directly. Using `bun bin/<tool> ...` is the most reliable cross-shell invocation.
+- Install Node.js 22.18 or newer and ensure `node` is on PATH.
+- Run TypeScript helpers explicitly through Node.js from PowerShell, for example `node scripts/docs-list.ts`.

@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-23 — Node Verification Toolchain
+- Replaced the repo development Bun toolchain with Node.js 22.18+ and npm, migrating browser-helper tests and smoke verification while retaining claude-mem's external Bun runtime checks.
+
 ## 2026-07-23 — Foreign Skill Staging
 - Moved source-only and npx-only inventories out of agent surfaces into owner-grouped `other-skills/{marcus,anthropics,matt}/`, tracking Marcus content while ignoring reproducible Anthropic and Matt copies (#34).
 - Installed only manifest-selected staged skills per agent, using Claude plugins for plugin-classified sources and staged copies for Codex (#35).

@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env node
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const docsListFile = fileURLToPath(import.meta.url);
 const docsListDir = dirname(docsListFile);
-const repoDir = docsListDir.includes('$bunfs') ? process.cwd() : join(docsListDir, '..');
+const repoDir = join(docsListDir, '..');
 const DOCS_DIR = join(repoDir, 'docs');
 
 const EXCLUDED_DIRS = new Set(['archive', 'research']);

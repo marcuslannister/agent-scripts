@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env node
 
 /**
  * Minimal Chrome DevTools helpers inspired by Mario Zechner's

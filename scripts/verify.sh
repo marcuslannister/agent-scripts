@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for required_tool in bash git python3 bun node npm jq; do
+for required_tool in bash git python3 node npm jq; do
   if command -v "$required_tool" >/dev/null 2>&1; then
     continue
   fi
@@ -9,13 +9,18 @@ for required_tool in bash git python3 bun node npm jq; do
   printf 'error: required tool not found: %s\n' "$required_tool" >&2
   case "$required_tool" in
     python3) echo "Install Python 3, then install PyYAML: python3 -m pip install pyyaml" >&2 ;;
-    bun) echo "Install Bun: https://bun.sh/docs/installation" >&2 ;;
     node|npm) echo "Install Node.js with npm: https://nodejs.org/" >&2 ;;
     jq) echo "Install jq: https://jqlang.org/download/" >&2 ;;
     *) echo "Install $required_tool and retry." >&2 ;;
   esac
   exit 1
 done
+
+if ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 18) ? 0 : 1)' >/dev/null 2>&1; then
+  echo "error: Node.js 22.18 or newer is required." >&2
+  echo "Install a current Node.js release: https://nodejs.org/" >&2
+  exit 1
+fi
 
 if ! python3 -c 'import yaml' >/dev/null 2>&1; then
   echo "error: required Python package not found: PyYAML" >&2
@@ -29,7 +34,7 @@ VIDEO_DIR="$REPO_ROOT/skills/video-transcript-downloader"
 
 if [ ! -d "$REPO_ROOT/node_modules" ]; then
   echo "error: browser helper dependencies not installed." >&2
-  echo "Install them: bun install --frozen-lockfile" >&2
+  echo "Install them: npm ci" >&2
   exit 1
 fi
 
@@ -42,9 +47,6 @@ fi
 section() {
   printf '\n==> %s\n' "$1"
 }
-
-BUILD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/agent-scripts-verify.XXXXXX")"
-trap 'rm -rf "$BUILD_DIR"' EXIT
 
 cd "$REPO_ROOT"
 
@@ -73,9 +75,8 @@ section "Maintainer policy"
 scripts/test-maintainer-orchestrator-policy
 
 section "Browser helper"
-bun test scripts/browser-tools-profile.test.ts
-bun build scripts/browser-tools.ts --compile --target bun --outfile "$BUILD_DIR/browser-tools"
-"$BUILD_DIR/browser-tools" --help >/dev/null
+node --test scripts/browser-tools-profile.test.ts
+node scripts/browser-tools.ts --help >/dev/null
 
 section "Video downloader"
 (

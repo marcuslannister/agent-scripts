@@ -1,9 +1,10 @@
 import { lstatSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
+import { describe, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { describe, expect, test } from 'bun:test';
-import { copyChromeProfile, isMainModule } from './browser-tools';
+import { copyChromeProfile, isMainModule } from './browser-tools.ts';
 
 describe('copyChromeProfile', () => {
   test('preserves relative symlink targets', () => {
@@ -18,7 +19,7 @@ describe('copyChromeProfile', () => {
 
     copyChromeProfile(sourceLink, destination);
 
-    expect(readlinkSync(path.join(destination, 'relative-link'))).toBe('target');
+    assert.equal(readlinkSync(path.join(destination, 'relative-link')), 'target');
   });
 
   test('rejects overlapping source and destination paths', () => {
@@ -27,10 +28,10 @@ describe('copyChromeProfile', () => {
     mkdirSync(source);
     writeFileSync(path.join(source, 'profile-state'), 'keep me');
 
-    expect(() => copyChromeProfile(source, source)).toThrow('must not overlap');
-    expect(() => copyChromeProfile(source, path.join(source, 'nested'))).toThrow('must not overlap');
-    expect(() => copyChromeProfile(source, root)).toThrow('must not overlap');
-    expect(readFileSync(path.join(source, 'profile-state'), 'utf8')).toBe('keep me');
+    assert.throws(() => copyChromeProfile(source, source), /must not overlap/);
+    assert.throws(() => copyChromeProfile(source, path.join(source, 'nested')), /must not overlap/);
+    assert.throws(() => copyChromeProfile(source, root), /must not overlap/);
+    assert.equal(readFileSync(path.join(source, 'profile-state'), 'utf8'), 'keep me');
   });
 
   test('validates the source before changing the destination', () => {
@@ -39,8 +40,8 @@ describe('copyChromeProfile', () => {
     mkdirSync(destination);
     writeFileSync(path.join(destination, 'profile-state'), 'keep me');
 
-    expect(() => copyChromeProfile(path.join(root, 'missing'), destination)).toThrow();
-    expect(readFileSync(path.join(destination, 'profile-state'), 'utf8')).toBe('keep me');
+    assert.throws(() => copyChromeProfile(path.join(root, 'missing'), destination));
+    assert.equal(readFileSync(path.join(destination, 'profile-state'), 'utf8'), 'keep me');
   });
 
   test('preserves a symlinked destination directory', () => {
@@ -56,10 +57,10 @@ describe('copyChromeProfile', () => {
 
     copyChromeProfile(source, destinationLink);
 
-    expect(lstatSync(destinationLink).isSymbolicLink()).toBe(true);
-    expect(readlinkSync(destinationLink)).toBe('destination-target');
-    expect(readFileSync(path.join(destinationTarget, 'new-state'), 'utf8')).toBe('new');
-    expect(() => readFileSync(path.join(destinationTarget, 'old-state'), 'utf8')).toThrow();
+    assert.equal(lstatSync(destinationLink).isSymbolicLink(), true);
+    assert.equal(readlinkSync(destinationLink), 'destination-target');
+    assert.equal(readFileSync(path.join(destinationTarget, 'new-state'), 'utf8'), 'new');
+    assert.throws(() => readFileSync(path.join(destinationTarget, 'old-state'), 'utf8'));
   });
 
   test('replaces a symlink to a non-directory without changing its target', () => {
@@ -74,9 +75,9 @@ describe('copyChromeProfile', () => {
 
     copyChromeProfile(source, destinationLink);
 
-    expect(lstatSync(destinationLink).isDirectory()).toBe(true);
-    expect(readFileSync(destinationTarget, 'utf8')).toBe('keep target');
-    expect(readFileSync(path.join(destinationLink, 'new-state'), 'utf8')).toBe('new');
+    assert.equal(lstatSync(destinationLink).isDirectory(), true);
+    assert.equal(readFileSync(destinationTarget, 'utf8'), 'keep target');
+    assert.equal(readFileSync(path.join(destinationLink, 'new-state'), 'utf8'), 'new');
   });
 });
 
@@ -88,7 +89,7 @@ describe('isMainModule', () => {
     writeFileSync(modulePath, 'fixture');
     symlinkSync('browser-tools.ts', launcherPath);
 
-    expect(isMainModule(null, launcherPath, pathToFileURL(modulePath).href)).toBe(true);
-    expect(isMainModule(null, path.join(root, 'other'), pathToFileURL(modulePath).href)).toBe(false);
+    assert.equal(isMainModule(null, launcherPath, pathToFileURL(modulePath).href), true);
+    assert.equal(isMainModule(null, path.join(root, 'other'), pathToFileURL(modulePath).href), false);
   });
 });
