@@ -178,3 +178,22 @@ matrix_persist_manifest() {
   cp "$MATRIX_EFFECTIVE_MANIFEST" "$MATRIX_SOURCE_MANIFEST.tmp" \
     && mv "$MATRIX_SOURCE_MANIFEST.tmp" "$MATRIX_SOURCE_MANIFEST"
 }
+
+matrix_regenerate_report() { # post-reconcile plan
+  local plan="$1" matrix="$REPO_ROOT/docs/skills-matrix.md"
+  local generated="$DISCOVERY_ROOT/skills-matrix-generated.md" next="$matrix.tmp"
+  [ -f "$matrix" ] || return 0
+
+  SKILL_MATRIX_PLAN_PATH="$plan" python3 "$REPO_ROOT/scripts/generate-skills-matrix.py" > "$generated" || return 1
+  awk '
+    /^## Counts[[:space:]]*$/ { boundary = 1; exit }
+    /^\|[[:space:]]*Skill[[:space:]]*\|[[:space:]]*Source[[:space:]]*\|[[:space:]]*Type[[:space:]]*\|[[:space:]]*Claude[[:space:]]*\|[[:space:]]*Codex[[:space:]]*\|/ {
+      boundary = 1
+      exit
+    }
+    { print }
+    END { if (!boundary) exit 1 }
+  ' "$matrix" > "$next" || return 1
+  [ ! -s "$next" ] || [ -z "$(tail -n 1 "$next")" ] || printf '\n' >> "$next"
+  cat "$generated" >> "$next" && mv "$next" "$matrix"
+}

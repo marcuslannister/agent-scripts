@@ -137,6 +137,7 @@ def merge_skill_row(display, source, delivery, agents, path, plugin_keys=None):
 
 
 registry = load_json(f"{REPO}/scripts/distribution-topology/registry.json")
+matrix_sources = {entry["sourceId"]: entry.get("matrixSource") for entry in registry}
 plugin_registry = {}
 for entry in registry:
     plugin = entry.get("plugin")
@@ -210,7 +211,7 @@ def staged_source(source_path, source_id, name):
     plugin_sources = plugin_sources_by_name.get(name, set())
     if len(plugin_sources) == 1:
         return next(iter(plugin_sources))
-    return source_id
+    return matrix_sources.get(source_id) or source_id
 
 
 plan_sources_by_skill = {}

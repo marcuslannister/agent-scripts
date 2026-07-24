@@ -857,6 +857,11 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
   elif [ -s "$errors" ]; then status=failed; exit_code=1
   else status=reconciled; exit_code=0
   fi
+  if [ "$status" = reconciled ] && ! matrix_regenerate_report "$plan_json"; then
+    topology_append_json_string "$errors" 'skills matrix report regeneration failed'
+    status=failed
+    exit_code=1
+  fi
   jq -n --arg status "$([ -s "$hygiene_dir/errors.ndjson" ] && printf failed || printf clean)" --arg root "$HOME/.codex/skills" \
     --slurpfile entries "$final_hygiene/entries.ndjson" --slurpfile changes "$hygiene_dir/changes.ndjson" --slurpfile errors "$hygiene_dir/errors.ndjson" \
     '{status:$status,legacyRoot:$root,entries:($entries|sort_by(.name)),changes:($changes|sort_by(.name)),errors:$errors}' > "$hygiene_dir/hygiene.json"
