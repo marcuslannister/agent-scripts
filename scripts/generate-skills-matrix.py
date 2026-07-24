@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 from collections import Counter
+from dataclasses import dataclass
 
 HOME = os.path.expanduser("~")
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,6 +66,24 @@ def toks(path):
 
 def skill_name(path):
     return os.path.basename(os.path.dirname(path))
+
+
+@dataclass(frozen=True)
+class PluginRecord:
+    name: str
+    display: str
+    source: str
+    agents: frozenset
+    path: str
+    plugin_keys: dict
+
+
+@dataclass(frozen=True)
+class StagedRecord:
+    name: str
+    source: str
+    agents: frozenset
+    path: str
 
 
 rows = {}
@@ -138,19 +157,12 @@ for version_root in glob.glob(f"{cache_root}/*/*/*"):
         name = plugin_name if os.path.dirname(path) == version_root else skill_name(path)
         display = name if len(paths) == 1 else f"{plugin_name}:{name}"
         plugin_records.append(
-            {
-                "name": name,
-                "display": display,
-                "source": source,
-                "agents": bundle_agents,
-                "path": path,
-                "plugin_keys": plugin_keys,
-            }
+            PluginRecord(name, display, source, frozenset(bundle_agents), path, plugin_keys)
         )
 
 plugin_sources_by_name = {}
 for record in plugin_records:
-    plugin_sources_by_name.setdefault(record["name"], set()).add(record["source"])
+    plugin_sources_by_name.setdefault(record.name, set()).add(record.source)
 
 skills_lock = load_json(f"{HOME}/.agents/.skill-lock.json").get("skills", {})
 
@@ -200,12 +212,12 @@ for path in glob.glob(f"{REPO}/other-skills/*/*/SKILL.md"):
     if source_id is None:
         continue
     staged_records.append(
-        {
-            "name": name,
-            "source": staged_source(source_path, source_id, name),
-            "agents": selected_agents(source_id, name),
-            "path": path,
-        }
+        StagedRecord(
+            name,
+            staged_source(source_path, source_id, name),
+            frozenset(selected_agents(source_id, name)),
+            path,
+        )
     )
 
 mirror_names = set()
@@ -219,25 +231,25 @@ for path in glob.glob(f"{REPO}/codex-skills/*/SKILL.md"):
     merge_skill_row(name, SELF, "skill", selected_agents("repo-codex", name), path)
 
 staged_agents = {}
-plugin_source_names = {(record["source"], record["name"]) for record in plugin_records}
+plugin_source_names = {(record.source, record.name) for record in plugin_records}
 for record in staged_records:
-    if record["name"] in mirror_names:
+    if record.name in mirror_names:
         continue
-    key = (record["source"], record["name"])
-    staged_agents.setdefault(key, set()).update(record["agents"])
+    key = (record.source, record.name)
+    staged_agents.setdefault(key, set()).update(record.agents)
     if key not in plugin_source_names:
-        merge_skill_row(record["name"], record["source"], "skill", record["agents"], record["path"])
+        merge_skill_row(record.name, record.source, "skill", record.agents, record.path)
 
 for record in plugin_records:
-    agents = set(record["agents"])
-    agents.update(staged_agents.get((record["source"], record["name"]), ()))
+    agents = set(record.agents)
+    agents.update(staged_agents.get((record.source, record.name), ()))
     merge_skill_row(
-        record["display"],
-        record["source"],
+        record.display,
+        record.source,
         "plugin",
         agents,
-        record["path"],
-        record["plugin_keys"],
+        record.path,
+        record.plugin_keys,
     )
 
 both = sum(1 for row in rows.values() if row["claude"] and row["codex"])
