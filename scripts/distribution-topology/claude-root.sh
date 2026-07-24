@@ -5,6 +5,14 @@ CLAUDE_ROOT_ACTION=
 CLAUDE_ROOT_MESSAGE=
 CLAUDE_ROOT_MIGRATED=0
 
+claude_root_surface_path() { # home discovery_root
+  if [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
+    printf '%s/claude-root-after-migration\n' "$2"
+  else
+    printf '%s/.claude/skills\n' "$1"
+  fi
+}
+
 claude_root_canonical_path() { # path
   local candidate="$1" directory base
   directory="$(dirname "$candidate")"
@@ -67,4 +75,53 @@ claude_root_reconcile() { # repo_root home
       ;;
     *) printf '%s\n' "$CLAUDE_ROOT_MESSAGE" >&2; return 1 ;;
   esac
+}
+
+claude_root_cleanup_legacy_copies() { # repo_root home registry plan changes errors
+  local repo_root="$1" home="$2" registry="$3" plan="$4" changes="$5" errors="$6"
+  local marker skill owner source_id desired replacement_owner failed=0 message
+  [ "$CLAUDE_ROOT_MIGRATED" = 1 ] || return 0
+
+  for marker in "$repo_root"/skills/*/.agent-scripts-copy; do
+    [ -f "$marker" ] || continue
+    skill="$(basename "$(dirname "$marker")")"
+    owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+    case "$owner" in cli-skills) source_id=matt-skills ;; *) source_id="$owner" ;; esac
+    jq -e --arg source "$source_id" \
+      'any(.[]; .sourceId == $source and (.classification == "source-only" or .classification == "npx-only"))' \
+      "$registry" >/dev/null || continue
+
+    if [ -n "$(git -C "$repo_root" ls-files -- "skills/$skill")" ]; then
+      message="refusing to remove tracked legacy Claude copy: skills/$skill"
+      jq -cn --arg message "$message" '$message' >> "$errors"
+      failed=1
+      continue
+    fi
+
+    desired=false
+    if jq -e --arg source "$source_id" --arg skill "$skill" \
+      'any(.[]; .sourceId == $source and .skill == $skill and (.destinations | index("claude") != null))' \
+      "$plan" >/dev/null; then
+      desired=true
+    fi
+    if [ "$desired" = true ]; then
+      replacement_owner="$(sed -n '2p' "$home/.claude/skills/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+      if [ "$replacement_owner" != "$source_id" ]; then
+        message="refusing to remove legacy Claude copy without verified replacement: $source_id/$skill"
+        jq -cn --arg message "$message" '$message' >> "$errors"
+        failed=1
+        continue
+      fi
+    fi
+
+    if ! rm -rf -- "$repo_root/skills/$skill"; then
+      message="could not remove legacy Claude copy: $source_id/$skill"
+      jq -cn --arg message "$message" '$message' >> "$errors"
+      failed=1
+      continue
+    fi
+    jq -cn --arg sourceId "$source_id" --arg skill "$skill" \
+      '{action:"legacy-copy-removed",sourceId:$sourceId,skill:$skill,destination:"claude"}' >> "$changes"
+  done
+  return "$failed"
 }

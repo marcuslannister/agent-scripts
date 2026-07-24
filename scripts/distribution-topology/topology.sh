@@ -802,6 +802,8 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" "source $source_id verification failed" "$errors"
   done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
 
+  claude_root_cleanup_legacy_copies "$REPO_ROOT" "$HOME" "$REGISTRY_PATH" "$plan_json" "$changes" "$errors" || true
+
   topology_inspect_plan "$plan_json" "$final_inspect" reconcile || return $?
   topology_inspect_hygiene "$final_hygiene" || return $?
   cat "$final_inspect/errors.ndjson" >> "$errors"

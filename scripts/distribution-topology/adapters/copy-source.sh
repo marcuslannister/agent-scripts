@@ -11,6 +11,7 @@ mode="${7:-reconcile}"
 
 source "$repo_root/scripts/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
+source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 
 case "$source_id" in
   anthropic-skills)
@@ -77,13 +78,7 @@ read_roots() {
 
 surface_for_destination() {
   case "$1" in
-    claude)
-      if [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
-        printf '%s/claude-root-after-migration\n' "$discovery_root"
-      else
-        printf '%s/.claude/skills\n' "$home"
-      fi
-      ;;
+    claude) claude_root_surface_path "$home" "$discovery_root" ;;
     codex) printf '%s/.agents/skills\n' "$home" ;;
   esac
 }

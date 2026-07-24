@@ -11,8 +11,7 @@ FIXTURE="$TMP_ROOT/anthropic"
 UPSTREAM="$TMP_ROOT/upstreams/anthropic-skills"
 BIN="$TMP_ROOT/bin"
 mkdir -p "$FIXTURE/scripts" "$FIXTURE/skills" "$FIXTURE/other-skills/anthropics" \
-  "$FIXTURE/home/.agents/skills" "$FIXTURE/home/.claude/skills" "$FIXTURE/runtime" "$UPSTREAM/skills" "$BIN"
-printf 'claude-skills\n' > "$FIXTURE/home/.claude/skills/.agent-scripts-root"
+  "$FIXTURE/home/.agents/skills" "$FIXTURE/home/.claude" "$FIXTURE/runtime" "$UPSTREAM/skills" "$BIN"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
 
@@ -88,8 +87,33 @@ JSON
 
 "$REAL_GIT" -C "$FIXTURE" init -q
 "$REAL_GIT" -C "$FIXTURE" add skills/frontend-design/SKILL.md
+mkdir -p "$FIXTURE/skills/loose-skill"
+cp "$UPSTREAM/skills/loose-skill/SKILL.md" "$FIXTURE/skills/loose-skill/SKILL.md"
+printf '%s\nanthropic-skills\nlegacy-hash\n' "$UPSTREAM/skills/loose-skill" \
+  > "$FIXTURE/skills/loose-skill/.agent-scripts-copy"
+ln -s "$FIXTURE/skills" "$FIXTURE/home/.claude/skills"
 
 COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
+TRACKED_LEGACY_FIXTURE="$TMP_ROOT/anthropic-tracked-legacy"
+cp -R "$FIXTURE" "$TRACKED_LEGACY_FIXTURE"
+unlink "$TRACKED_LEGACY_FIXTURE/home/.claude/skills"
+ln -s "$TRACKED_LEGACY_FIXTURE/skills" "$TRACKED_LEGACY_FIXTURE/home/.claude/skills"
+printf '%s\nanthropic-skills\nlegacy-hash\n' "$UPSTREAM/skills/frontend-design" \
+  > "$TRACKED_LEGACY_FIXTURE/skills/frontend-design/.agent-scripts-copy"
+set +e
+FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
+HOME="$TRACKED_LEGACY_FIXTURE/home" TMPDIR="$TRACKED_LEGACY_FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$TRACKED_LEGACY_FIXTURE/scripts/update-skill-topology.sh" --json > "$TRACKED_LEGACY_FIXTURE/result.json"
+tracked_legacy_exit=$?
+set -e
+test "$tracked_legacy_exit" -eq 1
+jq -e '
+  .status == "failed" and
+  any(.errors[]; contains("refusing to remove tracked legacy Claude copy: skills/frontend-design"))
+' "$TRACKED_LEGACY_FIXTURE/result.json" >/dev/null
+test -f "$TRACKED_LEGACY_FIXTURE/skills/frontend-design/SKILL.md"
+test -f "$TRACKED_LEGACY_FIXTURE/skills/frontend-design/.agent-scripts-copy"
+
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
   "$COMMAND" --json > "$FIXTURE/first.json"
@@ -113,6 +137,8 @@ jq -e '
   (.plan[] | select(.skill == "pptx") | .destinations == ["codex"]) and
   (.plan[] | select(.skill == "skill-creator") | .destinations == ["codex"]) and
   (.plan[] | select(.skill == "xlsx") | .destinations == []) and
+  any(.changes[]; .action == "root-migrated" and .sourceId == "topology") and
+  any(.changes[]; .action == "legacy-copy-removed" and .sourceId == "anthropic-skills" and .skill == "loose-skill") and
   .errors == [] and .decisions == []
 ' "$FIXTURE/first.json" >/dev/null
 
@@ -135,6 +161,7 @@ grep -F 'other-skills/anthropics/docx' "$FIXTURE/.gitignore" >/dev/null
 if grep -Fx 'skills/docx' "$FIXTURE/.gitignore" >/dev/null; then exit 1; fi
 test "$(sed -n '3p' "$FIXTURE/skills/frontend-design/SKILL.md")" = 'description: "repo fixture"'
 test ! -e "$FIXTURE/skills/frontend-design/.agent-scripts-copy"
+test ! -e "$FIXTURE/skills/loose-skill"
 test ! -e "$FIXTURE/home/.agents/skills/frontend-design"
 
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \

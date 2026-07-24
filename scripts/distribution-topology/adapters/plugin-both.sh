@@ -9,6 +9,8 @@ plan_path="${5:-}"
 home="${6:?home required}"
 mode="${7:-reconcile}"
 
+source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
+
 registry="$repo_root/scripts/distribution-topology/registry.json"
 classification="$(jq -er --arg source_id "$source_id" \
   '.[] | select(.sourceId == $source_id) | .classification' "$registry")"
@@ -590,13 +592,7 @@ inspect_states() {
 
 dual_plugin_copy_path() { # skill destination
   case "$2" in
-    claude)
-      if [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
-        printf '%s/claude-root-after-migration/%s\n' "$discovery_root" "$1"
-      else
-        printf '%s/.claude/skills/%s\n' "$home" "$1"
-      fi
-      ;;
+    claude) printf '%s/%s\n' "$(claude_root_surface_path "$home" "$discovery_root")" "$1" ;;
     codex) printf '%s/.agents/skills/%s\n' "$home" "$1" ;;
   esac
 }

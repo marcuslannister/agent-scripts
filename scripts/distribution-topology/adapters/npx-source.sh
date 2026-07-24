@@ -12,6 +12,7 @@ home="${6:?home required}"
 
 source "$repo_root/scripts/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
+source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 
 upstream_repo="mattpocock/skills"
 retired_repo="vercel-labs/skills"
@@ -19,11 +20,7 @@ owner="matt-skills"
 retired_owner="cli-skills"
 lock="$home/.agents/.skill-lock.json"
 codex_root="$home/.agents/skills"
-if [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
-  claude_root="$discovery_root/claude-root-after-migration"
-else
-  claude_root="$home/.claude/skills"
-fi
+claude_root="$(claude_root_surface_path "$home" "$discovery_root")"
 state_root="$discovery_root/$source_id"
 upstream_root_file="$state_root/upstream-root"
 inventory_file="$state_root/inventory.tsv"
