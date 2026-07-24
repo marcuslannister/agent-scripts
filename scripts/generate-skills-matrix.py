@@ -16,6 +16,7 @@ HOME = os.path.expanduser("~")
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SELF = "marcuslannister/agent-scripts"
 UPSTREAM_MIRROR = "steipete/agent-scripts"
+DELIVERY_PRIORITY = {"skill": 1, "plugin": 2}
 
 
 def load_json(path):
@@ -69,13 +70,13 @@ def skill_name(path):
 rows = {}
 
 
-def add(display, source, typ, agents, path, plugin_keys=None):
+def merge_skill_row(display, source, delivery, agents, path, plugin_keys=None):
     token_count = toks(path)
-    priority = 3 if source == UPSTREAM_MIRROR else (2 if typ == "plugin" else 1)
+    priority = 3 if source == UPSTREAM_MIRROR else DELIVERY_PRIORITY[delivery]
     if display not in rows:
         rows[display] = {
             "source": source,
-            "type": typ,
+            "type": delivery,
             "claude": False,
             "codex": False,
             "tokens": token_count,
@@ -86,7 +87,7 @@ def add(display, source, typ, agents, path, plugin_keys=None):
     if priority > rows[display]["priority"]:
         rows[display].update(
             source=source,
-            type=typ,
+            type=delivery,
             priority=priority,
             claude_plugin_key=None,
             codex_plugin_key=None,
@@ -154,20 +155,24 @@ for record in plugin_records:
 skills_lock = load_json(f"{HOME}/.agents/.skill-lock.json").get("skills", {})
 
 
-def staged_source(path, source_id, name):
+def copy_marker(path):
     marker = f"{os.path.dirname(path)}/.agent-scripts-copy"
-    if os.path.isfile(marker):
-        with open(marker, errors="ignore") as file:
-            source_path = file.readline().strip()
-        if source_path:
-            remote = subprocess.run(
-                ["git", "-C", source_path, "remote", "get-url", "origin"],
-                text=True,
-                capture_output=True,
-            )
-            repo = github_repo(remote.stdout)
-            if repo:
-                return repo
+    if not os.path.isfile(marker):
+        return None, None
+    with open(marker, errors="ignore") as file:
+        return file.readline().strip() or None, file.readline().strip() or None
+
+
+def staged_source(source_path, source_id, name):
+    if source_path:
+        remote = subprocess.run(
+            ["git", "-C", source_path, "remote", "get-url", "origin"],
+            text=True,
+            capture_output=True,
+        )
+        repo = github_repo(remote.stdout)
+        if repo:
+            return repo
     lock_entry = skills_lock.get(name, {})
     lock_source = lock_entry if isinstance(lock_entry, str) else lock_entry.get("source")
     repo = github_repo(lock_source)
@@ -188,12 +193,7 @@ for source_id, name in plan_agents:
 staged_records = []
 for path in glob.glob(f"{REPO}/other-skills/*/*/SKILL.md"):
     name = skill_name(path)
-    marker = f"{os.path.dirname(path)}/.agent-scripts-copy"
-    source_id = None
-    if os.path.isfile(marker):
-        with open(marker, errors="ignore") as file:
-            file.readline()
-            source_id = file.readline().strip() or None
+    source_path, source_id = copy_marker(path)
     if source_id is None:
         candidates = plan_sources_by_skill.get(name, [])
         source_id = candidates[0] if len(candidates) == 1 else None
@@ -202,7 +202,7 @@ for path in glob.glob(f"{REPO}/other-skills/*/*/SKILL.md"):
     staged_records.append(
         {
             "name": name,
-            "source": staged_source(path, source_id, name),
+            "source": staged_source(source_path, source_id, name),
             "agents": selected_agents(source_id, name),
             "path": path,
         }
@@ -212,11 +212,11 @@ mirror_names = set()
 for path in glob.glob(f"{REPO}/skills/*/SKILL.md"):
     name = skill_name(path)
     mirror_names.add(name)
-    add(name, UPSTREAM_MIRROR, "skill", selected_agents("repo-claude", name), path)
+    merge_skill_row(name, UPSTREAM_MIRROR, "skill", selected_agents("repo-claude", name), path)
 
 for path in glob.glob(f"{REPO}/codex-skills/*/SKILL.md"):
     name = skill_name(path)
-    add(name, SELF, "skill", selected_agents("repo-codex", name), path)
+    merge_skill_row(name, SELF, "skill", selected_agents("repo-codex", name), path)
 
 staged_agents = {}
 plugin_source_names = {(record["source"], record["name"]) for record in plugin_records}
@@ -226,12 +226,12 @@ for record in staged_records:
     key = (record["source"], record["name"])
     staged_agents.setdefault(key, set()).update(record["agents"])
     if key not in plugin_source_names:
-        add(record["name"], record["source"], "skill", record["agents"], record["path"])
+        merge_skill_row(record["name"], record["source"], "skill", record["agents"], record["path"])
 
 for record in plugin_records:
     agents = set(record["agents"])
     agents.update(staged_agents.get((record["source"], record["name"]), ()))
-    add(
+    merge_skill_row(
         record["display"],
         record["source"],
         "plugin",

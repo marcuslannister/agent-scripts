@@ -13,8 +13,7 @@ mkdir -p \
   "$FIXTURE_ROOT/skills/upstream-claude" \
   "$FIXTURE_ROOT/codex-skills/fork-codex" \
   "$FIXTURE_ROOT/other-skills/marcus/foreign-both" \
-  "$FIXTURE_HOME/.agents/skills/upstream-claude" \
-  "$FIXTURE_HOME/.agents/skills/fork-codex"
+  "$FIXTURE_HOME"
 cp "$REPO_ROOT/scripts/generate-skills-matrix.py" "$FIXTURE_ROOT/scripts/"
 cat > "$FIXTURE_ROOT/scripts/update-skill-topology.sh" <<'BASH'
 #!/usr/bin/env bash
@@ -37,34 +36,6 @@ printf '%s\n' 'fixture upstream both' > "$FIXTURE_ROOT/skills/upstream-both/SKIL
 printf '%s\n' 'fixture upstream claude' > "$FIXTURE_ROOT/skills/upstream-claude/SKILL.md"
 printf '%s\n' 'fixture fork codex' > "$FIXTURE_ROOT/codex-skills/fork-codex/SKILL.md"
 printf '%s\n' 'fixture staged foreign' > "$FIXTURE_ROOT/other-skills/marcus/foreign-both/SKILL.md"
-cp "$FIXTURE_ROOT/skills/upstream-claude/SKILL.md" "$FIXTURE_HOME/.agents/skills/upstream-claude/SKILL.md"
-cp "$FIXTURE_ROOT/codex-skills/fork-codex/SKILL.md" "$FIXTURE_HOME/.agents/skills/fork-codex/SKILL.md"
-cat > "$FIXTURE_ROOT/skill-topology.json" <<'JSON'
-{
-  "version": 1,
-  "sources": [
-    {
-      "id": "repo-claude",
-      "classification": "repo-owned",
-      "defaultDestinations": ["claude"],
-      "overrides": {"upstream-both": ["claude", "codex"]}
-    },
-    {
-      "id": "repo-codex",
-      "classification": "repo-owned",
-      "defaultDestinations": ["codex"],
-      "overrides": {}
-    },
-    {
-      "id": "khazix-skills",
-      "classification": "source-only",
-      "defaultDestinations": ["claude", "codex"],
-      "overrides": {}
-    }
-  ]
-}
-JSON
-
 HOME="$FIXTURE_HOME" python3 "$FIXTURE_ROOT/scripts/generate-skills-matrix.py" > "$TMP_ROOT/matrix.md"
 
 rg -F '| Skill | Source | Type | Claude | Codex | ~Tokens |' "$TMP_ROOT/matrix.md" >/dev/null
