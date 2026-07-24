@@ -31,7 +31,7 @@ The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills 
 _Avoid_: Codex surface, Codex-only surface
 
 **Foreign skill staging**:
-The repo `other-skills/<owner>/` holding area, not an agent surface. Source-only and npx-only inventories reconcile here first; manifest-approved destinations then copy each selected skill from staging to the matching agent surface. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
+The repo `other-skills/<owner>/` holding area, not an agent surface. Two-stage flow: reconcile-to-staging, then select-to-surface; manifest-approved destinations copy each selected skill from staging to the matching agent surface. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
 _Avoid_: Claude surface, Codex surface, automatic install
 
 **Dual-plugin skill**:

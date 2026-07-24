@@ -1,155 +1,195 @@
 # Skills matrix
 
-Every skill installed on this machine, both agents, one flat table. Generated once by scanning:
+Every skill selected by the reconciled topology, plus installed plugin-only skills outside that topology, one flat table. Generated from:
 
-- **Claude:** `skills/` (repo) + every installed plugin under `~/.claude/plugins/cache/`
-- **Codex:** `~/.agents/skills/` + the Codex-native plugin cache under `~/.codex/plugins/cache/` (`waza`, `claude-mem` ship real Codex plugins, not `~/.agents/skills` copies — see `CONTEXT.md`)
+- **Claude:** the tracked `skills/` mirror, staged inventories, manifest destinations, and installed plugins under `~/.claude/plugins/cache/`
+- **Codex:** staged and repo-owned inventories selected by the manifest, plus Codex-native plugin caches under `~/.codex/plugins/cache/`
 
-**Skill** is the invocation name (plugin-namespaced, e.g. `claude-mem:babysit`, where the skill only exists behind a plugin). **Source** is the GitHub `owner/repo` it ships from — see the Repos table below for each URL. **Type** is `skill` (plain SKILL.md, any distribution channel) or `plugin` (ships inside a Claude/Codex marketplace plugin). **~Tokens** is `file size ÷ 4` on the installed `SKILL.md`, a rough proxy for its context cost — not an exact tokenizer count.
+**Skill** is the invocation name (plugin-namespaced, e.g. `claude-mem:babysit`, where the skill only exists behind a plugin). **Source** is the GitHub `owner/repo` it ships from — see the Repos table below for each URL. **Type** is `skill` (plain SKILL.md, any distribution channel) or `plugin` (ships inside a Claude/Codex marketplace plugin). **Claude** and **Codex** are `Y`/`N` destination selections from reconciled manifest state; plugin-only rows outside the topology reflect installed cache availability. **~Tokens** is `file size ÷ 4` on the source `SKILL.md`, a rough proxy for its context cost — not an exact tokenizer count.
 
 Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-remote`, `chatgpt-global` — browser/visualize/sites/artifact-templates) and Claude's `typescript-lsp` (no SKILL.md, not skill-shaped). These aren't part of this repo's managed skill ecosystem.
 
-116 skills total — 115 on Claude, 111 on Codex, 110 on both, 5 Claude-only, 1 Codex-only.
+## Counts
 
-| Skill | Source | Type | Agent | ~Tokens |
-|---|---|---|---|---|
-| `aihot` | marcuslannister/agent-scripts | skill | claude, codex | ~1245 |
-| `algorithmic-art` | marcuslannister/agent-scripts | skill | claude, codex | ~4934 |
-| `brand-guidelines` | marcuslannister/agent-scripts | skill | claude, codex | ~559 |
-| `canvas-design` | marcuslannister/agent-scripts | skill | claude, codex | ~2984 |
-| `claude-api` | marcuslannister/agent-scripts | skill | claude, codex | ~18325 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | claude | ~2709 |
-| `claude-mem:babysit` | thedotmack/claude-mem | plugin | claude, codex | ~1088 |
-| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | claude, codex | ~1826 |
-| `claude-mem:design-is` | thedotmack/claude-mem | plugin | claude, codex | ~4648 |
-| `claude-mem:do` | thedotmack/claude-mem | plugin | claude, codex | ~508 |
-| `claude-mem:how-it-works` | thedotmack/claude-mem | plugin | claude, codex | ~308 |
-| `claude-mem:knowledge-agent` | thedotmack/claude-mem | plugin | claude, codex | ~616 |
-| `claude-mem:learn-codebase` | thedotmack/claude-mem | plugin | claude, codex | ~225 |
-| `claude-mem:make-plan` | thedotmack/claude-mem | plugin | claude, codex | ~788 |
-| `claude-mem:mem-search` | thedotmack/claude-mem | plugin | claude, codex | ~1019 |
-| `claude-mem:oh-my-issues` | thedotmack/claude-mem | plugin | claude, codex | ~2904 |
-| `claude-mem:pathfinder` | thedotmack/claude-mem | plugin | claude, codex | ~1539 |
-| `claude-mem:smart-explore` | thedotmack/claude-mem | plugin | claude, codex | ~2304 |
-| `claude-mem:standup` | thedotmack/claude-mem | plugin | claude, codex | ~1659 |
-| `claude-mem:timeline-report` | thedotmack/claude-mem | plugin | claude, codex | ~3172 |
-| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | claude, codex | ~1155 |
-| `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | claude, codex | ~3530 |
-| `claude-mem:what-the` | thedotmack/claude-mem | plugin | claude, codex | ~62 |
-| `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | claude, codex | ~2208 |
-| `codex-first` | marcuslannister/agent-scripts | skill | claude | ~896 |
-| `codex:codex-cli-runtime` | openai/codex-plugin-cc | plugin | claude | ~774 |
-| `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | claude | ~433 |
-| `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | claude | ~911 |
-| `create-cli` | marcuslannister/agent-scripts | skill | claude, codex | ~834 |
-| `doc-coauthoring` | marcuslannister/agent-scripts | skill | claude, codex | ~3954 |
-| `docx` | marcuslannister/agent-scripts | skill | claude, codex | ~1717 |
-| `frontend-design` | anthropics/claude-plugins-official | plugin | claude, codex | ~2062 |
-| `github-author-context` | marcuslannister/agent-scripts | skill | claude, codex | ~950 |
-| `github-cache-hygiene` | marcuslannister/agent-scripts | skill | claude, codex | ~925 |
-| `github-deep-review` | marcuslannister/agent-scripts | skill | claude, codex | ~1432 |
-| `github-project-triage` | marcuslannister/agent-scripts | skill | claude, codex | ~3982 |
-| `hv-analysis` | marcuslannister/agent-scripts | skill | claude, codex | ~2102 |
-| `internal-comms` | marcuslannister/agent-scripts | skill | claude, codex | ~378 |
-| `khazix-writer` | marcuslannister/agent-scripts | skill | claude, codex | ~2947 |
-| `mac-maintenance` | marcuslannister/agent-scripts | skill | claude, codex | ~184 |
-| `maintainer-orchestrator` | marcuslannister/agent-scripts | skill | codex | ~11236 |
-| `markdown-converter` | marcuslannister/agent-scripts | skill | claude, codex | ~434 |
-| `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | claude, codex | ~2043 |
-| `mattpocock-skills:batch-grill-me` | mattpocock/skills | plugin | claude, codex | ~408 |
-| `mattpocock-skills:claude-handoff` | mattpocock/skills | plugin | claude, codex | ~320 |
-| `mattpocock-skills:code-review` | mattpocock/skills | plugin | claude, codex | ~1663 |
-| `mattpocock-skills:codebase-design` | mattpocock/skills | plugin | claude, codex | ~1520 |
-| `mattpocock-skills:design-an-interface` | mattpocock/skills | plugin | claude, codex | ~842 |
-| `mattpocock-skills:diagnosing-bugs` | mattpocock/skills | plugin | claude, codex | ~2118 |
-| `mattpocock-skills:domain-modeling` | mattpocock/skills | plugin | claude, codex | ~821 |
-| `mattpocock-skills:edit-article` | mattpocock/skills | plugin | claude, codex | ~188 |
-| `mattpocock-skills:git-guardrails-claude-code` | mattpocock/skills | plugin | claude, codex | ~578 |
-| `mattpocock-skills:grill-me` | mattpocock/skills | plugin | claude, codex | ~37 |
-| `mattpocock-skills:grill-with-docs` | mattpocock/skills | plugin | claude, codex | ~61 |
-| `mattpocock-skills:grilling` | mattpocock/skills | plugin | claude, codex | ~210 |
-| `mattpocock-skills:handoff` | mattpocock/skills | plugin | claude, codex | ~220 |
-| `mattpocock-skills:implement` | mattpocock/skills | plugin | claude, codex | ~108 |
-| `mattpocock-skills:improve-codebase-architecture` | mattpocock/skills | plugin | claude, codex | ~1498 |
-| `mattpocock-skills:loop-me` | mattpocock/skills | plugin | claude, codex | ~632 |
-| `mattpocock-skills:migrate-to-shoehorn` | mattpocock/skills | plugin | claude, codex | ~698 |
-| `mattpocock-skills:obsidian-vault` | mattpocock/skills | plugin | claude, codex | ~378 |
-| `mattpocock-skills:prototype` | mattpocock/skills | plugin | claude, codex | ~694 |
-| `mattpocock-skills:qa` | mattpocock/skills | plugin | claude, codex | ~1233 |
-| `mattpocock-skills:request-refactor-plan` | mattpocock/skills | plugin | claude, codex | ~678 |
-| `mattpocock-skills:research` | mattpocock/skills | plugin | claude, codex | ~199 |
-| `mattpocock-skills:resolving-merge-conflicts` | mattpocock/skills | plugin | claude, codex | ~230 |
-| `mattpocock-skills:scaffold-exercises` | mattpocock/skills | plugin | claude, codex | ~897 |
-| `mattpocock-skills:setup-matt-pocock-skills` | mattpocock/skills | plugin | claude, codex | ~1715 |
-| `mattpocock-skills:setup-pre-commit` | mattpocock/skills | plugin | claude, codex | ~565 |
-| `mattpocock-skills:setup-ts-deep-modules` | mattpocock/skills | plugin | claude, codex | ~1882 |
-| `mattpocock-skills:tdd` | mattpocock/skills | plugin | claude, codex | ~796 |
-| `mattpocock-skills:teach` | mattpocock/skills | plugin | claude, codex | ~2374 |
-| `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | claude, codex | ~726 |
-| `mattpocock-skills:to-spec` | mattpocock/skills | plugin | claude, codex | ~766 |
-| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | claude, codex | ~1438 |
-| `mattpocock-skills:triage` | mattpocock/skills | plugin | claude, codex | ~1628 |
-| `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | claude, codex | ~1220 |
-| `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | claude, codex | ~2948 |
-| `mattpocock-skills:wizard` | mattpocock/skills | plugin | claude, codex | ~1037 |
-| `mattpocock-skills:writing-beats` | mattpocock/skills | plugin | claude, codex | ~1216 |
-| `mattpocock-skills:writing-fragments` | mattpocock/skills | plugin | claude, codex | ~890 |
-| `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | claude, codex | ~2332 |
-| `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | claude, codex | ~1482 |
-| `mcp-builder` | marcuslannister/agent-scripts | skill | claude, codex | ~2265 |
-| `nano-banana-pro` | marcuslannister/agent-scripts | skill | claude, codex | ~1454 |
-| `native-app-performance` | marcuslannister/agent-scripts | skill | claude, codex | ~486 |
-| `neat-freak` | marcuslannister/agent-scripts | skill | claude, codex | ~1903 |
-| `obsidian` | marcuslannister/agent-scripts | skill | claude, codex | ~916 |
-| `openai-image-gen` | marcuslannister/agent-scripts | skill | claude, codex | ~248 |
-| `pdf` | marcuslannister/agent-scripts | skill | claude, codex | ~2009 |
-| `peekaboo` | steipete/Peekaboo | skill | claude, codex | ~734 |
-| `pptx` | marcuslannister/agent-scripts | skill | claude, codex | ~5162 |
-| `release-mac-app` | marcuslannister/agent-scripts | skill | claude, codex | ~1666 |
-| `reminders` | marcuslannister/agent-scripts | skill | claude, codex | ~661 |
-| `remote-mac` | marcuslannister/agent-scripts | skill | claude, codex | ~1707 |
-| `review-claudemd` | marcuslannister/agent-scripts | skill | claude, codex | ~884 |
-| `skill-cleaner` | marcuslannister/agent-scripts | skill | claude, codex | ~1046 |
-| `skill-creator` | anthropics/claude-plugins-official | plugin | claude, codex | ~8247 |
-| `slack-gif-creator` | marcuslannister/agent-scripts | skill | claude, codex | ~1960 |
-| `ssh-doctor` | marcuslannister/agent-scripts | skill | claude, codex | ~1221 |
-| `storage-analyzer` | marcuslannister/agent-scripts | skill | claude, codex | ~1398 |
-| `theme-factory` | marcuslannister/agent-scripts | skill | claude, codex | ~781 |
-| `validate-skills` | marcuslannister/agent-scripts | skill | claude, codex | ~231 |
-| `video-transcript-downloader` | marcuslannister/agent-scripts | skill | claude, codex | ~558 |
-| `visual-explainer` | nicobailon/visual-explainer | plugin | claude, codex | ~9330 |
-| `waza:check` | tw93/Waza | plugin | claude, codex | ~10617 |
-| `waza:health` | tw93/Waza | plugin | claude, codex | ~6320 |
-| `waza:hunt` | tw93/Waza | plugin | claude, codex | ~4928 |
-| `waza:learn` | tw93/Waza | plugin | claude, codex | ~2565 |
-| `waza:read` | tw93/Waza | plugin | claude, codex | ~2156 |
-| `waza:think` | tw93/Waza | plugin | claude, codex | ~3908 |
-| `waza:ui` | tw93/Waza | plugin | claude, codex | ~5058 |
-| `waza:write` | tw93/Waza | plugin | claude, codex | ~5735 |
-| `web-artifacts-builder` | marcuslannister/agent-scripts | skill | claude, codex | ~768 |
-| `webapp-testing` | marcuslannister/agent-scripts | skill | claude, codex | ~965 |
-| `xlsx` | marcuslannister/agent-scripts | skill | claude, codex | ~2136 |
+| Availability | Claude | Codex |
+|---|---|---|
+| Total | 147 | 107 |
+| Shared | 107 | 107 |
+| Agent-only | 40 | 0 |
 
-<!-- total=116 both=110 claude_only=5 codex_only=1 total_claude=115 total_codex=111 -->
+| Skill | Source | Type | Claude | Codex | ~Tokens |
+|---|---|---|---|---|---|
+| `agent-transcript` | steipete/agent-scripts | skill | Y | N | ~1126 |
+| `aihot` | KKKKhazix/khazix-skills | skill | Y | Y | ~1245 |
+| `algorithmic-art` | anthropics/skills | skill | Y | Y | ~4934 |
+| `beeper` | steipete/agent-scripts | skill | Y | N | ~250 |
+| `brand-guidelines` | anthropics/skills | skill | Y | Y | ~559 |
+| `browser-use` | steipete/agent-scripts | skill | Y | N | ~1288 |
+| `canvas-design` | anthropics/skills | skill | Y | Y | ~2984 |
+| `claude-api` | anthropics/skills | skill | Y | Y | ~17094 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | Y | N | ~2709 |
+| `claude-mem:babysit` | thedotmack/claude-mem | plugin | Y | Y | ~1088 |
+| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1173 |
+| `claude-mem:design-is` | thedotmack/claude-mem | plugin | Y | Y | ~4648 |
+| `claude-mem:do` | thedotmack/claude-mem | plugin | Y | Y | ~508 |
+| `claude-mem:how-it-works` | thedotmack/claude-mem | plugin | Y | Y | ~308 |
+| `claude-mem:knowledge-agent` | thedotmack/claude-mem | plugin | Y | Y | ~616 |
+| `claude-mem:learn-codebase` | thedotmack/claude-mem | plugin | Y | Y | ~225 |
+| `claude-mem:make-plan` | thedotmack/claude-mem | plugin | Y | Y | ~788 |
+| `claude-mem:mem-search` | thedotmack/claude-mem | plugin | Y | Y | ~1019 |
+| `claude-mem:oh-my-issues` | thedotmack/claude-mem | plugin | Y | Y | ~2904 |
+| `claude-mem:pathfinder` | thedotmack/claude-mem | plugin | Y | Y | ~1539 |
+| `claude-mem:smart-explore` | thedotmack/claude-mem | plugin | Y | Y | ~2304 |
+| `claude-mem:standup` | thedotmack/claude-mem | plugin | Y | Y | ~1659 |
+| `claude-mem:timeline-report` | thedotmack/claude-mem | plugin | Y | Y | ~3172 |
+| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | Y | Y | ~1152 |
+| `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | Y | Y | ~3530 |
+| `claude-mem:what-the` | thedotmack/claude-mem | plugin | Y | Y | ~62 |
+| `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | Y | Y | ~2208 |
+| `clawsweeper-status` | steipete/agent-scripts | skill | Y | N | ~596 |
+| `clickclack` | steipete/agent-scripts | skill | Y | N | ~711 |
+| `cloudflare-registrar` | steipete/agent-scripts | skill | Y | N | ~372 |
+| `codex-debugging` | steipete/agent-scripts | skill | Y | N | ~265 |
+| `codex-first` | steipete/agent-scripts | skill | Y | N | ~3090 |
+| `codex-huge-context` | steipete/agent-scripts | skill | Y | N | ~2574 |
+| `codex:codex-cli-runtime` | openai/codex-plugin-cc | plugin | Y | N | ~774 |
+| `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | Y | N | ~433 |
+| `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | Y | N | ~911 |
+| `create-cli` | steipete/agent-scripts | skill | Y | Y | ~834 |
+| `discord-clawd` | steipete/agent-scripts | skill | Y | N | ~272 |
+| `doc-coauthoring` | anthropics/skills | skill | Y | Y | ~3954 |
+| `docx` | anthropics/skills | skill | Y | Y | ~1717 |
+| `domain-dns-ops` | steipete/agent-scripts | skill | Y | N | ~679 |
+| `fleet-maintenance` | steipete/agent-scripts | skill | Y | N | ~2905 |
+| `frontend-design` | steipete/agent-scripts | skill | Y | N | ~2062 |
+| `github-author-context` | steipete/agent-scripts | skill | Y | Y | ~950 |
+| `github-cache-hygiene` | steipete/agent-scripts | skill | Y | Y | ~950 |
+| `github-deep-review` | steipete/agent-scripts | skill | Y | Y | ~1432 |
+| `github-project-triage` | steipete/agent-scripts | skill | Y | Y | ~3982 |
+| `hopper-debugger` | steipete/agent-scripts | skill | Y | N | ~1200 |
+| `hv-analysis` | KKKKhazix/khazix-skills | skill | Y | Y | ~2102 |
+| `instruments-profiling` | steipete/agent-scripts | skill | Y | N | ~937 |
+| `internal-comms` | anthropics/skills | skill | Y | Y | ~378 |
+| `khazix-writer` | KKKKhazix/khazix-skills | skill | Y | Y | ~2947 |
+| `mac-maintenance` | steipete/agent-scripts | skill | Y | Y | ~184 |
+| `maintainer-orchestrator` | steipete/agent-scripts | skill | Y | N | ~11236 |
+| `markdown-converter` | steipete/agent-scripts | skill | Y | Y | ~434 |
+| `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | Y | Y | ~2043 |
+| `mattpocock-skills:batch-grill-me` | mattpocock/skills | plugin | Y | Y | ~408 |
+| `mattpocock-skills:claude-handoff` | mattpocock/skills | plugin | Y | Y | ~320 |
+| `mattpocock-skills:code-review` | mattpocock/skills | plugin | Y | Y | ~1663 |
+| `mattpocock-skills:codebase-design` | mattpocock/skills | plugin | Y | Y | ~1520 |
+| `mattpocock-skills:design-an-interface` | mattpocock/skills | plugin | Y | Y | ~842 |
+| `mattpocock-skills:diagnosing-bugs` | mattpocock/skills | plugin | Y | Y | ~2118 |
+| `mattpocock-skills:domain-modeling` | mattpocock/skills | plugin | Y | Y | ~821 |
+| `mattpocock-skills:edit-article` | mattpocock/skills | plugin | Y | Y | ~188 |
+| `mattpocock-skills:git-guardrails-claude-code` | mattpocock/skills | plugin | Y | Y | ~578 |
+| `mattpocock-skills:grill-me` | mattpocock/skills | plugin | Y | Y | ~37 |
+| `mattpocock-skills:grill-with-docs` | mattpocock/skills | plugin | Y | Y | ~61 |
+| `mattpocock-skills:grilling` | mattpocock/skills | plugin | Y | Y | ~210 |
+| `mattpocock-skills:handoff` | mattpocock/skills | plugin | Y | Y | ~220 |
+| `mattpocock-skills:implement` | mattpocock/skills | plugin | Y | Y | ~108 |
+| `mattpocock-skills:improve-codebase-architecture` | mattpocock/skills | plugin | Y | Y | ~1498 |
+| `mattpocock-skills:loop-me` | mattpocock/skills | plugin | Y | Y | ~632 |
+| `mattpocock-skills:migrate-to-shoehorn` | mattpocock/skills | plugin | Y | Y | ~698 |
+| `mattpocock-skills:obsidian-vault` | mattpocock/skills | plugin | Y | Y | ~378 |
+| `mattpocock-skills:prototype` | mattpocock/skills | plugin | Y | Y | ~694 |
+| `mattpocock-skills:qa` | mattpocock/skills | plugin | Y | Y | ~1233 |
+| `mattpocock-skills:request-refactor-plan` | mattpocock/skills | plugin | Y | Y | ~678 |
+| `mattpocock-skills:research` | mattpocock/skills | plugin | Y | Y | ~199 |
+| `mattpocock-skills:resolving-merge-conflicts` | mattpocock/skills | plugin | Y | Y | ~230 |
+| `mattpocock-skills:scaffold-exercises` | mattpocock/skills | plugin | Y | Y | ~897 |
+| `mattpocock-skills:setup-matt-pocock-skills` | mattpocock/skills | plugin | Y | Y | ~1715 |
+| `mattpocock-skills:setup-pre-commit` | mattpocock/skills | plugin | Y | Y | ~565 |
+| `mattpocock-skills:setup-ts-deep-modules` | mattpocock/skills | plugin | Y | Y | ~1882 |
+| `mattpocock-skills:tdd` | mattpocock/skills | plugin | Y | Y | ~796 |
+| `mattpocock-skills:teach` | mattpocock/skills | plugin | Y | Y | ~2374 |
+| `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | Y | Y | ~726 |
+| `mattpocock-skills:to-spec` | mattpocock/skills | plugin | Y | Y | ~766 |
+| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1415 |
+| `mattpocock-skills:triage` | mattpocock/skills | plugin | Y | Y | ~1628 |
+| `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | Y | Y | ~1220 |
+| `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | Y | Y | ~2948 |
+| `mattpocock-skills:wizard` | mattpocock/skills | plugin | Y | Y | ~1037 |
+| `mattpocock-skills:writing-beats` | mattpocock/skills | plugin | Y | Y | ~1216 |
+| `mattpocock-skills:writing-fragments` | mattpocock/skills | plugin | Y | Y | ~890 |
+| `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | Y | Y | ~2332 |
+| `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | Y | Y | ~1482 |
+| `mcp-builder` | anthropics/skills | skill | Y | Y | ~2265 |
+| `nano-banana-pro` | steipete/agent-scripts | skill | Y | Y | ~1411 |
+| `native-app-performance` | steipete/agent-scripts | skill | Y | Y | ~486 |
+| `neat-freak` | KKKKhazix/khazix-skills | skill | Y | Y | ~1903 |
+| `notcrawl` | steipete/agent-scripts | skill | Y | N | ~272 |
+| `npm` | steipete/agent-scripts | skill | Y | N | ~942 |
+| `obsidian` | steipete/agent-scripts | skill | Y | Y | ~916 |
+| `one-password` | steipete/agent-scripts | skill | Y | N | ~4714 |
+| `openai-image-gen` | steipete/agent-scripts | skill | Y | Y | ~248 |
+| `openclaw-relay` | steipete/agent-scripts | skill | Y | N | ~1207 |
+| `oracle` | steipete/agent-scripts | skill | Y | N | ~2080 |
+| `pdf` | anthropics/skills | skill | Y | Y | ~2009 |
+| `peekaboo` | steipete/agent-scripts | skill | Y | Y | ~734 |
+| `pptx` | anthropics/skills | skill | Y | Y | ~5162 |
+| `release-mac-app` | steipete/agent-scripts | skill | Y | Y | ~1666 |
+| `release-tweets` | steipete/agent-scripts | skill | Y | N | ~990 |
+| `remember` | anthropics/claude-plugins-official | plugin | Y | N | ~343 |
+| `reminders` | steipete/agent-scripts | skill | Y | Y | ~661 |
+| `remote-mac` | steipete/agent-scripts | skill | Y | Y | ~2018 |
+| `skill-cleaner` | steipete/agent-scripts | skill | Y | Y | ~1046 |
+| `skill-creator` | anthropics/claude-plugins-official | plugin | Y | Y | ~8247 |
+| `slack-gif-creator` | anthropics/skills | skill | Y | Y | ~1960 |
+| `sonos` | steipete/agent-scripts | skill | Y | N | ~440 |
+| `speaking` | steipete/agent-scripts | skill | Y | N | ~1159 |
+| `ssh-doctor` | steipete/agent-scripts | skill | Y | Y | ~1221 |
+| `storage-analyzer` | KKKKhazix/khazix-skills | skill | Y | Y | ~1398 |
+| `swift-concurrency-expert` | steipete/agent-scripts | skill | Y | N | ~419 |
+| `swiftui-liquid-glass` | steipete/agent-scripts | skill | Y | N | ~914 |
+| `swiftui-performance-audit` | steipete/agent-scripts | skill | Y | N | ~1318 |
+| `swiftui-view-refactor` | steipete/agent-scripts | skill | Y | N | ~1150 |
+| `theme-factory` | anthropics/skills | skill | Y | Y | ~781 |
+| `things-todo` | steipete/agent-scripts | skill | Y | N | ~710 |
+| `twilio-sms` | steipete/agent-scripts | skill | Y | N | ~1060 |
+| `video-transcript-downloader` | steipete/agent-scripts | skill | Y | Y | ~558 |
+| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | Y | ~1684 |
+| `vm-lab` | steipete/agent-scripts | skill | Y | N | ~1554 |
+| `waza:check` | tw93/Waza | plugin | Y | Y | ~10617 |
+| `waza:health` | tw93/Waza | plugin | Y | Y | ~6320 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4572 |
+| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2440 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~2106 |
+| `waza:think` | tw93/Waza | plugin | Y | Y | ~3854 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~5058 |
+| `waza:write` | tw93/Waza | plugin | Y | Y | ~5735 |
+| `web-artifacts-builder` | anthropics/skills | skill | Y | Y | ~768 |
+| `webapp-testing` | anthropics/skills | skill | Y | Y | ~965 |
+| `whatsapp` | steipete/agent-scripts | skill | Y | N | ~935 |
+| `wrangler` | steipete/agent-scripts | skill | Y | N | ~488 |
+| `xcode-sync` | steipete/agent-scripts | skill | Y | N | ~1236 |
+| `xlsx` | anthropics/skills | skill | Y | Y | ~2136 |
+| `xurl` | steipete/agent-scripts | skill | Y | N | ~841 |
+
+<!-- total=147 both=107 claude_only=40 codex_only=0 total_claude=147 total_codex=107 -->
 
 ## Enable-state
 
-Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to plugin-delivered skills — Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads `[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no toggle and are counted *always-on*. On Codex only Waza and claude-mem ship as native plugins; every other skill is an always-on `~/.agents/skills` copy. Claude Code's `/skills` picker reports fewer — it lists only enabled, plugin-*registered* skills (excluding disabled plugins, unregistered sub-skills in category folders, and plain repo copies), so this table, which counts every `SKILL.md` on disk, runs higher.
+Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to plugin-delivered skills — Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads `[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no toggle and are counted *always-on*. On Codex only Waza and claude-mem ship as native plugins; every other skill is an always-on `~/.agents/skills` copy. Claude Code's `/skills` picker reports fewer — it lists only enabled, plugin-*registered* skills (excluding disabled plugins, unregistered sub-skills in category folders, and plain copies), so this manifest-selected inventory runs higher.
 
-| Agent | Enabled | Disabled | Always-on | Total |
-|---|---|---|---|---|
-| Claude | 62 | 12 | 41 | 115 |
-| Codex | 18 | 8 | 85 | 111 |
+| State | Claude | Codex |
+|---|---|---|
+| Enabled | 62 | 8 |
+| Disabled | 12 | 18 |
+| Always-on | 73 | 81 |
+| Total | 147 | 107 |
 
 ## Repos
 
 | Repo | URL |
 |---|---|
+| `KKKKhazix/khazix-skills` | https://github.com/KKKKhazix/khazix-skills |
 | `anthropics/claude-plugins-official` | https://github.com/anthropics/claude-plugins-official |
-| `marcuslannister/agent-scripts` | https://github.com/marcuslannister/agent-scripts |
+| `anthropics/skills` | https://github.com/anthropics/skills |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |
 | `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
-| `steipete/Peekaboo` | https://github.com/steipete/Peekaboo |
+| `steipete/agent-scripts` | https://github.com/steipete/agent-scripts |
 | `thedotmack/claude-mem` | https://github.com/thedotmack/claude-mem |
 | `tw93/Waza` | https://github.com/tw93/Waza |
