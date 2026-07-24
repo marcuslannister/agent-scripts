@@ -14,6 +14,7 @@ make_fixture() { # fixture_root
     "$fixture_root/scripts" \
     "$fixture_root/skills/fixture-skill" \
     "$fixture_root/home/.agents/skills" \
+    "$fixture_root/home/.claude/skills" \
     "$fixture_root/runtime"
   cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture_root/scripts/"
   cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture_root/scripts/"
@@ -21,6 +22,7 @@ make_fixture() { # fixture_root
     "$fixture_root/scripts/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
   mv "$fixture_root/registry.tmp" "$fixture_root/scripts/distribution-topology/registry.json"
   printf '%s\n' '---' 'name: fixture-skill' 'description: "fixture"' '---' > "$fixture_root/skills/fixture-skill/SKILL.md"
+  printf 'claude-skills\n' > "$fixture_root/home/.claude/skills/.agent-scripts-root"
   cat > "$fixture_root/skill-topology.json" <<'JSON'
 {
   "version": 1,
@@ -29,7 +31,7 @@ make_fixture() { # fixture_root
       "id": "repo-claude",
       "classification": "repo-owned",
       "defaultDestinations": ["claude"],
-      "overrides": {}
+      "overrides": {"fixture-skill": []}
     }
   ]
 }

@@ -10,6 +10,7 @@ source "$MODULE_DIR/errors.sh"
 source "$MODULE_DIR/lock.sh"
 source "$MODULE_DIR/schema.sh"
 source "$MODULE_DIR/repo-owned-paths.sh"
+source "$MODULE_DIR/claude-root.sh"
 source "$MODULE_DIR/state.sh"
 source "$MODULE_DIR/report.sh"
 
@@ -343,9 +344,9 @@ topology_inspect_plan() { # plan_json output_dir mode
           [ "$desired" = true ] && jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
             '{sourceId:$sourceId,skill:$skill,destination:$destination,reason:"missing"}' >> "$output/drift.ndjson"
           ;;
-        managed|canonical)
+        managed)
           if [ "$desired" = true ] && [ -n "$DESTINATION_REASON" ]; then reason="$DESTINATION_REASON"
-          elif [ "$desired" != true ] && [ "$DESTINATION_KIND" != canonical ]; then reason=unexpected
+          elif [ "$desired" != true ]; then reason=unexpected
           else continue
           fi
           jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" --arg reason "$reason" \
@@ -378,6 +379,7 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
     --slurpfile errors "$errors" --slurpfile warnings "$warnings" --slurpfile changes "$changes" \
     --slurpfile skipped "$inspect/skipped.ndjson" --slurpfile migrations "$inspect/migrations.ndjson" \
     --slurpfile nativeEvents "$DISCOVERY_ROOT/native-reconciliation.ndjson" \
+    --slurpfile claudeRoot "$DISCOVERY_ROOT/claude-root.json" \
     --slurpfile hygiene "$hygiene" '
       ($drift | sort_by(.sourceId,.skill,.destination)) as $sortedDrift |
       ($migrations | sort_by(.sourceId,.skill)) as $sortedMigrations |
@@ -386,6 +388,7 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
           if .kind == "outdated" then {action:"updated",sourceId,skill,destination}
           elif .reason == "missing" then {action:"installed",sourceId,skill,destination}
           elif .reason == "duplicate-copy" then {action:"copy-removed",sourceId,skill,destination}
+          elif .reason == "root-migration" then {action:"root-migrated",sourceId,skill,destination}
           else empty end])
         else $changes end) as $reportedChanges |
       (
@@ -493,6 +496,7 @@ topology_build_document() { # mode status sources plan inspect errors warnings c
         changes:$reportedChanges,
         skipped:($skipped | sort_by(.sourceId,.skill,.destination)),
         migrations:$sortedMigrations,
+        claudeRoot:$claudeRoot[0],
         hygiene:$hygiene[0]
       }
     ' > "$output"
@@ -503,6 +507,7 @@ topology_evaluate() {
   local supported_json defaults_json source_count plan_json inspect_dir hygiene_dir status exit_code
   local sources_file="$DISCOVERY_ROOT/sources.ndjson" plan_file="$DISCOVERY_ROOT/plan.ndjson"
   local base_errors="$DISCOVERY_ROOT/base-errors.ndjson" warnings="$DISCOVERY_ROOT/warnings.ndjson" changes="$DISCOVERY_ROOT/changes.ndjson"
+  local claude_root_document="$DISCOVERY_ROOT/claude-root.json"
   : > "$sources_file"; : > "$plan_file"; : > "$base_errors"; : > "$warnings"; : > "$changes"
   : > "$DISCOVERY_ROOT/native-reconciliation.ndjson"
 
@@ -523,6 +528,17 @@ topology_evaluate() {
   done < <(jq -r '.sources[].id' "$MANIFEST_PATH")
 
   topology_inspect_hygiene "$DISCOVERY_ROOT/hygiene-initial" || return $?
+  claude_root_inspect "$REPO_ROOT" "$HOME"
+  CLAUDE_ROOT_PATH="$HOME/.claude/skills"
+  jq -n --arg path "$CLAUDE_ROOT_PATH" --arg state "$CLAUDE_ROOT_STATE" \
+    --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
+    '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
+  if [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
+    export TOPOLOGY_CLAUDE_ROOT_LEGACY=1
+  elif [ "$CLAUDE_ROOT_STATE" = unexpected ]; then
+    topology_fail 1 "$CLAUDE_ROOT_MESSAGE"
+    return 1
+  fi
   topology_write_native_allowlist
   : > "$DISCOVERY_ROOT/pre-decisions.ndjson"
 
@@ -600,8 +616,13 @@ topology_evaluate() {
   fi
   inspect_dir="$DISCOVERY_ROOT/inspect-initial"
   topology_inspect_plan "$plan_json" "$inspect_dir" "$MODE" || return $?
+  if [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
+    jq -cn '{sourceId:"topology",skill:"claude-root",destination:"claude",reason:"root-migration"}' \
+      >> "$inspect_dir/drift.ndjson"
+  fi
   [ -s "$DISCOVERY_ROOT/pre-decisions.ndjson" ] && cat "$DISCOVERY_ROOT/pre-decisions.ndjson" >> "$inspect_dir/decisions.ndjson"
   cat "$DISCOVERY_ROOT/hygiene-initial/errors.ndjson" >> "$inspect_dir/errors.ndjson"
+  cat "$base_errors" >> "$inspect_dir/errors.ndjson"
   cp "$inspect_dir/errors.ndjson" "$base_errors"
 
   if [ -s "$inspect_dir/decisions.ndjson" ]; then status=decision-required; exit_code=3
@@ -621,6 +642,18 @@ topology_evaluate() {
   mv "$DISCOVERY_ROOT/sources-updated.ndjson" "$sources_file"
 
   if [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && [ ! -s "$inspect_dir/errors.ndjson" ]; then
+    if [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
+      if ! claude_root_reconcile "$REPO_ROOT" "$HOME"; then
+        topology_append_json_string "$base_errors" 'Claude skills root migration failed'
+        topology_build_document "$MODE" failed "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
+        DOCUMENT_PATH="$DISCOVERY_ROOT/document.json"
+        return 1
+      fi
+      unset TOPOLOGY_CLAUDE_ROOT_LEGACY
+      jq -n --arg path "$HOME/.claude/skills" --arg state "$CLAUDE_ROOT_STATE" \
+        --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
+        '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
+    fi
     topology_reconcile "$sources_file" "$plan_file" "$plan_json" "$inspect_dir" "$warnings" "$changes"
     return $?
   elif [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && \
@@ -709,6 +742,9 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
   local hygiene_dir="$DISCOVERY_ROOT/hygiene-reconcile" final_hygiene="$DISCOVERY_ROOT/hygiene-final" final_inspect="$DISCOVERY_ROOT/inspect-final"
   local status exit_code reason
   : > "$errors"; : > "$changes"
+  if [ "$CLAUDE_ROOT_MIGRATED" = 1 ]; then
+    jq -cn '{action:"root-migrated",sourceId:"topology",skill:"claude-root",destination:"claude"}' >> "$changes"
+  fi
 
   topology_run_process "$MODULE_DIR/codex-root-hygiene.sh" reconcile "$HOME" || return $?
   mkdir -p "$hygiene_dir"; : > "$hygiene_dir/changes.ndjson"; : > "$hygiene_dir/errors.ndjson"

@@ -21,7 +21,7 @@ repo_owned_source_path() { # repo_root source_id skill
 
 repo_owned_destination_path() { # repo_root home destination skill
   case "$3" in
-    claude) printf '%s/skills/%s\n' "$1" "$4" ;;
+    claude) printf '%s/.claude/skills/%s\n' "$2" "$4" ;;
     codex) printf '%s/.agents/skills/%s\n' "$2" "$4" ;;
     *) return 1 ;;
   esac

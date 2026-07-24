@@ -77,7 +77,13 @@ read_roots() {
 
 surface_for_destination() {
   case "$1" in
-    claude) printf '%s/skills\n' "$repo_root" ;;
+    claude)
+      if [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
+        printf '%s/claude-root-after-migration\n' "$discovery_root"
+      else
+        printf '%s/.claude/skills\n' "$home"
+      fi
+      ;;
     codex) printf '%s/.agents/skills\n' "$home" ;;
   esac
 }
@@ -184,13 +190,6 @@ refresh_staging_ignore() {
     else
       entries+=("other-skills/$staging_owner/$name")
     fi
-  done
-  for marker in "$repo_root/skills"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || continue
-    name="$(basename "$(dirname "$marker")")"
-    entries+=("skills/$name")
   done
   regen_gitignore_block "$repo_root/.gitignore" "$owner" update-skill-topology.sh \
     ${entries[@]+"${entries[@]}"}

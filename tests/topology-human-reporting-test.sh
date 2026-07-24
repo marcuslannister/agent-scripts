@@ -10,6 +10,7 @@ mkdir -p \
   "$FIXTURE/scripts" \
   "$FIXTURE/skills/alpha" \
   "$FIXTURE/home/.agents/skills" \
+  "$FIXTURE/home/.claude/skills" \
   "$FIXTURE/runtime"
 cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$FIXTURE/scripts/"
 cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
@@ -34,6 +35,8 @@ git -C "$FIXTURE" init -q
 git -C "$FIXTURE" add skills
 source "$FIXTURE/scripts/lib-copies.sh"
 install_skill_copy "$FIXTURE/skills/alpha" "$FIXTURE/home/.agents/skills/alpha" repo-skills
+install_skill_copy "$FIXTURE/skills/alpha" "$FIXTURE/home/.claude/skills/alpha" repo-skills
+printf 'claude-skills\n' > "$FIXTURE/home/.claude/skills/.agent-scripts-root"
 
 mv "$FIXTURE/scripts/distribution-topology/adapters/repo-owned.sh" \
   "$FIXTURE/scripts/distribution-topology/adapters/repo-owned-real.sh"

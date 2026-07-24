@@ -22,7 +22,9 @@ EOF
 }
 
 topology_failure_document() { # message code mode
-  jq -n --arg message "$1" --argjson code "$2" --arg mode "$3" '
+  jq -n --arg message "$1" --argjson code "$2" --arg mode "$3" \
+    --arg claudeRootPath "${CLAUDE_ROOT_PATH:-}" --arg claudeRootState "${CLAUDE_ROOT_STATE:-unknown}" \
+    --arg claudeRootAction "${CLAUDE_ROOT_ACTION:-none}" --arg claudeRootMessage "${CLAUDE_ROOT_MESSAGE:-}" '
     (if $code == 2 then "invalid" elif $code == 130 then "interrupted" else "failed" end) as $status |
     {
       schemaVersion: 1, mode: $mode, status: $status,
@@ -32,6 +34,7 @@ topology_failure_document() { # message code mode
       events: [{kind:"blocking-failure",status:"failed",message:$message}],
       sources: [], plan: [], drift: [], decisions: [], errors: [$message],
       warnings: [], changes: [], skipped: [], migrations: [],
+      claudeRoot: {path:$claudeRootPath,state:$claudeRootState,action:$claudeRootAction,message:$claudeRootMessage},
       hygiene: {status: "failed", legacyRoot: "", entries: [], changes: [], errors: [$message]}
     }
   '

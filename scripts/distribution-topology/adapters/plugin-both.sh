@@ -590,7 +590,13 @@ inspect_states() {
 
 dual_plugin_copy_path() { # skill destination
   case "$2" in
-    claude) printf '%s/skills/%s\n' "$repo_root" "$1" ;;
+    claude)
+      if [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
+        printf '%s/claude-root-after-migration/%s\n' "$discovery_root" "$1"
+      else
+        printf '%s/.claude/skills/%s\n' "$home" "$1"
+      fi
+      ;;
     codex) printf '%s/.agents/skills/%s\n' "$home" "$1" ;;
   esac
 }

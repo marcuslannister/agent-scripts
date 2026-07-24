@@ -65,6 +65,7 @@ make_fixture() {
     "$fixture_root/codex-skills/codex-tool" \
     "$fixture_root/home/.agents/skills/shared-skill" \
     "$fixture_root/home/.agents/skills/codex-tool" \
+    "$fixture_root/home/.claude/skills" \
     "$fixture_root/runtime"
   cp "$COMMAND" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture_root/scripts/"
   cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture_root/scripts/"
@@ -76,6 +77,9 @@ make_fixture() {
   printf '%s\n' '---' 'name: codex-tool' 'description: "fixture"' '---' > "$fixture_root/codex-skills/codex-tool/SKILL.md"
   install_repo_copy "$fixture_root/home/.agents/skills/shared-skill" "$fixture_root/skills/shared-skill" "skills/shared-skill"
   install_repo_copy "$fixture_root/home/.agents/skills/codex-tool" "$fixture_root/codex-skills/codex-tool" "codex-skills/codex-tool"
+  install_repo_copy "$fixture_root/home/.claude/skills/new-skill" "$fixture_root/skills/new-skill" "skills/new-skill"
+  install_repo_copy "$fixture_root/home/.claude/skills/shared-skill" "$fixture_root/skills/shared-skill" "skills/shared-skill"
+  printf 'claude-skills\n' > "$fixture_root/home/.claude/skills/.agent-scripts-root"
   cat > "$fixture_root/skill-topology.json" <<'JSON'
 {
   "version": 1,
@@ -111,6 +115,133 @@ jq -e '
   (.plan[] | select(.skill == "codex-tool") | .destinations == ["codex"]) and
   ([.plan[].skill] | index("untracked-third-party") | not)
 ' "$TMP_ROOT/fixture-clean.json" >/dev/null
+
+LEGACY_ROOT="$TMP_ROOT/legacy-claude-root"
+cp -R "$FIXTURE_BASE" "$LEGACY_ROOT"
+rm -rf "$LEGACY_ROOT/home/.claude/skills"
+ln -s "$LEGACY_ROOT/skills" "$LEGACY_ROOT/home/.claude/skills"
+set +e
+HOME="$LEGACY_ROOT/home" TMPDIR="$LEGACY_ROOT/runtime" \
+  "$LEGACY_ROOT/scripts/update-skill-topology.sh" --check --json > "$LEGACY_ROOT/check.json"
+legacy_check_exit=$?
+set -e
+test "$legacy_check_exit" -eq 1
+test -L "$LEGACY_ROOT/home/.claude/skills"
+jq -e '
+  .status == "drift" and
+  .claudeRoot.state == "legacy-symlink" and .claudeRoot.action == "migrate" and
+  ([.changes[] | select(.action == "installed" and .destination == "claude") | .skill] == ["new-skill", "shared-skill"])
+' "$LEGACY_ROOT/check.json" >/dev/null
+HOME="$LEGACY_ROOT/home" TMPDIR="$LEGACY_ROOT/runtime" \
+  "$LEGACY_ROOT/scripts/update-skill-topology.sh" --json > "$LEGACY_ROOT/first.json"
+test -d "$LEGACY_ROOT/home/.claude/skills"
+test ! -L "$LEGACY_ROOT/home/.claude/skills"
+test "$(cat "$LEGACY_ROOT/home/.claude/skills/.agent-scripts-root")" = claude-skills
+for skill in new-skill shared-skill; do
+  test -f "$LEGACY_ROOT/home/.claude/skills/$skill/SKILL.md"
+  test "$(sed -n '2p' "$LEGACY_ROOT/home/.claude/skills/$skill/.agent-scripts-copy")" = repo-skills
+  test -n "$(sed -n '3p' "$LEGACY_ROOT/home/.claude/skills/$skill/.agent-scripts-copy")"
+  test ! -e "$LEGACY_ROOT/skills/$skill/.agent-scripts-copy"
+done
+jq -e '.status == "reconciled" and .claudeRoot.state == "managed" and .claudeRoot.action == "migrated"' \
+  "$LEGACY_ROOT/first.json" >/dev/null
+cp -R "$LEGACY_ROOT/home" "$LEGACY_ROOT/home-after-first"
+HOME="$LEGACY_ROOT/home" TMPDIR="$LEGACY_ROOT/runtime" \
+  "$LEGACY_ROOT/scripts/update-skill-topology.sh" --json > "$LEGACY_ROOT/second.json"
+jq -e '.status == "reconciled" and .changes == [] and .claudeRoot.state == "managed" and .claudeRoot.action == "none"' \
+  "$LEGACY_ROOT/second.json" >/dev/null
+diff -r "$LEGACY_ROOT/home-after-first" "$LEGACY_ROOT/home"
+
+ROOT_ONLY="$TMP_ROOT/legacy-claude-root-only"
+cp -R "$FIXTURE_BASE" "$ROOT_ONLY"
+rm -rf "$ROOT_ONLY/home/.claude/skills"
+ln -s "$ROOT_ONLY/skills" "$ROOT_ONLY/home/.claude/skills"
+jq '(.sources[] | select(.id == "repo-claude") | .overrides) = {
+  "new-skill": [], "shared-skill": ["codex"]
+}' \
+  "$ROOT_ONLY/skill-topology.json" > "$ROOT_ONLY/manifest.tmp"
+mv "$ROOT_ONLY/manifest.tmp" "$ROOT_ONLY/skill-topology.json"
+set +e
+HOME="$ROOT_ONLY/home" TMPDIR="$ROOT_ONLY/runtime" \
+  "$ROOT_ONLY/scripts/update-skill-topology.sh" --check --json > "$ROOT_ONLY/check.json"
+root_only_check_exit=$?
+set -e
+test "$root_only_check_exit" -eq 1
+jq -e '
+  .status == "drift" and
+  .claudeRoot.action == "migrate" and
+  .drift == [{sourceId:"topology",skill:"claude-root",destination:"claude",reason:"root-migration"}] and
+  .changes == [{action:"root-migrated",sourceId:"topology",skill:"claude-root",destination:"claude"}]
+' "$ROOT_ONLY/check.json" >/dev/null
+HOME="$ROOT_ONLY/home" TMPDIR="$ROOT_ONLY/runtime" \
+  "$ROOT_ONLY/scripts/update-skill-topology.sh" --json > "$ROOT_ONLY/result.json"
+test -d "$ROOT_ONLY/home/.claude/skills"
+test ! -L "$ROOT_ONLY/home/.claude/skills"
+jq -e '
+  .status == "reconciled" and .state == "changed" and
+  .changes == [{action:"root-migrated",sourceId:"topology",skill:"claude-root",destination:"claude"}]
+' "$ROOT_ONLY/result.json" >/dev/null
+
+assert_unsafe_claude_root() {
+  local name="$1" fixture_root="$TMP_ROOT/unsafe-claude-$1"
+  cp -R "$FIXTURE_BASE" "$fixture_root"
+  rm -rf "$fixture_root/home/.claude/skills"
+  case "$name" in
+    missing) : ;;
+    empty) mkdir -p "$fixture_root/home/.claude/skills" ;;
+    foreign-symlink) ln -s "$fixture_root/codex-skills" "$fixture_root/home/.claude/skills" ;;
+  esac
+  chmod 000 "$fixture_root/scripts/distribution-topology/adapters/repo-owned.sh"
+  cp -R "$fixture_root/home" "$fixture_root/home-before"
+  set +e
+  HOME="$fixture_root/home" TMPDIR="$fixture_root/runtime" \
+    "$fixture_root/scripts/update-skill-topology.sh" --json > "$fixture_root/result.json"
+  local unsafe_exit=$?
+  set -e
+  test "$unsafe_exit" -eq 1
+  jq -e --arg state unexpected '
+    .status == "failed" and .changes == [] and
+    .claudeRoot.state == $state and .claudeRoot.action == "blocked" and
+    (.errors[] | contains("Claude skills root"))
+  ' "$fixture_root/result.json" >/dev/null
+  diff -r "$fixture_root/home-before" "$fixture_root/home"
+}
+assert_unsafe_claude_root missing
+assert_unsafe_claude_root empty
+assert_unsafe_claude_root foreign-symlink
+
+CLAUDE_REMOVE_ROOT="$TMP_ROOT/claude-remove"
+cp -R "$FIXTURE_BASE" "$CLAUDE_REMOVE_ROOT"
+jq '.sources[0].overrides["new-skill"] = []' "$CLAUDE_REMOVE_ROOT/skill-topology.json" > "$CLAUDE_REMOVE_ROOT/manifest.tmp"
+mv "$CLAUDE_REMOVE_ROOT/manifest.tmp" "$CLAUDE_REMOVE_ROOT/skill-topology.json"
+HOME="$CLAUDE_REMOVE_ROOT/home" TMPDIR="$CLAUDE_REMOVE_ROOT/runtime" \
+  "$CLAUDE_REMOVE_ROOT/scripts/update-skill-topology.sh" --json > "$CLAUDE_REMOVE_ROOT/result.json"
+test ! -e "$CLAUDE_REMOVE_ROOT/home/.claude/skills/new-skill"
+jq -e '.status == "reconciled" and (.changes[] | .action == "removed" and .skill == "new-skill" and .destination == "claude")' \
+  "$CLAUDE_REMOVE_ROOT/result.json" >/dev/null
+
+CLAUDE_UNOWNED_ROOT="$TMP_ROOT/claude-unowned-remove"
+cp -R "$FIXTURE_BASE" "$CLAUDE_UNOWNED_ROOT"
+printf '%s\n%s\n' skills/new-skill other-owner > "$CLAUDE_UNOWNED_ROOT/home/.claude/skills/new-skill/.agent-scripts-copy"
+jq '.sources[0].overrides["new-skill"] = []' "$CLAUDE_UNOWNED_ROOT/skill-topology.json" > "$CLAUDE_UNOWNED_ROOT/manifest.tmp"
+mv "$CLAUDE_UNOWNED_ROOT/manifest.tmp" "$CLAUDE_UNOWNED_ROOT/skill-topology.json"
+HOME="$CLAUDE_UNOWNED_ROOT/home" TMPDIR="$CLAUDE_UNOWNED_ROOT/runtime" \
+  "$CLAUDE_UNOWNED_ROOT/scripts/update-skill-topology.sh" --json > "$CLAUDE_UNOWNED_ROOT/result.json"
+test -f "$CLAUDE_UNOWNED_ROOT/home/.claude/skills/new-skill/SKILL.md"
+jq -e '.status == "reconciled" and .changes == [] and (.skipped[] | .skill == "new-skill" and .destination == "claude" and .reason == "other-owner")' \
+  "$CLAUDE_UNOWNED_ROOT/result.json" >/dev/null
+
+CLAUDE_DRIFT_ROOT="$TMP_ROOT/claude-content-drift"
+cp -R "$FIXTURE_BASE" "$CLAUDE_DRIFT_ROOT"
+printf 'source advanced\n' >> "$CLAUDE_DRIFT_ROOT/skills/new-skill/SKILL.md"
+set +e
+HOME="$CLAUDE_DRIFT_ROOT/home" TMPDIR="$CLAUDE_DRIFT_ROOT/runtime" \
+  "$CLAUDE_DRIFT_ROOT/scripts/update-skill-topology.sh" --check --json > "$CLAUDE_DRIFT_ROOT/result.json"
+claude_drift_exit=$?
+set -e
+test "$claude_drift_exit" -eq 1
+jq -e '.status == "drift" and (.drift[] | .skill == "new-skill" and .destination == "claude" and .reason == "content-mismatch")' \
+  "$CLAUDE_DRIFT_ROOT/result.json" >/dev/null
 
 CRLF_JQ_ROOT="$TMP_ROOT/crlf-jq"
 cp -R "$FIXTURE_BASE" "$CRLF_JQ_ROOT"

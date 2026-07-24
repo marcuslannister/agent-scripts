@@ -43,8 +43,8 @@ topology_inspect_destination() { # source_id skill destination
   DESTINATION_REASON=
   DESTINATION_MESSAGE=
 
-  if [ "$source_id" = repo-claude ] && [ "$destination" = claude ]; then
-    DESTINATION_KIND=canonical
+  if [ "$destination" = claude ] && [ "${TOPOLOGY_CLAUDE_ROOT_LEGACY:-0}" = 1 ]; then
+    DESTINATION_KIND=absent
     return 0
   fi
 
