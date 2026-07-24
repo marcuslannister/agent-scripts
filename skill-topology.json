@@ -10,182 +10,76 @@
       "matrixOverridesStart": "generated from docs/skills-matrix.md",
       "overrides": {
         "agent-transcript": [
-          "claude"
+          "claude",
+          "codex"
         ],
-        "beeper": [
-          "claude"
-        ],
-        "browser-use": [
-          "claude"
-        ],
-        "clawsweeper-status": [
-          "claude"
-        ],
-        "clickclack": [
-          "claude"
-        ],
-        "cloudflare-registrar": [
-          "claude"
-        ],
-        "codex-debugging": [
-          "claude"
-        ],
-        "codex-first": [
-          "claude"
-        ],
-        "codex-huge-context": [
-          "claude"
-        ],
+        "beeper": [],
+        "browser-use": [],
+        "clawsweeper-status": [],
+        "clickclack": [],
+        "cloudflare-registrar": [],
+        "codex-debugging": [],
+        "codex-first": [],
+        "codex-huge-context": [],
         "create-cli": [
           "claude",
           "codex"
         ],
-        "discord-clawd": [
-          "claude"
-        ],
-        "domain-dns-ops": [
-          "claude"
-        ],
-        "fleet-maintenance": [
-          "claude"
-        ],
-        "frontend-design": [
-          "claude"
-        ],
-        "github-author-context": [
-          "claude",
-          "codex"
-        ],
-        "github-cache-hygiene": [
-          "claude",
-          "codex"
-        ],
-        "github-deep-review": [
-          "claude",
-          "codex"
-        ],
-        "github-project-triage": [
-          "claude",
-          "codex"
-        ],
-        "hopper-debugger": [
-          "claude"
-        ],
-        "instruments-profiling": [
-          "claude"
-        ],
+        "discord-clawd": [],
+        "domain-dns-ops": [],
+        "fleet-maintenance": [],
+        "frontend-design": [],
+        "github-author-context": [],
+        "github-cache-hygiene": [],
+        "github-deep-review": [],
+        "github-project-triage": [],
+        "hopper-debugger": [],
+        "instruments-profiling": [],
         "mac-maintenance": [
           "claude",
           "codex"
         ],
-        "maintainer-orchestrator": [
-          "claude"
-        ],
+        "maintainer-orchestrator": [],
         "markdown-converter": [
           "claude",
           "codex"
         ],
-        "nano-banana-pro": [
-          "claude",
-          "codex"
-        ],
-        "native-app-performance": [
-          "claude",
-          "codex"
-        ],
-        "notcrawl": [
-          "claude"
-        ],
-        "npm": [
-          "claude"
-        ],
+        "nano-banana-pro": [],
+        "native-app-performance": [],
+        "notcrawl": [],
+        "npm": [],
         "obsidian": [
           "claude",
           "codex"
         ],
-        "one-password": [
-          "claude"
-        ],
-        "openai-image-gen": [
-          "claude",
-          "codex"
-        ],
-        "openclaw-relay": [
-          "claude"
-        ],
-        "oracle": [
-          "claude"
-        ],
+        "one-password": [],
+        "openai-image-gen": [],
+        "openclaw-relay": [],
+        "oracle": [],
         "peekaboo": [
           "claude",
           "codex"
         ],
-        "release-mac-app": [
-          "claude",
-          "codex"
-        ],
-        "release-tweets": [
-          "claude"
-        ],
-        "reminders": [
-          "claude",
-          "codex"
-        ],
-        "remote-mac": [
-          "claude",
-          "codex"
-        ],
-        "skill-cleaner": [
-          "claude",
-          "codex"
-        ],
-        "sonos": [
-          "claude"
-        ],
-        "speaking": [
-          "claude"
-        ],
-        "ssh-doctor": [
-          "claude",
-          "codex"
-        ],
-        "swift-concurrency-expert": [
-          "claude"
-        ],
-        "swiftui-liquid-glass": [
-          "claude"
-        ],
-        "swiftui-performance-audit": [
-          "claude"
-        ],
-        "swiftui-view-refactor": [
-          "claude"
-        ],
-        "things-todo": [
-          "claude"
-        ],
-        "twilio-sms": [
-          "claude"
-        ],
-        "video-transcript-downloader": [
-          "claude",
-          "codex"
-        ],
-        "vm-lab": [
-          "claude"
-        ],
-        "whatsapp": [
-          "claude"
-        ],
-        "wrangler": [
-          "claude"
-        ],
-        "xcode-sync": [
-          "claude"
-        ],
-        "xurl": [
-          "claude"
-        ]
+        "release-mac-app": [],
+        "release-tweets": [],
+        "reminders": [],
+        "remote-mac": [],
+        "skill-cleaner": [],
+        "sonos": [],
+        "speaking": [],
+        "ssh-doctor": [],
+        "swift-concurrency-expert": [],
+        "swiftui-liquid-glass": [],
+        "swiftui-performance-audit": [],
+        "swiftui-view-refactor": [],
+        "things-todo": [],
+        "twilio-sms": [],
+        "video-transcript-downloader": [],
+        "vm-lab": [],
+        "whatsapp": [],
+        "wrangler": [],
+        "xcode-sync": [],
+        "xurl": []
       },
       "matrixOverridesEnd": "end generated overrides"
     },
@@ -228,69 +122,27 @@
       ],
       "matrixOverridesStart": "generated from docs/skills-matrix.md",
       "overrides": {
-        "algorithmic-art": [
-          "claude",
-          "codex"
-        ],
-        "brand-guidelines": [
-          "claude",
-          "codex"
-        ],
-        "canvas-design": [
-          "claude",
-          "codex"
-        ],
-        "claude-api": [
-          "claude",
-          "codex"
-        ],
-        "doc-coauthoring": [
-          "claude",
-          "codex"
-        ],
-        "docx": [
-          "claude",
-          "codex"
-        ],
+        "algorithmic-art": [],
+        "brand-guidelines": [],
+        "canvas-design": [],
+        "claude-api": [],
+        "doc-coauthoring": [],
+        "docx": [],
         "internal-comms": [
           "claude",
           "codex"
         ],
-        "mcp-builder": [
-          "claude",
-          "codex"
-        ],
-        "pdf": [
-          "claude",
-          "codex"
-        ],
-        "pptx": [
-          "claude",
-          "codex"
-        ],
+        "mcp-builder": [],
+        "pdf": [],
+        "pptx": [],
         "skill-creator": [
           "codex"
         ],
-        "slack-gif-creator": [
-          "claude",
-          "codex"
-        ],
-        "theme-factory": [
-          "claude",
-          "codex"
-        ],
-        "web-artifacts-builder": [
-          "claude",
-          "codex"
-        ],
-        "webapp-testing": [
-          "claude",
-          "codex"
-        ],
-        "xlsx": [
-          "claude",
-          "codex"
-        ]
+        "slack-gif-creator": [],
+        "theme-factory": [],
+        "web-artifacts-builder": [],
+        "webapp-testing": [],
+        "xlsx": []
       },
       "matrixOverridesEnd": "end generated overrides"
     },
@@ -303,26 +155,11 @@
       ],
       "matrixOverridesStart": "generated from docs/skills-matrix.md",
       "overrides": {
-        "aihot": [
-          "claude",
-          "codex"
-        ],
-        "hv-analysis": [
-          "claude",
-          "codex"
-        ],
-        "khazix-writer": [
-          "claude",
-          "codex"
-        ],
-        "neat-freak": [
-          "claude",
-          "codex"
-        ],
-        "storage-analyzer": [
-          "claude",
-          "codex"
-        ]
+        "aihot": [],
+        "hv-analysis": [],
+        "khazix-writer": [],
+        "neat-freak": [],
+        "storage-analyzer": []
       },
       "matrixOverridesEnd": "end generated overrides"
     },

@@ -13,20 +13,20 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 161 | 107 |
-| Shared | 106 | 106 |
-| Agent-only | 55 | 1 |
+| Total | 96 | 76 |
+| Shared | 75 | 75 |
+| Agent-only | 21 | 1 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
-| `agent-transcript` | steipete/agent-scripts | skill | Y | N | ~1126 |
-| `aihot` | KKKKhazix/khazix-skills | skill | Y | Y | ~1564 |
-| `algorithmic-art` | anthropics/skills | skill | Y | Y | ~4934 |
-| `beeper` | steipete/agent-scripts | skill | Y | N | ~250 |
-| `brand-guidelines` | anthropics/skills | skill | Y | Y | ~559 |
-| `browser-use` | steipete/agent-scripts | skill | Y | N | ~1288 |
-| `canvas-design` | anthropics/skills | skill | Y | Y | ~2984 |
-| `claude-api` | anthropics/skills | skill | Y | Y | ~17094 |
+| `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~1126 |
+| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1564 |
+| `algorithmic-art` | anthropics/skills | skill | N | N | ~4934 |
+| `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
+| `brand-guidelines` | anthropics/skills | skill | N | N | ~559 |
+| `browser-use` | steipete/agent-scripts | skill | N | N | ~1288 |
+| `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
+| `claude-api` | anthropics/skills | skill | N | N | ~17094 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | Y | N | ~2709 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | Y | Y | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1826 |
@@ -46,34 +46,34 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | Y | Y | ~3530 |
 | `claude-mem:what-the` | thedotmack/claude-mem | plugin | Y | Y | ~62 |
 | `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | Y | Y | ~2208 |
-| `clawsweeper-status` | steipete/agent-scripts | skill | Y | N | ~596 |
-| `clickclack` | steipete/agent-scripts | skill | Y | N | ~711 |
-| `cloudflare-registrar` | steipete/agent-scripts | skill | Y | N | ~372 |
-| `codex-debugging` | steipete/agent-scripts | skill | Y | N | ~265 |
-| `codex-first` | steipete/agent-scripts | skill | Y | N | ~3090 |
-| `codex-huge-context` | steipete/agent-scripts | skill | Y | N | ~2574 |
+| `clawsweeper-status` | steipete/agent-scripts | skill | N | N | ~596 |
+| `clickclack` | steipete/agent-scripts | skill | N | N | ~711 |
+| `cloudflare-registrar` | steipete/agent-scripts | skill | N | N | ~372 |
+| `codex-debugging` | steipete/agent-scripts | skill | N | N | ~265 |
+| `codex-first` | steipete/agent-scripts | skill | N | N | ~3090 |
+| `codex-huge-context` | steipete/agent-scripts | skill | N | N | ~2574 |
 | `codex:codex-cli-runtime` | openai/codex-plugin-cc | plugin | Y | N | ~774 |
 | `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | Y | N | ~433 |
 | `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | Y | N | ~911 |
 | `create-cli` | steipete/agent-scripts | skill | Y | Y | ~834 |
-| `discord-clawd` | steipete/agent-scripts | skill | Y | N | ~272 |
-| `doc-coauthoring` | anthropics/skills | skill | Y | Y | ~3954 |
-| `docx` | anthropics/skills | skill | Y | Y | ~1717 |
-| `domain-dns-ops` | steipete/agent-scripts | skill | Y | N | ~679 |
-| `fleet-maintenance` | steipete/agent-scripts | skill | Y | N | ~2905 |
+| `discord-clawd` | steipete/agent-scripts | skill | N | N | ~272 |
+| `doc-coauthoring` | anthropics/skills | skill | N | N | ~3954 |
+| `docx` | anthropics/skills | skill | N | N | ~1717 |
+| `domain-dns-ops` | steipete/agent-scripts | skill | N | N | ~679 |
+| `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~2905 |
 | `frontend-design` | anthropics/claude-plugins-official | plugin | Y | N | ~2062 |
-| `frontend-design` | steipete/agent-scripts | skill | Y | N | ~1027 |
-| `github-author-context` | steipete/agent-scripts | skill | Y | Y | ~950 |
-| `github-cache-hygiene` | steipete/agent-scripts | skill | Y | Y | ~950 |
-| `github-deep-review` | steipete/agent-scripts | skill | Y | Y | ~1432 |
-| `github-project-triage` | steipete/agent-scripts | skill | Y | Y | ~3982 |
-| `hopper-debugger` | steipete/agent-scripts | skill | Y | N | ~1200 |
-| `hv-analysis` | KKKKhazix/khazix-skills | skill | Y | Y | ~2102 |
-| `instruments-profiling` | steipete/agent-scripts | skill | Y | N | ~937 |
+| `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
+| `github-author-context` | steipete/agent-scripts | skill | N | N | ~950 |
+| `github-cache-hygiene` | steipete/agent-scripts | skill | N | N | ~950 |
+| `github-deep-review` | steipete/agent-scripts | skill | N | N | ~1432 |
+| `github-project-triage` | steipete/agent-scripts | skill | N | N | ~3982 |
+| `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1200 |
+| `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2102 |
+| `instruments-profiling` | steipete/agent-scripts | skill | N | N | ~937 |
 | `internal-comms` | anthropics/skills | skill | Y | Y | ~378 |
-| `khazix-writer` | KKKKhazix/khazix-skills | skill | Y | Y | ~2947 |
+| `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2947 |
 | `mac-maintenance` | steipete/agent-scripts | skill | Y | Y | ~184 |
-| `maintainer-orchestrator` | steipete/agent-scripts | skill | Y | N | ~11236 |
+| `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~11236 |
 | `markdown-converter` | steipete/agent-scripts | skill | Y | Y | ~434 |
 | `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | Y | Y | ~2043 |
 | `mattpocock-skills:batch-grill-me` | mattpocock/skills | plugin | Y | Y | ~408 |
@@ -107,7 +107,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `mattpocock-skills:teach` | mattpocock/skills | plugin | Y | Y | ~2374 |
 | `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | Y | Y | ~726 |
 | `mattpocock-skills:to-spec` | mattpocock/skills | plugin | Y | Y | ~766 |
-| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1438 |
+| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1415 |
 | `mattpocock-skills:triage` | mattpocock/skills | plugin | Y | Y | ~1628 |
 | `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | Y | Y | ~1220 |
 | `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | Y | Y | ~2948 |
@@ -116,32 +116,33 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `mattpocock-skills:writing-fragments` | mattpocock/skills | plugin | Y | Y | ~890 |
 | `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | Y | Y | ~2332 |
 | `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | Y | Y | ~1482 |
-| `mcp-builder` | anthropics/skills | skill | Y | Y | ~2265 |
-| `nano-banana-pro` | steipete/agent-scripts | skill | Y | Y | ~1411 |
-| `native-app-performance` | steipete/agent-scripts | skill | Y | Y | ~486 |
-| `neat-freak` | KKKKhazix/khazix-skills | skill | Y | Y | ~1903 |
-| `notcrawl` | steipete/agent-scripts | skill | Y | N | ~272 |
-| `npm` | steipete/agent-scripts | skill | Y | N | ~942 |
+| `mcp-builder` | anthropics/skills | skill | N | N | ~2265 |
+| `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
+| `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
+| `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1903 |
+| `notcrawl` | steipete/agent-scripts | skill | N | N | ~272 |
+| `npm` | steipete/agent-scripts | skill | N | N | ~942 |
 | `obsidian` | steipete/agent-scripts | skill | Y | Y | ~916 |
-| `one-password` | steipete/agent-scripts | skill | Y | N | ~4714 |
-| `openai-image-gen` | steipete/agent-scripts | skill | Y | Y | ~248 |
-| `openclaw-relay` | steipete/agent-scripts | skill | Y | N | ~1207 |
-| `oracle` | steipete/agent-scripts | skill | Y | N | ~2080 |
-| `pdf` | anthropics/skills | skill | Y | Y | ~2009 |
+| `one-password` | steipete/agent-scripts | skill | N | N | ~4714 |
+| `openai-image-gen` | steipete/agent-scripts | skill | N | N | ~248 |
+| `openclaw-relay` | steipete/agent-scripts | skill | N | N | ~1207 |
+| `oracle` | steipete/agent-scripts | skill | N | N | ~2080 |
+| `pdf` | anthropics/skills | skill | N | N | ~2009 |
 | `peekaboo` | steipete/agent-scripts | skill | Y | Y | ~734 |
-| `pptx` | anthropics/skills | skill | Y | Y | ~5162 |
-| `release-mac-app` | steipete/agent-scripts | skill | Y | Y | ~1666 |
-| `release-tweets` | steipete/agent-scripts | skill | Y | N | ~990 |
-| `reminders` | steipete/agent-scripts | skill | Y | Y | ~661 |
-| `remote-mac` | steipete/agent-scripts | skill | Y | Y | ~2018 |
-| `skill-cleaner` | steipete/agent-scripts | skill | Y | Y | ~1046 |
+| `pptx` | anthropics/skills | skill | N | N | ~5162 |
+| `release-mac-app` | steipete/agent-scripts | skill | N | N | ~1666 |
+| `release-tweets` | steipete/agent-scripts | skill | N | N | ~990 |
+| `remember` | anthropics/claude-plugins-official | plugin | Y | N | ~343 |
+| `reminders` | steipete/agent-scripts | skill | N | N | ~661 |
+| `remote-mac` | steipete/agent-scripts | skill | N | N | ~2018 |
+| `skill-cleaner` | steipete/agent-scripts | skill | N | N | ~1046 |
 | `skill-creator` | anthropics/claude-plugins-official | plugin | Y | N | ~8247 |
 | `skill-creator` | anthropics/skills | skill | N | Y | ~8247 |
-| `slack-gif-creator` | anthropics/skills | skill | Y | Y | ~1960 |
-| `sonos` | steipete/agent-scripts | skill | Y | N | ~440 |
-| `speaking` | steipete/agent-scripts | skill | Y | N | ~1159 |
-| `ssh-doctor` | steipete/agent-scripts | skill | Y | Y | ~1221 |
-| `storage-analyzer` | KKKKhazix/khazix-skills | skill | Y | Y | ~1398 |
+| `slack-gif-creator` | anthropics/skills | skill | N | N | ~1960 |
+| `sonos` | steipete/agent-scripts | skill | N | N | ~440 |
+| `speaking` | steipete/agent-scripts | skill | N | N | ~1159 |
+| `ssh-doctor` | steipete/agent-scripts | skill | N | N | ~1221 |
+| `storage-analyzer` | KKKKhazix/khazix-skills | skill | N | N | ~1398 |
 | `superpowers:brainstorming` | anthropics/claude-plugins-official | plugin | Y | N | ~2650 |
 | `superpowers:dispatching-parallel-agents` | anthropics/claude-plugins-official | plugin | Y | N | ~1654 |
 | `superpowers:executing-plans` | anthropics/claude-plugins-official | plugin | Y | N | ~650 |
@@ -156,33 +157,33 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `superpowers:verification-before-completion` | anthropics/claude-plugins-official | plugin | Y | N | ~1037 |
 | `superpowers:writing-plans` | anthropics/claude-plugins-official | plugin | Y | N | ~1768 |
 | `superpowers:writing-skills` | anthropics/claude-plugins-official | plugin | Y | N | ~6687 |
-| `swift-concurrency-expert` | steipete/agent-scripts | skill | Y | N | ~419 |
-| `swiftui-liquid-glass` | steipete/agent-scripts | skill | Y | N | ~914 |
-| `swiftui-performance-audit` | steipete/agent-scripts | skill | Y | N | ~1318 |
-| `swiftui-view-refactor` | steipete/agent-scripts | skill | Y | N | ~1150 |
-| `theme-factory` | anthropics/skills | skill | Y | Y | ~781 |
-| `things-todo` | steipete/agent-scripts | skill | Y | N | ~710 |
-| `twilio-sms` | steipete/agent-scripts | skill | Y | N | ~1060 |
-| `video-transcript-downloader` | steipete/agent-scripts | skill | Y | Y | ~558 |
+| `swift-concurrency-expert` | steipete/agent-scripts | skill | N | N | ~419 |
+| `swiftui-liquid-glass` | steipete/agent-scripts | skill | N | N | ~914 |
+| `swiftui-performance-audit` | steipete/agent-scripts | skill | N | N | ~1318 |
+| `swiftui-view-refactor` | steipete/agent-scripts | skill | N | N | ~1150 |
+| `theme-factory` | anthropics/skills | skill | N | N | ~781 |
+| `things-todo` | steipete/agent-scripts | skill | N | N | ~710 |
+| `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
+| `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
 | `visual-explainer` | nicobailon/visual-explainer | plugin | Y | Y | ~9330 |
-| `vm-lab` | steipete/agent-scripts | skill | Y | N | ~1554 |
+| `vm-lab` | steipete/agent-scripts | skill | N | N | ~1554 |
 | `waza:check` | tw93/Waza | plugin | Y | Y | ~10617 |
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~6320 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4928 |
-| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2565 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~2156 |
-| `waza:think` | tw93/Waza | plugin | Y | Y | ~3908 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~5076 |
+| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2583 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~2174 |
+| `waza:think` | tw93/Waza | plugin | Y | Y | ~4041 |
 | `waza:ui` | tw93/Waza | plugin | Y | Y | ~5058 |
 | `waza:write` | tw93/Waza | plugin | Y | Y | ~5735 |
-| `web-artifacts-builder` | anthropics/skills | skill | Y | Y | ~768 |
-| `webapp-testing` | anthropics/skills | skill | Y | Y | ~965 |
-| `whatsapp` | steipete/agent-scripts | skill | Y | N | ~935 |
-| `wrangler` | steipete/agent-scripts | skill | Y | N | ~488 |
-| `xcode-sync` | steipete/agent-scripts | skill | Y | N | ~1236 |
-| `xlsx` | anthropics/skills | skill | Y | Y | ~2136 |
-| `xurl` | steipete/agent-scripts | skill | Y | N | ~841 |
+| `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
+| `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
+| `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
+| `wrangler` | steipete/agent-scripts | skill | N | N | ~488 |
+| `xcode-sync` | steipete/agent-scripts | skill | N | N | ~1236 |
+| `xlsx` | anthropics/skills | skill | N | N | ~2136 |
+| `xurl` | steipete/agent-scripts | skill | N | N | ~841 |
 
-<!-- total=162 both=106 claude_only=55 codex_only=1 total_claude=161 total_codex=107 -->
+<!-- total=163 both=75 claude_only=21 codex_only=1 total_claude=96 total_codex=76 -->
 
 ## Enable-state
 
@@ -190,10 +191,10 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 62 | 18 |
-| Disabled | 26 | 8 |
-| Always-on | 73 | 81 |
-| Total | 161 | 107 |
+| Enabled | 62 | 0 |
+| Disabled | 27 | 26 |
+| Always-on | 7 | 50 |
+| Total | 96 | 76 |
 
 ## Repos
 

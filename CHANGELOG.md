@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-24 — Live-Host Matrix Reconciliation
+- Bootstrapped the real `~/.claude/skills` managed root, missing on this host since #38 landed, and reconciled it clean, closing #37.
+- Trimmed the Claude/Codex skill selection to a curated subset via `docs/skills-matrix.md` hand-edits, applying the removals through the reconciler and regenerating the manifest override block.
+
 ## 2026-07-23 — Node Verification Toolchain
 - Replaced the repo development Bun toolchain with Node.js 22.18+ and npm, migrating browser-helper tests and smoke verification while retaining claude-mem's external Bun runtime checks.
 
