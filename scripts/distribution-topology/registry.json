@@ -3,13 +3,15 @@
     "sourceId": "repo-claude",
     "classification": "repo-owned",
     "supportedDestinations": ["claude", "codex"],
-    "command": "adapters/repo-owned.sh"
+    "command": "adapters/repo-owned.sh",
+    "matrixSource": "steipete/agent-scripts"
   },
   {
     "sourceId": "repo-codex",
     "classification": "repo-owned",
     "supportedDestinations": ["codex"],
-    "command": "adapters/repo-owned.sh"
+    "command": "adapters/repo-owned.sh",
+    "matrixSource": "marcuslannister/agent-scripts"
   },
   {
     "sourceId": "matt-skills",
@@ -38,14 +40,16 @@
     "classification": "source-only",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/copy-source.sh",
-    "stateInspection": "adapter"
+    "stateInspection": "adapter",
+    "matrixSource": "anthropics/skills"
   },
   {
     "sourceId": "khazix-skills",
     "classification": "source-only",
     "supportedDestinations": ["claude", "codex"],
     "command": "adapters/copy-source.sh",
-    "stateInspection": "adapter"
+    "stateInspection": "adapter",
+    "matrixSource": "KKKKhazix/khazix-skills"
   },
   {
     "sourceId": "visual-explainer",

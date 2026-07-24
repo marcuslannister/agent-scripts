@@ -13,6 +13,7 @@ source "$MODULE_DIR/repo-owned-paths.sh"
 source "$MODULE_DIR/claude-root.sh"
 source "$MODULE_DIR/state.sh"
 source "$MODULE_DIR/report.sh"
+source "$MODULE_DIR/matrix.sh"
 
 # Git Bash may run Windows jq, whose default text mode emits CRLF.
 if command jq -b -n empty >/dev/null 2>&1; then
@@ -227,6 +228,11 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
           continue
         fi
         topology_mark_seen "$seen_file" "$detail_key"
+        if jq -e --arg source "$source_id" --arg skill "$skill" \
+          'any(.code == "removed-skill" and .sourceId == $source and .skill == $skill)' \
+          "$DISCOVERY_ROOT/pre-decisions.ndjson" --slurp >/dev/null; then
+          continue
+        fi
         jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
           '{sourceId:$sourceId,skill:$skill,destination:$destination,reason:"unexpected"}' >> "$output/drift.ndjson"
         ;;
@@ -370,6 +376,21 @@ topology_inspect_plan() { # plan_json output_dir mode
   done < <(jq -r '.[].sourceId' "$REGISTRY_PATH")
 }
 
+topology_build_plan_for_manifest() { # manifest output-ndjson
+  local manifest="$1" output="$2" source_id skill destinations_json
+  : > "$output"
+  while IFS= read -r source_id; do
+    while IFS= read -r skill; do
+      destinations_json="$(jq -c --arg source "$source_id" --arg skill "$skill" '
+        (.sources[] | select(.id == $source) | (.overrides[$skill] // .defaultDestinations)) as $wanted |
+        ["claude","codex"] | map(select(. as $destination | $wanted | index($destination) != null))
+      ' "$manifest")"
+      jq -cn --arg sourceId "$source_id" --arg skill "$skill" --argjson destinations "$destinations_json" \
+        '{sourceId:$sourceId,skill:$skill,destinations:$destinations,missingDestinations:[],unexpectedDestinations:[]}' >> "$output"
+    done < "$DISCOVERY_ROOT/$source_id.inventory"
+  done < <(jq -r '.sources | sort_by(.id) | .[].id' "$manifest")
+}
+
 topology_build_document() { # mode status sources plan inspect errors warnings changes hygiene output
   local mode="$1" status="$2" sources="$3" plan="$4" inspect="$5" errors="$6" warnings="$7" changes="$8" hygiene="$9" output="${10}"
   jq -n \
@@ -506,6 +527,7 @@ topology_evaluate() {
   local source_id classification registry_classification adapter_command inventory_file skill destinations_json
   local supported_json defaults_json source_count plan_json inspect_dir hygiene_dir status exit_code
   local sources_file="$DISCOVERY_ROOT/sources.ndjson" plan_file="$DISCOVERY_ROOT/plan.ndjson"
+  local current_plan_file="$DISCOVERY_ROOT/current-plan.ndjson" current_plan_json="$DISCOVERY_ROOT/current-plan.json"
   local base_errors="$DISCOVERY_ROOT/base-errors.ndjson" warnings="$DISCOVERY_ROOT/warnings.ndjson" changes="$DISCOVERY_ROOT/changes.ndjson"
   local claude_root_document="$DISCOVERY_ROOT/claude-root.json"
   : > "$sources_file"; : > "$plan_file"; : > "$base_errors"; : > "$warnings"; : > "$changes"
@@ -550,7 +572,31 @@ topology_evaluate() {
   done < <(jq -r '.[].sourceId' "$REGISTRY_PATH")
 
   while IFS= read -r source_id; do
+    inventory_file="$DISCOVERY_ROOT/$source_id.inventory"
+    adapter_command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
+    topology_run_process "$adapter_command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" discover '' "$HOME" "$MODE" || return $?
+    if [ "$PROCESS_CODE" -ne 0 ]; then
+      detail="$(topology_trim "$(cat "$PROCESS_ERR")")"
+      topology_fail 1 "source $source_id discovery failed${detail:+: $detail}"
+      return 1
+    fi
+    LC_ALL=C sort "$PROCESS_OUT" | awk 'NF' > "$inventory_file"
+    if [ "$(LC_ALL=C sort -u "$inventory_file" | wc -l | tr -d ' ')" != "$(wc -l < "$inventory_file" | tr -d ' ')" ]; then
+      topology_fail 1 "source $source_id returned an invalid inventory"; return 1
+    fi
+    while IFS= read -r skill; do topology_is_name "$skill" || { topology_fail 1 "source $source_id returned an invalid inventory"; return 1; }; done < "$inventory_file"
+  done < <(jq -r '.sources | sort_by(.id) | .[].id' "$MANIFEST_PATH")
+
+  topology_build_plan_for_manifest "$MANIFEST_PATH" "$current_plan_file"
+  jq -s '.' "$current_plan_file" > "$current_plan_json"
+  matrix_prepare "$current_plan_json" "$DISCOVERY_ROOT/pre-decisions.ndjson" || return $?
+  MANIFEST_PATH="$MATRIX_EFFECTIVE_MANIFEST"
+
+  : > "$sources_file"
+  : > "$plan_file"
+  while IFS= read -r source_id; do
     classification="$(topology_manifest_value "$source_id" '.classification')"
+    inventory_file="$DISCOVERY_ROOT/$source_id.inventory"
     while IFS= read -r destination; do
       if ! jq -e --arg source "$source_id" --arg destination "$destination" '.[] | select(.sourceId == $source) | .supportedDestinations | index($destination) != null' "$REGISTRY_PATH" >/dev/null; then
         jq -cn --arg sourceId "$source_id" --arg destination "$destination" \
@@ -565,32 +611,10 @@ topology_evaluate() {
           >> "$DISCOVERY_ROOT/pre-decisions.ndjson"
       fi
     done < <(jq -r --arg source "$source_id" '.sources[] | select(.id == $source) | .overrides | to_entries[] | .key as $skill | .value[] | [$skill,.] | @tsv' "$MANIFEST_PATH")
-
-    inventory_file="$DISCOVERY_ROOT/$source_id.inventory"
-    adapter_command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
-    topology_run_process "$adapter_command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" discover '' "$HOME" "$MODE" || return $?
-    if [ "$PROCESS_CODE" -ne 0 ]; then
-      detail="$(topology_trim "$(cat "$PROCESS_ERR")")"
-      topology_fail 1 "source $source_id discovery failed${detail:+: $detail}"
-      return 1
-    fi
-    LC_ALL=C sort "$PROCESS_OUT" | awk 'NF' > "$inventory_file"
-    if [ "$(LC_ALL=C sort -u "$inventory_file" | wc -l | tr -d ' ')" != "$(wc -l < "$inventory_file" | tr -d ' ')" ]; then
-      topology_fail 1 "source $source_id returned an invalid inventory"; return 1
-    fi
-    while IFS= read -r skill; do topology_is_name "$skill" || { topology_fail 1 "source $source_id returned an invalid inventory"; return 1; }; done < "$inventory_file"
     while IFS= read -r skill; do
       rg -Fxq "$skill" "$inventory_file" || jq -cn --arg sourceId "$source_id" --arg skill "$skill" \
         '{code:"stale-override",sourceId:$sourceId,skill:$skill,message:("override names a skill absent from " + $sourceId + ": " + $skill)}' >> "$DISCOVERY_ROOT/pre-decisions.ndjson"
     done < <(topology_manifest_value "$source_id" '.overrides | keys[]')
-    while IFS= read -r skill; do
-      destinations_json="$(jq -c --arg source "$source_id" --arg skill "$skill" '
-        (.sources[] | select(.id == $source) | (.overrides[$skill] // .defaultDestinations)) as $wanted |
-        ["claude","codex"] | map(select(. as $destination | $wanted | index($destination) != null))
-      ' "$MANIFEST_PATH")"
-      jq -cn --arg sourceId "$source_id" --arg skill "$skill" --argjson destinations "$destinations_json" \
-        '{sourceId:$sourceId,skill:$skill,destinations:$destinations,missingDestinations:[],unexpectedDestinations:[]}' >> "$plan_file"
-    done < "$inventory_file"
     defaults_json="$(topology_manifest_value "$source_id" '["claude","codex"] as $order | .defaultDestinations as $wanted | [$order[] | select(. as $d | $wanted | index($d) != null)]')"
     supported_json="$(topology_registry_value "$source_id" '["claude","codex"] as $order | .supportedDestinations as $wanted | [$order[] | select(. as $d | $wanted | index($d) != null)]')"
     source_count="$(wc -l < "$inventory_file" | tr -d ' ')"
@@ -598,6 +622,8 @@ topology_evaluate() {
       --argjson defaults "$defaults_json" --argjson supported "$supported_json" \
       '{id:$id,classification:$classification,inventoryCount:$inventoryCount,defaultDestinations:$defaults,supportedDestinations:$supported,result:"clean"}' >> "$sources_file"
   done < <(jq -r '.sources | sort_by(.id) | .[].id' "$MANIFEST_PATH")
+
+  topology_build_plan_for_manifest "$MANIFEST_PATH" "$plan_file"
 
   topology_progress 2 'Planning topology'
   jq -s '.' "$plan_file" > "$DISCOVERY_ROOT/plan.json"
@@ -618,6 +644,10 @@ topology_evaluate() {
   topology_inspect_plan "$plan_json" "$inspect_dir" "$MODE" || return $?
   if [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
     jq -cn '{sourceId:"topology",skill:"claude-root",destination:"claude",reason:"root-migration"}' \
+      >> "$inspect_dir/drift.ndjson"
+  fi
+  if [ "$MATRIX_MANIFEST_CHANGED" -eq 1 ]; then
+    jq -cn '{sourceId:"topology",skill:"matrix-overrides",destination:"manifest",reason:"matrix-overrides"}' \
       >> "$inspect_dir/drift.ndjson"
   fi
   [ -s "$DISCOVERY_ROOT/pre-decisions.ndjson" ] && cat "$DISCOVERY_ROOT/pre-decisions.ndjson" >> "$inspect_dir/decisions.ndjson"
@@ -642,6 +672,12 @@ topology_evaluate() {
   mv "$DISCOVERY_ROOT/sources-updated.ndjson" "$sources_file"
 
   if [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && [ ! -s "$inspect_dir/errors.ndjson" ]; then
+    if ! matrix_persist_manifest; then
+      topology_append_json_string "$base_errors" 'skills matrix override generation failed'
+      topology_build_document "$MODE" failed "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
+      DOCUMENT_PATH="$DISCOVERY_ROOT/document.json"
+      return 1
+    fi
     if [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
       if ! claude_root_reconcile "$REPO_ROOT" "$HOME"; then
         topology_append_json_string "$base_errors" 'Claude skills root migration failed'

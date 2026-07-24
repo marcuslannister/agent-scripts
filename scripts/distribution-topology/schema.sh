@@ -75,7 +75,7 @@ topology_validate_manifest() { # file
   count="$(jq '.sources | length' "$file")"
   for ((index = 0; index < count; index++)); do
     label="skill topology manifest source $index"
-    topology_validate_fields "$file" ".sources[$index]" '["id","classification","defaultDestinations","overrides"]' '["id","classification","defaultDestinations","overrides"]' "$label" || return $?
+    topology_validate_fields "$file" ".sources[$index]" '["id","classification","defaultDestinations","matrixOverridesStart","overrides","matrixOverridesEnd"]' '["id","classification","defaultDestinations","overrides"]' "$label" || return $?
     source_id="$(jq -r ".sources[$index].id" "$file")"
     if ! jq -e ".sources[$index].id | type == \"string\"" "$file" >/dev/null || ! topology_is_name "$source_id"; then
       topology_fail 2 "$label has an invalid id"
@@ -89,6 +89,15 @@ topology_validate_manifest() { # file
     topology_validate_destinations "$file" ".sources[$index].defaultDestinations" "$label defaultDestinations" || return $?
     if ! jq -e ".sources[$index].overrides | type == \"object\"" "$file" >/dev/null; then
       topology_fail 2 "$label overrides must be an object"
+      return 2
+    fi
+    if ! jq -e ".sources[$index] |
+      ((has(\"matrixOverridesStart\") and has(\"matrixOverridesEnd\")) or
+       (has(\"matrixOverridesStart\") | not) and (has(\"matrixOverridesEnd\") | not)) and
+      ((has(\"matrixOverridesStart\") | not) or
+       (.matrixOverridesStart == \"generated from docs/skills-matrix.md\" and
+        .matrixOverridesEnd == \"end generated overrides\"))" "$file" >/dev/null; then
+      topology_fail 2 "$label has invalid matrix override markers"
       return 2
     fi
     while IFS= read -r skill; do
@@ -191,7 +200,7 @@ topology_validate_registry() { # file
   count="$(jq 'length' "$file")"
   for ((index = 0; index < count; index++)); do
     label="topology adapter registry entry $index"
-    topology_validate_fields "$file" ".[$index]" '["sourceId","classification","supportedDestinations","command","stateInspection","plugin"]' '["sourceId","classification","supportedDestinations","command"]' "$label" || return $?
+    topology_validate_fields "$file" ".[$index]" '["sourceId","classification","supportedDestinations","command","stateInspection","matrixSource","plugin"]' '["sourceId","classification","supportedDestinations","command"]' "$label" || return $?
     source_id="$(jq -r ".[$index].sourceId" "$file")"
     jq -e ".[$index].sourceId | type == \"string\"" "$file" >/dev/null \
       && topology_is_name "$source_id" \
@@ -208,6 +217,11 @@ topology_validate_registry() { # file
     fi
     state="$(jq -r "if .[$index] | has(\"stateInspection\") then .[$index].stateInspection else \"topology\" end" "$file")"
     case "$state" in topology|adapter) ;; *) topology_fail 2 "$label has an invalid stateInspection"; return 2 ;; esac
+    if jq -e ".[$index] | has(\"matrixSource\")" "$file" >/dev/null \
+      && ! jq -e ".[$index].matrixSource | type == \"string\" and test(\"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$\")" "$file" >/dev/null; then
+      topology_fail 2 "$label has an invalid matrixSource"
+      return 2
+    fi
     plugin_kind=0
     case "$classification" in dual-plugin|plugin-claude-only) plugin_kind=1 ;; esac
     if [ "$plugin_kind" -eq 1 ]; then

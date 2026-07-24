@@ -35,25 +35,23 @@ test ! -e "$REPO_ROOT/codex-skills/maintainer-orchestrator"
 jq -e '
   (.sources[] | select(.id == "repo-claude") |
     .defaultDestinations == ["claude"] and
-    (.overrides | length) == 18 and
-    ([.overrides[] | select(. != ["claude", "codex"])] | length) == 0 and
-    (.overrides | has("codex-first") | not) and
-    (.overrides | has("maintainer-orchestrator") | not) and
-    (.overrides | has("review-claudemd") | not) and
-    (.overrides | has("validate-skills") | not) and
-    (.overrides | has("onecli-gateway") | not)) and
+    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesEnd == "end generated overrides" and
+    .overrides["create-cli"] == ["claude", "codex"] and
+    .overrides["codex-first"] == ["claude"] and
+    .overrides["maintainer-orchestrator"] == ["claude"]) and
   (.sources[] | select(.id == "repo-codex") |
-    .defaultDestinations == ["codex"] and .overrides == {}) and
+    .defaultDestinations == ["codex"] and .overrides == {} and
+    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesEnd == "end generated overrides") and
   (.sources[] | select(.id == "anthropic-skills") |
     .classification == "source-only" and
     .defaultDestinations == ["claude", "codex"] and
-    (.overrides == {
-      "docx": ["claude", "codex"],
-      "pdf": ["claude", "codex"],
-      "pptx": ["claude", "codex"],
-      "skill-creator": ["codex"],
-      "xlsx": ["claude", "codex"]
-    }))
+    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesEnd == "end generated overrides" and
+    .overrides["docx"] == ["claude", "codex"] and
+    .overrides["skill-creator"] == ["codex"] and
+    .overrides["xlsx"] == ["claude", "codex"])
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
 
 make_fixture() {

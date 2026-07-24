@@ -36,6 +36,10 @@ def github_repo(value):
 
 
 def topology_plan():
+    plan_path = os.environ.get("SKILL_MATRIX_PLAN_PATH")
+    if plan_path:
+        with open(plan_path) as file:
+            return json.load(file)
     command = f"{REPO}/scripts/update-skill-topology.sh"
     result = subprocess.run([command, "--check", "--json"], text=True, capture_output=True)
     try:
@@ -68,6 +72,18 @@ def skill_name(path):
     return os.path.basename(os.path.dirname(path))
 
 
+def repo_skill_paths(root):
+    if not os.path.isdir(f"{REPO}/.git"):
+        return glob.glob(f"{REPO}/{root}/*/SKILL.md")
+    result = subprocess.run(
+        ["git", "-C", REPO, "ls-files", f"{root}/*/SKILL.md"],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return [f"{REPO}/{path}" for path in result.stdout.splitlines()]
+
+
 @dataclass(frozen=True)
 class PluginRecord:
     name: str
@@ -92,8 +108,9 @@ rows = {}
 def merge_skill_row(display, source, delivery, agents, path, plugin_keys=None):
     token_count = toks(path)
     priority = 3 if source == UPSTREAM_MIRROR else DELIVERY_PRIORITY[delivery]
-    if display not in rows:
-        rows[display] = {
+    key = (display, source, delivery)
+    if key not in rows:
+        rows[key] = {
             "source": source,
             "type": delivery,
             "claude": False,
@@ -103,20 +120,20 @@ def merge_skill_row(display, source, delivery, agents, path, plugin_keys=None):
             "claude_plugin_key": None,
             "codex_plugin_key": None,
         }
-    if priority > rows[display]["priority"]:
-        rows[display].update(
+    if priority > rows[key]["priority"]:
+        rows[key].update(
             source=source,
             type=delivery,
             priority=priority,
             claude_plugin_key=None,
             codex_plugin_key=None,
         )
-    if priority == rows[display]["priority"] and plugin_keys:
-        rows[display]["claude_plugin_key"] = plugin_keys.get("claude")
-        rows[display]["codex_plugin_key"] = plugin_keys.get("codex")
+    if priority == rows[key]["priority"] and plugin_keys:
+        rows[key]["claude_plugin_key"] = plugin_keys.get("claude")
+        rows[key]["codex_plugin_key"] = plugin_keys.get("codex")
     for agent in agents:
-        rows[display][agent] = True
-    rows[display]["tokens"] = max(rows[display]["tokens"], token_count)
+        rows[key][agent] = True
+    rows[key]["tokens"] = max(rows[key]["tokens"], token_count)
 
 
 registry = load_json(f"{REPO}/scripts/distribution-topology/registry.json")
@@ -221,12 +238,12 @@ for path in glob.glob(f"{REPO}/other-skills/*/*/SKILL.md"):
     )
 
 mirror_names = set()
-for path in glob.glob(f"{REPO}/skills/*/SKILL.md"):
+for path in repo_skill_paths("skills"):
     name = skill_name(path)
     mirror_names.add(name)
     merge_skill_row(name, UPSTREAM_MIRROR, "skill", selected_agents("repo-claude", name), path)
 
-for path in glob.glob(f"{REPO}/codex-skills/*/SKILL.md"):
+for path in repo_skill_paths("codex-skills"):
     name = skill_name(path)
     merge_skill_row(name, SELF, "skill", selected_agents("repo-codex", name), path)
 
@@ -267,8 +284,8 @@ print(f"| Agent-only | {claude_only} | {codex_only} |")
 
 print("\n| Skill | Source | Type | Claude | Codex | ~Tokens |")
 print("|---|---|---|---|---|---|")
-for display in sorted(rows):
-    row = rows[display]
+for display, source, delivery in sorted(rows):
+    row = rows[(display, source, delivery)]
     claude = "Y" if row["claude"] else "N"
     codex = "Y" if row["codex"] else "N"
     print(f"| `{display}` | {row['source']} | {row['type']} | {claude} | {codex} | ~{row['tokens']} |")

@@ -7,7 +7,7 @@ Personal toolkit that installs and updates skills and plugins for multiple agent
 ### Distribution surfaces
 
 **Claude surface**:
-The repo `skills/` directory, read only by Claude Code (its user skill dir points at it). Default home for tracked repo skills; they do not flow into Codex unless recorded as a Codex distribution exception.
+`~/.claude/skills` — Claude Code's single skills root. Reconciled per-skill copies selected by the skills matrix; owner markers protect unrelated entries.
 _Avoid_: skills dir, shared folder, shared skills surface
 
 **Codex surface**:
@@ -31,7 +31,7 @@ The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills 
 _Avoid_: Codex surface, Codex-only surface
 
 **Foreign skill staging**:
-The repo `other-skills/<owner>/` holding area, not an agent surface. Two-stage flow: reconcile-to-staging, then select-to-surface; manifest-approved destinations copy each selected skill from staging to the matching agent surface. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
+The repo `other-skills/<owner>/` holding area, not an agent surface. Two-stage flow: reconcile-to-staging, then select-to-surface; matrix-approved destinations copy each selected `Type: skill` row from staging to the matching agent surface. `marcus/` content is tracked; reproducible `anthropics/` and `matt/` copies are gitignored.
 _Avoid_: Claude surface, Codex surface, automatic install
 
 **Dual-plugin skill**:
@@ -73,7 +73,7 @@ Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden file
 _Avoid_: reusing it as an identity or cache key — it only answers "did content change since last sync".
 
 **Topology manifest**:
-`skill-topology.json`, the only desired-distribution policy. One entry per skill-bearing source; source defaults plus named overrides declare destinations. An empty named override selects no agent surface while preserving the staged skill.
+`skill-topology.json`, one entry per skill-bearing source. `Type: skill` overrides are marked generated blocks derived from `docs/skills-matrix.md`; plugin bundle policy and source defaults remain hand-maintained manifest content. An empty generated override selects no agent surface while preserving staged content.
 
 **Private adapter**:
 An implementation under `scripts/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.

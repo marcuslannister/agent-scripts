@@ -5,7 +5,7 @@ Every skill selected by the reconciled topology, plus installed plugin-only skil
 - **Claude:** the tracked `skills/` mirror, staged inventories, manifest destinations, and installed plugins under `~/.claude/plugins/cache/`
 - **Codex:** staged and repo-owned inventories selected by the manifest, plus Codex-native plugin caches under `~/.codex/plugins/cache/`
 
-**Skill** is the invocation name (plugin-namespaced, e.g. `claude-mem:babysit`, where the skill only exists behind a plugin). **Source** is the GitHub `owner/repo` it ships from — see the Repos table below for each URL. **Type** is `skill` (plain SKILL.md, any distribution channel) or `plugin` (ships inside a Claude/Codex marketplace plugin). **Claude** and **Codex** are `Y`/`N` destination selections from reconciled manifest state; plugin-only rows outside the topology reflect installed cache availability. **~Tokens** is `file size ÷ 4` on the source `SKILL.md`, a rough proxy for its context cost — not an exact tokenizer count.
+**Skill** is the invocation name (plugin-namespaced, e.g. `claude-mem:babysit`, where the skill only exists behind a plugin). A name can appear more than once when copy and plugin deliveries coexist. **Source** is the GitHub `owner/repo` it ships from — see the Repos table below for each URL. **Type** is `skill` (plain SKILL.md, any distribution channel) or `plugin` (ships inside a Claude/Codex marketplace plugin). **Claude** and **Codex** are `Y`/`N` destination selections from reconciled manifest state; plugin-only rows outside the topology reflect installed cache availability. **~Tokens** is `file size ÷ 4` on the source `SKILL.md`, a rough proxy for its context cost — not an exact tokenizer count.
 
 Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-remote`, `chatgpt-global` — browser/visualize/sites/artifact-templates) and Claude's `typescript-lsp` (no SKILL.md, not skill-shaped). These aren't part of this repo's managed skill ecosystem.
 
@@ -14,13 +14,13 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | Availability | Claude | Codex |
 |---|---|---|
 | Total | 161 | 107 |
-| Shared | 107 | 107 |
-| Agent-only | 54 | 0 |
+| Shared | 106 | 106 |
+| Agent-only | 55 | 1 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
 | `agent-transcript` | steipete/agent-scripts | skill | Y | N | ~1126 |
-| `aihot` | KKKKhazix/khazix-skills | skill | Y | Y | ~1245 |
+| `aihot` | KKKKhazix/khazix-skills | skill | Y | Y | ~1564 |
 | `algorithmic-art` | anthropics/skills | skill | Y | Y | ~4934 |
 | `beeper` | steipete/agent-scripts | skill | Y | N | ~250 |
 | `brand-guidelines` | anthropics/skills | skill | Y | Y | ~559 |
@@ -61,7 +61,8 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `docx` | anthropics/skills | skill | Y | Y | ~1717 |
 | `domain-dns-ops` | steipete/agent-scripts | skill | Y | N | ~679 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | Y | N | ~2905 |
-| `frontend-design` | steipete/agent-scripts | skill | Y | N | ~2062 |
+| `frontend-design` | anthropics/claude-plugins-official | plugin | Y | N | ~2062 |
+| `frontend-design` | steipete/agent-scripts | skill | Y | N | ~1027 |
 | `github-author-context` | steipete/agent-scripts | skill | Y | Y | ~950 |
 | `github-cache-hygiene` | steipete/agent-scripts | skill | Y | Y | ~950 |
 | `github-deep-review` | steipete/agent-scripts | skill | Y | Y | ~1432 |
@@ -106,7 +107,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `mattpocock-skills:teach` | mattpocock/skills | plugin | Y | Y | ~2374 |
 | `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | Y | Y | ~726 |
 | `mattpocock-skills:to-spec` | mattpocock/skills | plugin | Y | Y | ~766 |
-| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1415 |
+| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1438 |
 | `mattpocock-skills:triage` | mattpocock/skills | plugin | Y | Y | ~1628 |
 | `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | Y | Y | ~1220 |
 | `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | Y | Y | ~2948 |
@@ -131,11 +132,11 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `pptx` | anthropics/skills | skill | Y | Y | ~5162 |
 | `release-mac-app` | steipete/agent-scripts | skill | Y | Y | ~1666 |
 | `release-tweets` | steipete/agent-scripts | skill | Y | N | ~990 |
-| `remember` | anthropics/claude-plugins-official | plugin | Y | N | ~343 |
 | `reminders` | steipete/agent-scripts | skill | Y | Y | ~661 |
 | `remote-mac` | steipete/agent-scripts | skill | Y | Y | ~2018 |
 | `skill-cleaner` | steipete/agent-scripts | skill | Y | Y | ~1046 |
-| `skill-creator` | anthropics/claude-plugins-official | plugin | Y | Y | ~8247 |
+| `skill-creator` | anthropics/claude-plugins-official | plugin | Y | N | ~8247 |
+| `skill-creator` | anthropics/skills | skill | N | Y | ~8247 |
 | `slack-gif-creator` | anthropics/skills | skill | Y | Y | ~1960 |
 | `sonos` | steipete/agent-scripts | skill | Y | N | ~440 |
 | `speaking` | steipete/agent-scripts | skill | Y | N | ~1159 |
@@ -167,10 +168,10 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `vm-lab` | steipete/agent-scripts | skill | Y | N | ~1554 |
 | `waza:check` | tw93/Waza | plugin | Y | Y | ~10617 |
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~6320 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~5076 |
-| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2583 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~2174 |
-| `waza:think` | tw93/Waza | plugin | Y | Y | ~4041 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4928 |
+| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2565 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~2156 |
+| `waza:think` | tw93/Waza | plugin | Y | Y | ~3908 |
 | `waza:ui` | tw93/Waza | plugin | Y | Y | ~5058 |
 | `waza:write` | tw93/Waza | plugin | Y | Y | ~5735 |
 | `web-artifacts-builder` | anthropics/skills | skill | Y | Y | ~768 |
@@ -181,7 +182,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `xlsx` | anthropics/skills | skill | Y | Y | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | Y | N | ~841 |
 
-<!-- total=161 both=107 claude_only=54 codex_only=0 total_claude=161 total_codex=107 -->
+<!-- total=162 both=106 claude_only=55 codex_only=1 total_claude=161 total_codex=107 -->
 
 ## Enable-state
 
@@ -189,8 +190,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 62 | 8 |
-| Disabled | 26 | 18 |
+| Enabled | 62 | 18 |
+| Disabled | 26 | 8 |
 | Always-on | 73 | 81 |
 | Total | 161 | 107 |
 

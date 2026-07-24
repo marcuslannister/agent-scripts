@@ -12,6 +12,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Installed only manifest-selected staged skills per agent, using Claude plugins for plugin-classified sources and staged copies for Codex (#35).
 - Split the generated skills matrix into manifest-derived Claude/Codex selections and attributed the tracked mirror to `steipete/agent-scripts` (#36).
 - Replaced the repo-wide Claude skills symlink with a fail-closed managed directory of marker-verified per-skill copies (#38).
+- Made `Type: skill` matrix rows the fail-closed selection input for repo-owned and foreign copies, generating marked per-source manifest overrides while rejecting inventory mismatches and plugin-row edits (#39).
 
 ## 2026-07-23 — Upstream Skills Mirror
 - Replaced tracked `skills/` with the exact 53-skill `steipete/agent-scripts:main` tree, refreshed author attribution, and retired the duplicate Codex-authored `maintainer-orchestrator` copy (#33).
