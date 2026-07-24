@@ -13,9 +13,9 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 147 | 107 |
+| Total | 161 | 107 |
 | Shared | 107 | 107 |
-| Agent-only | 40 | 0 |
+| Agent-only | 54 | 0 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
@@ -29,7 +29,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `claude-api` | anthropics/skills | skill | Y | Y | ~17094 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | Y | N | ~2709 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | Y | Y | ~1088 |
-| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1173 |
+| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1826 |
 | `claude-mem:design-is` | thedotmack/claude-mem | plugin | Y | Y | ~4648 |
 | `claude-mem:do` | thedotmack/claude-mem | plugin | Y | Y | ~508 |
 | `claude-mem:how-it-works` | thedotmack/claude-mem | plugin | Y | Y | ~308 |
@@ -42,7 +42,7 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `claude-mem:smart-explore` | thedotmack/claude-mem | plugin | Y | Y | ~2304 |
 | `claude-mem:standup` | thedotmack/claude-mem | plugin | Y | Y | ~1659 |
 | `claude-mem:timeline-report` | thedotmack/claude-mem | plugin | Y | Y | ~3172 |
-| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | Y | Y | ~1152 |
+| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | Y | Y | ~1155 |
 | `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | Y | Y | ~3530 |
 | `claude-mem:what-the` | thedotmack/claude-mem | plugin | Y | Y | ~62 |
 | `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | Y | Y | ~2208 |
@@ -141,6 +141,20 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `speaking` | steipete/agent-scripts | skill | Y | N | ~1159 |
 | `ssh-doctor` | steipete/agent-scripts | skill | Y | Y | ~1221 |
 | `storage-analyzer` | KKKKhazix/khazix-skills | skill | Y | Y | ~1398 |
+| `superpowers:brainstorming` | anthropics/claude-plugins-official | plugin | Y | N | ~2650 |
+| `superpowers:dispatching-parallel-agents` | anthropics/claude-plugins-official | plugin | Y | N | ~1654 |
+| `superpowers:executing-plans` | anthropics/claude-plugins-official | plugin | Y | N | ~650 |
+| `superpowers:finishing-a-development-branch` | anthropics/claude-plugins-official | plugin | Y | N | ~1761 |
+| `superpowers:receiving-code-review` | anthropics/claude-plugins-official | plugin | Y | N | ~1586 |
+| `superpowers:requesting-code-review` | anthropics/claude-plugins-official | plugin | Y | N | ~706 |
+| `superpowers:subagent-driven-development` | anthropics/claude-plugins-official | plugin | Y | N | ~5385 |
+| `superpowers:systematic-debugging` | anthropics/claude-plugins-official | plugin | Y | N | ~2465 |
+| `superpowers:test-driven-development` | anthropics/claude-plugins-official | plugin | Y | N | ~2471 |
+| `superpowers:using-git-worktrees` | anthropics/claude-plugins-official | plugin | Y | N | ~1994 |
+| `superpowers:using-superpowers` | anthropics/claude-plugins-official | plugin | Y | N | ~1470 |
+| `superpowers:verification-before-completion` | anthropics/claude-plugins-official | plugin | Y | N | ~1037 |
+| `superpowers:writing-plans` | anthropics/claude-plugins-official | plugin | Y | N | ~1768 |
+| `superpowers:writing-skills` | anthropics/claude-plugins-official | plugin | Y | N | ~6687 |
 | `swift-concurrency-expert` | steipete/agent-scripts | skill | Y | N | ~419 |
 | `swiftui-liquid-glass` | steipete/agent-scripts | skill | Y | N | ~914 |
 | `swiftui-performance-audit` | steipete/agent-scripts | skill | Y | N | ~1318 |
@@ -149,14 +163,14 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `things-todo` | steipete/agent-scripts | skill | Y | N | ~710 |
 | `twilio-sms` | steipete/agent-scripts | skill | Y | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | Y | Y | ~558 |
-| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | Y | ~1684 |
+| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | Y | ~9330 |
 | `vm-lab` | steipete/agent-scripts | skill | Y | N | ~1554 |
 | `waza:check` | tw93/Waza | plugin | Y | Y | ~10617 |
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~6320 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4572 |
-| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2440 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~2106 |
-| `waza:think` | tw93/Waza | plugin | Y | Y | ~3854 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~5076 |
+| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2583 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~2174 |
+| `waza:think` | tw93/Waza | plugin | Y | Y | ~4041 |
 | `waza:ui` | tw93/Waza | plugin | Y | Y | ~5058 |
 | `waza:write` | tw93/Waza | plugin | Y | Y | ~5735 |
 | `web-artifacts-builder` | anthropics/skills | skill | Y | Y | ~768 |
@@ -167,18 +181,18 @@ Out of scope: OpenAI's bundled Codex plugins (`openai-bundled`, `openai-curated-
 | `xlsx` | anthropics/skills | skill | Y | Y | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | Y | N | ~841 |
 
-<!-- total=147 both=107 claude_only=40 codex_only=0 total_claude=147 total_codex=107 -->
+<!-- total=161 both=107 claude_only=54 codex_only=0 total_claude=161 total_codex=107 -->
 
 ## Enable-state
 
-Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to plugin-delivered skills — Claude reads `enabledPlugins` in `~/.claude/settings.json`, Codex reads `[plugins]` in `~/.codex/config.toml`. Plain `SKILL.md` copies have no toggle and are counted *always-on*. On Codex only Waza and claude-mem ship as native plugins; every other skill is an always-on `~/.agents/skills` copy. Claude Code's `/skills` picker reports fewer — it lists only enabled, plugin-*registered* skills (excluding disabled plugins, unregistered sub-skills in category folders, and plain copies), so this manifest-selected inventory runs higher.
+Config truth on this machine, point-in-time (mutable — retoggling a plugin changes these). *Enabled/disabled* apply only to native plugin-delivered skills; selected plain copies have no toggle and count as *always-on*. Claude Code's `/skills` picker reports fewer because it lists only enabled, plugin-registered skills, while this is the full selected inventory.
 
 | State | Claude | Codex |
 |---|---|---|
 | Enabled | 62 | 8 |
-| Disabled | 12 | 18 |
+| Disabled | 26 | 18 |
 | Always-on | 73 | 81 |
-| Total | 147 | 107 |
+| Total | 161 | 107 |
 
 ## Repos
 

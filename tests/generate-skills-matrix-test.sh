@@ -16,6 +16,23 @@ mkdir -p \
   "$FIXTURE_HOME/.agents/skills/upstream-claude" \
   "$FIXTURE_HOME/.agents/skills/fork-codex"
 cp "$REPO_ROOT/scripts/generate-skills-matrix.py" "$FIXTURE_ROOT/scripts/"
+cat > "$FIXTURE_ROOT/scripts/update-skill-topology.sh" <<'BASH'
+#!/usr/bin/env bash
+cat <<'JSON'
+{
+  "status": "drift",
+  "errors": [],
+  "plan": [
+    {"sourceId": "repo-claude", "skill": "upstream-both", "destinations": ["claude", "codex"]},
+    {"sourceId": "repo-claude", "skill": "upstream-claude", "destinations": ["claude"]},
+    {"sourceId": "repo-codex", "skill": "fork-codex", "destinations": ["codex"]},
+    {"sourceId": "khazix-skills", "skill": "foreign-both", "destinations": ["claude", "codex"]}
+  ]
+}
+JSON
+exit 1
+BASH
+chmod +x "$FIXTURE_ROOT/scripts/update-skill-topology.sh"
 printf '%s\n' 'fixture upstream both' > "$FIXTURE_ROOT/skills/upstream-both/SKILL.md"
 printf '%s\n' 'fixture upstream claude' > "$FIXTURE_ROOT/skills/upstream-claude/SKILL.md"
 printf '%s\n' 'fixture fork codex' > "$FIXTURE_ROOT/codex-skills/fork-codex/SKILL.md"
@@ -54,7 +71,7 @@ rg -F '| Skill | Source | Type | Claude | Codex | ~Tokens |' "$TMP_ROOT/matrix.m
 rg '^\| `upstream-both` \| steipete/agent-scripts \| skill \| Y \| Y \| ~[0-9]+ \|$' "$TMP_ROOT/matrix.md" >/dev/null
 rg '^\| `upstream-claude` \| steipete/agent-scripts \| skill \| Y \| N \| ~[0-9]+ \|$' "$TMP_ROOT/matrix.md" >/dev/null
 rg '^\| `fork-codex` \| marcuslannister/agent-scripts \| skill \| N \| Y \| ~[0-9]+ \|$' "$TMP_ROOT/matrix.md" >/dev/null
-rg '^\| `foreign-both` \| KKKKhazix/khazix-skills \| skill \| Y \| Y \| ~[0-9]+ \|$' "$TMP_ROOT/matrix.md" >/dev/null
+rg '^\| `foreign-both` \| khazix-skills \| skill \| Y \| Y \| ~[0-9]+ \|$' "$TMP_ROOT/matrix.md" >/dev/null
 
 rg -F '| Availability | Claude | Codex |' "$TMP_ROOT/matrix.md" >/dev/null
 rg -F '| Total | 3 | 3 |' "$TMP_ROOT/matrix.md" >/dev/null
