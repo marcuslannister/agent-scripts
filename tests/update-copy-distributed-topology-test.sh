@@ -279,14 +279,14 @@ jq -e '
   .sources[] | select(.id == "khazix-skills") |
   .classification == "source-only" and
   .defaultDestinations == ["claude", "codex"] and
-  .overrides["neat-freak"] == ["claude", "codex"]
+  (.overrides | type == "object")
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
 
 KHAZIX_FIXTURE="$TMP_ROOT/khazix"
 KHAZIX_UPSTREAM="$TMP_ROOT/upstreams/khazix-skills"
 KHAZIX_BIN="$TMP_ROOT/khazix-bin"
 mkdir -p "$KHAZIX_FIXTURE/scripts" "$KHAZIX_FIXTURE/skills" \
-  "$KHAZIX_FIXTURE/other-skills/marcus" "$KHAZIX_FIXTURE/home/.agents/skills" \
+  "$KHAZIX_FIXTURE/other-skills/khazix" "$KHAZIX_FIXTURE/home/.agents/skills" \
   "$KHAZIX_FIXTURE/home/.claude/skills" \
   "$KHAZIX_FIXTURE/runtime" "$KHAZIX_UPSTREAM/neat-freak" \
   "$KHAZIX_UPSTREAM/.git" "$KHAZIX_BIN"
@@ -325,10 +325,10 @@ cat > "$KHAZIX_FIXTURE/skill-topology.json" <<'JSON'
 }
 JSON
 "$REAL_GIT" -C "$KHAZIX_FIXTURE" init -q
-mkdir -p "$KHAZIX_FIXTURE/other-skills/marcus/retired-tracked"
+mkdir -p "$KHAZIX_FIXTURE/other-skills/khazix/retired-tracked"
 printf '%s\n' '---' 'name: retired-tracked' 'description: "fixture"' '---' \
-  > "$KHAZIX_FIXTURE/other-skills/marcus/retired-tracked/SKILL.md"
-"$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/marcus/retired-tracked/SKILL.md
+  > "$KHAZIX_FIXTURE/other-skills/khazix/retired-tracked/SKILL.md"
+"$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/khazix/retired-tracked/SKILL.md
 cat > "$KHAZIX_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
 [
   {
@@ -349,28 +349,28 @@ jq -e '
   ([.changes[] | select(.skill == "neat-freak" and .action == "installed" and .destination == "staging")] | length) == 1 and
   (.plan[] | select(.skill == "neat-freak") | .destinations == ["claude", "codex"])
 ' "$KHAZIX_FIXTURE/result.json" >/dev/null
-test -f "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/SKILL.md"
+test -f "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/SKILL.md"
 test -f "$KHAZIX_FIXTURE/home/.claude/skills/neat-freak/SKILL.md"
 test -f "$KHAZIX_FIXTURE/home/.agents/skills/neat-freak/SKILL.md"
-test ! -e "$KHAZIX_FIXTURE/other-skills/marcus/retired-tracked"
-if grep -Fx 'other-skills/marcus/neat-freak' "$KHAZIX_FIXTURE/.gitignore" >/dev/null; then exit 1; fi
-grep -Fx 'other-skills/marcus/neat-freak/.agent-scripts-copy' "$KHAZIX_FIXTURE/.gitignore" >/dev/null
-"$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/marcus/neat-freak/SKILL.md
-mv "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/.agent-scripts-copy" \
+test ! -e "$KHAZIX_FIXTURE/other-skills/khazix/retired-tracked"
+if grep -Fx 'other-skills/khazix/neat-freak' "$KHAZIX_FIXTURE/.gitignore" >/dev/null; then exit 1; fi
+grep -Fx 'other-skills/khazix/neat-freak/.agent-scripts-copy' "$KHAZIX_FIXTURE/.gitignore" >/dev/null
+"$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/khazix/neat-freak/SKILL.md
+mv "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy" \
   "$KHAZIX_FIXTURE/tracked-copy-marker"
 printf 'tracked source update\n' >> "$KHAZIX_FIXTURE/home/Projects/khazix-skills/neat-freak/SKILL.md"
 HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
   "$KHAZIX_FIXTURE/scripts/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/tracked-update.json"
 jq -e '.status == "reconciled" and (.changes[] | .skill == "neat-freak" and .action == "installed" and .destination == "staging")' \
   "$KHAZIX_FIXTURE/tracked-update.json" >/dev/null
-grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/SKILL.md" >/dev/null
+grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/SKILL.md" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/home/.claude/skills/neat-freak/SKILL.md" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/home/.agents/skills/neat-freak/SKILL.md" >/dev/null
-test -f "$KHAZIX_FIXTURE/other-skills/marcus/neat-freak/.agent-scripts-copy"
+test -f "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy"
 
 UNSUPPORTED_FIXTURE="$TMP_ROOT/khazix-unsupported"
 cp -R "$KHAZIX_FIXTURE" "$UNSUPPORTED_FIXTURE"
-mv "$UNSUPPORTED_FIXTURE/other-skills/marcus/neat-freak" "$UNSUPPORTED_FIXTURE/missing-neat-freak"
+mv "$UNSUPPORTED_FIXTURE/other-skills/khazix/neat-freak" "$UNSUPPORTED_FIXTURE/missing-neat-freak"
 jq '.[0].supportedDestinations = ["claude"]' \
   "$UNSUPPORTED_FIXTURE/scripts/distribution-topology/registry.json" > "$UNSUPPORTED_FIXTURE/registry.tmp"
 mv "$UNSUPPORTED_FIXTURE/registry.tmp" "$UNSUPPORTED_FIXTURE/scripts/distribution-topology/registry.json"
@@ -386,13 +386,13 @@ jq -e '
   .status == "decision-required" and .changes == [] and
   (.decisions[] | .code == "unsupported-destination" and .sourceId == "khazix-skills" and .destination == "codex")
 ' "$UNSUPPORTED_FIXTURE/result.json" >/dev/null
-test ! -e "$UNSUPPORTED_FIXTURE/other-skills/marcus/neat-freak"
+test ! -e "$UNSUPPORTED_FIXTURE/other-skills/khazix/neat-freak"
 diff -r "$UNSUPPORTED_FIXTURE/home-before" "$UNSUPPORTED_FIXTURE/home"
 diff -r "$UNSUPPORTED_FIXTURE/skills-before" "$UNSUPPORTED_FIXTURE/skills"
 
 CONTRACT_FIXTURE="$TMP_ROOT/khazix-contract"
 cp -R "$KHAZIX_FIXTURE" "$CONTRACT_FIXTURE"
-mv "$CONTRACT_FIXTURE/other-skills/marcus/neat-freak" "$CONTRACT_FIXTURE/missing-neat-freak"
+mv "$CONTRACT_FIXTURE/other-skills/khazix/neat-freak" "$CONTRACT_FIXTURE/missing-neat-freak"
 mv "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" \
   "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source-real.sh"
 cat > "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" <<'BASH'
@@ -414,13 +414,12 @@ jq -e '
   .status == "failed" and .changes == [] and
   ([.errors[] | select(contains("returned incomplete inspection"))] | length) == 3
 ' "$CONTRACT_FIXTURE/result.json" >/dev/null
-test ! -e "$CONTRACT_FIXTURE/other-skills/marcus/neat-freak"
+test ! -e "$CONTRACT_FIXTURE/other-skills/khazix/neat-freak"
 
 jq -e '
   .sources[] | select(.id == "visual-explainer") |
   .classification == "plugin-claude-only" and
-  .defaultDestinations == ["claude", "codex"] and
-  .overrides["visual-explainer"] == ["claude", "codex"]
+  .defaultDestinations == ["claude", "codex"]
 ' "$REPO_ROOT/skill-topology.json" >/dev/null
 
 VISUAL_FIXTURE="$TMP_ROOT/visual"

@@ -12,7 +12,7 @@ mkdir -p \
   "$FIXTURE_ROOT/skills/upstream-both" \
   "$FIXTURE_ROOT/skills/upstream-claude" \
   "$FIXTURE_ROOT/codex-skills/fork-codex" \
-  "$FIXTURE_ROOT/other-skills/marcus/foreign-both" \
+  "$FIXTURE_ROOT/other-skills/khazix/foreign-both" \
   "$FIXTURE_HOME"
 cp "$REPO_ROOT/scripts/generate-skills-matrix.py" "$FIXTURE_ROOT/scripts/"
 cat > "$FIXTURE_ROOT/scripts/update-skill-topology.sh" <<'BASH'
@@ -35,7 +35,7 @@ chmod +x "$FIXTURE_ROOT/scripts/update-skill-topology.sh"
 printf '%s\n' 'fixture upstream both' > "$FIXTURE_ROOT/skills/upstream-both/SKILL.md"
 printf '%s\n' 'fixture upstream claude' > "$FIXTURE_ROOT/skills/upstream-claude/SKILL.md"
 printf '%s\n' 'fixture fork codex' > "$FIXTURE_ROOT/codex-skills/fork-codex/SKILL.md"
-printf '%s\n' 'fixture staged foreign' > "$FIXTURE_ROOT/other-skills/marcus/foreign-both/SKILL.md"
+printf '%s\n' 'fixture staged foreign' > "$FIXTURE_ROOT/other-skills/khazix/foreign-both/SKILL.md"
 HOME="$FIXTURE_HOME" python3 "$FIXTURE_ROOT/scripts/generate-skills-matrix.py" > "$TMP_ROOT/matrix.md"
 
 rg -F '| Skill | Source | Type | Claude | Codex | ~Tokens |' "$TMP_ROOT/matrix.md" >/dev/null

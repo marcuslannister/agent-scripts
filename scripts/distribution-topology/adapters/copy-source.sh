@@ -27,7 +27,7 @@ case "$source_id" in
     clone_name="khazix-skills"
     source_suffix=""
     owner="khazix-skills"
-    staging_owner="marcus"
+    staging_owner="khazix"
     staging_tracking=tracked
     ;;
   *)
