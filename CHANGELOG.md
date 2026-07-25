@@ -4,6 +4,13 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-25 — Mattpocock/Humanlayer Governance Migration
+- Generalized `npx-source.sh` to support multiple npx-only sources instead of hardcoding mattpocock/skills, and registered `humanlayer/skills`.
+- Migrated 39 mattpocock skills from raw, stale npx installs to governed staged copies on codex.
+- Staged humanlayer/skills' `improve-claude-md` but left it off codex — the installed copy diverged from upstream and the safety gate correctly declined to auto-adopt it.
+- Reverted a bad `visual-explainer` dual-plugin reclassification that broke its custom adapter; removed `claude-code-setup`, `frontend-design`, and `superpowers` from codex as unmanageable via this tool's plugin adapters (shared multi-plugin marketplace repo, no per-plugin Codex manifest).
+- Dropped the stale `remember` matrix row (confirmed uninstalled upstream) and refreshed khazix's `aihot` staged copy to current upstream.
+
 ## 2026-07-24 — Agent Tooling Folder
 - Moved the skill/topology update machinery (`update-skill-topology.sh`, `update-all.sh`, `update-agents.sh`, `verify.sh`, `validate-skills`, `lib-copies.sh`, `generate-skill-index.sh`, `generate-skills-matrix.py`, the `test-*-policy` gates, `distribution-topology/`) plus `skill-authors.json`, `skill-topology.json`, and `skills-matrix.md` out of `scripts/`/`docs/`/repo root into a new `agent-tooling/` folder, leaving unrelated personal utilities (`committer`, `nanobanana`, `shazam-song`, `browser-tools.ts`, `docs-list.ts`, `trash.ts`) and the external `skills.sh.json` marketplace manifest where they were.
 
