@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; partially superseded by ADR-0005 (sole public command, gitignored staging, two-step routine updater)
 ---
 
 # Manifest-owned skill distribution topology
