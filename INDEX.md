@@ -1,6 +1,6 @@
 # Skill author index
 
-Generated from `skill-authors.json` by `scripts/generate-skill-index.sh` — do not edit by hand (`--check` gates freshness).
+Generated from `skill-authors.json` by `agent-tooling/generate-skill-index.sh` — do not edit by hand (`--check` gates freshness).
 
 Every distributed skill grouped by true upstream author, independent of delivery mechanism (repo, synced copy, or plugin). See ADR-0003 and issue #26.
 

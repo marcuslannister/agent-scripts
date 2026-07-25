@@ -38,7 +38,7 @@ case "$action" in
   reconcile)
     plan_path="${5:?reconcile plan required}"
     home="${6:?home required}"
-    source "$repo_root/scripts/lib-copies.sh"
+    source "$repo_root/agent-tooling/lib-copies.sh"
     failed=0
 
     while IFS=$'\t' read -r operation skill destination; do
@@ -90,7 +90,7 @@ case "$action" in
   verify)
     plan_path="${5:?verification plan required}"
     home="${6:?home required}"
-    source "$repo_root/scripts/lib-copies.sh"
+    source "$repo_root/agent-tooling/lib-copies.sh"
     failed=0
 
     while IFS=$'\t' read -r expected_state skill destination; do

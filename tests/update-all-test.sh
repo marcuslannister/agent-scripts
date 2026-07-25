@@ -11,7 +11,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 SCRIPTS="$TMPDIR/scripts"
 UPDATE_LOG="$TMPDIR/update.log"
 mkdir -p "$SCRIPTS"
-cp "$REPO_ROOT/scripts/update-all.sh" "$SCRIPTS/"
+cp "$REPO_ROOT/agent-tooling/update-all.sh" "$SCRIPTS/"
 
 UPDATERS=(update-agents.sh update-skill-topology.sh)
 

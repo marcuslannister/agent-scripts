@@ -7,18 +7,18 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 FIXTURE="$TMP_ROOT/fixture"
 mkdir -p \
-  "$FIXTURE/scripts" \
+  "$FIXTURE/agent-tooling" \
   "$FIXTURE/skills/alpha" \
   "$FIXTURE/home/.agents/skills" \
   "$FIXTURE/home/.claude/skills" \
   "$FIXTURE/runtime"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 jq '[.[] | select(.sourceId == "repo-claude")]' \
-  "$FIXTURE/scripts/distribution-topology/registry.json" > "$FIXTURE/registry.tmp"
-mv "$FIXTURE/registry.tmp" "$FIXTURE/scripts/distribution-topology/registry.json"
+  "$FIXTURE/agent-tooling/distribution-topology/registry.json" > "$FIXTURE/registry.tmp"
+mv "$FIXTURE/registry.tmp" "$FIXTURE/agent-tooling/distribution-topology/registry.json"
 printf '%s\n' '---' 'name: alpha' 'description: "fixture"' '---' > "$FIXTURE/skills/alpha/SKILL.md"
-cat > "$FIXTURE/skill-topology.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -33,14 +33,14 @@ cat > "$FIXTURE/skill-topology.json" <<'JSON'
 JSON
 git -C "$FIXTURE" init -q
 git -C "$FIXTURE" add skills
-source "$FIXTURE/scripts/lib-copies.sh"
+source "$FIXTURE/agent-tooling/lib-copies.sh"
 install_skill_copy "$FIXTURE/skills/alpha" "$FIXTURE/home/.agents/skills/alpha" repo-skills
 install_skill_copy "$FIXTURE/skills/alpha" "$FIXTURE/home/.claude/skills/alpha" repo-skills
 printf 'claude-skills\n' > "$FIXTURE/home/.claude/skills/.agent-scripts-root"
 
-mv "$FIXTURE/scripts/distribution-topology/adapters/repo-owned.sh" \
-  "$FIXTURE/scripts/distribution-topology/adapters/repo-owned-real.sh"
-cat > "$FIXTURE/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+mv "$FIXTURE/agent-tooling/distribution-topology/adapters/repo-owned.sh" \
+  "$FIXTURE/agent-tooling/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$FIXTURE/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 if [ "${4:-}" = discover ] && [ -n "${TOPOLOGY_BLOCK_STARTED:-}" ]; then
@@ -57,11 +57,11 @@ if [ "${4:-}" = verify ] && [ "${TOPOLOGY_FAIL_VERIFY:-0}" = 1 ]; then
 fi
 exec "${BASH_SOURCE[0]%/*}/repo-owned-real.sh" "$@"
 BASH
-chmod +x "$FIXTURE/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$FIXTURE/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 
-mv "$FIXTURE/scripts/distribution-topology/codex-root-hygiene.sh" \
-  "$FIXTURE/scripts/distribution-topology/codex-root-hygiene-real.sh"
-cat > "$FIXTURE/scripts/distribution-topology/codex-root-hygiene.sh" <<'BASH'
+mv "$FIXTURE/agent-tooling/distribution-topology/codex-root-hygiene.sh" \
+  "$FIXTURE/agent-tooling/distribution-topology/codex-root-hygiene-real.sh"
+cat > "$FIXTURE/agent-tooling/distribution-topology/codex-root-hygiene.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 if [ "${1:-}" = inspect ] && [ "${TOPOLOGY_FAIL_HYGIENE:-0}" = 1 ]; then
@@ -70,8 +70,8 @@ if [ "${1:-}" = inspect ] && [ "${TOPOLOGY_FAIL_HYGIENE:-0}" = 1 ]; then
 fi
 exec "${BASH_SOURCE[0]%/*}/codex-root-hygiene-real.sh" "$@"
 BASH
-chmod +x "$FIXTURE/scripts/distribution-topology/codex-root-hygiene.sh"
-COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
+chmod +x "$FIXTURE/agent-tooling/distribution-topology/codex-root-hygiene.sh"
+COMMAND="$FIXTURE/agent-tooling/update-skill-topology.sh"
 
 assert_row() {
   local output="$1" source="$2" destination="$3" change="$4" result="$5"
@@ -186,8 +186,8 @@ assert_row "$FIXTURE/hygiene-failed.out" topology - failed failed
 grep -F 'error: Codex-root hygiene inspection failed: fixture hygiene failure' "$FIXTURE/hygiene-failed.err" >/dev/null
 
 # Removals remain explicit.
-jq '.sources[0].overrides.alpha = ["claude"]' "$FIXTURE/skill-topology.json" > "$FIXTURE/manifest.tmp"
-mv "$FIXTURE/manifest.tmp" "$FIXTURE/skill-topology.json"
+jq '.sources[0].overrides.alpha = ["claude"]' "$FIXTURE/agent-tooling/skill-topology.json" > "$FIXTURE/manifest.tmp"
+mv "$FIXTURE/manifest.tmp" "$FIXTURE/agent-tooling/skill-topology.json"
 set +e
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" "$COMMAND" --check \
   > "$FIXTURE/remove-check.out" 2> "$FIXTURE/remove-check.err"

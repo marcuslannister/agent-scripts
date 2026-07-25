@@ -2,8 +2,8 @@
 set -euo pipefail
 
 REPO_ROOT="${1:-$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)}"
-MANIFEST="$REPO_ROOT/skill-topology.json"
-REGISTRY="$REPO_ROOT/scripts/distribution-topology/registry.json"
+MANIFEST="$REPO_ROOT/agent-tooling/skill-topology.json"
+REGISTRY="$REPO_ROOT/agent-tooling/distribution-topology/registry.json"
 failed=0
 
 fail() {
@@ -12,10 +12,10 @@ fail() {
 }
 
 for required in update-agents.sh update-all.sh update-skill-topology.sh; do
-  [ -f "$REPO_ROOT/scripts/$required" ] || fail "missing public updater: $required"
+  [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public updater: $required"
 done
 
-for candidate in "$REPO_ROOT"/scripts/update-*.sh; do
+for candidate in "$REPO_ROOT"/agent-tooling/update-*.sh; do
   [ -e "$candidate" ] || continue
   name="${candidate##*/}"
   case "$name" in
@@ -24,13 +24,13 @@ for candidate in "$REPO_ROOT"/scripts/update-*.sh; do
   esac
 done
 
-[ ! -e "$REPO_ROOT/scripts/lib-plugins.sh" ] \
+[ ! -e "$REPO_ROOT/agent-tooling/lib-plugins.sh" ] \
   || fail "generic plugin policy owner remains: lib-plugins.sh"
 
-TOPOLOGY_DIR="$REPO_ROOT/scripts/distribution-topology"
+TOPOLOGY_DIR="$REPO_ROOT/agent-tooling/distribution-topology"
 [ -x "$TOPOLOGY_DIR/topology.sh" ] \
   || fail "private Bash topology core missing or not executable"
-if rg -q 'exec node|topology\.mjs' "$REPO_ROOT/scripts/update-skill-topology.sh"; then
+if rg -q 'exec node|topology\.mjs' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
   fail "public topology command still invokes the retired Node core"
 fi
 if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
@@ -38,7 +38,7 @@ if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
 fi
 
 invocations="$(awk -F '"' '/^"\$SCRIPT_DIR\/update-[a-z-]+\.sh"/ { print $2 }' \
-  "$REPO_ROOT/scripts/update-all.sh")"
+  "$REPO_ROOT/agent-tooling/update-all.sh")"
 expected_invocations='$SCRIPT_DIR/update-agents.sh
 $SCRIPT_DIR/update-skill-topology.sh'
 [ "$invocations" = "$expected_invocations" ] \
@@ -63,7 +63,7 @@ if ! jq -e '
 fi
 
 while IFS= read -r command; do
-  [ -f "$REPO_ROOT/scripts/distribution-topology/$command" ] \
+  [ -f "$REPO_ROOT/agent-tooling/distribution-topology/$command" ] \
     || fail "registered adapter missing: $command"
 done < <(jq -r '.[].command' "$REGISTRY")
 

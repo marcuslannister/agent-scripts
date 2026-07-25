@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-. "$REPO_ROOT/scripts/lib-copies.sh"
+. "$REPO_ROOT/agent-tooling/lib-copies.sh"
 
 marker_source() { sed -n '1p' "$1"; }  # line 1 = upstream source path
 marker_owner()  { sed -n '2p' "$1"; }   # line 2 = owning updater id

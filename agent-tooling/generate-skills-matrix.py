@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate the skill/plugin table in docs/skills-matrix.md.
+"""Regenerate the skill/plugin table in agent-tooling/skills-matrix.md.
 
 Combines the reconciler's selected-destination plan with repo and staged
 inventories. Installed plugin caches supply plugin skill names, provenance,
@@ -40,7 +40,7 @@ def topology_plan():
     if plan_path:
         with open(plan_path) as file:
             return json.load(file)
-    command = f"{REPO}/scripts/update-skill-topology.sh"
+    command = f"{REPO}/agent-tooling/update-skill-topology.sh"
     result = subprocess.run([command, "--check", "--json"], text=True, capture_output=True)
     try:
         state = json.loads(result.stdout)
@@ -136,7 +136,7 @@ def merge_skill_row(display, source, delivery, agents, path, plugin_keys=None):
     rows[key]["tokens"] = max(rows[key]["tokens"], token_count)
 
 
-registry = load_json(f"{REPO}/scripts/distribution-topology/registry.json")
+registry = load_json(f"{REPO}/agent-tooling/distribution-topology/registry.json")
 matrix_sources = {entry["sourceId"]: entry.get("matrixSource") for entry in registry}
 plugin_registry = {}
 for entry in registry:

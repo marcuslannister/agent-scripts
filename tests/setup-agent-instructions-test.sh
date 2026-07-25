@@ -5,12 +5,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-test ! -e "$REPO_ROOT/scripts/sync-skills"
+test ! -e "$REPO_ROOT/agent-tooling/sync-skills"
 
 FIXTURE="$TMP_ROOT/repo"
 HOME_DIR="$TMP_ROOT/home"
 mkdir -p "$FIXTURE/scripts" "$HOME_DIR"
-cp "$REPO_ROOT/scripts/setup-agent-instructions.sh" "$FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/setup-agent-instructions.sh" "$FIXTURE/scripts/"
 printf 'shared rules\n' > "$FIXTURE/AGENTS.MD"
 
 HOME="$HOME_DIR" "$FIXTURE/scripts/setup-agent-instructions.sh" > "$TMP_ROOT/first.out" 2> "$TMP_ROOT/first.err"

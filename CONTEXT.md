@@ -73,10 +73,10 @@ Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden file
 _Avoid_: reusing it as an identity or cache key — it only answers "did content change since last sync".
 
 **Topology manifest**:
-`skill-topology.json`, one entry per skill-bearing source. `Type: skill` overrides are marked generated blocks derived from `docs/skills-matrix.md`; plugin bundle policy and source defaults remain hand-maintained manifest content. An empty generated override selects no agent surface while preserving staged content.
+`agent-tooling/skill-topology.json`, one entry per skill-bearing source. `Type: skill` overrides are marked generated blocks derived from `agent-tooling/skills-matrix.md`; plugin bundle policy and source defaults remain hand-maintained manifest content. An empty generated override selects no agent surface while preserving staged content.
 
 **Private adapter**:
-An implementation under `scripts/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
+An implementation under `agent-tooling/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
 
 **Routine updater**:
 `update-all.sh`. Exactly two ordered steps: agent CLI updates, then skill-topology reconciliation.

@@ -9,7 +9,7 @@ set -euo pipefail
 #   generate-skill-index.sh --check  fail if INDEX.md is stale (CI gate)
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REGISTRY="$REPO_ROOT/skill-authors.json"
+REGISTRY="$REPO_ROOT/agent-tooling/skill-authors.json"
 INDEX="$REPO_ROOT/INDEX.md"
 SKILLS_DIR="$REPO_ROOT/skills"
 
@@ -39,7 +39,7 @@ fi
 
 generate() {
   printf '# Skill author index\n\n'
-  printf 'Generated from `skill-authors.json` by `scripts/generate-skill-index.sh` — do not edit by hand (`--check` gates freshness).\n\n'
+  printf 'Generated from `skill-authors.json` by `agent-tooling/generate-skill-index.sh` — do not edit by hand (`--check` gates freshness).\n\n'
   printf 'Every distributed skill grouped by true upstream author, independent of delivery mechanism (repo, synced copy, or plugin). See ADR-0003 and issue #26.\n'
 
   local authors author skill
@@ -66,7 +66,7 @@ generate > "$tmp"
 
 if [ "$mode" = check ]; then
   if ! diff -u "$INDEX" "$tmp" >/dev/null 2>&1; then
-    printf 'INDEX.md is stale; run scripts/generate-skill-index.sh\n' >&2
+    printf 'INDEX.md is stale; run agent-tooling/generate-skill-index.sh\n' >&2
     exit 1
   fi
   printf 'INDEX.md up to date\n'

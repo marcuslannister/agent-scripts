@@ -10,8 +10,7 @@ FIXTURE="$TMP_ROOT/repo"
 UPSTREAM="$TMP_ROOT/anthropic-skills"
 BIN="$TMP_ROOT/bin"
 mkdir -p \
-  "$FIXTURE/scripts" \
-  "$FIXTURE/docs" \
+  "$FIXTURE/agent-tooling" \
   "$FIXTURE/skills/repo-remove" \
   "$FIXTURE/skills/repo-same" \
   "$FIXTURE/skills/repo-install" \
@@ -26,11 +25,11 @@ mkdir -p \
   "$UPSTREAM/.git" \
   "$BIN"
 
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" \
-  "$REPO_ROOT/scripts/generate-skills-matrix.py" \
-  "$REPO_ROOT/scripts/lib-copies.sh" \
-  "$FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" \
+  "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" \
+  "$REPO_ROOT/agent-tooling/lib-copies.sh" \
+  "$FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 
 for skill in repo-remove repo-same repo-install; do
   printf '%s\n' '---' "name: $skill" 'description: "fixture"' '---' \
@@ -62,7 +61,7 @@ exec "$REAL_GIT" "$@"
 BASH
 chmod +x "$BIN/git"
 
-cat > "$FIXTURE/scripts/distribution-topology/adapters/test-plugin.sh" <<'BASH'
+cat > "$FIXTURE/agent-tooling/distribution-topology/adapters/test-plugin.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 action="${4:-discover}"
@@ -80,9 +79,9 @@ case "$action" in
   reconcile|verify) ;;
 esac
 BASH
-chmod +x "$FIXTURE/scripts/distribution-topology/adapters/test-plugin.sh"
+chmod +x "$FIXTURE/agent-tooling/distribution-topology/adapters/test-plugin.sh"
 
-cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "repo-claude",
@@ -115,7 +114,7 @@ cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
 ]
 JSON
 
-cat > "$FIXTURE/skill-topology.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -144,7 +143,7 @@ cat > "$FIXTURE/skill-topology.json" <<'JSON'
 }
 JSON
 
-cat > "$FIXTURE/docs/skills-matrix.md" <<'MARKDOWN'
+cat > "$FIXTURE/agent-tooling/skills-matrix.md" <<'MARKDOWN'
 # Skills matrix
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -164,37 +163,37 @@ git -C "$FIXTURE" add skills
 run_topology() {
   FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" REAL_GIT="$REAL_GIT" \
     HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-    "$FIXTURE/scripts/update-skill-topology.sh" "$@"
+    "$FIXTURE/agent-tooling/update-skill-topology.sh" "$@"
 }
 
 replace_row() {
-  local skill="$1" replacement="$2" temporary="$FIXTURE/docs/skills-matrix.tmp"
+  local skill="$1" replacement="$2" temporary="$FIXTURE/agent-tooling/skills-matrix.tmp"
   awk -v skill="| \`$skill\` |" -v replacement="$replacement" \
     'index($0, skill) == 1 { print replacement; next } { print }' \
-    "$FIXTURE/docs/skills-matrix.md" > "$temporary"
-  mv "$temporary" "$FIXTURE/docs/skills-matrix.md"
+    "$FIXTURE/agent-tooling/skills-matrix.md" > "$temporary"
+  mv "$temporary" "$FIXTURE/agent-tooling/skills-matrix.md"
 }
 
 run_topology --json > "$FIXTURE/baseline.json"
 jq -e '.status == "reconciled" and .errors == [] and .decisions == []' "$FIXTURE/baseline.json" >/dev/null
-rg -F '## Counts' "$FIXTURE/docs/skills-matrix.md" >/dev/null
+rg -F '## Counts' "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null
 
 replace_row repo-remove '| `repo-remove` | steipete/agent-scripts | skill | Y | N | ~1 |'
 replace_row repo-install '| `repo-install` | steipete/agent-scripts | skill | Y | Y | ~1 |'
 replace_row foreign-remove '| `foreign-remove` | anthropics/skills | skill | Y | N | ~1 |'
 replace_row foreign-install '| `foreign-install` | anthropics/skills | skill | Y | Y | ~1 |'
-printf '\nSTALE MATRIX SENTINEL\n' >> "$FIXTURE/docs/skills-matrix.md"
+printf '\nSTALE MATRIX SENTINEL\n' >> "$FIXTURE/agent-tooling/skills-matrix.md"
 
-manifest_before_check="$(shasum -a 256 "$FIXTURE/skill-topology.json")"
-matrix_before_check="$(shasum -a 256 "$FIXTURE/docs/skills-matrix.md")"
+manifest_before_check="$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")"
+matrix_before_check="$(shasum -a 256 "$FIXTURE/agent-tooling/skills-matrix.md")"
 set +e
 run_topology --check --json > "$FIXTURE/check.json"
 check_exit=$?
 set -e
 test "$check_exit" -eq 1
-test "$(shasum -a 256 "$FIXTURE/skill-topology.json")" = "$manifest_before_check"
-test "$(shasum -a 256 "$FIXTURE/docs/skills-matrix.md")" = "$matrix_before_check"
-rg -F 'STALE MATRIX SENTINEL' "$FIXTURE/docs/skills-matrix.md" >/dev/null
+test "$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")" = "$manifest_before_check"
+test "$(shasum -a 256 "$FIXTURE/agent-tooling/skills-matrix.md")" = "$matrix_before_check"
+rg -F 'STALE MATRIX SENTINEL' "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null
 jq -e '
   (.plan[] | select(.skill == "repo-remove") | .destinations == ["claude"]) and
   (.plan[] | select(.skill == "repo-same") | .destinations == ["claude", "codex"]) and
@@ -210,12 +209,12 @@ test ! -e "$FIXTURE/home/.agents/skills/foreign-install"
 
 run_topology --json > "$FIXTURE/reconciled.json"
 jq -e '.status == "reconciled" and .errors == [] and .decisions == []' "$FIXTURE/reconciled.json" >/dev/null
-if rg -F 'STALE MATRIX SENTINEL' "$FIXTURE/docs/skills-matrix.md" >/dev/null; then
+if rg -F 'STALE MATRIX SENTINEL' "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null; then
   echo 'successful reconcile did not regenerate skills matrix' >&2
   exit 1
 fi
-rg '^| `repo-remove` | steipete/agent-scripts | skill | Y | N | ~[0-9][0-9]* |$' "$FIXTURE/docs/skills-matrix.md" >/dev/null
-rg '^| `repo-install` | steipete/agent-scripts | skill | Y | Y | ~[0-9][0-9]* |$' "$FIXTURE/docs/skills-matrix.md" >/dev/null
+rg '^| `repo-remove` | steipete/agent-scripts | skill | Y | N | ~[0-9][0-9]* |$' "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null
+rg '^| `repo-install` | steipete/agent-scripts | skill | Y | Y | ~[0-9][0-9]* |$' "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null
 test ! -e "$FIXTURE/home/.agents/skills/repo-remove"
 test -d "$FIXTURE/home/.agents/skills/repo-same"
 test -d "$FIXTURE/home/.agents/skills/repo-install"
@@ -224,7 +223,7 @@ test -d "$FIXTURE/home/.agents/skills/foreign-same"
 test -d "$FIXTURE/home/.agents/skills/foreign-install"
 jq -e '
   all(.sources[] | select(.id == "repo-claude" or .id == "anthropic-skills");
-    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesStart == "generated from agent-tooling/skills-matrix.md" and
     .matrixOverridesEnd == "end generated overrides") and
   (.sources[] | select(.id == "repo-claude") | .overrides == {
     "repo-install":["claude","codex"],
@@ -236,9 +235,9 @@ jq -e '
     "foreign-remove":["claude"],
     "foreign-same":["claude","codex"]
   })
-' "$FIXTURE/skill-topology.json" >/dev/null
+' "$FIXTURE/agent-tooling/skill-topology.json" >/dev/null
 
-mv "$FIXTURE/docs/skills-matrix.md" "$FIXTURE/docs/skills-matrix.missing"
+mv "$FIXTURE/agent-tooling/skills-matrix.md" "$FIXTURE/agent-tooling/skills-matrix.missing"
 set +e
 run_topology --check --json > "$FIXTURE/missing-matrix.json"
 missing_matrix_exit=$?
@@ -246,7 +245,7 @@ set -e
 test "$missing_matrix_exit" -eq 1
 jq -e '.status == "failed" and any(.errors[]; contains("skills matrix is missing"))' \
   "$FIXTURE/missing-matrix.json" >/dev/null
-mv "$FIXTURE/docs/skills-matrix.missing" "$FIXTURE/docs/skills-matrix.md"
+mv "$FIXTURE/agent-tooling/skills-matrix.missing" "$FIXTURE/agent-tooling/skills-matrix.md"
 
 mkdir -p "$UPSTREAM/skills/foreign-new" "$FIXTURE/home/Projects/anthropic-skills/skills/foreign-new"
 printf '%s\n' '---' 'name: foreign-new' 'description: "fixture"' '---' \
@@ -255,11 +254,11 @@ cp "$UPSTREAM/skills/foreign-new/SKILL.md" "$FIXTURE/home/Projects/anthropic-ski
 awk '
   /^\| `test-plugin` \|/ { print "| `foreign-removed` | anthropics/skills | skill | Y | N | ~1 |" }
   { print }
-' "$FIXTURE/docs/skills-matrix.md" > "$FIXTURE/docs/skills-matrix.tmp"
-mv "$FIXTURE/docs/skills-matrix.tmp" "$FIXTURE/docs/skills-matrix.md"
+' "$FIXTURE/agent-tooling/skills-matrix.md" > "$FIXTURE/agent-tooling/skills-matrix.tmp"
+mv "$FIXTURE/agent-tooling/skills-matrix.tmp" "$FIXTURE/agent-tooling/skills-matrix.md"
 replace_row test-plugin '| `test-plugin` | example/test-plugin | plugin | Y | Y | ~1 |'
 cp -R "$FIXTURE/home" "$FIXTURE/home-before-block"
-manifest_before_block="$(shasum -a 256 "$FIXTURE/skill-topology.json")"
+manifest_before_block="$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")"
 
 for mode in check reconcile; do
   args=(--json)
@@ -275,7 +274,7 @@ for mode in check reconcile; do
     any(.decisions[]; .code == "removed-skill" and .skill == "foreign-removed") and
     any(.decisions[]; .code == "plugin-row-edit" and .skill == "test-plugin")
   ' "$FIXTURE/$mode-blocked.json" >/dev/null
-  test "$(shasum -a 256 "$FIXTURE/skill-topology.json")" = "$manifest_before_block"
+  test "$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")" = "$manifest_before_block"
   diff -r "$FIXTURE/home-before-block" "$FIXTURE/home"
   test ! -e "$FIXTURE/other-skills/anthropics/foreign-new"
 done

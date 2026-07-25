@@ -10,10 +10,10 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 FIXTURE="$TMP_ROOT/anthropic"
 UPSTREAM="$TMP_ROOT/upstreams/anthropic-skills"
 BIN="$TMP_ROOT/bin"
-mkdir -p "$FIXTURE/scripts" "$FIXTURE/skills" "$FIXTURE/other-skills/anthropics" \
+mkdir -p "$FIXTURE/agent-tooling" "$FIXTURE/skills" "$FIXTURE/other-skills/anthropics" \
   "$FIXTURE/home/.agents/skills" "$FIXTURE/home/.claude" "$FIXTURE/runtime" "$UPSTREAM/skills" "$BIN"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 
 ANTHROPIC_SKILLS=(docx frontend-design loose-skill pdf pptx skill-creator xlsx)
 for skill in "${ANTHROPIC_SKILLS[@]}"; do
@@ -41,7 +41,7 @@ exec "$REAL_GIT" "$@"
 BASH
 chmod +x "$BIN/git"
 
-cat > "$FIXTURE/skill-topology.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -67,7 +67,7 @@ cat > "$FIXTURE/skill-topology.json" <<'JSON'
 }
 JSON
 
-cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "repo-claude",
@@ -93,7 +93,7 @@ printf '%s\nanthropic-skills\nlegacy-hash\n' "$UPSTREAM/skills/loose-skill" \
   > "$FIXTURE/skills/loose-skill/.agent-scripts-copy"
 ln -s "$FIXTURE/skills" "$FIXTURE/home/.claude/skills"
 
-COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
+COMMAND="$FIXTURE/agent-tooling/update-skill-topology.sh"
 TRACKED_LEGACY_FIXTURE="$TMP_ROOT/anthropic-tracked-legacy"
 cp -R "$FIXTURE" "$TRACKED_LEGACY_FIXTURE"
 unlink "$TRACKED_LEGACY_FIXTURE/home/.claude/skills"
@@ -103,7 +103,7 @@ printf '%s\nanthropic-skills\nlegacy-hash\n' "$UPSTREAM/skills/frontend-design" 
 set +e
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$TRACKED_LEGACY_FIXTURE/home" TMPDIR="$TRACKED_LEGACY_FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$TRACKED_LEGACY_FIXTURE/scripts/update-skill-topology.sh" --json > "$TRACKED_LEGACY_FIXTURE/result.json"
+  "$TRACKED_LEGACY_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$TRACKED_LEGACY_FIXTURE/result.json"
 tracked_legacy_exit=$?
 set -e
 test "$tracked_legacy_exit" -eq 1
@@ -170,8 +170,8 @@ HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$FIXTURE/second.json" >/dev/null
 
 jq '(.sources[] | select(.id == "anthropic-skills") | .overrides.docx) = ["claude"]' \
-  "$FIXTURE/skill-topology.json" > "$FIXTURE/policy.tmp"
-mv "$FIXTURE/policy.tmp" "$FIXTURE/skill-topology.json"
+  "$FIXTURE/agent-tooling/skill-topology.json" > "$FIXTURE/policy.tmp"
+mv "$FIXTURE/policy.tmp" "$FIXTURE/agent-tooling/skill-topology.json"
 printf 'selected destination changed\n' >> "$FIXTURE/home/Projects/anthropic-skills/skills/docx/SKILL.md"
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
@@ -262,7 +262,7 @@ cp -R "$INCOMPLETE_FIXTURE/skills" "$INCOMPLETE_FIXTURE/skills-before"
 cp -R "$INCOMPLETE_FIXTURE/other-skills" "$INCOMPLETE_FIXTURE/other-skills-before"
 set +e
 HOME="$INCOMPLETE_FIXTURE/home" TMPDIR="$INCOMPLETE_FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$INCOMPLETE_FIXTURE/scripts/update-skill-topology.sh" --json > "$INCOMPLETE_FIXTURE/result.json"
+  "$INCOMPLETE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$INCOMPLETE_FIXTURE/result.json"
 incomplete_exit=$?
 set -e
 test "$incomplete_exit" -eq 3
@@ -280,18 +280,18 @@ jq -e '
   .classification == "source-only" and
   .defaultDestinations == ["claude", "codex"] and
   (.overrides | type == "object")
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 
 KHAZIX_FIXTURE="$TMP_ROOT/khazix"
 KHAZIX_UPSTREAM="$TMP_ROOT/upstreams/khazix-skills"
 KHAZIX_BIN="$TMP_ROOT/khazix-bin"
-mkdir -p "$KHAZIX_FIXTURE/scripts" "$KHAZIX_FIXTURE/skills" \
+mkdir -p "$KHAZIX_FIXTURE/agent-tooling" "$KHAZIX_FIXTURE/skills" \
   "$KHAZIX_FIXTURE/other-skills/khazix" "$KHAZIX_FIXTURE/home/.agents/skills" \
   "$KHAZIX_FIXTURE/home/.claude/skills" \
   "$KHAZIX_FIXTURE/runtime" "$KHAZIX_UPSTREAM/neat-freak" \
   "$KHAZIX_UPSTREAM/.git" "$KHAZIX_BIN"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$KHAZIX_FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$KHAZIX_FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$KHAZIX_FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$KHAZIX_FIXTURE/agent-tooling/"
 printf '%s\n' '---' 'name: neat-freak' 'description: "fixture"' '---' > "$KHAZIX_UPSTREAM/neat-freak/SKILL.md"
 printf 'claude-skills\n' > "$KHAZIX_FIXTURE/home/.claude/skills/.agent-scripts-root"
 
@@ -311,7 +311,7 @@ exec "$REAL_GIT" "$@"
 BASH
 chmod +x "$KHAZIX_BIN/git"
 
-cat > "$KHAZIX_FIXTURE/skill-topology.json" <<'JSON'
+cat > "$KHAZIX_FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -329,7 +329,7 @@ mkdir -p "$KHAZIX_FIXTURE/other-skills/khazix/retired-tracked"
 printf '%s\n' '---' 'name: retired-tracked' 'description: "fixture"' '---' \
   > "$KHAZIX_FIXTURE/other-skills/khazix/retired-tracked/SKILL.md"
 "$REAL_GIT" -C "$KHAZIX_FIXTURE" add other-skills/khazix/retired-tracked/SKILL.md
-cat > "$KHAZIX_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+cat > "$KHAZIX_FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "khazix-skills",
@@ -343,7 +343,7 @@ JSON
 
 FAKE_KHAZIX_UPSTREAM="$KHAZIX_UPSTREAM" \
 HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
-  "$KHAZIX_FIXTURE/scripts/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/result.json"
+  "$KHAZIX_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/result.json"
 jq -e '
   .status == "reconciled" and
   ([.changes[] | select(.skill == "neat-freak" and .action == "installed" and .destination == "staging")] | length) == 1 and
@@ -360,7 +360,7 @@ mv "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy" \
   "$KHAZIX_FIXTURE/tracked-copy-marker"
 printf 'tracked source update\n' >> "$KHAZIX_FIXTURE/home/Projects/khazix-skills/neat-freak/SKILL.md"
 HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
-  "$KHAZIX_FIXTURE/scripts/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/tracked-update.json"
+  "$KHAZIX_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/tracked-update.json"
 jq -e '.status == "reconciled" and (.changes[] | .skill == "neat-freak" and .action == "installed" and .destination == "staging")' \
   "$KHAZIX_FIXTURE/tracked-update.json" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/SKILL.md" >/dev/null
@@ -372,13 +372,13 @@ UNSUPPORTED_FIXTURE="$TMP_ROOT/khazix-unsupported"
 cp -R "$KHAZIX_FIXTURE" "$UNSUPPORTED_FIXTURE"
 mv "$UNSUPPORTED_FIXTURE/other-skills/khazix/neat-freak" "$UNSUPPORTED_FIXTURE/missing-neat-freak"
 jq '.[0].supportedDestinations = ["claude"]' \
-  "$UNSUPPORTED_FIXTURE/scripts/distribution-topology/registry.json" > "$UNSUPPORTED_FIXTURE/registry.tmp"
-mv "$UNSUPPORTED_FIXTURE/registry.tmp" "$UNSUPPORTED_FIXTURE/scripts/distribution-topology/registry.json"
+  "$UNSUPPORTED_FIXTURE/agent-tooling/distribution-topology/registry.json" > "$UNSUPPORTED_FIXTURE/registry.tmp"
+mv "$UNSUPPORTED_FIXTURE/registry.tmp" "$UNSUPPORTED_FIXTURE/agent-tooling/distribution-topology/registry.json"
 cp -R "$UNSUPPORTED_FIXTURE/home" "$UNSUPPORTED_FIXTURE/home-before"
 cp -R "$UNSUPPORTED_FIXTURE/skills" "$UNSUPPORTED_FIXTURE/skills-before"
 set +e
 HOME="$UNSUPPORTED_FIXTURE/home" TMPDIR="$UNSUPPORTED_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
-  "$UNSUPPORTED_FIXTURE/scripts/update-skill-topology.sh" --json > "$UNSUPPORTED_FIXTURE/result.json"
+  "$UNSUPPORTED_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$UNSUPPORTED_FIXTURE/result.json"
 unsupported_exit=$?
 set -e
 test "$unsupported_exit" -eq 3
@@ -393,9 +393,9 @@ diff -r "$UNSUPPORTED_FIXTURE/skills-before" "$UNSUPPORTED_FIXTURE/skills"
 CONTRACT_FIXTURE="$TMP_ROOT/khazix-contract"
 cp -R "$KHAZIX_FIXTURE" "$CONTRACT_FIXTURE"
 mv "$CONTRACT_FIXTURE/other-skills/khazix/neat-freak" "$CONTRACT_FIXTURE/missing-neat-freak"
-mv "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" \
-  "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source-real.sh"
-cat > "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh" <<'BASH'
+mv "$CONTRACT_FIXTURE/agent-tooling/distribution-topology/adapters/copy-source.sh" \
+  "$CONTRACT_FIXTURE/agent-tooling/distribution-topology/adapters/copy-source-real.sh"
+cat > "$CONTRACT_FIXTURE/agent-tooling/distribution-topology/adapters/copy-source.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 if [ "${4:-discover}" = inspect ]; then
@@ -403,10 +403,10 @@ if [ "${4:-discover}" = inspect ]; then
 fi
 exec "${BASH_SOURCE[0]%/*}/copy-source-real.sh" "$@"
 BASH
-chmod +x "$CONTRACT_FIXTURE/scripts/distribution-topology/adapters/copy-source.sh"
+chmod +x "$CONTRACT_FIXTURE/agent-tooling/distribution-topology/adapters/copy-source.sh"
 set +e
 HOME="$CONTRACT_FIXTURE/home" TMPDIR="$CONTRACT_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
-  "$CONTRACT_FIXTURE/scripts/update-skill-topology.sh" --json > "$CONTRACT_FIXTURE/result.json"
+  "$CONTRACT_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$CONTRACT_FIXTURE/result.json"
 contract_exit=$?
 set -e
 test "$contract_exit" -eq 1
@@ -420,18 +420,18 @@ jq -e '
   .sources[] | select(.id == "visual-explainer") |
   .classification == "plugin-claude-only" and
   .defaultDestinations == ["claude", "codex"]
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 
 VISUAL_FIXTURE="$TMP_ROOT/visual"
 VISUAL_UPSTREAM="$TMP_ROOT/upstreams/visual-explainer"
 VISUAL_BIN="$TMP_ROOT/visual-bin"
 VISUAL_SHA=0123456789abcdef0123456789abcdef01234567
-mkdir -p "$VISUAL_FIXTURE/scripts" "$VISUAL_FIXTURE/skills" \
+mkdir -p "$VISUAL_FIXTURE/agent-tooling" "$VISUAL_FIXTURE/skills" \
   "$VISUAL_FIXTURE/home/.agents/skills" "$VISUAL_FIXTURE/home/.claude/skills" "$VISUAL_FIXTURE/home/.claude/plugins" \
   "$VISUAL_FIXTURE/runtime" "$VISUAL_UPSTREAM/plugins/visual-explainer/commands" \
   "$VISUAL_UPSTREAM/.git" "$VISUAL_BIN"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$VISUAL_FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$VISUAL_FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$VISUAL_FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$VISUAL_FIXTURE/agent-tooling/"
 printf '%s\n' '---' 'name: visual-explainer' 'description: "fixture"' '---' \
   > "$VISUAL_UPSTREAM/plugins/visual-explainer/SKILL.md"
 printf 'command fixture\n' > "$VISUAL_UPSTREAM/plugins/visual-explainer/commands/explain.md"
@@ -513,7 +513,7 @@ esac
 BASH
 chmod +x "$VISUAL_BIN/git" "$VISUAL_BIN/claude"
 
-cat > "$VISUAL_FIXTURE/skill-topology.json" <<'JSON'
+cat > "$VISUAL_FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -526,7 +526,7 @@ cat > "$VISUAL_FIXTURE/skill-topology.json" <<'JSON'
   ]
 }
 JSON
-cat > "$VISUAL_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+cat > "$VISUAL_FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "visual-explainer",
@@ -544,7 +544,7 @@ cat > "$VISUAL_FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
 ]
 JSON
 
-VISUAL_COMMAND="$VISUAL_FIXTURE/scripts/update-skill-topology.sh"
+VISUAL_COMMAND="$VISUAL_FIXTURE/agent-tooling/update-skill-topology.sh"
 FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
   "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/first.json"
@@ -677,7 +677,7 @@ printf '{"enabledPlugins":{}}\n' > "$VERIFY_FIXTURE/home/.claude/settings.json"
 set +e
 FAKE_VISUAL_SHA="$VISUAL_SHA" FAKE_VISUAL_NO_STATE=1 \
 HOME="$VERIFY_FIXTURE/home" TMPDIR="$VERIFY_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
-  "$VERIFY_FIXTURE/scripts/update-skill-topology.sh" --json > "$VERIFY_FIXTURE/result.json"
+  "$VERIFY_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$VERIFY_FIXTURE/result.json"
 verify_exit=$?
 set -e
 test "$verify_exit" -eq 1

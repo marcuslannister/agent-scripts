@@ -3,7 +3,7 @@ set -uo pipefail
 
 MODULE_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
 REPO_ROOT="$(cd "$MODULE_DIR/../.." && pwd)"
-MANIFEST_PATH="$REPO_ROOT/skill-topology.json"
+MANIFEST_PATH="$REPO_ROOT/agent-tooling/skill-topology.json"
 REGISTRY_PATH="$MODULE_DIR/registry.json"
 
 source "$MODULE_DIR/errors.sh"

@@ -10,7 +10,7 @@ jq -e '
   .classification == "plugin-claude-only" and
   .defaultDestinations == ["claude"] and
   .overrides == {}
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 jq -e '
   .[] | select(.sourceId == "openai-codex") |
   .classification == "plugin-claude-only" and
@@ -22,7 +22,7 @@ jq -e '
     marketplaces: {claude: "openai-codex"},
     skills: ["codex"]
   }
-' "$REPO_ROOT/scripts/distribution-topology/registry.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/distribution-topology/registry.json" >/dev/null
 
 jq -e '
   ([.sources[] | select(.id == "waza" or .id == "claude-mem") | {
@@ -30,7 +30,7 @@ jq -e '
   }] | length) == 2 and
   all(.sources[] | select(.id == "waza" or .id == "claude-mem");
     .classification == "dual-plugin" and .defaultDestinations == ["claude","codex"])
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 jq -e '
   ([.[] | select(.sourceId == "waza" or .sourceId == "claude-mem")] | length) == 2 and
   all(.[] | select(.sourceId == "waza" or .sourceId == "claude-mem");
@@ -39,16 +39,16 @@ jq -e '
     (.plugin.skills | length == (unique | length))) and
   (.[] | select(.sourceId == "waza") | .plugin.skills == ["waza"]) and
   (.[] | select(.sourceId == "claude-mem") | .plugin.skills == ["claude-mem"])
-' "$REPO_ROOT/scripts/distribution-topology/registry.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/distribution-topology/registry.json" >/dev/null
 
 RETIRED_CLASSIFICATION_FIXTURE="$TMP_ROOT/retired-plugin-both"
-mkdir -p "$RETIRED_CLASSIFICATION_FIXTURE/scripts" "$RETIRED_CLASSIFICATION_FIXTURE/home" "$RETIRED_CLASSIFICATION_FIXTURE/runtime"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$RETIRED_CLASSIFICATION_FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$RETIRED_CLASSIFICATION_FIXTURE/scripts/"
-jq '{version, sources: [.sources[] | select(.id == "waza") | .classification = "plugin-both"]}'   "$REPO_ROOT/skill-topology.json" > "$RETIRED_CLASSIFICATION_FIXTURE/skill-topology.json"
-jq '[.[] | select(.sourceId == "waza") | .classification = "plugin-both"]'   "$REPO_ROOT/scripts/distribution-topology/registry.json"   > "$RETIRED_CLASSIFICATION_FIXTURE/scripts/distribution-topology/registry.json"
+mkdir -p "$RETIRED_CLASSIFICATION_FIXTURE/agent-tooling" "$RETIRED_CLASSIFICATION_FIXTURE/home" "$RETIRED_CLASSIFICATION_FIXTURE/runtime"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$RETIRED_CLASSIFICATION_FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$RETIRED_CLASSIFICATION_FIXTURE/agent-tooling/"
+jq '{version, sources: [.sources[] | select(.id == "waza") | .classification = "plugin-both"]}'   "$REPO_ROOT/agent-tooling/skill-topology.json" > "$RETIRED_CLASSIFICATION_FIXTURE/agent-tooling/skill-topology.json"
+jq '[.[] | select(.sourceId == "waza") | .classification = "plugin-both"]'   "$REPO_ROOT/agent-tooling/distribution-topology/registry.json"   > "$RETIRED_CLASSIFICATION_FIXTURE/agent-tooling/distribution-topology/registry.json"
 set +e
-HOME="$RETIRED_CLASSIFICATION_FIXTURE/home" TMPDIR="$RETIRED_CLASSIFICATION_FIXTURE/runtime" PATH="/usr/bin:/bin:/usr/sbin:/sbin"   "$RETIRED_CLASSIFICATION_FIXTURE/scripts/update-skill-topology.sh" --check --json   > "$RETIRED_CLASSIFICATION_FIXTURE/result.json"
+HOME="$RETIRED_CLASSIFICATION_FIXTURE/home" TMPDIR="$RETIRED_CLASSIFICATION_FIXTURE/runtime" PATH="/usr/bin:/bin:/usr/sbin:/sbin"   "$RETIRED_CLASSIFICATION_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json   > "$RETIRED_CLASSIFICATION_FIXTURE/result.json"
 retired_exit=$?
 set -e
 test "$retired_exit" -eq 2
@@ -58,13 +58,13 @@ jq -e '
 ' "$RETIRED_CLASSIFICATION_FIXTURE/result.json" >/dev/null
 
 MISSING_SKILLS_FIXTURE="$TMP_ROOT/missing-plugin-skills"
-mkdir -p "$MISSING_SKILLS_FIXTURE/scripts" "$MISSING_SKILLS_FIXTURE/home" "$MISSING_SKILLS_FIXTURE/runtime"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$MISSING_SKILLS_FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$MISSING_SKILLS_FIXTURE/scripts/"
-jq '{version, sources: [.sources[] | select(.id == "waza")]}'   "$REPO_ROOT/skill-topology.json" > "$MISSING_SKILLS_FIXTURE/skill-topology.json"
-jq '[.[] | select(.sourceId == "waza") | .plugin |= del(.skills)]'   "$REPO_ROOT/scripts/distribution-topology/registry.json"   > "$MISSING_SKILLS_FIXTURE/scripts/distribution-topology/registry.json"
+mkdir -p "$MISSING_SKILLS_FIXTURE/agent-tooling" "$MISSING_SKILLS_FIXTURE/home" "$MISSING_SKILLS_FIXTURE/runtime"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$MISSING_SKILLS_FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$MISSING_SKILLS_FIXTURE/agent-tooling/"
+jq '{version, sources: [.sources[] | select(.id == "waza")]}'   "$REPO_ROOT/agent-tooling/skill-topology.json" > "$MISSING_SKILLS_FIXTURE/agent-tooling/skill-topology.json"
+jq '[.[] | select(.sourceId == "waza") | .plugin |= del(.skills)]'   "$REPO_ROOT/agent-tooling/distribution-topology/registry.json"   > "$MISSING_SKILLS_FIXTURE/agent-tooling/distribution-topology/registry.json"
 set +e
-HOME="$MISSING_SKILLS_FIXTURE/home" TMPDIR="$MISSING_SKILLS_FIXTURE/runtime" PATH="/usr/bin:/bin:/usr/sbin:/sbin"   "$MISSING_SKILLS_FIXTURE/scripts/update-skill-topology.sh" --check --json   > "$MISSING_SKILLS_FIXTURE/result.json"
+HOME="$MISSING_SKILLS_FIXTURE/home" TMPDIR="$MISSING_SKILLS_FIXTURE/runtime" PATH="/usr/bin:/bin:/usr/sbin:/sbin"   "$MISSING_SKILLS_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json   > "$MISSING_SKILLS_FIXTURE/result.json"
 missing_skills_exit=$?
 set -e
 test "$missing_skills_exit" -eq 2
@@ -76,7 +76,7 @@ jq -e '
 
 FIXTURE="$TMP_ROOT/waza"
 BIN="$FIXTURE/bin"
-mkdir -p "$FIXTURE/scripts" "$FIXTURE/home/.codex" "$FIXTURE/home/.claude/skills" "$FIXTURE/runtime" "$BIN" \
+mkdir -p "$FIXTURE/agent-tooling" "$FIXTURE/home/.codex" "$FIXTURE/home/.claude/skills" "$FIXTURE/runtime" "$BIN" \
   "$FIXTURE/home/claude-marketplace/.claude-plugin" \
   "$FIXTURE/home/codex-marketplace/.agents/plugins" \
   "$FIXTURE/home/codex-marketplace/plugins/waza/.codex-plugin" \
@@ -90,10 +90,10 @@ printf 'claude-skills\n' > "$FIXTURE/home/.claude/skills/.agent-scripts-root"
 printf '# Waza think\n' > "$FIXTURE/home/plugin-roots/claude/waza/skills/think/SKILL.md"
 printf '# Waza think\n' > "$FIXTURE/home/plugin-roots/codex/waza/skills/think/SKILL.md"
 printf '# Waza think\n' > "$FIXTURE/remote-marketplace/skills/think/SKILL.md"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 
-cat > "$FIXTURE/skill-topology.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -107,7 +107,7 @@ cat > "$FIXTURE/skill-topology.json" <<'JSON'
 }
 JSON
 
-cat > "$FIXTURE/scripts/distribution-topology/registry.json" <<'JSON'
+cat > "$FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "waza",
@@ -324,10 +324,10 @@ chmod +x "$BIN/claude" "$BIN/codex" "$BIN/git"
 OPENAI_FIXTURE="$TMP_ROOT/openai-codex"
 cp -R "$FIXTURE" "$OPENAI_FIXTURE"
 jq '{version, sources: [.sources[] | select(.id == "openai-codex")]}' \
-  "$REPO_ROOT/skill-topology.json" > "$OPENAI_FIXTURE/skill-topology.json"
+  "$REPO_ROOT/agent-tooling/skill-topology.json" > "$OPENAI_FIXTURE/agent-tooling/skill-topology.json"
 jq '[.[] | select(.sourceId == "openai-codex")]' \
-  "$REPO_ROOT/scripts/distribution-topology/registry.json" \
-  > "$OPENAI_FIXTURE/scripts/distribution-topology/registry.json"
+  "$REPO_ROOT/agent-tooling/distribution-topology/registry.json" \
+  > "$OPENAI_FIXTURE/agent-tooling/distribution-topology/registry.json"
 cat > "$OPENAI_FIXTURE/remote-marketplace/.claude-plugin/marketplace.json" <<'JSON'
 {"name":"openai-codex","plugins":[{"name":"codex","version":"1.0.6","source":"./plugins/codex"}]}
 JSON
@@ -339,7 +339,7 @@ jq -n --arg path "$OPENAI_FIXTURE/home/plugin-roots/claude/codex" \
 perl -pi -e 's!tw93/Waza!openai/codex-plugin-cc!g' "$OPENAI_FIXTURE/bin/git"
 HOME="$OPENAI_FIXTURE/home" TMPDIR="$OPENAI_FIXTURE/runtime" \
 PATH="$OPENAI_FIXTURE/bin:$PATH" \
-  "$OPENAI_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$OPENAI_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$OPENAI_FIXTURE/result.json"
 if ! jq -e '
   .status == "clean" and
@@ -352,16 +352,16 @@ if ! jq -e '
   exit 1
 fi
 
-COMMAND="$FIXTURE/scripts/update-skill-topology.sh"
+COMMAND="$FIXTURE/agent-tooling/update-skill-topology.sh"
 MISSING_METADATA_FIXTURE="$TMP_ROOT/missing-plugin-metadata"
 cp -R "$FIXTURE" "$MISSING_METADATA_FIXTURE"
 jq '.[0] |= del(.plugin)' \
-  "$MISSING_METADATA_FIXTURE/scripts/distribution-topology/registry.json" > "$MISSING_METADATA_FIXTURE/registry.tmp"
-mv "$MISSING_METADATA_FIXTURE/registry.tmp" "$MISSING_METADATA_FIXTURE/scripts/distribution-topology/registry.json"
+  "$MISSING_METADATA_FIXTURE/agent-tooling/distribution-topology/registry.json" > "$MISSING_METADATA_FIXTURE/registry.tmp"
+mv "$MISSING_METADATA_FIXTURE/registry.tmp" "$MISSING_METADATA_FIXTURE/agent-tooling/distribution-topology/registry.json"
 set +e
 HOME="$MISSING_METADATA_FIXTURE/home" TMPDIR="$MISSING_METADATA_FIXTURE/runtime" \
 PATH="$MISSING_METADATA_FIXTURE/bin:$PATH" \
-  "$MISSING_METADATA_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$MISSING_METADATA_FIXTURE/result.json"
+  "$MISSING_METADATA_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json > "$MISSING_METADATA_FIXTURE/result.json"
 missing_metadata_exit=$?
 set -e
 test "$missing_metadata_exit" -eq 2
@@ -375,15 +375,15 @@ jq -e '.installed == []' "$MISSING_METADATA_FIXTURE/home/codex-plugins.json" >/d
 NULL_METADATA_FIXTURE="$TMP_ROOT/null-plugin-metadata"
 cp -R "$FIXTURE" "$NULL_METADATA_FIXTURE"
 jq '.[0].classification = "plugin-claude-only" | .[0].plugin = null' \
-  "$NULL_METADATA_FIXTURE/scripts/distribution-topology/registry.json" > "$NULL_METADATA_FIXTURE/registry.tmp"
-mv "$NULL_METADATA_FIXTURE/registry.tmp" "$NULL_METADATA_FIXTURE/scripts/distribution-topology/registry.json"
+  "$NULL_METADATA_FIXTURE/agent-tooling/distribution-topology/registry.json" > "$NULL_METADATA_FIXTURE/registry.tmp"
+mv "$NULL_METADATA_FIXTURE/registry.tmp" "$NULL_METADATA_FIXTURE/agent-tooling/distribution-topology/registry.json"
 jq '.sources[0].classification = "plugin-claude-only"' \
-  "$NULL_METADATA_FIXTURE/skill-topology.json" > "$NULL_METADATA_FIXTURE/manifest.tmp"
-mv "$NULL_METADATA_FIXTURE/manifest.tmp" "$NULL_METADATA_FIXTURE/skill-topology.json"
+  "$NULL_METADATA_FIXTURE/agent-tooling/skill-topology.json" > "$NULL_METADATA_FIXTURE/manifest.tmp"
+mv "$NULL_METADATA_FIXTURE/manifest.tmp" "$NULL_METADATA_FIXTURE/agent-tooling/skill-topology.json"
 set +e
 HOME="$NULL_METADATA_FIXTURE/home" TMPDIR="$NULL_METADATA_FIXTURE/runtime" \
 PATH="$NULL_METADATA_FIXTURE/bin:$PATH" \
-  "$NULL_METADATA_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$NULL_METADATA_FIXTURE/result.json"
+  "$NULL_METADATA_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json > "$NULL_METADATA_FIXTURE/result.json"
 null_metadata_exit=$?
 set -e
 test "$null_metadata_exit" -eq 2
@@ -397,15 +397,15 @@ jq -e '.installed == []' "$NULL_METADATA_FIXTURE/home/codex-plugins.json" >/dev/
 UNSUPPORTED_MARKETPLACE_FIXTURE="$TMP_ROOT/unsupported-plugin-marketplace"
 cp -R "$FIXTURE" "$UNSUPPORTED_MARKETPLACE_FIXTURE"
 jq '.[0].classification = "plugin-claude-only"' \
-  "$UNSUPPORTED_MARKETPLACE_FIXTURE/scripts/distribution-topology/registry.json" > "$UNSUPPORTED_MARKETPLACE_FIXTURE/registry.tmp"
-mv "$UNSUPPORTED_MARKETPLACE_FIXTURE/registry.tmp" "$UNSUPPORTED_MARKETPLACE_FIXTURE/scripts/distribution-topology/registry.json"
+  "$UNSUPPORTED_MARKETPLACE_FIXTURE/agent-tooling/distribution-topology/registry.json" > "$UNSUPPORTED_MARKETPLACE_FIXTURE/registry.tmp"
+mv "$UNSUPPORTED_MARKETPLACE_FIXTURE/registry.tmp" "$UNSUPPORTED_MARKETPLACE_FIXTURE/agent-tooling/distribution-topology/registry.json"
 jq '.sources[0].classification = "plugin-claude-only"' \
-  "$UNSUPPORTED_MARKETPLACE_FIXTURE/skill-topology.json" > "$UNSUPPORTED_MARKETPLACE_FIXTURE/manifest.tmp"
-mv "$UNSUPPORTED_MARKETPLACE_FIXTURE/manifest.tmp" "$UNSUPPORTED_MARKETPLACE_FIXTURE/skill-topology.json"
+  "$UNSUPPORTED_MARKETPLACE_FIXTURE/agent-tooling/skill-topology.json" > "$UNSUPPORTED_MARKETPLACE_FIXTURE/manifest.tmp"
+mv "$UNSUPPORTED_MARKETPLACE_FIXTURE/manifest.tmp" "$UNSUPPORTED_MARKETPLACE_FIXTURE/agent-tooling/skill-topology.json"
 set +e
 HOME="$UNSUPPORTED_MARKETPLACE_FIXTURE/home" TMPDIR="$UNSUPPORTED_MARKETPLACE_FIXTURE/runtime" \
 PATH="$UNSUPPORTED_MARKETPLACE_FIXTURE/bin:$PATH" \
-  "$UNSUPPORTED_MARKETPLACE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UNSUPPORTED_MARKETPLACE_FIXTURE/result.json"
+  "$UNSUPPORTED_MARKETPLACE_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json > "$UNSUPPORTED_MARKETPLACE_FIXTURE/result.json"
 unsupported_marketplace_exit=$?
 set -e
 test "$unsupported_marketplace_exit" -eq 2
@@ -422,7 +422,7 @@ cp -R "$MISSING_PLUGIN_FIXTURE/home" "$MISSING_PLUGIN_FIXTURE/home-before-check"
 set +e
 HOME="$MISSING_PLUGIN_FIXTURE/home" TMPDIR="$MISSING_PLUGIN_FIXTURE/runtime" \
 PATH="$MISSING_PLUGIN_FIXTURE/bin:$PATH" \
-  "$MISSING_PLUGIN_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$MISSING_PLUGIN_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$MISSING_PLUGIN_FIXTURE/result.json"
 missing_plugin_exit=$?
 set -e
@@ -464,7 +464,7 @@ cp "$MIGRATION_FIXTURE/home/.claude/skills/waza/SKILL.md" "$MIGRATION_FIXTURE/wa
 set +e
 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
 PATH="$MIGRATION_FIXTURE/bin:$PATH" \
-  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$MIGRATION_FIXTURE/check.json"
 migration_check_exit=$?
 set -e
@@ -499,7 +499,7 @@ diff -r "$MIGRATION_FIXTURE/home-before-check" "$MIGRATION_FIXTURE/home" >/dev/n
 cmp -s "$MIGRATION_FIXTURE/waza-before-check" "$MIGRATION_FIXTURE/home/.claude/skills/waza/SKILL.md"
 
 set +e
-HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" PATH="$MIGRATION_FIXTURE/bin:$PATH"   "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --check   > "$MIGRATION_FIXTURE/check.out" 2> "$MIGRATION_FIXTURE/check.err"
+HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" PATH="$MIGRATION_FIXTURE/bin:$PATH"   "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh" --check   > "$MIGRATION_FIXTURE/check.out" 2> "$MIGRATION_FIXTURE/check.err"
 migration_human_check_exit=$?
 set -e
 test "$migration_human_check_exit" -eq 1
@@ -514,7 +514,7 @@ set +e
 FAKE_CODEX_INSTALL_FAIL=1 \
 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
 PATH="$MIGRATION_FIXTURE/bin:$PATH" \
-  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MIGRATION_FIXTURE/partial.json"
 migration_partial_exit=$?
 set -e
@@ -544,7 +544,7 @@ test -f "$MIGRATION_FIXTURE/home/.claude/skills/waza/SKILL.md"
 test -f "$MIGRATION_FIXTURE/home/.agents/skills/waza/SKILL.md"
 
 set +e
-FAKE_CODEX_INSTALL_FAIL=1 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" PATH="$MIGRATION_FIXTURE/bin:$PATH"   "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh"   > "$MIGRATION_FIXTURE/partial.out" 2> "$MIGRATION_FIXTURE/partial.err"
+FAKE_CODEX_INSTALL_FAIL=1 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" PATH="$MIGRATION_FIXTURE/bin:$PATH"   "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh"   > "$MIGRATION_FIXTURE/partial.out" 2> "$MIGRATION_FIXTURE/partial.err"
 migration_partial_human_exit=$?
 set -e
 test "$migration_partial_human_exit" -eq 1
@@ -560,7 +560,7 @@ cp -R "$MIGRATION_FIXTURE/home" "$MIGRATION_FIXTURE/home-before-ready-check"
 set +e
 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
 PATH="$MIGRATION_FIXTURE/bin:$PATH" \
-  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$MIGRATION_FIXTURE/ready-check.json"
 migration_ready_check_exit=$?
 set -e
@@ -581,7 +581,7 @@ diff -r "$MIGRATION_FIXTURE/home-before-ready-check" "$MIGRATION_FIXTURE/home" >
 
 HUMAN_REMOVAL_FIXTURE="$TMP_ROOT/dual-plugin-human-removal"
 cp -R "$MIGRATION_FIXTURE" "$HUMAN_REMOVAL_FIXTURE"
-HOME="$HUMAN_REMOVAL_FIXTURE/home" TMPDIR="$HUMAN_REMOVAL_FIXTURE/runtime" PATH="$HUMAN_REMOVAL_FIXTURE/bin:$PATH"   "$HUMAN_REMOVAL_FIXTURE/scripts/update-skill-topology.sh"   > "$HUMAN_REMOVAL_FIXTURE/result.out" 2> "$HUMAN_REMOVAL_FIXTURE/result.err"
+HOME="$HUMAN_REMOVAL_FIXTURE/home" TMPDIR="$HUMAN_REMOVAL_FIXTURE/runtime" PATH="$HUMAN_REMOVAL_FIXTURE/bin:$PATH"   "$HUMAN_REMOVAL_FIXTURE/agent-tooling/update-skill-topology.sh"   > "$HUMAN_REMOVAL_FIXTURE/result.out" 2> "$HUMAN_REMOVAL_FIXTURE/result.err"
 test ! -s "$HUMAN_REMOVAL_FIXTURE/result.err"
 rg -q '^waza/waza +claude +copy-removal +removed$' "$HUMAN_REMOVAL_FIXTURE/result.out"
 rg -q '^waza/waza +codex +copy-removal +removed$' "$HUMAN_REMOVAL_FIXTURE/result.out"
@@ -601,7 +601,7 @@ chmod +x "$CLEANUP_FAILURE_FIXTURE/bin/rm"
 set +e
 HOME="$CLEANUP_FAILURE_FIXTURE/home" TMPDIR="$CLEANUP_FAILURE_FIXTURE/runtime" \
 PATH="$CLEANUP_FAILURE_FIXTURE/bin:$PATH" \
-  "$CLEANUP_FAILURE_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$CLEANUP_FAILURE_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$CLEANUP_FAILURE_FIXTURE/result.json"
 cleanup_failure_exit=$?
 set -e
@@ -630,7 +630,7 @@ mv "$MIGRATION_FIXTURE/home/.agents/skills/waza/.agent-scripts-copy" \
   "$MIGRATION_FIXTURE/unmarked-waza-copy-marker"
 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
 PATH="$MIGRATION_FIXTURE/bin:$PATH" \
-  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MIGRATION_FIXTURE/full.json"
 jq -e '
   .status == "reconciled" and .state == "changed" and .idempotent == false and
@@ -650,7 +650,7 @@ test -f "$MIGRATION_FIXTURE/unmarked-waza-copy-marker"
 
 HOME="$MIGRATION_FIXTURE/home" TMPDIR="$MIGRATION_FIXTURE/runtime" \
 PATH="$MIGRATION_FIXTURE/bin:$PATH" \
-  "$MIGRATION_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MIGRATION_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MIGRATION_FIXTURE/repeat.json"
 jq -e '
   .status == "reconciled" and .state == "clean" and .idempotent == true and
@@ -675,14 +675,14 @@ seed_multi_skill_duplicates() {
 
 MULTI_SKILL_FIXTURE="$TMP_ROOT/multi-skill-migration"
 cp -R "$FIXTURE" "$MULTI_SKILL_FIXTURE"
-jq '.sources[0].overrides = {}' "$MULTI_SKILL_FIXTURE/skill-topology.json" \
+jq '.sources[0].overrides = {}' "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json" \
   > "$MULTI_SKILL_FIXTURE/manifest.tmp"
-mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/skill-topology.json"
+mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json"
 jq '.[0].plugin.skills = ["think","write"]' \
-  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json" \
+  "$MULTI_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$MULTI_SKILL_FIXTURE/registry.tmp"
 mv "$MULTI_SKILL_FIXTURE/registry.tmp" \
-  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json"
+  "$MULTI_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json"
 mkdir -p "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/write" \
   "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/write"
 printf '# Write\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/write/SKILL.md"
@@ -690,7 +690,7 @@ printf '# Write\n' > "$MULTI_SKILL_FIXTURE/home/plugin-roots/codex/waza/skills/w
 seed_multi_skill_duplicates "$MULTI_SKILL_FIXTURE"
 HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
 PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
-  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MULTI_SKILL_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MULTI_SKILL_FIXTURE/installed.json"
 test "$(rg -Fxc 'plugin install waza@waza' \
   "$MULTI_SKILL_FIXTURE/home/claude-mutations.log" || true)" -eq 1
@@ -725,7 +725,7 @@ PLUGIN_RETRY_DELAY_SECONDS=0 \
 HOME="$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/home" \
 TMPDIR="$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/runtime" \
 PATH="$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/bin:$PATH" \
-  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MULTI_SKILL_NATIVE_FAILURE_FIXTURE/result.json"
 multi_skill_native_failure_exit=$?
 set -e
@@ -758,7 +758,7 @@ mv "$POST_MIGRATION_REGRESSION_FIXTURE/claude-plugins.tmp"   "$POST_MIGRATION_RE
 jq '.installed |= map(.version = "0.9.0")'   "$POST_MIGRATION_REGRESSION_FIXTURE/home/codex-plugins.json"   > "$POST_MIGRATION_REGRESSION_FIXTURE/codex-plugins.tmp"
 mv "$POST_MIGRATION_REGRESSION_FIXTURE/codex-plugins.tmp"   "$POST_MIGRATION_REGRESSION_FIXTURE/home/codex-plugins.json"
 set +e
-FAKE_PLUGIN_UPDATE_VERSION=1.0.0 FAKE_DROP_SKILL_ON_UPDATE=write HOME="$POST_MIGRATION_REGRESSION_FIXTURE/home" TMPDIR="$POST_MIGRATION_REGRESSION_FIXTURE/runtime" PATH="$POST_MIGRATION_REGRESSION_FIXTURE/bin:$PATH"   "$POST_MIGRATION_REGRESSION_FIXTURE/scripts/update-skill-topology.sh" --json   > "$POST_MIGRATION_REGRESSION_FIXTURE/result.json"
+FAKE_PLUGIN_UPDATE_VERSION=1.0.0 FAKE_DROP_SKILL_ON_UPDATE=write HOME="$POST_MIGRATION_REGRESSION_FIXTURE/home" TMPDIR="$POST_MIGRATION_REGRESSION_FIXTURE/runtime" PATH="$POST_MIGRATION_REGRESSION_FIXTURE/bin:$PATH"   "$POST_MIGRATION_REGRESSION_FIXTURE/agent-tooling/update-skill-topology.sh" --json   > "$POST_MIGRATION_REGRESSION_FIXTURE/result.json"
 post_migration_regression_exit=$?
 set -e
 test "$post_migration_regression_exit" -eq 1
@@ -792,7 +792,7 @@ set +e
 FAKE_PLUGIN_UPDATE_VERSION=1.0.0 FAKE_DROP_SKILL_ON_UPDATE=write \
 HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
 PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
-  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MULTI_SKILL_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MULTI_SKILL_FIXTURE/withdrawn.json"
 multi_skill_exit=$?
 set -e
@@ -856,10 +856,10 @@ grep -Fx 'plugin marketplace upgrade waza' "$FIXTURE/home/codex-mutations.log" >
 REMOVE_FIXTURE="$TMP_ROOT/remove"
 cp -R "$FIXTURE" "$REMOVE_FIXTURE"
 jq '.sources[0].defaultDestinations = ["claude"] | .sources[0].overrides.waza = ["claude"]' \
-  "$REMOVE_FIXTURE/skill-topology.json" > "$REMOVE_FIXTURE/manifest.tmp"
-mv "$REMOVE_FIXTURE/manifest.tmp" "$REMOVE_FIXTURE/skill-topology.json"
+  "$REMOVE_FIXTURE/agent-tooling/skill-topology.json" > "$REMOVE_FIXTURE/manifest.tmp"
+mv "$REMOVE_FIXTURE/manifest.tmp" "$REMOVE_FIXTURE/agent-tooling/skill-topology.json"
 HOME="$REMOVE_FIXTURE/home" TMPDIR="$REMOVE_FIXTURE/runtime" PATH="$REMOVE_FIXTURE/bin:$PATH" \
-  "$REMOVE_FIXTURE/scripts/update-skill-topology.sh" --json > "$REMOVE_FIXTURE/result.json"
+  "$REMOVE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$REMOVE_FIXTURE/result.json"
 jq -e '
   .status == "reconciled" and
   ([.changes[] | {action, destination}] == [{"action":"removed","destination":"codex"}])
@@ -891,7 +891,7 @@ cp "$UNKNOWN_FIXTURE/home/claude-mutations.log" "$UNKNOWN_FIXTURE/claude-mutatio
 cp "$UNKNOWN_FIXTURE/home/codex-mutations.log" "$UNKNOWN_FIXTURE/codex-mutations-before"
 set +e
 HOME="$UNKNOWN_FIXTURE/home" TMPDIR="$UNKNOWN_FIXTURE/runtime" PATH="$UNKNOWN_FIXTURE/bin:$PATH" \
-  "$UNKNOWN_FIXTURE/scripts/update-skill-topology.sh" --json > "$UNKNOWN_FIXTURE/result.json"
+  "$UNKNOWN_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$UNKNOWN_FIXTURE/result.json"
 unknown_exit=$?
 set -e
 test "$unknown_exit" -eq 3
@@ -917,7 +917,7 @@ jq 'map(if .id == "waza@waza" then .enabled = false else . end)' \
 mv "$CLAUDE_DISABLED_FIXTURE/disabled.tmp" "$CLAUDE_DISABLED_FIXTURE/home/claude-plugins.json"
 HOME="$CLAUDE_DISABLED_FIXTURE/home" TMPDIR="$CLAUDE_DISABLED_FIXTURE/runtime" \
 PATH="$CLAUDE_DISABLED_FIXTURE/bin:$PATH" \
-  "$CLAUDE_DISABLED_FIXTURE/scripts/update-skill-topology.sh" --json > "$CLAUDE_DISABLED_FIXTURE/result.json"
+  "$CLAUDE_DISABLED_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$CLAUDE_DISABLED_FIXTURE/result.json"
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' \
   "$CLAUDE_DISABLED_FIXTURE/result.json" >/dev/null
 jq -e '.[0].enabled == false' "$CLAUDE_DISABLED_FIXTURE/home/claude-plugins.json" >/dev/null
@@ -934,7 +934,7 @@ enabled = false
 TOML
 HOME="$CODEX_DISABLED_FIXTURE/home" TMPDIR="$CODEX_DISABLED_FIXTURE/runtime" \
 PATH="$CODEX_DISABLED_FIXTURE/bin:$PATH" \
-  "$CODEX_DISABLED_FIXTURE/scripts/update-skill-topology.sh" --json > "$CODEX_DISABLED_FIXTURE/result.json"
+  "$CODEX_DISABLED_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$CODEX_DISABLED_FIXTURE/result.json"
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' \
   "$CODEX_DISABLED_FIXTURE/result.json" >/dev/null
 HOME="$CODEX_DISABLED_FIXTURE/home" PATH="$CODEX_DISABLED_FIXTURE/bin:$PATH" \
@@ -957,7 +957,7 @@ cp -R "$UPDATE_FIXTURE/home" "$UPDATE_FIXTURE/home-before-check"
 set +e
 FAKE_GIT_LOG="$UPDATE_FIXTURE/git.log" \
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
-  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/check.json"
+  "$UPDATE_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/check.json"
 update_check_exit=$?
 set -e
 test "$update_check_exit" -eq 1
@@ -978,7 +978,7 @@ grep -Eq "^$UPDATE_FIXTURE/runtime/agent-scripts-topology-discovery-.+/waza/repo
   "$UPDATE_FIXTURE/git.log"
 set +e
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
-  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check \
+  "$UPDATE_FIXTURE/agent-tooling/update-skill-topology.sh" --check \
   > "$UPDATE_FIXTURE/check.out" 2> "$UPDATE_FIXTURE/check.err"
 update_human_exit=$?
 set -e
@@ -1012,7 +1012,7 @@ TOML
 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 FAKE_CLAUDE_ENABLE_ON_UPDATE=1 \
 HOME="$DISABLED_UPDATE_FIXTURE/home" TMPDIR="$DISABLED_UPDATE_FIXTURE/runtime" \
 PATH="$DISABLED_UPDATE_FIXTURE/bin:$PATH" \
-  "$DISABLED_UPDATE_FIXTURE/scripts/update-skill-topology.sh" --json > "$DISABLED_UPDATE_FIXTURE/result.json"
+  "$DISABLED_UPDATE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$DISABLED_UPDATE_FIXTURE/result.json"
 jq -e '
   .status == "reconciled" and .errors == [] and
   ([.changes[] | {action, destination}] == [
@@ -1037,7 +1037,7 @@ grep -Fx 'plugin disable waza@waza' "$DISABLED_UPDATE_FIXTURE/home/claude-mutati
 
 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 \
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
-  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --json > "$UPDATE_FIXTURE/result.json"
+  "$UPDATE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$UPDATE_FIXTURE/result.json"
 jq -e '
   .status == "reconciled" and
   ([.changes[] | {action, destination}] == [
@@ -1048,7 +1048,7 @@ jq -e '
 jq -e '.[0].version == "2.0.0"' "$UPDATE_FIXTURE/home/claude-plugins.json" >/dev/null
 jq -e '.installed[0].version == "2.0.0"' "$UPDATE_FIXTURE/home/codex-plugins.json" >/dev/null
 HOME="$UPDATE_FIXTURE/home" TMPDIR="$UPDATE_FIXTURE/runtime" PATH="$UPDATE_FIXTURE/bin:$PATH" \
-  "$UPDATE_FIXTURE/scripts/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/recheck.json"
+  "$UPDATE_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json > "$UPDATE_FIXTURE/recheck.json"
 jq -e '.status == "clean" and .drift == [] and .changes == [] and .errors == []' \
   "$UPDATE_FIXTURE/recheck.json" >/dev/null
 
@@ -1058,7 +1058,7 @@ set +e
 FAKE_GIT_CLONE_FAIL=1 \
 HOME="$REMOTE_DISCOVERY_FIXTURE/home" TMPDIR="$REMOTE_DISCOVERY_FIXTURE/runtime" \
 PATH="$REMOTE_DISCOVERY_FIXTURE/bin:$PATH" \
-  "$REMOTE_DISCOVERY_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$REMOTE_DISCOVERY_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$REMOTE_DISCOVERY_FIXTURE/result.json"
 remote_discovery_exit=$?
 set -e
@@ -1073,7 +1073,7 @@ cp -R "$FIXTURE" "$OUTAGE_FIXTURE"
 set +e
 FAKE_CLAUDE_MARKETPLACE_FAIL=1 PLUGIN_RETRY_DELAY_SECONDS=0 \
 HOME="$OUTAGE_FIXTURE/home" TMPDIR="$OUTAGE_FIXTURE/runtime" PATH="$OUTAGE_FIXTURE/bin:$PATH" \
-  "$OUTAGE_FIXTURE/scripts/update-skill-topology.sh" --json > "$OUTAGE_FIXTURE/result.json"
+  "$OUTAGE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$OUTAGE_FIXTURE/result.json"
 outage_exit=$?
 set -e
 test "$outage_exit" -eq 1
@@ -1113,7 +1113,7 @@ cp "$OUTAGE_FIXTURE/home/.agents/skills/waza/SKILL.md" "$OUTAGE_FIXTURE/codex-co
 set +e
 FAKE_CLAUDE_MARKETPLACE_FAIL=1 FAKE_PLUGIN_UPDATE_VERSION=2.0.0 PLUGIN_RETRY_DELAY_SECONDS=0 \
 HOME="$OUTAGE_FIXTURE/home" TMPDIR="$OUTAGE_FIXTURE/runtime" PATH="$OUTAGE_FIXTURE/bin:$PATH" \
-  "$OUTAGE_FIXTURE/scripts/update-skill-topology.sh" --json > "$OUTAGE_FIXTURE/copies.json"
+  "$OUTAGE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$OUTAGE_FIXTURE/copies.json"
 outage_copies_exit=$?
 set -e
 test "$outage_copies_exit" -eq 1
@@ -1139,7 +1139,7 @@ printf '{"installed":[]}\n' > "$FAILURE_FIXTURE/home/codex-plugins.json"
 set +e
 FAKE_CLAUDE_MARKETPLACE_FAIL=1 FAKE_CODEX_INSTALL_FAIL=1 PLUGIN_RETRY_DELAY_SECONDS=0 \
 HOME="$FAILURE_FIXTURE/home" TMPDIR="$FAILURE_FIXTURE/runtime" PATH="$FAILURE_FIXTURE/bin:$PATH" \
-  "$FAILURE_FIXTURE/scripts/update-skill-topology.sh" --json > "$FAILURE_FIXTURE/result.json"
+  "$FAILURE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$FAILURE_FIXTURE/result.json"
 failure_exit=$?
 set -e
 test "$failure_exit" -eq 1
@@ -1153,7 +1153,7 @@ jq -e '
 set +e
 FAKE_CLAUDE_MARKETPLACE_FAIL=1 FAKE_CODEX_INSTALL_FAIL=1 PLUGIN_RETRY_DELAY_SECONDS=0 \
 HOME="$FAILURE_FIXTURE/home" TMPDIR="$FAILURE_FIXTURE/runtime" PATH="$FAILURE_FIXTURE/bin:$PATH" \
-  "$FAILURE_FIXTURE/scripts/update-skill-topology.sh" > "$FAILURE_FIXTURE/human.out" 2> "$FAILURE_FIXTURE/human.err"
+  "$FAILURE_FIXTURE/agent-tooling/update-skill-topology.sh" > "$FAILURE_FIXTURE/human.out" 2> "$FAILURE_FIXTURE/human.err"
 failure_human_exit=$?
 set -e
 test "$failure_human_exit" -eq 1
@@ -1167,11 +1167,11 @@ jq -e '
   }] | length) == 2 and
   all(.sources[] | select(.id == "waza" or .id == "claude-mem");
     .classification == "dual-plugin" and .defaultDestinations == ["claude","codex"])
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 
 MEM_FIXTURE="$TMP_ROOT/claude-mem"
 MEM_BIN="$MEM_FIXTURE/bin"
-mkdir -p "$MEM_FIXTURE/scripts" "$MEM_FIXTURE/home/.bun/bin" "$MEM_FIXTURE/home/.local/bin" \
+mkdir -p "$MEM_FIXTURE/agent-tooling" "$MEM_FIXTURE/home/.bun/bin" "$MEM_FIXTURE/home/.local/bin" \
   "$MEM_FIXTURE/home/.claude-mem" "$MEM_FIXTURE/home/.claude/skills" "$MEM_FIXTURE/runtime" "$MEM_BIN" \
   "$MEM_FIXTURE/home/claude-marketplace/.claude-plugin" \
   "$MEM_FIXTURE/home/codex-marketplace/.agents/plugins" \
@@ -1179,13 +1179,13 @@ mkdir -p "$MEM_FIXTURE/scripts" "$MEM_FIXTURE/home/.bun/bin" "$MEM_FIXTURE/home/
   "$MEM_FIXTURE/remote-marketplace/.claude-plugin" \
   "$MEM_FIXTURE/remote-marketplace/.agents/plugins" \
   "$MEM_FIXTURE/remote-marketplace/plugin/.codex-plugin"
-cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$MEM_FIXTURE/scripts/"
-cp -R "$REPO_ROOT/scripts/distribution-topology" "$MEM_FIXTURE/scripts/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$MEM_FIXTURE/agent-tooling/"
+cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$MEM_FIXTURE/agent-tooling/"
 jq '{version, sources: [.sources[] | select(.id == "claude-mem")]}' \
-  "$REPO_ROOT/skill-topology.json" > "$MEM_FIXTURE/skill-topology.json"
+  "$REPO_ROOT/agent-tooling/skill-topology.json" > "$MEM_FIXTURE/agent-tooling/skill-topology.json"
 jq '[.[] | select(.sourceId == "claude-mem")]' \
-  "$REPO_ROOT/scripts/distribution-topology/registry.json" \
-  > "$MEM_FIXTURE/scripts/distribution-topology/registry.json"
+  "$REPO_ROOT/agent-tooling/distribution-topology/registry.json" \
+  > "$MEM_FIXTURE/agent-tooling/distribution-topology/registry.json"
 printf 'claude-skills\n' > "$MEM_FIXTURE/home/.claude/skills/.agent-scripts-root"
 printf 'shared database fixture\n' > "$MEM_FIXTURE/home/.claude-mem/database.sqlite"
 cp "$MEM_FIXTURE/home/.claude-mem/database.sqlite" "$MEM_FIXTURE/database-before"
@@ -1311,7 +1311,7 @@ MEM_VERIFY_FIXTURE="$TMP_ROOT/claude-mem-verify"
 cp -R "$MEM_FIXTURE" "$MEM_VERIFY_FIXTURE"
 
 HOME="$MEM_FIXTURE/home" TMPDIR="$MEM_FIXTURE/runtime" PATH="$MEM_BIN:$PATH" \
-  "$MEM_FIXTURE/scripts/update-skill-topology.sh" --json > "$MEM_FIXTURE/result.json"
+  "$MEM_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$MEM_FIXTURE/result.json"
 jq -e '
   .status == "reconciled" and
   (.plan[] | .sourceId == "claude-mem" and .skill == "claude-mem" and .destinations == ["claude","codex"]) and
@@ -1324,7 +1324,7 @@ cmp -s "$MEM_FIXTURE/database-before" "$MEM_FIXTURE/home/.claude-mem/database.sq
 set +e
 FAKE_MEM_NO_STATE=1 \
 HOME="$MEM_VERIFY_FIXTURE/home" TMPDIR="$MEM_VERIFY_FIXTURE/runtime" PATH="$MEM_VERIFY_FIXTURE/bin:$PATH" \
-  "$MEM_VERIFY_FIXTURE/scripts/update-skill-topology.sh" --json > "$MEM_VERIFY_FIXTURE/result.json"
+  "$MEM_VERIFY_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$MEM_VERIFY_FIXTURE/result.json"
 mem_verify_exit=$?
 set -e
 test "$mem_verify_exit" -eq 1
@@ -1360,7 +1360,7 @@ cp -R "$MISSING_RUNTIME_SKILL_FIXTURE/home" "$MISSING_RUNTIME_SKILL_FIXTURE/home
 set +e
 HOME="$MISSING_RUNTIME_SKILL_FIXTURE/home" TMPDIR="$MISSING_RUNTIME_SKILL_FIXTURE/runtime" \
 PATH="$MISSING_RUNTIME_SKILL_FIXTURE/bin:$PATH" \
-  "$MISSING_RUNTIME_SKILL_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$MISSING_RUNTIME_SKILL_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$MISSING_RUNTIME_SKILL_FIXTURE/check.json"
 missing_runtime_check_exit=$?
 set -e
@@ -1378,13 +1378,13 @@ diff -r "$MISSING_RUNTIME_SKILL_FIXTURE/home-before-check" "$MISSING_RUNTIME_SKI
 MULTI_SKILL_FIXTURE="$TMP_ROOT/multi-skill-bundle"
 cp -R "$FIXTURE" "$MULTI_SKILL_FIXTURE"
 jq '.sources[0].overrides = {"waza":["claude","codex"],"ghost-skill":["claude","codex"]}' \
-  "$MULTI_SKILL_FIXTURE/skill-topology.json" > "$MULTI_SKILL_FIXTURE/manifest.tmp"
-mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/skill-topology.json"
+  "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json" > "$MULTI_SKILL_FIXTURE/manifest.tmp"
+mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json"
 jq '.[0].plugin.skills = ["waza","ghost-skill"]' \
-  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json" \
+  "$MULTI_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$MULTI_SKILL_FIXTURE/registry.tmp"
 mv "$MULTI_SKILL_FIXTURE/registry.tmp" \
-  "$MULTI_SKILL_FIXTURE/scripts/distribution-topology/registry.json"
+  "$MULTI_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json"
 # Keep real component skill "think" so bundle identity "waza" still resolves;
 # ghost-skill is absent from both install roots.
 mkdir -p "$MULTI_SKILL_FIXTURE/home/plugin-roots/claude/waza/skills/think" \
@@ -1409,7 +1409,7 @@ mv "$MULTI_SKILL_FIXTURE/codex-plugins.tmp" "$MULTI_SKILL_FIXTURE/home/codex-plu
 set +e
 HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
 PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
-  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$MULTI_SKILL_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$MULTI_SKILL_FIXTURE/check.json"
 multi_skill_exit=$?
 set -e
@@ -1435,7 +1435,7 @@ test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill/SKILL.md"
 set +e
 HOME="$MULTI_SKILL_FIXTURE/home" TMPDIR="$MULTI_SKILL_FIXTURE/runtime" \
 PATH="$MULTI_SKILL_FIXTURE/bin:$PATH" \
-  "$MULTI_SKILL_FIXTURE/scripts/update-skill-topology.sh" --json \
+  "$MULTI_SKILL_FIXTURE/agent-tooling/update-skill-topology.sh" --json \
   > "$MULTI_SKILL_FIXTURE/reconcile.json"
 multi_skill_reconcile_exit=$?
 set -e
@@ -1464,13 +1464,13 @@ test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill/SKILL.md"
 COMPONENT_SKILL_FIXTURE="$TMP_ROOT/component-skill"
 cp -R "$FIXTURE" "$COMPONENT_SKILL_FIXTURE"
 jq '.sources[0].overrides = {"think":["claude","codex"]}' \
-  "$COMPONENT_SKILL_FIXTURE/skill-topology.json" > "$COMPONENT_SKILL_FIXTURE/manifest.tmp"
-mv "$COMPONENT_SKILL_FIXTURE/manifest.tmp" "$COMPONENT_SKILL_FIXTURE/skill-topology.json"
+  "$COMPONENT_SKILL_FIXTURE/agent-tooling/skill-topology.json" > "$COMPONENT_SKILL_FIXTURE/manifest.tmp"
+mv "$COMPONENT_SKILL_FIXTURE/manifest.tmp" "$COMPONENT_SKILL_FIXTURE/agent-tooling/skill-topology.json"
 jq '.[0].plugin.skills = ["think"]' \
-  "$COMPONENT_SKILL_FIXTURE/scripts/distribution-topology/registry.json" \
+  "$COMPONENT_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$COMPONENT_SKILL_FIXTURE/registry.tmp"
 mv "$COMPONENT_SKILL_FIXTURE/registry.tmp" \
-  "$COMPONENT_SKILL_FIXTURE/scripts/distribution-topology/registry.json"
+  "$COMPONENT_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json"
 jq --arg path "$COMPONENT_SKILL_FIXTURE/home/plugin-roots/claude/waza" \
   'map(if .id == "waza@waza" then .installPath = $path else . end)' \
   "$COMPONENT_SKILL_FIXTURE/home/claude-plugins.json" > "$COMPONENT_SKILL_FIXTURE/claude-plugins.tmp"
@@ -1481,7 +1481,7 @@ jq --arg path "$COMPONENT_SKILL_FIXTURE/home/plugin-roots/codex/waza" \
 mv "$COMPONENT_SKILL_FIXTURE/codex-plugins.tmp" "$COMPONENT_SKILL_FIXTURE/home/codex-plugins.json"
 HOME="$COMPONENT_SKILL_FIXTURE/home" TMPDIR="$COMPONENT_SKILL_FIXTURE/runtime" \
 PATH="$COMPONENT_SKILL_FIXTURE/bin:$PATH" \
-  "$COMPONENT_SKILL_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$COMPONENT_SKILL_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$COMPONENT_SKILL_FIXTURE/check.json"
 jq -e '
   .status == "clean" and
@@ -1495,10 +1495,10 @@ jq -e '
 DIFFERENT_IDENTIFIERS_FIXTURE="$TMP_ROOT/different-identifiers"
 cp -R "$FIXTURE" "$DIFFERENT_IDENTIFIERS_FIXTURE"
 jq '.[0].plugin.identifiers = {claude:"waza-claude",codex:"waza-codex"}' \
-  "$DIFFERENT_IDENTIFIERS_FIXTURE/scripts/distribution-topology/registry.json" \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$DIFFERENT_IDENTIFIERS_FIXTURE/registry.tmp"
 mv "$DIFFERENT_IDENTIFIERS_FIXTURE/registry.tmp" \
-  "$DIFFERENT_IDENTIFIERS_FIXTURE/scripts/distribution-topology/registry.json"
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/agent-tooling/distribution-topology/registry.json"
 perl -pi -e 's/waza\@waza/waza-claude\@waza/g' "$DIFFERENT_IDENTIFIERS_FIXTURE/bin/claude"
 perl -pi -e 's/waza\@waza/waza-claude\@waza/g' \
   "$DIFFERENT_IDENTIFIERS_FIXTURE/home/claude-plugins.json" \
@@ -1508,7 +1508,7 @@ perl -pi -e 's/waza\@waza/waza-codex\@waza/g' \
   "$DIFFERENT_IDENTIFIERS_FIXTURE/home/codex-plugins.json"
 HOME="$DIFFERENT_IDENTIFIERS_FIXTURE/home" TMPDIR="$DIFFERENT_IDENTIFIERS_FIXTURE/runtime" \
 PATH="$DIFFERENT_IDENTIFIERS_FIXTURE/bin:$PATH" \
-  "$DIFFERENT_IDENTIFIERS_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$DIFFERENT_IDENTIFIERS_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$DIFFERENT_IDENTIFIERS_FIXTURE/check.json"
 jq -e '.status == "clean" and .errors == []' \
   "$DIFFERENT_IDENTIFIERS_FIXTURE/check.json" >/dev/null
@@ -1520,7 +1520,7 @@ rm -rf "$NO_INSTALL_PATH_FIXTURE/home/plugin-roots"
 set +e
 HOME="$NO_INSTALL_PATH_FIXTURE/home" TMPDIR="$NO_INSTALL_PATH_FIXTURE/runtime" \
 PATH="$NO_INSTALL_PATH_FIXTURE/bin:$PATH" \
-  "$NO_INSTALL_PATH_FIXTURE/scripts/update-skill-topology.sh" --check --json \
+  "$NO_INSTALL_PATH_FIXTURE/agent-tooling/update-skill-topology.sh" --check --json \
   > "$NO_INSTALL_PATH_FIXTURE/check.json"
 no_path_exit=$?
 set -e

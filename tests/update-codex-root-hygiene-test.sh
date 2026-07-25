@@ -11,19 +11,19 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 make_fixture() { # fixture_root
   local fixture_root="$1"
   mkdir -p \
-    "$fixture_root/scripts" \
+    "$fixture_root/agent-tooling" \
     "$fixture_root/skills/fixture-skill" \
     "$fixture_root/home/.agents/skills" \
     "$fixture_root/home/.claude/skills" \
     "$fixture_root/runtime"
-  cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture_root/scripts/"
-  cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture_root/scripts/"
+  cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture_root/agent-tooling/"
+  cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$fixture_root/agent-tooling/"
   jq '[.[] | select(.sourceId == "repo-claude")]' \
-    "$fixture_root/scripts/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
-  mv "$fixture_root/registry.tmp" "$fixture_root/scripts/distribution-topology/registry.json"
+    "$fixture_root/agent-tooling/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
+  mv "$fixture_root/registry.tmp" "$fixture_root/agent-tooling/distribution-topology/registry.json"
   printf '%s\n' '---' 'name: fixture-skill' 'description: "fixture"' '---' > "$fixture_root/skills/fixture-skill/SKILL.md"
   printf 'claude-skills\n' > "$fixture_root/home/.claude/skills/.agent-scripts-root"
-  cat > "$fixture_root/skill-topology.json" <<'JSON'
+  cat > "$fixture_root/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -48,7 +48,7 @@ run_topology() { # fixture_root mode output
   HOME="$fixture_root/home" \
   TMPDIR="$fixture_root/runtime" \
   AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260714-120000 \
-    "$fixture_root/scripts/update-skill-topology.sh" $mode --json > "$output"
+    "$fixture_root/agent-tooling/update-skill-topology.sh" $mode --json > "$output"
   RUN_EXIT=$?
   set -e
 }
@@ -150,7 +150,7 @@ HOME="$BLOCKED/home" \
 TMPDIR="$BLOCKED/runtime" \
 PATH="$BLOCKED/failbin:$PATH" \
 AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260714-120000 \
-  "$BLOCKED/scripts/update-skill-topology.sh" --json > "$BLOCKED/failed.json"
+  "$BLOCKED/agent-tooling/update-skill-topology.sh" --json > "$BLOCKED/failed.json"
 blocked_exit=$?
 set -e
 test "$blocked_exit" -eq 1

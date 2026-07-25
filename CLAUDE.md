@@ -18,9 +18,9 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/do
 
 ## Plugin & skill update rules
 
-Root policy: each CLI reads exactly one skills root. Claude Code reads only `~/.claude/skills`; Codex reads only `~/.agents/skills`. `scripts/update-skill-topology.sh` reconciles both roots as marker-owned, matrix-selected per-skill copies. Never create a whole-tree skills symlink or a `~/.codex/skills` symlink.
+Root policy: each CLI reads exactly one skills root. Claude Code reads only `~/.claude/skills`; Codex reads only `~/.agents/skills`. `agent-tooling/update-skill-topology.sh` reconciles both roots as marker-owned, matrix-selected per-skill copies. Never create a whole-tree skills symlink or a `~/.codex/skills` symlink.
 
-Destination principle: every `Type: skill` row in `docs/skills-matrix.md` independently selects Claude and Codex copies; reconciliation generates its marked `skill-topology.json` overrides. `Type: plugin` rows are report-only. Repo-owned skills live under `skills/` or `codex-skills/`; foreign skill inventories stage under `other-skills/` before selection.
+Destination principle: every `Type: skill` row in `agent-tooling/skills-matrix.md` independently selects Claude and Codex copies; reconciliation generates its marked `agent-tooling/skill-topology.json` overrides. `Type: plugin` rows are report-only. Repo-owned skills live under `skills/` or `codex-skills/`; foreign skill inventories stage under `other-skills/` before selection.
 
 1. Ships both Claude Code and Codex plugins (claude-mem, Waza) → each CLI's native plugin marketplace commands; no entries in `skills/`.
 2. Ships a Claude Code plugin but no Codex plugin (visual-explainer) → Claude via plugin; Codex via the project's npx installer if it has one, otherwise clone under `~/Projects` and rsync a copy into `~/.agents/skills`; no entries in `skills/`.

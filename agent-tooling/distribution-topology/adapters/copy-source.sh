@@ -9,7 +9,7 @@ plan_path="${5:-}"
 home="${6:?home required}"
 mode="${7:-reconcile}"
 
-source "$repo_root/scripts/lib-copies.sh"
+source "$repo_root/agent-tooling/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
 source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 

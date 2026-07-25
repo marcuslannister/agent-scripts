@@ -27,4 +27,4 @@ jobs:
           npm ci --prefix skills/video-transcript-downloader
 
       - name: Verify
-        run: scripts/verify.sh
+        run: agent-tooling/verify.sh

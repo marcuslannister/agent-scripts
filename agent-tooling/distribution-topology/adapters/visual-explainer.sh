@@ -10,7 +10,7 @@ home="${6:?home required}"
 mode="${7:-reconcile}"
 
 [ "$source_id" = visual-explainer ] || { printf 'unknown visual source: %s\n' "$source_id" >&2; exit 1; }
-source "$repo_root/scripts/lib-copies.sh"
+source "$repo_root/agent-tooling/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
 
 repo_url="https://github.com/nicobailon/visual-explainer.git"

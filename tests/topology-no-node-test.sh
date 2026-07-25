@@ -27,7 +27,7 @@ if PATH="$TMP_ROOT/bin" command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-PATH="$TMP_ROOT/bin" "$REPO_ROOT/scripts/update-skill-topology.sh" --help >/dev/null
+PATH="$TMP_ROOT/bin" "$REPO_ROOT/agent-tooling/update-skill-topology.sh" --help >/dev/null
 
 for test_file in \
   topology-cutover-policy-test.sh \

@@ -10,7 +10,7 @@ home="${6:?home required}"
 
 [ "$source_id" = matt-skills ] || { printf 'unknown npx source: %s\n' "$source_id" >&2; exit 1; }
 
-source "$repo_root/scripts/lib-copies.sh"
+source "$repo_root/agent-tooling/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
 source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 

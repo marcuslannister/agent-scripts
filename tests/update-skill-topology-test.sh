@@ -2,12 +2,12 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMMAND="$REPO_ROOT/scripts/update-skill-topology.sh"
+COMMAND="$REPO_ROOT/agent-tooling/update-skill-topology.sh"
 TMP_ROOT="$(mktemp -d)"
 REAL_JQ="$(command -v jq)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-source "$REPO_ROOT/scripts/lib-copies.sh"
+source "$REPO_ROOT/agent-tooling/lib-copies.sh"
 
 install_repo_copy() {
   local destination="$1"
@@ -35,29 +35,29 @@ test ! -e "$REPO_ROOT/codex-skills/maintainer-orchestrator"
 jq -e '
   (.sources[] | select(.id == "repo-claude") |
     .defaultDestinations == ["claude"] and
-    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesStart == "generated from agent-tooling/skills-matrix.md" and
     .matrixOverridesEnd == "end generated overrides" and
     .overrides["create-cli"] == ["claude", "codex"] and
     .overrides["codex-first"] == ["claude"] and
     .overrides["maintainer-orchestrator"] == ["claude"]) and
   (.sources[] | select(.id == "repo-codex") |
     .defaultDestinations == ["codex"] and .overrides == {} and
-    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesStart == "generated from agent-tooling/skills-matrix.md" and
     .matrixOverridesEnd == "end generated overrides") and
   (.sources[] | select(.id == "anthropic-skills") |
     .classification == "source-only" and
     .defaultDestinations == ["claude", "codex"] and
-    .matrixOverridesStart == "generated from docs/skills-matrix.md" and
+    .matrixOverridesStart == "generated from agent-tooling/skills-matrix.md" and
     .matrixOverridesEnd == "end generated overrides" and
     .overrides["docx"] == ["claude", "codex"] and
     .overrides["skill-creator"] == ["codex"] and
     .overrides["xlsx"] == ["claude", "codex"])
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 
 make_fixture() {
   local fixture_root="$1"
   mkdir -p \
-    "$fixture_root/scripts" \
+    "$fixture_root/agent-tooling" \
     "$fixture_root/skills/new-skill" \
     "$fixture_root/skills/shared-skill" \
     "$fixture_root/codex-skills/codex-tool" \
@@ -65,11 +65,11 @@ make_fixture() {
     "$fixture_root/home/.agents/skills/codex-tool" \
     "$fixture_root/home/.claude/skills" \
     "$fixture_root/runtime"
-  cp "$COMMAND" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture_root/scripts/"
-  cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture_root/scripts/"
+  cp "$COMMAND" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture_root/agent-tooling/"
+  cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$fixture_root/agent-tooling/"
   jq '[.[] | select(.sourceId == "repo-claude" or .sourceId == "repo-codex")]' \
-    "$fixture_root/scripts/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
-  mv "$fixture_root/registry.tmp" "$fixture_root/scripts/distribution-topology/registry.json"
+    "$fixture_root/agent-tooling/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
+  mv "$fixture_root/registry.tmp" "$fixture_root/agent-tooling/distribution-topology/registry.json"
   printf '%s\n' '---' 'name: new-skill' 'description: "fixture"' '---' > "$fixture_root/skills/new-skill/SKILL.md"
   printf '%s\n' '---' 'name: shared-skill' 'description: "fixture"' '---' > "$fixture_root/skills/shared-skill/SKILL.md"
   printf '%s\n' '---' 'name: codex-tool' 'description: "fixture"' '---' > "$fixture_root/codex-skills/codex-tool/SKILL.md"
@@ -78,7 +78,7 @@ make_fixture() {
   install_repo_copy "$fixture_root/home/.claude/skills/new-skill" "$fixture_root/skills/new-skill" "skills/new-skill"
   install_repo_copy "$fixture_root/home/.claude/skills/shared-skill" "$fixture_root/skills/shared-skill" "skills/shared-skill"
   printf 'claude-skills\n' > "$fixture_root/home/.claude/skills/.agent-scripts-root"
-  cat > "$fixture_root/skill-topology.json" <<'JSON'
+  cat > "$fixture_root/agent-tooling/skill-topology.json" <<'JSON'
 {
   "version": 1,
   "sources": [
@@ -105,7 +105,7 @@ JSON
 
 FIXTURE_BASE="$TMP_ROOT/fixture-base"
 make_fixture "$FIXTURE_BASE"
-HOME="$FIXTURE_BASE/home" TMPDIR="$FIXTURE_BASE/runtime" "$FIXTURE_BASE/scripts/update-skill-topology.sh" --check --json > "$TMP_ROOT/fixture-clean.json"
+HOME="$FIXTURE_BASE/home" TMPDIR="$FIXTURE_BASE/runtime" "$FIXTURE_BASE/agent-tooling/update-skill-topology.sh" --check --json > "$TMP_ROOT/fixture-clean.json"
 jq -e '
   .status == "clean" and
   (.plan[] | select(.skill == "new-skill") | .destinations == ["claude"]) and
@@ -120,7 +120,7 @@ rm -rf "$LEGACY_ROOT/home/.claude/skills"
 ln -s "$LEGACY_ROOT/skills" "$LEGACY_ROOT/home/.claude/skills"
 set +e
 HOME="$LEGACY_ROOT/home" TMPDIR="$LEGACY_ROOT/runtime" \
-  "$LEGACY_ROOT/scripts/update-skill-topology.sh" --check --json > "$LEGACY_ROOT/check.json"
+  "$LEGACY_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$LEGACY_ROOT/check.json"
 legacy_check_exit=$?
 set -e
 test "$legacy_check_exit" -eq 1
@@ -131,7 +131,7 @@ jq -e '
   ([.changes[] | select(.action == "installed" and .destination == "claude") | .skill] == ["new-skill", "shared-skill"])
 ' "$LEGACY_ROOT/check.json" >/dev/null
 HOME="$LEGACY_ROOT/home" TMPDIR="$LEGACY_ROOT/runtime" \
-  "$LEGACY_ROOT/scripts/update-skill-topology.sh" --json > "$LEGACY_ROOT/first.json"
+  "$LEGACY_ROOT/agent-tooling/update-skill-topology.sh" --json > "$LEGACY_ROOT/first.json"
 test -d "$LEGACY_ROOT/home/.claude/skills"
 test ! -L "$LEGACY_ROOT/home/.claude/skills"
 test "$(cat "$LEGACY_ROOT/home/.claude/skills/.agent-scripts-root")" = claude-skills
@@ -145,7 +145,7 @@ jq -e '.status == "reconciled" and .claudeRoot.state == "managed" and .claudeRoo
   "$LEGACY_ROOT/first.json" >/dev/null
 cp -R "$LEGACY_ROOT/home" "$LEGACY_ROOT/home-after-first"
 HOME="$LEGACY_ROOT/home" TMPDIR="$LEGACY_ROOT/runtime" \
-  "$LEGACY_ROOT/scripts/update-skill-topology.sh" --json > "$LEGACY_ROOT/second.json"
+  "$LEGACY_ROOT/agent-tooling/update-skill-topology.sh" --json > "$LEGACY_ROOT/second.json"
 jq -e '.status == "reconciled" and .changes == [] and .claudeRoot.state == "managed" and .claudeRoot.action == "none"' \
   "$LEGACY_ROOT/second.json" >/dev/null
 diff -r "$LEGACY_ROOT/home-after-first" "$LEGACY_ROOT/home"
@@ -157,11 +157,11 @@ ln -s "$ROOT_ONLY/skills" "$ROOT_ONLY/home/.claude/skills"
 jq '(.sources[] | select(.id == "repo-claude") | .overrides) = {
   "new-skill": [], "shared-skill": ["codex"]
 }' \
-  "$ROOT_ONLY/skill-topology.json" > "$ROOT_ONLY/manifest.tmp"
-mv "$ROOT_ONLY/manifest.tmp" "$ROOT_ONLY/skill-topology.json"
+  "$ROOT_ONLY/agent-tooling/skill-topology.json" > "$ROOT_ONLY/manifest.tmp"
+mv "$ROOT_ONLY/manifest.tmp" "$ROOT_ONLY/agent-tooling/skill-topology.json"
 set +e
 HOME="$ROOT_ONLY/home" TMPDIR="$ROOT_ONLY/runtime" \
-  "$ROOT_ONLY/scripts/update-skill-topology.sh" --check --json > "$ROOT_ONLY/check.json"
+  "$ROOT_ONLY/agent-tooling/update-skill-topology.sh" --check --json > "$ROOT_ONLY/check.json"
 root_only_check_exit=$?
 set -e
 test "$root_only_check_exit" -eq 1
@@ -172,7 +172,7 @@ jq -e '
   .changes == [{action:"root-migrated",sourceId:"topology",skill:"claude-root",destination:"claude"}]
 ' "$ROOT_ONLY/check.json" >/dev/null
 HOME="$ROOT_ONLY/home" TMPDIR="$ROOT_ONLY/runtime" \
-  "$ROOT_ONLY/scripts/update-skill-topology.sh" --json > "$ROOT_ONLY/result.json"
+  "$ROOT_ONLY/agent-tooling/update-skill-topology.sh" --json > "$ROOT_ONLY/result.json"
 test -d "$ROOT_ONLY/home/.claude/skills"
 test ! -L "$ROOT_ONLY/home/.claude/skills"
 jq -e '
@@ -189,11 +189,11 @@ assert_unsafe_claude_root() {
     empty) mkdir -p "$fixture_root/home/.claude/skills" ;;
     foreign-symlink) ln -s "$fixture_root/codex-skills" "$fixture_root/home/.claude/skills" ;;
   esac
-  chmod 000 "$fixture_root/scripts/distribution-topology/adapters/repo-owned.sh"
+  chmod 000 "$fixture_root/agent-tooling/distribution-topology/adapters/repo-owned.sh"
   cp -R "$fixture_root/home" "$fixture_root/home-before"
   set +e
   HOME="$fixture_root/home" TMPDIR="$fixture_root/runtime" \
-    "$fixture_root/scripts/update-skill-topology.sh" --json > "$fixture_root/result.json"
+    "$fixture_root/agent-tooling/update-skill-topology.sh" --json > "$fixture_root/result.json"
   local unsafe_exit=$?
   set -e
   test "$unsafe_exit" -eq 1
@@ -210,10 +210,10 @@ assert_unsafe_claude_root foreign-symlink
 
 CLAUDE_REMOVE_ROOT="$TMP_ROOT/claude-remove"
 cp -R "$FIXTURE_BASE" "$CLAUDE_REMOVE_ROOT"
-jq '.sources[0].overrides["new-skill"] = []' "$CLAUDE_REMOVE_ROOT/skill-topology.json" > "$CLAUDE_REMOVE_ROOT/manifest.tmp"
-mv "$CLAUDE_REMOVE_ROOT/manifest.tmp" "$CLAUDE_REMOVE_ROOT/skill-topology.json"
+jq '.sources[0].overrides["new-skill"] = []' "$CLAUDE_REMOVE_ROOT/agent-tooling/skill-topology.json" > "$CLAUDE_REMOVE_ROOT/manifest.tmp"
+mv "$CLAUDE_REMOVE_ROOT/manifest.tmp" "$CLAUDE_REMOVE_ROOT/agent-tooling/skill-topology.json"
 HOME="$CLAUDE_REMOVE_ROOT/home" TMPDIR="$CLAUDE_REMOVE_ROOT/runtime" \
-  "$CLAUDE_REMOVE_ROOT/scripts/update-skill-topology.sh" --json > "$CLAUDE_REMOVE_ROOT/result.json"
+  "$CLAUDE_REMOVE_ROOT/agent-tooling/update-skill-topology.sh" --json > "$CLAUDE_REMOVE_ROOT/result.json"
 test ! -e "$CLAUDE_REMOVE_ROOT/home/.claude/skills/new-skill"
 jq -e '.status == "reconciled" and (.changes[] | .action == "removed" and .skill == "new-skill" and .destination == "claude")' \
   "$CLAUDE_REMOVE_ROOT/result.json" >/dev/null
@@ -221,10 +221,10 @@ jq -e '.status == "reconciled" and (.changes[] | .action == "removed" and .skill
 CLAUDE_UNOWNED_ROOT="$TMP_ROOT/claude-unowned-remove"
 cp -R "$FIXTURE_BASE" "$CLAUDE_UNOWNED_ROOT"
 printf '%s\n%s\n' skills/new-skill other-owner > "$CLAUDE_UNOWNED_ROOT/home/.claude/skills/new-skill/.agent-scripts-copy"
-jq '.sources[0].overrides["new-skill"] = []' "$CLAUDE_UNOWNED_ROOT/skill-topology.json" > "$CLAUDE_UNOWNED_ROOT/manifest.tmp"
-mv "$CLAUDE_UNOWNED_ROOT/manifest.tmp" "$CLAUDE_UNOWNED_ROOT/skill-topology.json"
+jq '.sources[0].overrides["new-skill"] = []' "$CLAUDE_UNOWNED_ROOT/agent-tooling/skill-topology.json" > "$CLAUDE_UNOWNED_ROOT/manifest.tmp"
+mv "$CLAUDE_UNOWNED_ROOT/manifest.tmp" "$CLAUDE_UNOWNED_ROOT/agent-tooling/skill-topology.json"
 HOME="$CLAUDE_UNOWNED_ROOT/home" TMPDIR="$CLAUDE_UNOWNED_ROOT/runtime" \
-  "$CLAUDE_UNOWNED_ROOT/scripts/update-skill-topology.sh" --json > "$CLAUDE_UNOWNED_ROOT/result.json"
+  "$CLAUDE_UNOWNED_ROOT/agent-tooling/update-skill-topology.sh" --json > "$CLAUDE_UNOWNED_ROOT/result.json"
 test -f "$CLAUDE_UNOWNED_ROOT/home/.claude/skills/new-skill/SKILL.md"
 jq -e '.status == "reconciled" and .changes == [] and (.skipped[] | .skill == "new-skill" and .destination == "claude" and .reason == "other-owner")' \
   "$CLAUDE_UNOWNED_ROOT/result.json" >/dev/null
@@ -234,7 +234,7 @@ cp -R "$FIXTURE_BASE" "$CLAUDE_DRIFT_ROOT"
 printf 'source advanced\n' >> "$CLAUDE_DRIFT_ROOT/skills/new-skill/SKILL.md"
 set +e
 HOME="$CLAUDE_DRIFT_ROOT/home" TMPDIR="$CLAUDE_DRIFT_ROOT/runtime" \
-  "$CLAUDE_DRIFT_ROOT/scripts/update-skill-topology.sh" --check --json > "$CLAUDE_DRIFT_ROOT/result.json"
+  "$CLAUDE_DRIFT_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$CLAUDE_DRIFT_ROOT/result.json"
 claude_drift_exit=$?
 set -e
 test "$claude_drift_exit" -eq 1
@@ -263,13 +263,13 @@ fi
 BASH
 chmod +x "$CRLF_JQ_ROOT/bin/jq"
 PATH="$CRLF_JQ_ROOT/bin:$PATH" HOME="$CRLF_JQ_ROOT/home" TMPDIR="$CRLF_JQ_ROOT/runtime" \
-  "$CRLF_JQ_ROOT/scripts/update-skill-topology.sh" --check --json > "$CRLF_JQ_ROOT/result.json"
+  "$CRLF_JQ_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$CRLF_JQ_ROOT/result.json"
 jq -e '.status == "clean"' "$CRLF_JQ_ROOT/result.json" >/dev/null
 
 RECONCILE_ROOT="$TMP_ROOT/reconcile"
 cp -R "$FIXTURE_BASE" "$RECONCILE_ROOT"
 rm -rf "$RECONCILE_ROOT/home/.agents/skills/shared-skill" "$RECONCILE_ROOT/home/.agents/skills/codex-tool"
-if ! HOME="$RECONCILE_ROOT/home" TMPDIR="$RECONCILE_ROOT/runtime" "$RECONCILE_ROOT/scripts/update-skill-topology.sh" --json > "$RECONCILE_ROOT/first.json"; then
+if ! HOME="$RECONCILE_ROOT/home" TMPDIR="$RECONCILE_ROOT/runtime" "$RECONCILE_ROOT/agent-tooling/update-skill-topology.sh" --json > "$RECONCILE_ROOT/first.json"; then
   cat "$RECONCILE_ROOT/first.json" >&2
   exit 1
 fi
@@ -283,7 +283,7 @@ jq -e '
   .errors == []
 ' "$RECONCILE_ROOT/first.json" >/dev/null
 cp -R "$RECONCILE_ROOT/home" "$RECONCILE_ROOT/home-after-first"
-HOME="$RECONCILE_ROOT/home" TMPDIR="$RECONCILE_ROOT/runtime" "$RECONCILE_ROOT/scripts/update-skill-topology.sh" --json > "$RECONCILE_ROOT/second.json"
+HOME="$RECONCILE_ROOT/home" TMPDIR="$RECONCILE_ROOT/runtime" "$RECONCILE_ROOT/agent-tooling/update-skill-topology.sh" --json > "$RECONCILE_ROOT/second.json"
 jq -e '.mode == "reconcile" and .status == "reconciled" and .changes == [] and .errors == []' "$RECONCILE_ROOT/second.json" >/dev/null
 diff -r "$RECONCILE_ROOT/home-after-first" "$RECONCILE_ROOT/home"
 
@@ -303,7 +303,7 @@ printf '%s\n%s\n' skills/foreign-skill other-owner > "$CLEANUP_ROOT/home/.agents
 printf '%s\n' '---' 'name: retired-skill' 'description: "fixture"' '---' > "$CLEANUP_ROOT/home/.agents/skills/retired-skill/SKILL.md"
 printf '%s\n%s\n' skills/retired-skill repo-skills > "$CLEANUP_ROOT/home/.agents/skills/retired-skill/.agent-scripts-copy"
 
-HOME="$CLEANUP_ROOT/home" TMPDIR="$CLEANUP_ROOT/runtime" "$CLEANUP_ROOT/scripts/update-skill-topology.sh" --json > "$CLEANUP_ROOT/result.json"
+HOME="$CLEANUP_ROOT/home" TMPDIR="$CLEANUP_ROOT/runtime" "$CLEANUP_ROOT/agent-tooling/update-skill-topology.sh" --json > "$CLEANUP_ROOT/result.json"
 jq -e '
   .status == "reconciled" and
   ([.changes[] | select(.action == "removed") | .skill] == ["new-skill", "retired-skill"]) and
@@ -325,19 +325,19 @@ cp -R "$FIXTURE_BASE" "$SOURCE_MOVE_ROOT"
 source_move_hash="$(sed -n '3p' "$SOURCE_MOVE_ROOT/home/.agents/skills/codex-tool/.agent-scripts-copy")"
 printf '%s\n%s\n%s\n' skills/codex-tool repo-skills "$source_move_hash" > "$SOURCE_MOVE_ROOT/home/.agents/skills/codex-tool/.agent-scripts-copy"
 set +e
-HOME="$SOURCE_MOVE_ROOT/home" TMPDIR="$SOURCE_MOVE_ROOT/runtime" "$SOURCE_MOVE_ROOT/scripts/update-skill-topology.sh" --check --json > "$SOURCE_MOVE_ROOT/check.json"
+HOME="$SOURCE_MOVE_ROOT/home" TMPDIR="$SOURCE_MOVE_ROOT/runtime" "$SOURCE_MOVE_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$SOURCE_MOVE_ROOT/check.json"
 source_move_check_exit=$?
 set -e
 test "$source_move_check_exit" -eq 1
 jq -e '.status == "drift" and (.drift[] | .sourceId == "repo-codex" and .skill == "codex-tool" and .reason == "source-mismatch")' "$SOURCE_MOVE_ROOT/check.json" >/dev/null
-HOME="$SOURCE_MOVE_ROOT/home" TMPDIR="$SOURCE_MOVE_ROOT/runtime" "$SOURCE_MOVE_ROOT/scripts/update-skill-topology.sh" --json > "$SOURCE_MOVE_ROOT/reconcile.json"
+HOME="$SOURCE_MOVE_ROOT/home" TMPDIR="$SOURCE_MOVE_ROOT/runtime" "$SOURCE_MOVE_ROOT/agent-tooling/update-skill-topology.sh" --json > "$SOURCE_MOVE_ROOT/reconcile.json"
 jq -e '.status == "reconciled" and (.changes[] | .action == "installed" and .sourceId == "repo-codex" and .skill == "codex-tool")' "$SOURCE_MOVE_ROOT/reconcile.json" >/dev/null
 test "$(cd "$(sed -n '1p' "$SOURCE_MOVE_ROOT/home/.agents/skills/codex-tool/.agent-scripts-copy")" && pwd -P)" = "$(cd "$SOURCE_MOVE_ROOT/codex-skills/codex-tool" && pwd -P)"
 
 HUMAN_CLEANUP_ROOT="$TMP_ROOT/human-cleanup"
 cp -R "$FIXTURE_BASE" "$HUMAN_CLEANUP_ROOT"
 install_repo_copy "$HUMAN_CLEANUP_ROOT/home/.agents/skills/new-skill" "$HUMAN_CLEANUP_ROOT/skills/new-skill" "skills/new-skill"
-HOME="$HUMAN_CLEANUP_ROOT/home" TMPDIR="$HUMAN_CLEANUP_ROOT/runtime" "$HUMAN_CLEANUP_ROOT/scripts/update-skill-topology.sh" > "$HUMAN_CLEANUP_ROOT/result.out" 2> "$HUMAN_CLEANUP_ROOT/result.err"
+HOME="$HUMAN_CLEANUP_ROOT/home" TMPDIR="$HUMAN_CLEANUP_ROOT/runtime" "$HUMAN_CLEANUP_ROOT/agent-tooling/update-skill-topology.sh" > "$HUMAN_CLEANUP_ROOT/result.out" 2> "$HUMAN_CLEANUP_ROOT/result.err"
 test ! -s "$HUMAN_CLEANUP_ROOT/result.err"
 grep -F 'Skill topology reconcile' "$HUMAN_CLEANUP_ROOT/result.out" >/dev/null
 grep -Eq '^SOURCE +DESTINATION +CHANGE +RESULT$' "$HUMAN_CLEANUP_ROOT/result.out"
@@ -350,7 +350,7 @@ mkdir -p "$SPLIT_OWNER_ROOT/codex-skills/new-skill" "$SPLIT_OWNER_ROOT/home/.age
 cp "$SPLIT_OWNER_ROOT/skills/new-skill/SKILL.md" "$SPLIT_OWNER_ROOT/codex-skills/new-skill/SKILL.md"
 git -C "$SPLIT_OWNER_ROOT" add codex-skills/new-skill/SKILL.md
 install_repo_copy "$SPLIT_OWNER_ROOT/home/.agents/skills/new-skill" "$SPLIT_OWNER_ROOT/codex-skills/new-skill" "codex-skills/new-skill"
-HOME="$SPLIT_OWNER_ROOT/home" TMPDIR="$SPLIT_OWNER_ROOT/runtime" "$SPLIT_OWNER_ROOT/scripts/update-skill-topology.sh" --check --json > "$SPLIT_OWNER_ROOT/result.json"
+HOME="$SPLIT_OWNER_ROOT/home" TMPDIR="$SPLIT_OWNER_ROOT/runtime" "$SPLIT_OWNER_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$SPLIT_OWNER_ROOT/result.json"
 jq -e '
   .status == "clean" and
   ([.plan[] | select(.skill == "new-skill") | {sourceId, destinations}] == [
@@ -363,7 +363,7 @@ FOREIGN_ROOT="$TMP_ROOT/foreign-owner"
 cp -R "$FIXTURE_BASE" "$FOREIGN_ROOT"
 printf '%s\n%s\n' "$FOREIGN_ROOT/skills/shared-skill" other-owner > "$FOREIGN_ROOT/home/.agents/skills/shared-skill/.agent-scripts-copy"
 set +e
-HOME="$FOREIGN_ROOT/home" TMPDIR="$FOREIGN_ROOT/runtime" "$FOREIGN_ROOT/scripts/update-skill-topology.sh" --check --json > "$FOREIGN_ROOT/result.json" 2> "$FOREIGN_ROOT/result.err"
+HOME="$FOREIGN_ROOT/home" TMPDIR="$FOREIGN_ROOT/runtime" "$FOREIGN_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$FOREIGN_ROOT/result.json" 2> "$FOREIGN_ROOT/result.err"
 foreign_exit=$?
 set -e
 test "$foreign_exit" -eq 3
@@ -374,7 +374,7 @@ TAMPER_ROOT="$TMP_ROOT/tampered-copy"
 cp -R "$FIXTURE_BASE" "$TAMPER_ROOT"
 printf 'tampered\n' >> "$TAMPER_ROOT/home/.agents/skills/shared-skill/SKILL.md"
 set +e
-HOME="$TAMPER_ROOT/home" TMPDIR="$TAMPER_ROOT/runtime" "$TAMPER_ROOT/scripts/update-skill-topology.sh" --check --json > "$TAMPER_ROOT/result.json" 2> "$TAMPER_ROOT/result.err"
+HOME="$TAMPER_ROOT/home" TMPDIR="$TAMPER_ROOT/runtime" "$TAMPER_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$TAMPER_ROOT/result.json" 2> "$TAMPER_ROOT/result.err"
 tamper_exit=$?
 set -e
 test "$tamper_exit" -eq 1
@@ -388,7 +388,7 @@ chmod 000 \
   "$VERIFY_AGGREGATE_ROOT/home/.agents/skills/codex-tool/SKILL.md"
 set +e
 HOME="$VERIFY_AGGREGATE_ROOT/home" TMPDIR="$VERIFY_AGGREGATE_ROOT/runtime" \
-  "$VERIFY_AGGREGATE_ROOT/scripts/update-skill-topology.sh" --check --json > "$VERIFY_AGGREGATE_ROOT/result.json"
+  "$VERIFY_AGGREGATE_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$VERIFY_AGGREGATE_ROOT/result.json"
 verify_aggregate_exit=$?
 set -e
 chmod 644 \
@@ -406,11 +406,11 @@ assert_invalid_manifest() {
   local jq_filter="$2"
   local fixture_root="$TMP_ROOT/invalid-$name"
   cp -R "$FIXTURE_BASE" "$fixture_root"
-  jq "$jq_filter" "$fixture_root/skill-topology.json" > "$fixture_root/manifest.tmp"
-  mv "$fixture_root/manifest.tmp" "$fixture_root/skill-topology.json"
+  jq "$jq_filter" "$fixture_root/agent-tooling/skill-topology.json" > "$fixture_root/manifest.tmp"
+  mv "$fixture_root/manifest.tmp" "$fixture_root/agent-tooling/skill-topology.json"
 
   set +e
-  HOME="$fixture_root/home" TMPDIR="$fixture_root/runtime" "$fixture_root/scripts/update-skill-topology.sh" --check --json > "$fixture_root/result.json" 2> "$fixture_root/result.err"
+  HOME="$fixture_root/home" TMPDIR="$fixture_root/runtime" "$fixture_root/agent-tooling/update-skill-topology.sh" --check --json > "$fixture_root/result.json" 2> "$fixture_root/result.err"
   local invalid_exit=$?
   set -e
 
@@ -429,9 +429,9 @@ assert_invalid_manifest version-type '.version = "1"'
 
 MALFORMED_ROOT="$TMP_ROOT/invalid-malformed"
 cp -R "$FIXTURE_BASE" "$MALFORMED_ROOT"
-printf '{\n' > "$MALFORMED_ROOT/skill-topology.json"
+printf '{\n' > "$MALFORMED_ROOT/agent-tooling/skill-topology.json"
 set +e
-HOME="$MALFORMED_ROOT/home" TMPDIR="$MALFORMED_ROOT/runtime" "$MALFORMED_ROOT/scripts/update-skill-topology.sh" --check --json > "$MALFORMED_ROOT/result.json" 2> "$MALFORMED_ROOT/result.err"
+HOME="$MALFORMED_ROOT/home" TMPDIR="$MALFORMED_ROOT/runtime" "$MALFORMED_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$MALFORMED_ROOT/result.json" 2> "$MALFORMED_ROOT/result.err"
 malformed_exit=$?
 set -e
 test "$malformed_exit" -eq 2
@@ -441,7 +441,7 @@ jq -e '.status == "invalid" and (.errors[0] | contains("not valid JSON"))' "$MAL
 run_fixture_json() {
   local fixture_root="$1"
   set +e
-  HOME="$fixture_root/home" TMPDIR="$fixture_root/runtime" "$fixture_root/scripts/update-skill-topology.sh" --check --json > "$fixture_root/result.json" 2> "$fixture_root/result.err"
+  HOME="$fixture_root/home" TMPDIR="$fixture_root/runtime" "$fixture_root/agent-tooling/update-skill-topology.sh" --check --json > "$fixture_root/result.json" 2> "$fixture_root/result.err"
   RUN_EXIT=$?
   set -e
   test ! -s "$fixture_root/result.err"
@@ -452,8 +452,8 @@ assert_invalid_registry() {
   local jq_filter="$2"
   local fixture_root="$TMP_ROOT/invalid-registry-$name"
   cp -R "$FIXTURE_BASE" "$fixture_root"
-  jq "$jq_filter" "$fixture_root/scripts/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
-  mv "$fixture_root/registry.tmp" "$fixture_root/scripts/distribution-topology/registry.json"
+  jq "$jq_filter" "$fixture_root/agent-tooling/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
+  mv "$fixture_root/registry.tmp" "$fixture_root/agent-tooling/distribution-topology/registry.json"
 
   run_fixture_json "$fixture_root"
   test "$RUN_EXIT" -eq 2
@@ -466,8 +466,8 @@ assert_invalid_registry command-backslash-traversal '.[0].command = "adapters\\.
 
 MISSING_ADAPTER_ROOT="$TMP_ROOT/missing-adapter"
 cp -R "$FIXTURE_BASE" "$MISSING_ADAPTER_ROOT"
-jq '.sources[0].id = "manifest-only"' "$MISSING_ADAPTER_ROOT/skill-topology.json" > "$MISSING_ADAPTER_ROOT/manifest.tmp"
-mv "$MISSING_ADAPTER_ROOT/manifest.tmp" "$MISSING_ADAPTER_ROOT/skill-topology.json"
+jq '.sources[0].id = "manifest-only"' "$MISSING_ADAPTER_ROOT/agent-tooling/skill-topology.json" > "$MISSING_ADAPTER_ROOT/manifest.tmp"
+mv "$MISSING_ADAPTER_ROOT/manifest.tmp" "$MISSING_ADAPTER_ROOT/agent-tooling/skill-topology.json"
 run_fixture_json "$MISSING_ADAPTER_ROOT"
 test "$RUN_EXIT" -eq 2
 jq -e '.status == "invalid" and (.errors[0] | contains("no registered adapter"))' "$MISSING_ADAPTER_ROOT/result.json" >/dev/null
@@ -479,32 +479,32 @@ jq '.[0].classification = "dual-plugin" | .[0].plugin = {
   "repo":"fixture/repo",
   "marketplaces":{"claude":"fixture","codex":"fixture"},
   "skills":["fixture"]
-}' "$CLASSIFICATION_ROOT/scripts/distribution-topology/registry.json" > "$CLASSIFICATION_ROOT/registry.tmp"
-mv "$CLASSIFICATION_ROOT/registry.tmp" "$CLASSIFICATION_ROOT/scripts/distribution-topology/registry.json"
+}' "$CLASSIFICATION_ROOT/agent-tooling/distribution-topology/registry.json" > "$CLASSIFICATION_ROOT/registry.tmp"
+mv "$CLASSIFICATION_ROOT/registry.tmp" "$CLASSIFICATION_ROOT/agent-tooling/distribution-topology/registry.json"
 run_fixture_json "$CLASSIFICATION_ROOT"
 test "$RUN_EXIT" -eq 2
 jq -e '.status == "invalid" and (.errors[0] | contains("classification mismatch"))' "$CLASSIFICATION_ROOT/result.json" >/dev/null
 
 UNMANAGED_ADAPTER_ROOT="$TMP_ROOT/unmanaged-adapter"
 cp -R "$FIXTURE_BASE" "$UNMANAGED_ADAPTER_ROOT"
-jq '. + [{"sourceId":"hidden-source","classification":"repo-owned","supportedDestinations":["claude","codex"],"command":"adapters/repo-owned.sh"}]' "$UNMANAGED_ADAPTER_ROOT/scripts/distribution-topology/registry.json" > "$UNMANAGED_ADAPTER_ROOT/registry.tmp"
-mv "$UNMANAGED_ADAPTER_ROOT/registry.tmp" "$UNMANAGED_ADAPTER_ROOT/scripts/distribution-topology/registry.json"
+jq '. + [{"sourceId":"hidden-source","classification":"repo-owned","supportedDestinations":["claude","codex"],"command":"adapters/repo-owned.sh"}]' "$UNMANAGED_ADAPTER_ROOT/agent-tooling/distribution-topology/registry.json" > "$UNMANAGED_ADAPTER_ROOT/registry.tmp"
+mv "$UNMANAGED_ADAPTER_ROOT/registry.tmp" "$UNMANAGED_ADAPTER_ROOT/agent-tooling/distribution-topology/registry.json"
 run_fixture_json "$UNMANAGED_ADAPTER_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "adapter-without-policy" and .sourceId == "hidden-source")' "$UNMANAGED_ADAPTER_ROOT/result.json" >/dev/null
 
 UNSUPPORTED_ROOT="$TMP_ROOT/unsupported-destination"
 cp -R "$FIXTURE_BASE" "$UNSUPPORTED_ROOT"
-jq '.[0].supportedDestinations = ["claude"]' "$UNSUPPORTED_ROOT/scripts/distribution-topology/registry.json" > "$UNSUPPORTED_ROOT/registry.tmp"
-mv "$UNSUPPORTED_ROOT/registry.tmp" "$UNSUPPORTED_ROOT/scripts/distribution-topology/registry.json"
+jq '.[0].supportedDestinations = ["claude"]' "$UNSUPPORTED_ROOT/agent-tooling/distribution-topology/registry.json" > "$UNSUPPORTED_ROOT/registry.tmp"
+mv "$UNSUPPORTED_ROOT/registry.tmp" "$UNSUPPORTED_ROOT/agent-tooling/distribution-topology/registry.json"
 run_fixture_json "$UNSUPPORTED_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-claude" and .destination == "codex")' "$UNSUPPORTED_ROOT/result.json" >/dev/null
 
 CODEX_TO_CLAUDE_ROOT="$TMP_ROOT/codex-to-claude"
 cp -R "$FIXTURE_BASE" "$CODEX_TO_CLAUDE_ROOT"
-jq '.sources[1].overrides["codex-tool"] = ["claude"]' "$CODEX_TO_CLAUDE_ROOT/skill-topology.json" > "$CODEX_TO_CLAUDE_ROOT/manifest.tmp"
-mv "$CODEX_TO_CLAUDE_ROOT/manifest.tmp" "$CODEX_TO_CLAUDE_ROOT/skill-topology.json"
+jq '.sources[1].overrides["codex-tool"] = ["claude"]' "$CODEX_TO_CLAUDE_ROOT/agent-tooling/skill-topology.json" > "$CODEX_TO_CLAUDE_ROOT/manifest.tmp"
+mv "$CODEX_TO_CLAUDE_ROOT/manifest.tmp" "$CODEX_TO_CLAUDE_ROOT/agent-tooling/skill-topology.json"
 run_fixture_json "$CODEX_TO_CLAUDE_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-codex" and .destination == "claude")' "$CODEX_TO_CLAUDE_ROOT/result.json" >/dev/null
@@ -512,22 +512,22 @@ jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-
 EMPTY_CAPABILITY_ROOT="$TMP_ROOT/empty-unsupported-default"
 cp -R "$FIXTURE_BASE" "$EMPTY_CAPABILITY_ROOT"
 git -C "$EMPTY_CAPABILITY_ROOT" rm --cached -q codex-skills/codex-tool/SKILL.md
-jq '.[1].supportedDestinations = ["claude"]' "$EMPTY_CAPABILITY_ROOT/scripts/distribution-topology/registry.json" > "$EMPTY_CAPABILITY_ROOT/registry.tmp"
-mv "$EMPTY_CAPABILITY_ROOT/registry.tmp" "$EMPTY_CAPABILITY_ROOT/scripts/distribution-topology/registry.json"
+jq '.[1].supportedDestinations = ["claude"]' "$EMPTY_CAPABILITY_ROOT/agent-tooling/distribution-topology/registry.json" > "$EMPTY_CAPABILITY_ROOT/registry.tmp"
+mv "$EMPTY_CAPABILITY_ROOT/registry.tmp" "$EMPTY_CAPABILITY_ROOT/agent-tooling/distribution-topology/registry.json"
 run_fixture_json "$EMPTY_CAPABILITY_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "unsupported-destination" and .sourceId == "repo-codex" and .destination == "codex")' "$EMPTY_CAPABILITY_ROOT/result.json" >/dev/null
 
 STALE_ROOT="$TMP_ROOT/stale-override"
 cp -R "$FIXTURE_BASE" "$STALE_ROOT"
-jq '.sources[0].overrides["removed-skill"] = ["codex"]' "$STALE_ROOT/skill-topology.json" > "$STALE_ROOT/manifest.tmp"
-mv "$STALE_ROOT/manifest.tmp" "$STALE_ROOT/skill-topology.json"
+jq '.sources[0].overrides["removed-skill"] = ["codex"]' "$STALE_ROOT/agent-tooling/skill-topology.json" > "$STALE_ROOT/manifest.tmp"
+mv "$STALE_ROOT/manifest.tmp" "$STALE_ROOT/agent-tooling/skill-topology.json"
 run_fixture_json "$STALE_ROOT"
 test "$RUN_EXIT" -eq 3
 jq -e '.status == "decision-required" and (.decisions[] | .code == "stale-override" and .skill == "removed-skill")' "$STALE_ROOT/result.json" >/dev/null
 
 set +e
-HOME="$STALE_ROOT/home" TMPDIR="$STALE_ROOT/runtime" "$STALE_ROOT/scripts/update-skill-topology.sh" --check > "$STALE_ROOT/human.out" 2> "$STALE_ROOT/human.err"
+HOME="$STALE_ROOT/home" TMPDIR="$STALE_ROOT/runtime" "$STALE_ROOT/agent-tooling/update-skill-topology.sh" --check > "$STALE_ROOT/human.out" 2> "$STALE_ROOT/human.err"
 stale_human_exit=$?
 set -e
 test "$stale_human_exit" -eq 3
@@ -543,10 +543,10 @@ mkdir -p "$PREFLIGHT_ROOT/skills/preflight-hand" "$PREFLIGHT_ROOT/home/.agents/s
 printf '%s\n' '---' 'name: preflight-hand' 'description: "fixture"' '---' > "$PREFLIGHT_ROOT/skills/preflight-hand/SKILL.md"
 cp "$PREFLIGHT_ROOT/skills/preflight-hand/SKILL.md" "$PREFLIGHT_ROOT/home/.agents/skills/preflight-hand/SKILL.md"
 git -C "$PREFLIGHT_ROOT" add skills/preflight-hand/SKILL.md
-jq '.sources[0].overrides["removed-skill"] = ["codex"]' "$PREFLIGHT_ROOT/skill-topology.json" > "$PREFLIGHT_ROOT/manifest.tmp"
-mv "$PREFLIGHT_ROOT/manifest.tmp" "$PREFLIGHT_ROOT/skill-topology.json"
+jq '.sources[0].overrides["removed-skill"] = ["codex"]' "$PREFLIGHT_ROOT/agent-tooling/skill-topology.json" > "$PREFLIGHT_ROOT/manifest.tmp"
+mv "$PREFLIGHT_ROOT/manifest.tmp" "$PREFLIGHT_ROOT/agent-tooling/skill-topology.json"
 set +e
-HOME="$PREFLIGHT_ROOT/home" TMPDIR="$PREFLIGHT_ROOT/runtime" "$PREFLIGHT_ROOT/scripts/update-skill-topology.sh" --json > "$PREFLIGHT_ROOT/result.json"
+HOME="$PREFLIGHT_ROOT/home" TMPDIR="$PREFLIGHT_ROOT/runtime" "$PREFLIGHT_ROOT/agent-tooling/update-skill-topology.sh" --json > "$PREFLIGHT_ROOT/result.json"
 preflight_exit=$?
 set -e
 test "$preflight_exit" -eq 3
@@ -572,12 +572,12 @@ jq -e '
 
 ADAPTER_FAILURE_ROOT="$TMP_ROOT/adapter-failure"
 cp -R "$FIXTURE_BASE" "$ADAPTER_FAILURE_ROOT"
-cat > "$ADAPTER_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+cat > "$ADAPTER_FAILURE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 echo "fixture discovery failure" >&2
 exit 1
 BASH
-chmod +x "$ADAPTER_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$ADAPTER_FAILURE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 run_fixture_json "$ADAPTER_FAILURE_ROOT"
 test "$RUN_EXIT" -eq 1
 jq -e '.status == "failed" and (.errors[0] | contains("fixture discovery failure"))' "$ADAPTER_FAILURE_ROOT/result.json" >/dev/null
@@ -586,8 +586,8 @@ test -z "$(find "$ADAPTER_FAILURE_ROOT/runtime" -mindepth 1 -print -quit)"
 RUNTIME_FAILURE_ROOT="$TMP_ROOT/runtime-adapter-failure"
 cp -R "$FIXTURE_BASE" "$RUNTIME_FAILURE_ROOT"
 rm -rf "$RUNTIME_FAILURE_ROOT/home/.agents/skills/shared-skill" "$RUNTIME_FAILURE_ROOT/home/.agents/skills/codex-tool"
-mv "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
-cat > "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+mv "$RUNTIME_FAILURE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" "$RUNTIME_FAILURE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$RUNTIME_FAILURE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 if [ "${4:-discover}" = reconcile ] || [ "${4:-discover}" = verify ]; then
@@ -599,12 +599,12 @@ if [ "$1" = repo-claude ] && [ "${4:-discover}" = reconcile ]; then
 fi
 exec "${BASH_SOURCE[0]%/*}/repo-owned-real.sh" "$@"
 BASH
-chmod +x "$RUNTIME_FAILURE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$RUNTIME_FAILURE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 set +e
 TOPOLOGY_ADAPTER_LOG="$RUNTIME_FAILURE_ROOT/adapter.log" \
 HOME="$RUNTIME_FAILURE_ROOT/home" \
 TMPDIR="$RUNTIME_FAILURE_ROOT/runtime" \
-  "$RUNTIME_FAILURE_ROOT/scripts/update-skill-topology.sh" --json > "$RUNTIME_FAILURE_ROOT/result.json" 2> "$RUNTIME_FAILURE_ROOT/result.err"
+  "$RUNTIME_FAILURE_ROOT/agent-tooling/update-skill-topology.sh" --json > "$RUNTIME_FAILURE_ROOT/result.json" 2> "$RUNTIME_FAILURE_ROOT/result.err"
 runtime_failure_exit=$?
 set -e
 test "$runtime_failure_exit" -eq 1
@@ -621,7 +621,7 @@ set +e
 TOPOLOGY_ADAPTER_LOG="$RUNTIME_FAILURE_ROOT/adapter.log" \
 HOME="$RUNTIME_FAILURE_ROOT/home" \
 TMPDIR="$RUNTIME_FAILURE_ROOT/runtime" \
-  "$RUNTIME_FAILURE_ROOT/scripts/update-skill-topology.sh" > "$RUNTIME_FAILURE_ROOT/human.out" 2> "$RUNTIME_FAILURE_ROOT/human.err"
+  "$RUNTIME_FAILURE_ROOT/agent-tooling/update-skill-topology.sh" > "$RUNTIME_FAILURE_ROOT/human.out" 2> "$RUNTIME_FAILURE_ROOT/human.err"
 runtime_human_exit=$?
 set -e
 test "$runtime_human_exit" -eq 1
@@ -634,8 +634,8 @@ grep -F 'error: final verification failed: repo-claude/shared-skill -> codex: mi
 FINAL_DECISION_ROOT="$TMP_ROOT/final-decision"
 cp -R "$FIXTURE_BASE" "$FINAL_DECISION_ROOT"
 rm -rf "$FINAL_DECISION_ROOT/home/.agents/skills/shared-skill"
-mv "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
-cat > "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+mv "$FINAL_DECISION_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" "$FINAL_DECISION_ROOT/agent-tooling/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$FINAL_DECISION_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 real_adapter="${BASH_SOURCE[0]%/*}/repo-owned-real.sh"
@@ -646,10 +646,10 @@ if [ "$1" = repo-claude ] && [ "${4:-discover}" = reconcile ]; then
 fi
 exec "$real_adapter" "$@"
 BASH
-chmod +x "$FINAL_DECISION_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$FINAL_DECISION_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 set +e
 HOME="$FINAL_DECISION_ROOT/home" TMPDIR="$FINAL_DECISION_ROOT/runtime" \
-  "$FINAL_DECISION_ROOT/scripts/update-skill-topology.sh" --json > "$FINAL_DECISION_ROOT/result.json"
+  "$FINAL_DECISION_ROOT/agent-tooling/update-skill-topology.sh" --json > "$FINAL_DECISION_ROOT/result.json"
 final_decision_exit=$?
 set -e
 test "$final_decision_exit" -eq 3
@@ -662,8 +662,8 @@ jq -e '
 FINAL_SKIP_ROOT="$TMP_ROOT/final-skip"
 cp -R "$FIXTURE_BASE" "$FINAL_SKIP_ROOT"
 install_repo_copy "$FINAL_SKIP_ROOT/home/.agents/skills/new-skill" "$FINAL_SKIP_ROOT/skills/new-skill" "skills/new-skill"
-mv "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
-cat > "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+mv "$FINAL_SKIP_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" "$FINAL_SKIP_ROOT/agent-tooling/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$FINAL_SKIP_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 real_adapter="${BASH_SOURCE[0]%/*}/repo-owned-real.sh"
@@ -673,10 +673,10 @@ if [ "$1" = repo-claude ] && [ "${4:-discover}" = reconcile ]; then
 fi
 exec "$real_adapter" "$@"
 BASH
-chmod +x "$FINAL_SKIP_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$FINAL_SKIP_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 set +e
 HOME="$FINAL_SKIP_ROOT/home" TMPDIR="$FINAL_SKIP_ROOT/runtime" \
-  "$FINAL_SKIP_ROOT/scripts/update-skill-topology.sh" --json > "$FINAL_SKIP_ROOT/result.json"
+  "$FINAL_SKIP_ROOT/agent-tooling/update-skill-topology.sh" --json > "$FINAL_SKIP_ROOT/result.json"
 final_skip_exit=$?
 set -e
 test "$final_skip_exit" -eq 1
@@ -688,19 +688,19 @@ jq -e '
 
 REMOTE_ROOT="$TMP_ROOT/remote-discovery"
 cp -R "$FIXTURE_BASE" "$REMOTE_ROOT"
-mv "$REMOTE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$REMOTE_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
-cat > "$REMOTE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+mv "$REMOTE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" "$REMOTE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$REMOTE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$3" >> "$TOPOLOGY_DISCOVERY_LOG"
 : > "$3/$1.remote-discovery"
 exec "${BASH_SOURCE[0]%/*}/repo-owned-real.sh" "$@"
 BASH
-chmod +x "$REMOTE_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$REMOTE_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 TOPOLOGY_DISCOVERY_LOG="$REMOTE_ROOT/discovery.log" \
 HOME="$REMOTE_ROOT/home" \
 TMPDIR="$REMOTE_ROOT/runtime" \
-  "$REMOTE_ROOT/scripts/update-skill-topology.sh" --check --json > "$REMOTE_ROOT/result.json"
+  "$REMOTE_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$REMOTE_ROOT/result.json"
 test "$(wc -l < "$REMOTE_ROOT/discovery.log" | tr -d ' ')" -eq 2
 while IFS= read -r discovery_path; do
   case "$discovery_path" in
@@ -711,7 +711,7 @@ while IFS= read -r discovery_path; do
 done < "$REMOTE_ROOT/discovery.log"
 
 set +e
-HOME="$FIXTURE_BASE/home" TMPDIR="$FIXTURE_BASE/runtime" "$FIXTURE_BASE/scripts/update-skill-topology.sh" --check --json --unknown > "$TMP_ROOT/invalid-cli.json" 2> "$TMP_ROOT/invalid-cli.err"
+HOME="$FIXTURE_BASE/home" TMPDIR="$FIXTURE_BASE/runtime" "$FIXTURE_BASE/agent-tooling/update-skill-topology.sh" --check --json --unknown > "$TMP_ROOT/invalid-cli.json" 2> "$TMP_ROOT/invalid-cli.err"
 invalid_cli_exit=$?
 set -e
 test "$invalid_cli_exit" -eq 2
@@ -720,8 +720,8 @@ jq -e '.status == "invalid" and (.errors[0] | contains("use --check"))' "$TMP_RO
 
 LOCK_ROOT="$TMP_ROOT/lock"
 cp -R "$FIXTURE_BASE" "$LOCK_ROOT"
-mv "$LOCK_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" "$LOCK_ROOT/scripts/distribution-topology/adapters/repo-owned-real.sh"
-cat > "$LOCK_ROOT/scripts/distribution-topology/adapters/repo-owned.sh" <<'BASH'
+mv "$LOCK_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" "$LOCK_ROOT/agent-tooling/distribution-topology/adapters/repo-owned-real.sh"
+cat > "$LOCK_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -734,13 +734,13 @@ fi
 
 exec "${BASH_SOURCE[0]%/*}/repo-owned-real.sh" "$@"
 BASH
-chmod +x "$LOCK_ROOT/scripts/distribution-topology/adapters/repo-owned.sh"
+chmod +x "$LOCK_ROOT/agent-tooling/distribution-topology/adapters/repo-owned.sh"
 
 TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/live.started" \
 TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/live.release" \
 HOME="$LOCK_ROOT/home" \
 TMPDIR="$LOCK_ROOT/runtime" \
-  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/live-first.json" 2> "$LOCK_ROOT/live-first.err" &
+  "$LOCK_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$LOCK_ROOT/live-first.json" 2> "$LOCK_ROOT/live-first.err" &
 live_pid=$!
 
 for _ in {1..100}; do
@@ -761,7 +761,7 @@ TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/stale.started" \
 TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/stale.release" \
 HOME="$LOCK_ROOT/home" \
 TMPDIR="$LOCK_ROOT/runtime" \
-  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/stale-first.json" 2> "$LOCK_ROOT/stale-first.err" &
+  "$LOCK_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$LOCK_ROOT/stale-first.json" 2> "$LOCK_ROOT/stale-first.err" &
 stale_pid=$!
 
 for _ in {1..100}; do
@@ -779,14 +779,14 @@ TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/recovery-one.started" \
 TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/recovery.release" \
 HOME="$LOCK_ROOT/home" \
 TMPDIR="$LOCK_ROOT/runtime" \
-  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/recovery-one.json" 2> "$LOCK_ROOT/recovery-one.err" &
+  "$LOCK_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$LOCK_ROOT/recovery-one.json" 2> "$LOCK_ROOT/recovery-one.err" &
 recovery_one_pid=$!
 
 TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/recovery-two.started" \
 TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/recovery.release" \
 HOME="$LOCK_ROOT/home" \
 TMPDIR="$LOCK_ROOT/runtime" \
-  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/recovery-two.json" 2> "$LOCK_ROOT/recovery-two.err" &
+  "$LOCK_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$LOCK_ROOT/recovery-two.json" 2> "$LOCK_ROOT/recovery-two.err" &
 recovery_two_pid=$!
 
 for _ in {1..100}; do
@@ -837,7 +837,7 @@ TOPOLOGY_BLOCK_STARTED="$LOCK_ROOT/interrupt.started" \
 TOPOLOGY_BLOCK_RELEASE="$LOCK_ROOT/interrupt.release" \
 HOME="$LOCK_ROOT/home" \
 TMPDIR="$LOCK_ROOT/runtime" \
-  "$LOCK_ROOT/scripts/update-skill-topology.sh" --check --json > "$LOCK_ROOT/interrupt.json" 2> "$LOCK_ROOT/interrupt.err" &
+  "$LOCK_ROOT/agent-tooling/update-skill-topology.sh" --check --json > "$LOCK_ROOT/interrupt.json" 2> "$LOCK_ROOT/interrupt.err" &
 interrupt_pid=$!
 
 for _ in {1..100}; do

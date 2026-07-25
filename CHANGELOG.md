@@ -4,6 +4,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## 2026-07-24 — Agent Tooling Folder
+- Moved the skill/topology update machinery (`update-skill-topology.sh`, `update-all.sh`, `update-agents.sh`, `verify.sh`, `validate-skills`, `lib-copies.sh`, `generate-skill-index.sh`, `generate-skills-matrix.py`, the `test-*-policy` gates, `distribution-topology/`) plus `skill-authors.json`, `skill-topology.json`, and `skills-matrix.md` out of `scripts/`/`docs/`/repo root into a new `agent-tooling/` folder, leaving unrelated personal utilities (`committer`, `nanobanana`, `shazam-song`, `browser-tools.ts`, `docs-list.ts`, `trash.ts`) and the external `skills.sh.json` marketplace manifest where they were.
+
 ## 2026-07-24 — Khazix Staging Rename
 - Fixed `khazix-skills` staging under `other-skills/khazix/` instead of the colliding `other-skills/marcus/` name (that bucket belongs to the unrelated `marcus`-authored repo-owned skills), and de-fragilized two tests that had asserted a specific live skill-selection value instead of manifest structure.
 

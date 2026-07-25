@@ -8,7 +8,7 @@ read_when:
 # Codex Skill Backup Recovery
 
 Codex uses one supported skills root: `~/.agents/skills`. The old
-`~/.codex/skills` root is legacy. `scripts/update-skill-topology.sh` migrates
+`~/.codex/skills` root is legacy. `agent-tooling/update-skill-topology.sh` migrates
 non-system entries from the legacy root into
 `~/.codex/skills-migrated-<timestamp>` so Codex does not double-load skills.
 
@@ -41,7 +41,7 @@ test -f ~/Projects/agent-scripts/skills/$name/SKILL.md && echo "tracked repo ski
 ```
 
 If the skill is tracked in this repo and approved for Codex, do not restore the
-backup copy. Run `scripts/update-skill-topology.sh`; it refreshes the active
+backup copy. Run `agent-tooling/update-skill-topology.sh`; it refreshes the active
 managed copy from its declared source.
 
 ## Restore Local-Only Skills
@@ -82,14 +82,14 @@ with an `.agent-scripts-copy` marker that points back to this repo's
 Run topology reconciliation after any restore:
 
 ```bash
-~/Projects/agent-scripts/scripts/update-skill-topology.sh
+~/Projects/agent-scripts/agent-tooling/update-skill-topology.sh
 find ~/.codex/skills -maxdepth 1 -mindepth 1 ! -name .system -print
 ```
 
 Topology reconciliation should finish green. The final `find` command should print
 nothing.
 
-If the command exits `3`, run `scripts/update-skill-topology.sh --check --json`
+If the command exits `3`, run `agent-tooling/update-skill-topology.sh --check --json`
 and inspect `decisions`. A source, destination, collision, unknown plugin, or
 unknown npx lock entry needs an explicit policy or installed-state decision.
 Do not restore through the legacy root, guess a copy/plugin fallback, or delete
@@ -102,7 +102,7 @@ Delete a migrated backup only after:
 - you have inspected every top-level entry;
 - every wanted local-only skill has been restored under `~/.agents/skills`;
 - tracked repo skills are present as updater-managed marked copies;
-- `scripts/update-skill-topology.sh` finishes successfully;
+- `agent-tooling/update-skill-topology.sh` finishes successfully;
 - `~/.codex/skills` has no non-system entries.
 
 Keep the backup if any entry is unclear. It is inactive while it stays under

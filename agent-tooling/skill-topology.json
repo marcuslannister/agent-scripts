@@ -7,7 +7,7 @@
       "defaultDestinations": [
         "claude"
       ],
-      "matrixOverridesStart": "generated from docs/skills-matrix.md",
+      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
       "overrides": {
         "agent-transcript": [
           "claude",
@@ -89,7 +89,7 @@
       "defaultDestinations": [
         "codex"
       ],
-      "matrixOverridesStart": "generated from docs/skills-matrix.md",
+      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
       "overrides": {},
       "matrixOverridesEnd": "end generated overrides"
     },
@@ -120,7 +120,7 @@
         "claude",
         "codex"
       ],
-      "matrixOverridesStart": "generated from docs/skills-matrix.md",
+      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
       "overrides": {
         "algorithmic-art": [],
         "brand-guidelines": [],
@@ -153,7 +153,7 @@
         "claude",
         "codex"
       ],
-      "matrixOverridesStart": "generated from docs/skills-matrix.md",
+      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
       "overrides": {
         "aihot": [],
         "hv-analysis": [],

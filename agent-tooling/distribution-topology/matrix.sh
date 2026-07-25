@@ -97,7 +97,7 @@ matrix_source_overrides() { # source-id matrix-source inventory current output f
 }
 
 matrix_prepare() { # current-plan findings
-  local current_plan="$1" findings="$2" matrix="$REPO_ROOT/docs/skills-matrix.md"
+  local current_plan="$1" findings="$2" matrix="$REPO_ROOT/agent-tooling/skills-matrix.md"
   local current="$DISCOVERY_ROOT/matrix-current.tsv" expected_md="$DISCOVERY_ROOT/matrix-expected.md"
   local expected="$DISCOVERY_ROOT/matrix-expected.tsv" invalid="$DISCOVERY_ROOT/matrix-invalid.tsv"
   local source_id matrix_source entries overrides next skill source type claude codex
@@ -106,16 +106,15 @@ matrix_prepare() { # current-plan findings
   MATRIX_SOURCE_MANIFEST="$MANIFEST_PATH"
   MATRIX_MANIFEST_CHANGED=0
   if [ ! -f "$matrix" ]; then
-    if [ -d "$REPO_ROOT/docs" ] \
-      || jq -e 'any(.sources[]; has("matrixOverridesStart") or has("matrixOverridesEnd"))' "$MANIFEST_PATH" >/dev/null; then
-      topology_fail 1 'skills matrix is missing: docs/skills-matrix.md'
+    if jq -e 'any(.sources[]; has("matrixOverridesStart") or has("matrixOverridesEnd"))' "$MANIFEST_PATH" >/dev/null; then
+      topology_fail 1 'skills matrix is missing: agent-tooling/skills-matrix.md'
       return 1
     fi
     return 0
   fi
 
   matrix_parse "$matrix" "$current" "$invalid"
-  if ! SKILL_MATRIX_PLAN_PATH="$current_plan" python3 "$REPO_ROOT/scripts/generate-skills-matrix.py" > "$expected_md"; then
+  if ! SKILL_MATRIX_PLAN_PATH="$current_plan" python3 "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" > "$expected_md"; then
     topology_fail 1 'skills matrix baseline generation failed'
     return 1
   fi
@@ -160,7 +159,7 @@ matrix_prepare() { # current-plan findings
           . as $entry |
           {id:$entry.id, classification:$entry.classification,
            defaultDestinations:$entry.defaultDestinations,
-           matrixOverridesStart:"generated from docs/skills-matrix.md",
+           matrixOverridesStart:"generated from agent-tooling/skills-matrix.md",
            overrides:$overrides,
            matrixOverridesEnd:"end generated overrides"} +
           ($entry | del(.id,.classification,.defaultDestinations,.matrixOverridesStart,.overrides,.matrixOverridesEnd))
@@ -180,11 +179,11 @@ matrix_persist_manifest() {
 }
 
 matrix_regenerate_report() { # post-reconcile plan
-  local plan="$1" matrix="$REPO_ROOT/docs/skills-matrix.md"
+  local plan="$1" matrix="$REPO_ROOT/agent-tooling/skills-matrix.md"
   local generated="$DISCOVERY_ROOT/skills-matrix-generated.md" next="$matrix.tmp"
   [ -f "$matrix" ] || return 0
 
-  SKILL_MATRIX_PLAN_PATH="$plan" python3 "$REPO_ROOT/scripts/generate-skills-matrix.py" > "$generated" || return 1
+  SKILL_MATRIX_PLAN_PATH="$plan" python3 "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" > "$generated" || return 1
   awk '
     /^## Counts[[:space:]]*$/ { boundary = 1; exit }
     /^\|[[:space:]]*Skill[[:space:]]*\|[[:space:]]*Source[[:space:]]*\|[[:space:]]*Type[[:space:]]*\|[[:space:]]*Claude[[:space:]]*\|[[:space:]]*Codex[[:space:]]*\|/ {

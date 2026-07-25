@@ -95,7 +95,7 @@ topology_validate_manifest() { # file
       ((has(\"matrixOverridesStart\") and has(\"matrixOverridesEnd\")) or
        (has(\"matrixOverridesStart\") | not) and (has(\"matrixOverridesEnd\") | not)) and
       ((has(\"matrixOverridesStart\") | not) or
-       (.matrixOverridesStart == \"generated from docs/skills-matrix.md\" and
+       (.matrixOverridesStart == \"generated from agent-tooling/skills-matrix.md\" and
         .matrixOverridesEnd == \"end generated overrides\"))" "$file" >/dev/null; then
       topology_fail 2 "$label has invalid matrix override markers"
       return 2

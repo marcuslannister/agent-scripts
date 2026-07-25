@@ -20,7 +20,7 @@ create_fixture() {
   mkdir -p \
     "$fixture/scripts" \
     "$fixture/skills/maintainer-orchestrator/agents"
-  cp "$REPO_ROOT/scripts/test-maintainer-orchestrator-policy" "$fixture/scripts/"
+  cp "$REPO_ROOT/agent-tooling/test-maintainer-orchestrator-policy" "$fixture/scripts/"
   cp "$REPO_ROOT/skills/maintainer-orchestrator/SKILL.md" \
     "$fixture/skills/maintainer-orchestrator/SKILL.md"
   cp "$REPO_ROOT/skills/maintainer-orchestrator/agents/openai.yaml" \

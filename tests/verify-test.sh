@@ -13,7 +13,7 @@ mkdir -p "$TMPDIR/bin"
 ln -s "$(command -v bash)" "$TMPDIR/bin/bash"
 ln -s "$(command -v git)" "$TMPDIR/bin/git"
 
-if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/bin" /bin/bash "$REPO_ROOT/scripts/verify.sh" >"$TMPDIR/out" 2>&1; then
+if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/bin" /bin/bash "$REPO_ROOT/agent-tooling/verify.sh" >"$TMPDIR/out" 2>&1; then
   echo "FAIL: verifier accepted a missing Python dependency" >&2
   exit 1
 fi
@@ -28,7 +28,7 @@ done
 printf '%s\n' '#!/bin/sh' 'exit 1' > "$TMPDIR/pkg-bin/python3"
 chmod +x "$TMPDIR/pkg-bin/python3"
 
-if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/pkg-bin" /bin/bash "$REPO_ROOT/scripts/verify.sh" >"$TMPDIR/pkg-out" 2>&1; then
+if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/pkg-bin" /bin/bash "$REPO_ROOT/agent-tooling/verify.sh" >"$TMPDIR/pkg-out" 2>&1; then
   echo "FAIL: verifier accepted missing PyYAML" >&2
   exit 1
 fi
@@ -41,7 +41,7 @@ for tool in bash git python3 node npm; do
   ln -s "$(command -v "$tool")" "$TMPDIR/jq-bin/$tool"
 done
 
-if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/jq-bin" /bin/bash "$REPO_ROOT/scripts/verify.sh" >"$TMPDIR/jq-out" 2>&1; then
+if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/jq-bin" /bin/bash "$REPO_ROOT/agent-tooling/verify.sh" >"$TMPDIR/jq-out" 2>&1; then
   echo "FAIL: verifier accepted a missing jq dependency" >&2
   exit 1
 fi
@@ -56,7 +56,7 @@ done
 printf '%s\n' '#!/bin/sh' 'exit 1' > "$TMPDIR/node-bin/node"
 chmod +x "$TMPDIR/node-bin/node"
 
-if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/node-bin" /bin/bash "$REPO_ROOT/scripts/verify.sh" >"$TMPDIR/node-out" 2>&1; then
+if AGENT_SCRIPTS_VERIFY_DEP_TEST=1 PATH="$TMPDIR/node-bin" /bin/bash "$REPO_ROOT/agent-tooling/verify.sh" >"$TMPDIR/node-out" 2>&1; then
   echo "FAIL: verifier accepted an unsupported Node.js version" >&2
   exit 1
 fi

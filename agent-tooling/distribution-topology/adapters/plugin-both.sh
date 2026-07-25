@@ -11,7 +11,7 @@ mode="${7:-reconcile}"
 
 source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 
-registry="$repo_root/scripts/distribution-topology/registry.json"
+registry="$repo_root/agent-tooling/distribution-topology/registry.json"
 classification="$(jq -er --arg source_id "$source_id" \
   '.[] | select(.sourceId == $source_id) | .classification' "$registry")"
 plugin_repo="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.repo' "$registry")"

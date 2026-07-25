@@ -33,14 +33,14 @@ Recreate the ignored source-owned copies through the restored reconciler policy.
 Do not restore them from an arbitrary filesystem backup:
 
 ```bash
-scripts/update-skill-topology.sh
+agent-tooling/update-skill-topology.sh
 ```
 
 Verify the recovered layout, then commit the rollback:
 
 ```bash
-scripts/validate-skills
-scripts/generate-skill-index.sh --check
+agent-tooling/validate-skills
+agent-tooling/generate-skill-index.sh --check
 bash tests/update-skill-topology-test.sh
 bash tests/update-copy-distributed-topology-test.sh
 git diff --check

@@ -6,7 +6,7 @@ REAL_GIT="$(command -v git)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-source "$REPO_ROOT/scripts/lib-copies.sh"
+source "$REPO_ROOT/agent-tooling/lib-copies.sh"
 
 make_skill() { # root name content
   local root="$1"
@@ -19,7 +19,7 @@ make_skill() { # root name content
 write_policy() { # fixture [extra override]
   local fixture="$1"
   local extra_override="${2:-}"
-  cat > "$fixture/skill-topology.json" <<JSON
+  cat > "$fixture/agent-tooling/skill-topology.json" <<JSON
 {
   "version": 1,
   "sources": [
@@ -34,7 +34,7 @@ write_policy() { # fixture [extra override]
   ]
 }
 JSON
-  cat > "$fixture/scripts/distribution-topology/registry.json" <<'JSON'
+  cat > "$fixture/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
   {
     "sourceId": "matt-skills",
@@ -52,12 +52,12 @@ make_fixture() { # fixture upstream
   local upstream="$2"
   local old_source
 
-  mkdir -p "$fixture/scripts" "$fixture/skills" "$fixture/other-skills/matt" \
+  mkdir -p "$fixture/agent-tooling" "$fixture/skills" "$fixture/other-skills/matt" \
     "$fixture/home/.agents/skills" "$fixture/home/.claude/skills" "$fixture/runtime" "$fixture/bin" \
     "$upstream/skills/engineering" "$upstream/skills/deprecated"
   printf 'claude-skills\n' > "$fixture/home/.claude/skills/.agent-scripts-root"
-  cp "$REPO_ROOT/scripts/update-skill-topology.sh" "$REPO_ROOT/scripts/lib-copies.sh" "$fixture/scripts/"
-  cp -R "$REPO_ROOT/scripts/distribution-topology" "$fixture/scripts/"
+  cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture/agent-tooling/"
+  cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$fixture/agent-tooling/"
   git -C "$fixture" init -q
 
   make_skill "$upstream/skills/engineering" alpha upstream-alpha
@@ -175,8 +175,8 @@ JSON
     classification: "plugin-claude-only",
     defaultDestinations: ["claude"],
     overrides: {}
-  }]' "$fixture/skill-topology.json" > "$fixture/policy.tmp"
-  mv "$fixture/policy.tmp" "$fixture/skill-topology.json"
+  }]' "$fixture/agent-tooling/skill-topology.json" > "$fixture/policy.tmp"
+  mv "$fixture/policy.tmp" "$fixture/agent-tooling/skill-topology.json"
   jq '. += [{
     sourceId: "matt-plugin",
     classification: "plugin-claude-only",
@@ -189,8 +189,8 @@ JSON
       marketplaces: {claude: "mattpocock"},
       skills: ["mattpocock-skills"]
     }
-  }]' "$fixture/scripts/distribution-topology/registry.json" > "$fixture/registry.tmp"
-  mv "$fixture/registry.tmp" "$fixture/scripts/distribution-topology/registry.json"
+  }]' "$fixture/agent-tooling/distribution-topology/registry.json" > "$fixture/registry.tmp"
+  mv "$fixture/registry.tmp" "$fixture/agent-tooling/distribution-topology/registry.json"
   printf '[]\n' > "$fixture/home/claude-plugins.json"
   printf '[]\n' > "$fixture/home/claude-marketplaces.json"
 
@@ -231,7 +231,7 @@ run_topology() { # fixture upstream output [extra env...]
   shift 3
   env "$@" REAL_GIT="$REAL_GIT" FAKE_MATT_UPSTREAM="$upstream" FAKE_NPX_LOG="$fixture/npx.log" \
     HOME="$fixture/home" TMPDIR="$fixture/runtime" PATH="$fixture/bin:$PATH" \
-    "$fixture/scripts/update-skill-topology.sh" --json > "$output"
+    "$fixture/agent-tooling/update-skill-topology.sh" --json > "$output"
 }
 
 jq -e '
@@ -243,7 +243,7 @@ jq -e '
     .classification == "plugin-claude-only" and
     .defaultDestinations == ["claude"]) and
   ([.sources[] | select(.id == "find-skills")] | length) == 0
-' "$REPO_ROOT/skill-topology.json" >/dev/null
+' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 
 FIXTURE="$TMP_ROOT/happy"
 UPSTREAM="$TMP_ROOT/upstream"

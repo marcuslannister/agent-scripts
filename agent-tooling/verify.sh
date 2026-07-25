@@ -61,10 +61,10 @@ while IFS= read -r -d '' candidate; do
 done < <(git ls-files -co --exclude-standard -z)
 
 section "Skill front matter"
-scripts/validate-skills
+agent-tooling/validate-skills
 
 section "Skill topology cutover policy"
-scripts/test-skill-topology-policy
+agent-tooling/test-skill-topology-policy
 
 section "Updater and copy regressions"
 for test_file in tests/*-test.sh; do
@@ -72,7 +72,7 @@ for test_file in tests/*-test.sh; do
 done
 
 section "Maintainer policy"
-scripts/test-maintainer-orchestrator-policy
+agent-tooling/test-maintainer-orchestrator-policy
 
 section "Browser helper"
 node --test scripts/browser-tools-profile.test.ts
