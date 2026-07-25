@@ -8,16 +8,46 @@ action="${4:-discover}"
 plan_path="${5:-}"
 home="${6:?home required}"
 
-[ "$source_id" = matt-skills ] || { printf 'unknown npx source: %s\n' "$source_id" >&2; exit 1; }
+case "$source_id" in
+  matt-skills)
+    upstream_repo="mattpocock/skills"
+    retired_repo="vercel-labs/skills"
+    owner="matt-skills"
+    retired_owner="cli-skills"
+    repo_subroot="skills"
+    staging_dir="matt"
+    ;;
+  humanlayer-skills)
+    upstream_repo="humanlayer/skills"
+    retired_repo=""
+    owner="humanlayer-skills"
+    retired_owner=""
+    repo_subroot="plugins/improve-claude-md/skills"
+    staging_dir="humanlayer"
+    ;;
+  *)
+    printf 'unknown npx source: %s\n' "$source_id" >&2
+    exit 1
+    ;;
+esac
+
+# All npx repos any registered source in this adapter owns, across every
+# source_id — used so one source's lock scan doesn't flag another
+# registered source's entries as unknown.
+known_npx_repos=("mattpocock/skills" "humanlayer/skills" "vercel-labs/skills")
+
+is_known_npx_repo() {
+  local repo="$1" candidate
+  for candidate in "${known_npx_repos[@]}"; do
+    [ "$candidate" = "$repo" ] && return 0
+  done
+  return 1
+}
 
 source "$repo_root/agent-tooling/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
 source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 
-upstream_repo="mattpocock/skills"
-retired_repo="vercel-labs/skills"
-owner="matt-skills"
-retired_owner="cli-skills"
 lock="$home/.agents/.skill-lock.json"
 codex_root="$home/.agents/skills"
 claude_root="$(claude_root_surface_path "$home" "$discovery_root")"
@@ -76,21 +106,22 @@ discover_source() {
   mkdir -p "$state_root"
   clone_root="$state_root/repo"
   git clone --depth 1 --quiet "https://github.com/$upstream_repo.git" "$clone_root"
-  upstream_root="$clone_root/skills"
-  [ -d "$upstream_root" ] || { printf 'Matt upstream skills root missing\n' >&2; return 1; }
+  upstream_root="$clone_root"
+  [ -z "$repo_subroot" ] || upstream_root="$clone_root/$repo_subroot"
+  [ -d "$upstream_root" ] || { printf '%s upstream skills root missing\n' "$upstream_repo" >&2; return 1; }
   printf '%s\n' "$upstream_root" > "$upstream_root_file"
   : > "$inventory_file"
   while IFS= read -r skill_file; do
     skill="$(basename "$(dirname "$skill_file")")"
-    valid_skill_name "$skill" || { printf 'invalid Matt upstream skill: %s\n' "$skill" >&2; return 1; }
+    valid_skill_name "$skill" || { printf 'invalid %s upstream skill: %s\n' "$upstream_repo" "$skill" >&2; return 1; }
     relative="${skill_file#"$upstream_root/"}"
     relative="${relative%/SKILL.md}"
     printf '%s\t%s\n' "$skill" "$relative" >> "$inventory_file"
     count=$((count + 1))
   done < <(find "$upstream_root" -name SKILL.md -type f | LC_ALL=C sort)
-  [ "$count" -gt 0 ] || { printf 'Matt upstream inventory is empty\n' >&2; return 1; }
+  [ "$count" -gt 0 ] || { printf '%s upstream inventory is empty\n' "$upstream_repo" >&2; return 1; }
   if cut -f1 "$inventory_file" | LC_ALL=C sort | uniq -d | grep -q .; then
-    printf 'Matt upstream inventory contains duplicate skill names\n' >&2
+    printf '%s upstream inventory contains duplicate skill names\n' "$upstream_repo" >&2
     return 1
   fi
   LC_ALL=C sort -u "$inventory_file" -o "$inventory_file"
@@ -98,13 +129,13 @@ discover_source() {
   cut -f1 "$inventory_file"
 }
 
-staging_root="$repo_root/other-skills/matt"
+staging_root="$repo_root/other-skills/$staging_dir"
 
 marker_path_for() { # skill
   local relative
   relative="$(awk -F '\t' -v skill="$1" '$1 == skill { print $2; exit }' "$inventory_file")"
   [ -n "$relative" ] || return 1
-  printf '%s/Projects/matt-skills/%s\n' "$home" "$relative"
+  printf '%s/Projects/%s/%s\n' "$home" "$owner" "$relative"
 }
 
 inspect_staging_state() { # expected skill destination current-lock
@@ -140,7 +171,7 @@ inspect_staging_state() { # expected skill destination current-lock
       ;;
     claude)
       marker_owner="$(sed -n '2p' "$claude_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-      if [ "$marker_owner" = "$owner" ] || [ "$marker_owner" = "$retired_owner" ]; then
+      if [ "$marker_owner" = "$owner" ] || { [ -n "$retired_owner" ] && [ "$marker_owner" = "$retired_owner" ]; }; then
         printf 'present\tmanaged\n'
       elif [ -e "$claude_root/$skill" ]; then
         printf 'foreign\tunowned\n'
@@ -164,8 +195,10 @@ emit_inspection() {
       if ! awk -F '\t' -v skill="$lock_skill" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file"; then
         printf 'orphan\t%s\tcodex\tmanaged\n' "$lock_skill"
       fi
-    elif [ "$lock_skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; then
+    elif [ "$lock_skill" = find-skills ] && [ -n "$retired_repo" ] && [ "$lock_source" = "$retired_repo" ]; then
       printf 'orphan\tfind-skills\tcodex\tmanaged\n'
+    elif is_known_npx_repo "$lock_source"; then
+      : # owned by a sibling registered npx source; that source's own scan covers it
     else
       printf 'npx-decision\t%s\tcodex\t%s\n' "$lock_skill" "$lock_source"
     fi
@@ -181,7 +214,7 @@ emit_inspection() {
   for marker in "$claude_root"/*/.agent-scripts-copy; do
     [ -f "$marker" ] || continue
     marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || [ "$marker_owner" = "$retired_owner" ] || continue
+    [ "$marker_owner" = "$owner" ] || { [ -n "$retired_owner" ] && [ "$marker_owner" = "$retired_owner" ]; } || continue
     orphan="$(basename "$(dirname "$marker")")"
     if ! awk -F '\t' -v skill="$orphan" '$2 == skill && $3 == "claude" { found = 1 } END { exit !found }' "$plan_path"; then
       printf 'orphan\t%s\tclaude\tmanaged\n' "$orphan"
@@ -243,13 +276,13 @@ refresh_staging_ignore() {
     marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
     [ "$marker_owner" = "$owner" ] || continue
     name="$(basename "$(dirname "$marker")")"
-    entries+=("other-skills/matt/$name")
+    entries+=("other-skills/$staging_dir/$name")
   done
   regen_gitignore_block "$repo_root/.gitignore" "$owner" update-skill-topology.sh \
     ${entries[@]+"${entries[@]}"}
   touch "$repo_root/.git/info/exclude"
   remove_gitignore_block "$repo_root/.git/info/exclude" "$owner"
-  remove_gitignore_block "$repo_root/.gitignore" "$retired_owner"
+  [ -z "$retired_owner" ] || remove_gitignore_block "$repo_root/.gitignore" "$retired_owner"
 }
 
 reconcile_states() {
@@ -307,7 +340,7 @@ reconcile_states() {
         ;;
       remove:claude)
         marker_owner="$(sed -n '2p' "$claude_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-        if [ "$marker_owner" = "$owner" ] || [ "$marker_owner" = "$retired_owner" ]; then
+        if [ "$marker_owner" = "$owner" ] || { [ -n "$retired_owner" ] && [ "$marker_owner" = "$retired_owner" ]; }; then
           rm -rf -- "${claude_root:?}/$skill" || operation_failed=1
         fi
         ;;

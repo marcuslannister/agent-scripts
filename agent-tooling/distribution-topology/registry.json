@@ -21,6 +21,14 @@
     "stateInspection": "adapter"
   },
   {
+    "sourceId": "humanlayer-skills",
+    "classification": "npx-only",
+    "supportedDestinations": ["codex"],
+    "command": "adapters/npx-source.sh",
+    "stateInspection": "adapter",
+    "matrixSource": "humanlayer/skills"
+  },
+  {
     "sourceId": "matt-plugin",
     "classification": "plugin-claude-only",
     "supportedDestinations": ["claude"],
