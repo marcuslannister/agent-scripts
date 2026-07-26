@@ -144,18 +144,14 @@ inspect_staging_state() { # expected skill destination current-lock
   case "$destination" in
     staging)
       if ! upstream_path="$(upstream_path_for "$skill" 2>/dev/null)"; then
-        marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
         if [ ! -e "$staging_root/$skill" ]; then
           printf 'absent\tremoved\n'
-        elif [ "$marker_owner" = "$owner" ]; then
-          printf 'present\tmanaged\n'
         else
-          printf 'foreign\tunowned\n'
+          printf 'present\tmanaged\n'
         fi
         return
       fi
-      marker_path="$(marker_path_for "$skill")"
-      inspect_copy_state "$upstream_path" "$marker_path" "$staging_root/$skill" "$owner" "$repo_root"
+      inspect_stage_tree "$upstream_path" "$staging_root/$skill"
       ;;
     codex)
       lock_source="$(lock_source_for "$current_lock" "$skill")"
@@ -184,7 +180,7 @@ inspect_staging_state() { # expected skill destination current-lock
 
 emit_inspection() {
   local current_lock="$state_root/current-lock.tsv"
-  local expected skill destination state detail lock_skill lock_source marker marker_owner orphan
+  local expected skill destination state detail lock_skill lock_source marker marker_owner orphan skill_file
   read_lock_inventory "$current_lock"
   while IFS=$'\t' read -r expected skill destination; do
     IFS=$'\t' read -r state detail < <(inspect_staging_state "$expected" "$skill" "$destination" "$current_lock")
@@ -220,11 +216,9 @@ emit_inspection() {
       printf 'orphan\t%s\tclaude\tmanaged\n' "$orphan"
     fi
   done
-  for marker in "$staging_root"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || continue
-    orphan="$(basename "$(dirname "$marker")")"
+  for skill_file in "$staging_root"/*/SKILL.md; do
+    [ -f "$skill_file" ] || continue
+    orphan="$(basename "$(dirname "$skill_file")")"
     awk -F '\t' -v skill="$orphan" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file" && continue
     printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
   done
@@ -257,10 +251,9 @@ inspect_stage_state() { # skill
 }
 
 install_staged_skill() { # skill
-  local skill="$1" upstream_path marker_path
+  local skill="$1" upstream_path
   upstream_path="$(upstream_path_for "$skill")"
-  marker_path="$(marker_path_for "$skill")"
-  install_skill_copy "$upstream_path" "$staging_root/$skill" "$owner" "$marker_path" >/dev/null
+  install_stage_tree "$upstream_path" "$staging_root/$skill" >/dev/null
 }
 
 refresh_installed_codex_copy() { # skill
@@ -268,21 +261,20 @@ refresh_installed_codex_copy() { # skill
     "$codex_root" codex "$owner"
 }
 
-refresh_staging_ignore() {
-  local marker marker_owner name entries=()
+refresh_staging_metadata() {
+  local skill_file clone_dir
   mkdir -p "$staging_root"
-  for marker in "$staging_root"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || continue
-    name="$(basename "$(dirname "$marker")")"
-    entries+=("other-skills/$staging_dir/$name")
+  for skill_file in "$staging_root"/*/.agent-scripts-copy "$staging_root"/*/.agent-scripts-copy-source; do
+    [ -e "$skill_file" ] || continue
+    rm -f "$skill_file"
   done
-  regen_gitignore_block "$repo_root/.gitignore" "$owner" update-skill-topology.sh \
-    ${entries[@]+"${entries[@]}"}
-  touch "$repo_root/.git/info/exclude"
-  remove_gitignore_block "$repo_root/.git/info/exclude" "$owner"
-  [ -z "$retired_owner" ] || remove_gitignore_block "$repo_root/.gitignore" "$retired_owner"
+  clear_staging_gitignore "$repo_root" "$owner" || return 1
+  [ -z "$retired_owner" ] || clear_staging_gitignore "$repo_root" "$retired_owner" || return 1
+  if [ -f "$repo_root/.git/info/exclude" ]; then
+    remove_gitignore_block "$repo_root/.git/info/exclude" "$owner" || return 1
+  fi
+  clone_dir="$state_root/repo"
+  write_staging_source_json "$staging_root" "$upstream_repo" "$clone_dir"
 }
 
 reconcile_states() {
@@ -333,8 +325,7 @@ reconcile_states() {
         fi
         ;;
       remove:staging)
-        marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-        if [ "$marker_owner" = "$owner" ]; then
+        if [ -e "$staging_root/$skill" ]; then
           rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
         fi
         ;;
@@ -364,7 +355,7 @@ reconcile_states() {
       failed=1
     fi
   done < "$plan_path"
-  refresh_staging_ignore || failed=1
+  refresh_staging_metadata || failed=1
   return "$failed"
 }
 

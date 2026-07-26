@@ -4,6 +4,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 # Changelog
 
+## Unreleased
+
+- Tracked foreign skill staging: `other-skills/<owner>/` is fully tracked with no staging gitignore blocks or per-skill `.agent-scripts-copy` markers; each source dir gets a refreshed `.source.json` (upstream repo, commit, sync time), and surface copies keep three-line markers pointing at the tracked staging path.
+
 ## 2026-07-25 — Mattpocock/Humanlayer Governance Migration
 - Generalized `npx-source.sh` to support multiple npx-only sources instead of hardcoding mattpocock/skills, and registered `humanlayer/skills`.
 - Migrated 39 mattpocock skills from raw, stale npx installs to governed staged copies on codex.

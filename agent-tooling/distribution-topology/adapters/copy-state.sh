@@ -295,3 +295,84 @@ refresh_copy_gitignore() { # repo_root surface owner
   regen_gitignore_block "$repo_root/.gitignore" "$owner" update-skill-topology.sh \
     ${entries[@]+"${entries[@]}"}
 }
+
+
+# Markerless tracked staging: content only, no per-skill copy markers.
+# Provenance lives in other-skills/<owner>/.source.json.
+
+install_stage_tree() { # source_dir dest_dir
+  local src="$1"
+  local dst="$2"
+
+  if [ ! -d "$src" ]; then
+    copy_warn "missing source: $src"
+    return 1
+  fi
+  if [ -L "$dst" ]; then
+    unlink "$dst" || return 1
+  elif [ -e "$dst" ] && [ ! -d "$dst" ]; then
+    copy_warn "not a directory or symlink, refusing to replace: $dst"
+    return 1
+  fi
+  mkdir -p "$dst" || return 1
+  if [ "${AGENT_SCRIPTS_DISABLE_RSYNC:-0}" != "1" ] && command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete "${src}/" "${dst}/" || return 1
+  else
+    rm -rf "$dst" || return 1
+    mkdir -p "$dst" || return 1
+    cp -R "${src}/." "${dst}/" || return 1
+  fi
+  rm -f "${dst}/.agent-scripts-copy" "${dst}/.agent-scripts-copy-source"
+}
+
+inspect_stage_tree() { # content_source destination
+  local content_source="$1"
+  local destination="$2"
+
+  if [ -L "$destination" ]; then
+    printf 'foreign\tunowned\n'
+    return
+  fi
+  if [ ! -e "$destination" ]; then
+    printf 'absent\tmissing\n'
+    return
+  fi
+  if [ ! -d "$destination" ]; then
+    printf 'foreign\tunowned\n'
+    return
+  fi
+  if [ -f "$destination/.agent-scripts-copy" ] || [ -f "$destination/.agent-scripts-copy-source" ]; then
+    printf 'drift\tlegacy-marker\n'
+    return
+  fi
+  if copy_contents_match "$content_source" "$destination"; then
+    printf 'present\tmanaged\n'
+  else
+    printf 'drift\tcontent-mismatch\n'
+  fi
+}
+
+write_staging_source_json() { # staging_root repo clone_dir
+  local staging_root="$1"
+  local repo="$2"
+  local clone_dir="$3"
+  local commit synced_at
+
+  commit="$(git -C "$clone_dir" rev-parse HEAD 2>/dev/null || true)"
+  if [ -z "$commit" ]; then
+    printf 'unable to read upstream commit: %s\n' "$clone_dir" >&2
+    return 1
+  fi
+  synced_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  mkdir -p "$staging_root" || return 1
+  jq -n --arg repo "$repo" --arg commit "$commit" --arg syncedAt "$synced_at" \
+    '{repo:$repo, commit:$commit, syncedAt:$syncedAt}' > "$staging_root/.source.json"
+}
+
+clear_staging_gitignore() { # repo_root owner
+  local repo_root="$1"
+  local owner="$2"
+  local gitignore="$repo_root/.gitignore"
+  [ -f "$gitignore" ] || return 0
+  remove_gitignore_block "$gitignore" "$owner"
+}

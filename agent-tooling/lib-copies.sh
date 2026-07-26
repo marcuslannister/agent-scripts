@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
 # Shared copy installers for update scripts.
-# Skills from source-only clones are rsynced into a surface as COPIES — never
-# symlinks. Copies landing in the repo's skills/ dir stay untracked via a
-# marker-delimited ignore block (`.gitignore` or `.git/info/exclude`).
-# Each copy carries a .agent-scripts-copy marker: line 1 is the upstream source
-# path, line 2 is the owner — the id of the updater that owns the copy — and
-# line 3 is the copy's content hash at sync time (best-effort; omitted when no
-# sha256 tool is available). Orphan cleanup keys on the owner, so two updaters
-# can share one surface (and one source_root) without knowing anything about
-# each other; the hash lets check_skill_copy_updates spot upstream changes and
-# local edits without a full re-sync. All marker readers are line-addressed, so
-# older two-line markers stay valid.
+# Skills from source-only / npx clones are rsynced into surfaces as COPIES —
+# never symlinks. Foreign inventories stage under tracked other-skills/<owner>/
+# without per-skill markers (see install_stage_tree / .source.json). Surface
+# copies carry a .agent-scripts-copy marker: line 1 is the tracked-staging
+# source path, line 2 is the owner — the id of the updater that owns the copy —
+# and line 3 is the copy's content hash at sync time (best-effort; omitted when
+# no sha256 tool is available). Orphan cleanup keys on the owner, so two
+# updaters can share one surface without knowing anything about each other; the
+# hash lets check_skill_copy_updates spot upstream changes and local edits
+# without a full re-sync. All marker readers are line-addressed, so older
+# two-line markers stay valid.
 
 copy_warn() {
   printf '\033[0;31m!!!\033[0m %s\n' "$*" >&2

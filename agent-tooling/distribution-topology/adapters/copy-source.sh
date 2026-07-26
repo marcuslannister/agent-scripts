@@ -20,7 +20,6 @@ case "$source_id" in
     source_suffix="skills"
     owner="anthropic-skills"
     staging_owner="anthropics"
-    staging_tracking=ignored
     ;;
   khazix-skills)
     repo_url="https://github.com/KKKKhazix/khazix-skills.git"
@@ -28,7 +27,6 @@ case "$source_id" in
     source_suffix=""
     owner="khazix-skills"
     staging_owner="khazix"
-    staging_tracking=tracked
     ;;
   *)
     printf 'unknown copy source: %s\n' "$source_id" >&2
@@ -83,30 +81,14 @@ surface_for_destination() {
   esac
 }
 
-tracked_stage_skill() { # skill
-  [ "$staging_tracking" = tracked ] \
-    && git -C "$repo_root" ls-files --error-unmatch \
-      "other-skills/$staging_owner/$1/SKILL.md" >/dev/null 2>&1
-}
-
 inspect_stage_state() { # skill
   local skill="$1"
-  if [ -f "$staging_root/$skill/SKILL.md" ] \
-    && [ ! -f "$staging_root/$skill/.agent-scripts-copy" ] && tracked_stage_skill "$skill"; then
-    printf 'drift\ttracked-update\n'
-  else
-    inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
-      "$staging_root/$skill" "$owner" "$repo_root"
-  fi
+  inspect_stage_tree "$source_root/$skill" "$staging_root/$skill"
 }
 
 install_staged_skill() { # skill
   local skill="$1"
-  if [ ! -f "$staging_root/$skill/.agent-scripts-copy" ] && tracked_stage_skill "$skill"; then
-    mkdir -p "$staging_root/$skill"
-    printf '%s\n%s\n' "$marker_root/$skill" "$owner" > "$staging_root/$skill/.agent-scripts-copy"
-  fi
-  install_skill_copy "$source_root/$skill" "$staging_root/$skill" "$owner" >/dev/null
+  install_stage_tree "$source_root/$skill" "$staging_root/$skill" >/dev/null
 }
 
 inspect_staging_state() { # expected skill destination
@@ -147,8 +129,6 @@ emit_staging_inspection() {
   for skill_file in "$staging_root"/*/SKILL.md; do
     [ -f "$skill_file" ] || continue
     orphan="$(basename "$(dirname "$skill_file")")"
-    marker_owner="$(sed -n '2p' "$staging_root/$orphan/.agent-scripts-copy" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || tracked_stage_skill "$orphan" || continue
     rg -Fxq -- "$orphan" "$discovery_root/$source_id.inventory" && continue
     printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
   done
@@ -172,22 +152,17 @@ refresh_installed_surface_copies() { # skill
   return "$failed"
 }
 
-refresh_staging_ignore() {
-  local marker marker_owner name entries=()
+refresh_staging_metadata() {
+  local skill_file skill clone_dir
   mkdir -p "$staging_root"
-  for marker in "$staging_root"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || continue
-    name="$(basename "$(dirname "$marker")")"
-    if [ "$staging_tracking" = tracked ]; then
-      entries+=("other-skills/$staging_owner/$name/.agent-scripts-copy")
-    else
-      entries+=("other-skills/$staging_owner/$name")
-    fi
+  for skill_file in "$staging_root"/*/.agent-scripts-copy "$staging_root"/*/.agent-scripts-copy-source; do
+    [ -e "$skill_file" ] || continue
+    rm -f "$skill_file"
   done
-  regen_gitignore_block "$repo_root/.gitignore" "$owner" update-skill-topology.sh \
-    ${entries[@]+"${entries[@]}"}
+  clear_staging_gitignore "$repo_root" "$owner" || return 1
+  clone_dir="$source_root"
+  [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
+  write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
 }
 
 reconcile_staging() {
@@ -212,8 +187,7 @@ reconcile_staging() {
         fi
         ;;
       remove:staging)
-        marker_owner="$(sed -n '2p' "$staging_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-        if [ "$marker_owner" = "$owner" ] || tracked_stage_skill "$skill"; then
+        if [ -e "$staging_root/$skill" ]; then
           rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
         fi
         ;;
@@ -234,7 +208,7 @@ reconcile_staging() {
       failed=1
     fi
   done < "$plan_path"
-  refresh_staging_ignore || failed=1
+  refresh_staging_metadata || failed=1
   return "$failed"
 }
 

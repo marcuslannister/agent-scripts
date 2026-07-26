@@ -6,7 +6,7 @@ This repo is the canonical place for:
 - `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
 - `agent-tooling/`: code-agent and skill update machinery — matrix generator, distribution-topology reconciler, verify/validate gates, `skill-authors.json`, `skill-topology.json` (versioned desired distribution for registered skill sources), `skills-matrix.md`
 - `skills/`: exact tracked mirror of `steipete/agent-scripts:main`
-- `other-skills/`: owner-grouped holding area for foreign skills; `marcus/` content tracked, `anthropics/` and `matt/` reproducible and ignored
+- `other-skills/`: owner-grouped tracked holding area for foreign skills; each source dir carries `.source.json` provenance
 - `codex-skills/`: repo-owned Codex-only authoring source
 - `scripts/`: dependency-light personal helpers used across projects
 - `hooks/`: local guardrails such as skill validation
@@ -36,7 +36,7 @@ Global discovery — one skills root per CLI:
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`. Upstream mirror rollback: `docs/upstream-skills-mirror-rollback.md`.
 
-Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, including upstream-owned symlinks. Tracked mirror names win source collisions. Source-only and npx-only inventories stage under `other-skills/<owner>/`, never directly in an agent surface: `marcus/` content is tracked while reproducible `anthropics/` and `matt/` copies stay behind marker-delimited `.gitignore` blocks.
+Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, including upstream-owned symlinks. Tracked mirror names win source collisions. Source-only and npx-only inventories stage under tracked `other-skills/<owner>/` (no per-skill copy markers; provenance in `.source.json`), never directly in an agent surface.
 
 ## Agent Instructions
 
