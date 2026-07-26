@@ -24,6 +24,18 @@ for candidate in "$REPO_ROOT"/agent-tooling/update-*.sh; do
   esac
 done
 
+while IFS= read -r candidate; do
+  [ -n "$candidate" ] || continue
+  name="${candidate##*/}"
+  case "$name" in
+    update-skill-topology.sh|sync-skill-surfaces.sh) ;;
+    *) fail "unexpected public topology command: $name" ;;
+  esac
+done < <(
+  rg -l 'distribution-topology/topology\.sh|TOPOLOGY_PHASE=' \
+    "$REPO_ROOT"/agent-tooling/*.sh || true
+)
+
 [ ! -e "$REPO_ROOT/agent-tooling/lib-plugins.sh" ] \
   || fail "generic plugin policy owner remains: lib-plugins.sh"
 
@@ -36,19 +48,30 @@ fi
 if ! rg -q 'TOPOLOGY_PHASE=distribute' "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"; then
   fail "sync-skill-surfaces.sh must run the distribute phase"
 fi
-if rg -q 'TOPOLOGY_PHASE=distribute' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
-  fail "update-skill-topology.sh must not force distribute phase yet"
+if ! rg -q 'TOPOLOGY_PHASE=acquire' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
+  fail "update-skill-topology.sh must run the acquire phase"
+fi
+if rg -q 'TOPOLOGY_PHASE=.*full' \
+  "$REPO_ROOT/agent-tooling/update-skill-topology.sh" \
+  "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" \
+  "$REPO_ROOT/agent-tooling/distribution-topology/topology.sh"; then
+  fail "single-pass topology phase must stay deleted"
 fi
 if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
   fail "retired Node topology implementation remains"
 fi
 
-invocations="$(awk -F '"' '/^"\$SCRIPT_DIR\/update-[a-z-]+\.sh"/ { print $2 }' \
-  "$REPO_ROOT/agent-tooling/update-all.sh")"
-expected_invocations='$SCRIPT_DIR/update-agents.sh
-$SCRIPT_DIR/update-skill-topology.sh'
+invocations="$(
+  # shellcheck disable=SC2016
+  rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|sync-skill-surfaces\.sh)' \
+    "$REPO_ROOT/agent-tooling/update-all.sh" \
+    | sed 's#\$SCRIPT_DIR/##'
+)"
+expected_invocations='update-agents.sh
+update-skill-topology.sh
+sync-skill-surfaces.sh'
 [ "$invocations" = "$expected_invocations" ] \
-  || fail "update-all.sh must invoke only agent updates then skill topology"
+  || fail "update-all.sh must invoke agent updates, acquire, then distribute"
 
 if ! jq -e --slurpfile registry "$REGISTRY" '
     ([.sources[].id] | length) == ([.sources[].id] | unique | length) and

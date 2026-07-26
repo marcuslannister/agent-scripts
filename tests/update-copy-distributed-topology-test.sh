@@ -12,7 +12,7 @@ UPSTREAM="$TMP_ROOT/upstreams/anthropic-skills"
 BIN="$TMP_ROOT/bin"
 mkdir -p "$FIXTURE/agent-tooling" "$FIXTURE/skills" "$FIXTURE/other-skills/anthropics" \
   "$FIXTURE/home/.agents/skills" "$FIXTURE/home/.claude" "$FIXTURE/runtime" "$UPSTREAM/skills" "$BIN"
-cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$FIXTURE/agent-tooling/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh"   "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"   "$REPO_ROOT/agent-tooling/lib-copies.sh"   "$REPO_ROOT/agent-tooling/generate-skills-matrix.py"   "$FIXTURE/agent-tooling/"
 cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 
 ANTHROPIC_SKILLS=(docx frontend-design loose-skill pdf pptx skill-creator xlsx)
@@ -106,17 +106,28 @@ printf '%s\n' \
   '# anthropic-skills end' > "$FIXTURE/.gitignore"
 ln -s "$FIXTURE/skills" "$FIXTURE/home/.claude/skills"
 
-COMMAND="$FIXTURE/agent-tooling/update-skill-topology.sh"
+ACQUIRE="$FIXTURE/agent-tooling/update-skill-topology.sh"
+DISTRIBUTE="$FIXTURE/agent-tooling/sync-skill-surfaces.sh"
+COMMAND="$ACQUIRE"
+run_acquire() {
+  FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" HOME="$1" TMPDIR="$2" PATH="$BIN:$PATH"     "$ACQUIRE" "${@:3}"
+}
+run_distribute() {
+  HOME="$1" TMPDIR="$2" PATH="$BIN:$PATH"     "$DISTRIBUTE" "${@:3}"
+}
 TRACKED_LEGACY_FIXTURE="$TMP_ROOT/anthropic-tracked-legacy"
 cp -R "$FIXTURE" "$TRACKED_LEGACY_FIXTURE"
 unlink "$TRACKED_LEGACY_FIXTURE/home/.claude/skills"
 ln -s "$TRACKED_LEGACY_FIXTURE/skills" "$TRACKED_LEGACY_FIXTURE/home/.claude/skills"
 printf '%s\nanthropic-skills\nlegacy-hash\n' "$UPSTREAM/skills/frontend-design" \
   > "$TRACKED_LEGACY_FIXTURE/skills/frontend-design/.agent-scripts-copy"
-set +e
+# Acquire may stage; distribute migrates root and refuses tracked legacy cleanup.
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$TRACKED_LEGACY_FIXTURE/home" TMPDIR="$TRACKED_LEGACY_FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$TRACKED_LEGACY_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$TRACKED_LEGACY_FIXTURE/result.json"
+  "$TRACKED_LEGACY_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$TRACKED_LEGACY_FIXTURE/acquire.json"
+set +e
+HOME="$TRACKED_LEGACY_FIXTURE/home" TMPDIR="$TRACKED_LEGACY_FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$TRACKED_LEGACY_FIXTURE/agent-tooling/sync-skill-surfaces.sh" --json > "$TRACKED_LEGACY_FIXTURE/result.json"
 tracked_legacy_exit=$?
 set -e
 test "$tracked_legacy_exit" -eq 1
@@ -129,7 +140,7 @@ test -f "$TRACKED_LEGACY_FIXTURE/skills/frontend-design/.agent-scripts-copy"
 
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --json > "$FIXTURE/first.json"
+  "$ACQUIRE" --json > "$FIXTURE/first-acquire.json"
 
 jq -e '
   .status == "reconciled" and
@@ -145,6 +156,16 @@ jq -e '
     "supportedDestinations":["claude","codex"]
   }]) and
   ([.changes[] | select(.action == "installed" and .destination == "staging")] | length) == 6 and
+  all(.plan[] | select(.sourceId == "anthropic-skills"); .destinations == []) and
+  ([.changes[] | select(.destination == "claude" or .destination == "codex")] | length) == 0 and
+  .errors == [] and .decisions == []
+' "$FIXTURE/first-acquire.json" >/dev/null
+
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$DISTRIBUTE" --json > "$FIXTURE/first.json"
+
+jq -e '
+  .status == "reconciled" and
   (.plan[] | select(.skill == "docx") | .destinations == ["claude", "codex"]) and
   (.plan[] | select(.skill == "pdf") | .destinations == ["claude"]) and
   (.plan[] | select(.skill == "pptx") | .destinations == ["codex"]) and
@@ -191,8 +212,11 @@ test ! -e "$FIXTURE/home/.agents/skills/frontend-design"
 
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --json > "$FIXTURE/second.json"
-jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$FIXTURE/second.json" >/dev/null
+  "$ACQUIRE" --json > "$FIXTURE/second-acquire.json"
+jq -e '(.status == "reconciled" or .status == "clean") and .changes == [] and .errors == []' "$FIXTURE/second-acquire.json" >/dev/null
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$DISTRIBUTE" --json > "$FIXTURE/second.json"
+jq -e '(.status == "reconciled" or .status == "clean") and .changes == [] and .errors == []'   "$FIXTURE/second.json" >/dev/null
 
 jq '(.sources[] | select(.id == "anthropic-skills") | .overrides.docx) = ["claude"]' \
   "$FIXTURE/agent-tooling/skill-topology.json" > "$FIXTURE/policy.tmp"
@@ -200,10 +224,15 @@ mv "$FIXTURE/policy.tmp" "$FIXTURE/agent-tooling/skill-topology.json"
 printf 'selected destination changed\n' >> "$FIXTURE/home/Projects/anthropic-skills/skills/docx/SKILL.md"
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --json > "$FIXTURE/drift-deselection.json"
+  "$ACQUIRE" --json > "$FIXTURE/drift-acquire.json"
 jq -e '
   .status == "reconciled" and .errors == [] and
-  any(.changes[]; .action == "installed" and .skill == "docx" and .destination == "staging") and
+  any(.changes[]; .action == "installed" and .skill == "docx" and .destination == "staging")
+' "$FIXTURE/drift-acquire.json" >/dev/null
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$DISTRIBUTE" --json > "$FIXTURE/drift-deselection.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and
   any(.changes[]; .action == "removed" and .skill == "docx" and .destination == "codex") and
   ([.changes[] | select(.action == "installed" and .skill == "docx" and .destination == "codex")] | length) == 0
 ' "$FIXTURE/drift-deselection.json" >/dev/null
@@ -214,7 +243,7 @@ mv "$UPSTREAM/skills/loose-skill" "$FIXTURE/loose-skill.upstream-removed"
 mv "$FIXTURE/home/Projects/anthropic-skills/skills/loose-skill" "$FIXTURE/loose-skill.clone-removed"
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --json > "$FIXTURE/staging-orphan.json"
+  "$ACQUIRE" --json > "$FIXTURE/staging-orphan.json"
 jq -e '
   .status == "reconciled" and
   (.changes[] | .action == "removed" and .skill == "loose-skill")
@@ -224,7 +253,7 @@ test ! -e "$FIXTURE/other-skills/anthropics/loose-skill"
 mv "$FIXTURE/skills/frontend-design/SKILL.md" "$FIXTURE/frontend-design.missing"
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --json > "$FIXTURE/missing-tracked.json"
+  "$ACQUIRE" --json > "$FIXTURE/missing-tracked.json"
 jq -e '
   .status == "reconciled" and
   ([.plan[] | select(.skill == "frontend-design" and .sourceId == "anthropic-skills")] | length) == 0 and
@@ -244,7 +273,9 @@ for surface in "$FIXTURE/home/.claude/skills" "$FIXTURE/home/.agents/skills"; do
 done
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --json > "$FIXTURE/cleanup.json"
+  "$ACQUIRE" --json > "$FIXTURE/cleanup.json.acquire"
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$DISTRIBUTE" --json > "$FIXTURE/cleanup.json"
 jq -e '
   .status == "reconciled" and
   ([.changes[] | select(.action == "removed" and .skill == "old-anthropic")] | length) == 2
@@ -260,10 +291,11 @@ cp -R "$FIXTURE/skills" "$FIXTURE/skills-before-check"
 cp -R "$FIXTURE/other-skills" "$FIXTURE/other-skills-before-check"
 cp "$FIXTURE/.gitignore" "$FIXTURE/gitignore-before-check"
 printf 'upstream changed\n' >> "$UPSTREAM/skills/docx/SKILL.md"
+# Upstream drift is acquire-owned; distribute stays clean offline.
 set +e
 FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" \
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$COMMAND" --check --json > "$FIXTURE/check-drift.json"
+  "$ACQUIRE" --check --json > "$FIXTURE/check-drift.json"
 check_drift_exit=$?
 set -e
 test "$check_drift_exit" -eq 1
@@ -271,23 +303,29 @@ jq -e '
   .status == "drift" and
   ([.drift[] | select(.skill == "docx" and .destination == "staging" and .reason == "content-mismatch")] | length) == 1
 ' "$FIXTURE/check-drift.json" >/dev/null
+HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
+  "$DISTRIBUTE" --check --json > "$FIXTURE/check-drift-distribute.json"
+jq -e '(.status == "clean" or .status == "drift") and (.errors | length) == 0'   "$FIXTURE/check-drift-distribute.json" >/dev/null
+# distribute must not report upstream content-mismatch (no network inventory)
+jq -e '
+  ([.drift[] | select(.skill == "docx" and .destination == "staging" and .reason == "content-mismatch")] | length) == 0
+' "$FIXTURE/check-drift-distribute.json" >/dev/null
 diff -r "$FIXTURE/home-before-check" "$FIXTURE/home"
 diff -r "$FIXTURE/skills-before-check" "$FIXTURE/skills"
 diff -r "$FIXTURE/other-skills-before-check" "$FIXTURE/other-skills"
 cmp -s "$FIXTURE/gitignore-before-check" "$FIXTURE/.gitignore"
 test -z "$(find "$FIXTURE/runtime" -mindepth 1 -print -quit)"
 
+# Stale overrides are distribute-owned (matrix phase). Staging lacks docx while override still names it.
 INCOMPLETE_FIXTURE="$TMP_ROOT/anthropic-incomplete"
 cp -R "$FIXTURE" "$INCOMPLETE_FIXTURE"
-mv "$INCOMPLETE_FIXTURE/home/Projects/anthropic-skills/skills/docx/SKILL.md" \
-  "$INCOMPLETE_FIXTURE/home/Projects/anthropic-skills/skills/docx/SKILL.missing"
-mv "$INCOMPLETE_FIXTURE/other-skills/anthropics/xlsx" "$INCOMPLETE_FIXTURE/missing-xlsx"
+rm -rf "$INCOMPLETE_FIXTURE/other-skills/anthropics/docx"
 cp -R "$INCOMPLETE_FIXTURE/home" "$INCOMPLETE_FIXTURE/home-before"
 cp -R "$INCOMPLETE_FIXTURE/skills" "$INCOMPLETE_FIXTURE/skills-before"
 cp -R "$INCOMPLETE_FIXTURE/other-skills" "$INCOMPLETE_FIXTURE/other-skills-before"
 set +e
 HOME="$INCOMPLETE_FIXTURE/home" TMPDIR="$INCOMPLETE_FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$INCOMPLETE_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$INCOMPLETE_FIXTURE/result.json"
+  "$INCOMPLETE_FIXTURE/agent-tooling/sync-skill-surfaces.sh" --json > "$INCOMPLETE_FIXTURE/result.json"
 incomplete_exit=$?
 set -e
 test "$incomplete_exit" -eq 3
@@ -295,7 +333,7 @@ jq -e '
   .status == "decision-required" and .changes == [] and
   (.decisions[] | .code == "stale-override" and .sourceId == "anthropic-skills" and .skill == "docx")
 ' "$INCOMPLETE_FIXTURE/result.json" >/dev/null
-test ! -e "$INCOMPLETE_FIXTURE/other-skills/anthropics/xlsx"
+test ! -e "$INCOMPLETE_FIXTURE/other-skills/anthropics/docx"
 diff -r "$INCOMPLETE_FIXTURE/home-before" "$INCOMPLETE_FIXTURE/home"
 diff -r "$INCOMPLETE_FIXTURE/skills-before" "$INCOMPLETE_FIXTURE/skills"
 diff -r "$INCOMPLETE_FIXTURE/other-skills-before" "$INCOMPLETE_FIXTURE/other-skills"
@@ -315,7 +353,7 @@ mkdir -p "$KHAZIX_FIXTURE/agent-tooling" "$KHAZIX_FIXTURE/skills" \
   "$KHAZIX_FIXTURE/home/.claude/skills" \
   "$KHAZIX_FIXTURE/runtime" "$KHAZIX_UPSTREAM/neat-freak" \
   "$KHAZIX_UPSTREAM/.git" "$KHAZIX_BIN"
-cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$KHAZIX_FIXTURE/agent-tooling/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh"   "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"   "$REPO_ROOT/agent-tooling/lib-copies.sh"   "$REPO_ROOT/agent-tooling/generate-skills-matrix.py"   "$KHAZIX_FIXTURE/agent-tooling/"
 cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$KHAZIX_FIXTURE/agent-tooling/"
 printf '%s\n' '---' 'name: neat-freak' 'description: "fixture"' '---' > "$KHAZIX_UPSTREAM/neat-freak/SKILL.md"
 printf 'claude-skills\n' > "$KHAZIX_FIXTURE/home/.claude/skills/.agent-scripts-root"
@@ -372,14 +410,20 @@ JSON
 
 FAKE_KHAZIX_UPSTREAM="$KHAZIX_UPSTREAM" \
 HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
-  "$KHAZIX_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/result.json"
+  "$KHAZIX_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/acquire.json"
 jq -e '
   .status == "reconciled" and
   ([.changes[] | select(.skill == "neat-freak" and .action == "installed" and .destination == "staging")] | length) == 1 and
-  (.plan[] | select(.skill == "neat-freak") | .destinations == ["claude", "codex"])
-' "$KHAZIX_FIXTURE/result.json" >/dev/null
+  (.plan[] | select(.skill == "neat-freak") | .destinations == [])
+' "$KHAZIX_FIXTURE/acquire.json" >/dev/null
 test -f "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/SKILL.md"
 test ! -e "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy"
+HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
+  "$KHAZIX_FIXTURE/agent-tooling/sync-skill-surfaces.sh" --json > "$KHAZIX_FIXTURE/result.json"
+jq -e '
+  .status == "reconciled" and
+  (.plan[] | select(.skill == "neat-freak") | .destinations == ["claude", "codex"])
+' "$KHAZIX_FIXTURE/result.json" >/dev/null
 test -f "$KHAZIX_FIXTURE/home/.claude/skills/neat-freak/SKILL.md"
 test -f "$KHAZIX_FIXTURE/home/.agents/skills/neat-freak/SKILL.md"
 test "$(sed -n '1p' "$KHAZIX_FIXTURE/home/.claude/skills/neat-freak/.agent-scripts-copy")" = "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak"
@@ -396,14 +440,18 @@ jq -e '
 printf '%s\n%s\n' "$KHAZIX_FIXTURE/home/Projects/khazix-skills/neat-freak" khazix-skills \
   > "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy"
 printf 'tracked source update\n' >> "$KHAZIX_FIXTURE/home/Projects/khazix-skills/neat-freak/SKILL.md"
+FAKE_KHAZIX_UPSTREAM="$KHAZIX_UPSTREAM" \
 HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
-  "$KHAZIX_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/tracked-update.json"
+  "$KHAZIX_FIXTURE/agent-tooling/update-skill-topology.sh" --json > "$KHAZIX_FIXTURE/tracked-acquire.json"
 jq -e '.status == "reconciled" and (.changes[] | .skill == "neat-freak" and .action == "installed" and .destination == "staging")' \
-  "$KHAZIX_FIXTURE/tracked-update.json" >/dev/null
+  "$KHAZIX_FIXTURE/tracked-acquire.json" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/SKILL.md" >/dev/null
+test ! -e "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy"
+HOME="$KHAZIX_FIXTURE/home" TMPDIR="$KHAZIX_FIXTURE/runtime" PATH="$KHAZIX_BIN:$PATH" \
+  "$KHAZIX_FIXTURE/agent-tooling/sync-skill-surfaces.sh" --json > "$KHAZIX_FIXTURE/tracked-update.json"
+jq -e '.status == "reconciled" and .errors == []' "$KHAZIX_FIXTURE/tracked-update.json" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/home/.claude/skills/neat-freak/SKILL.md" >/dev/null
 grep -Fx 'tracked source update' "$KHAZIX_FIXTURE/home/.agents/skills/neat-freak/SKILL.md" >/dev/null
-test ! -e "$KHAZIX_FIXTURE/other-skills/khazix/neat-freak/.agent-scripts-copy"
 
 UNSUPPORTED_FIXTURE="$TMP_ROOT/khazix-unsupported"
 cp -R "$KHAZIX_FIXTURE" "$UNSUPPORTED_FIXTURE"
@@ -447,9 +495,10 @@ HOME="$CONTRACT_FIXTURE/home" TMPDIR="$CONTRACT_FIXTURE/runtime" PATH="$KHAZIX_B
 contract_exit=$?
 set -e
 test "$contract_exit" -eq 1
+# Acquire only inspects staging for source-only; surfaces are distribute-owned.
 jq -e '
   .status == "failed" and .changes == [] and
-  ([.errors[] | select(contains("returned incomplete inspection"))] | length) == 3
+  ([.errors[] | select(contains("returned incomplete inspection"))] | length) == 1
 ' "$CONTRACT_FIXTURE/result.json" >/dev/null
 test ! -e "$CONTRACT_FIXTURE/other-skills/khazix/neat-freak"
 
@@ -467,7 +516,7 @@ mkdir -p "$VISUAL_FIXTURE/agent-tooling" "$VISUAL_FIXTURE/skills" \
   "$VISUAL_FIXTURE/home/.agents/skills" "$VISUAL_FIXTURE/home/.claude/skills" "$VISUAL_FIXTURE/home/.claude/plugins" \
   "$VISUAL_FIXTURE/runtime" "$VISUAL_UPSTREAM/plugins/visual-explainer/commands" \
   "$VISUAL_UPSTREAM/.git" "$VISUAL_BIN"
-cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$VISUAL_FIXTURE/agent-tooling/"
+cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh"   "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"   "$REPO_ROOT/agent-tooling/lib-copies.sh"   "$REPO_ROOT/agent-tooling/generate-skills-matrix.py"   "$VISUAL_FIXTURE/agent-tooling/"
 cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$VISUAL_FIXTURE/agent-tooling/"
 printf '%s\n' '---' 'name: visual-explainer' 'description: "fixture"' '---' \
   > "$VISUAL_UPSTREAM/plugins/visual-explainer/SKILL.md"
@@ -581,17 +630,25 @@ cat > "$VISUAL_FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSO
 ]
 JSON
 
-VISUAL_COMMAND="$VISUAL_FIXTURE/agent-tooling/update-skill-topology.sh"
+VISUAL_ACQUIRE="$VISUAL_FIXTURE/agent-tooling/update-skill-topology.sh"
+VISUAL_DISTRIBUTE="$VISUAL_FIXTURE/agent-tooling/sync-skill-surfaces.sh"
+VISUAL_COMMAND="$VISUAL_ACQUIRE"
 FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
-  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/first.json"
+  "$VISUAL_ACQUIRE" --json > "$VISUAL_FIXTURE/first-acquire.json"
 jq -e '
   .status == "reconciled" and
-  ([.changes[] | select(.skill == "visual-explainer" and .action == "installed")] | length) == 3 and
   any(.changes[]; .skill == "visual-explainer" and .action == "installed" and .destination == "staging") and
   any(.changes[]; .skill == "visual-explainer" and .action == "installed" and .destination == "claude") and
+  ([.changes[] | select(.skill == "visual-explainer" and .destination == "codex")] | length) == 0 and
+  (.plan[] | select(.skill == "visual-explainer") | .destinations == ["claude"])
+' "$VISUAL_FIXTURE/first-acquire.json" >/dev/null
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_DISTRIBUTE" --json > "$VISUAL_FIXTURE/first.json"
+jq -e '
+  .status == "reconciled" and
   any(.changes[]; .skill == "visual-explainer" and .action == "installed" and .destination == "codex") and
-  (.plan[] | select(.skill == "visual-explainer") | .destinations == ["claude", "codex"])
+  (.plan[] | select(.skill == "visual-explainer") | .destinations == ["codex"])
 ' "$VISUAL_FIXTURE/first.json" >/dev/null
 jq -e '.plugins["visual-explainer@visual-explainer-marketplace"][0].gitCommitSha == $sha' \
   --arg sha "$VISUAL_SHA" "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json" >/dev/null
@@ -615,8 +672,11 @@ grep -Fx 'plugin install visual-explainer@visual-explainer-marketplace' "$VISUAL
 cp "$VISUAL_FIXTURE/home/claude-calls.log" "$VISUAL_FIXTURE/claude-calls-first"
 FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
-  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/second.json"
-jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$VISUAL_FIXTURE/second.json" >/dev/null
+  "$VISUAL_ACQUIRE" --json > "$VISUAL_FIXTURE/second-acquire.json"
+jq -e '(.status == "reconciled" or .status == "clean") and .changes == [] and .errors == []'   "$VISUAL_FIXTURE/second-acquire.json" >/dev/null
+HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
+  "$VISUAL_DISTRIBUTE" --json > "$VISUAL_FIXTURE/second.json"
+jq -e '(.status == "reconciled" or .status == "clean") and .changes == [] and .errors == []'   "$VISUAL_FIXTURE/second.json" >/dev/null
 cmp -s "$VISUAL_FIXTURE/claude-calls-first" "$VISUAL_FIXTURE/home/claude-calls.log"
 
 cat > "$VISUAL_FIXTURE/home/.claude/settings.json" <<'JSON'
@@ -703,9 +763,8 @@ mkdir -p "$VISUAL_FIXTURE/home/.codex"
 printf '%s\n' '../Projects/visual-explainer/plugins/visual-explainer' \
   > "$VISUAL_FIXTURE/home/.codex/visual-explainer"
 set +e
-FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
-  "$VISUAL_COMMAND" --check --json > "$VISUAL_FIXTURE/legacy-check.json"
+  "$VISUAL_DISTRIBUTE" --check --json > "$VISUAL_FIXTURE/legacy-check.json"
 legacy_check_exit=$?
 set -e
 test "$legacy_check_exit" -eq 1
@@ -714,9 +773,8 @@ jq -e '
   (.drift[] | .sourceId == "visual-explainer" and .destination == "codex" and .reason == "legacy-path")
 ' "$VISUAL_FIXTURE/legacy-check.json" >/dev/null
 test -f "$VISUAL_FIXTURE/home/.codex/visual-explainer"
-FAKE_VISUAL_UPSTREAM="$VISUAL_UPSTREAM" FAKE_VISUAL_SHA="$VISUAL_SHA" \
 HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$PATH" \
-  "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/legacy-reconcile.json"
+  "$VISUAL_DISTRIBUTE" --json > "$VISUAL_FIXTURE/legacy-reconcile.json"
 test ! -e "$VISUAL_FIXTURE/home/.codex/visual-explainer"
 jq -e '.status == "reconciled" and (.changes[] | .skill == "visual-explainer" and .destination == "codex")' \
   "$VISUAL_FIXTURE/legacy-reconcile.json" >/dev/null

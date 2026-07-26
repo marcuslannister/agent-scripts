@@ -27,7 +27,7 @@ legacy_target="../Projects/visual-explainer/plugins/visual-explainer"
 
 discover_source() {
   local clone_dir source_root commit
-  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
     mkdir -p "$staging_root"
     printf '%s\n' "$staging_root" > "$source_file"
     printf 'offline\n' > "$commit_file"
@@ -162,7 +162,7 @@ inspect_states() {
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
 
-  if [ -d "$codex_root" ]; then
+  if [ "${TOPOLOGY_PHASE:-acquire}" != acquire ] && [ -d "$codex_root" ]; then
     for marker in "$codex_root"/*/.agent-scripts-copy; do
       [ -f "$marker" ] || continue
       marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
@@ -260,13 +260,14 @@ refresh_staging_metadata() {
   done
   clear_staging_gitignore "$repo_root" "$owner" || return 1
   clear_staging_gitignore "$repo_root" "$staging_owner" || return 1
-  [ "${TOPOLOGY_PHASE:-full}" = distribute ] && return 0
+  [ "${TOPOLOGY_PHASE:-acquire}" = distribute ] && return 0
   clone_dir="$source_root"
   [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
   write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
 }
 
 refresh_installed_codex_copy() { # skill
+  [ "${TOPOLOGY_PHASE:-acquire}" = acquire ] && return 0
   local skill="$1" marker_owner
   if awk -F '\t' -v skill="$skill" \
     '$1 == "remove" && $2 == skill && $3 == "codex" { found = 1 } END { exit !found }' "$plan_path"; then
@@ -301,7 +302,7 @@ reconcile_states() {
         fi
         ;;
       install:claude)
-        if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+        if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
           printf 'distribute phase does not install Claude plugins: %s\n' "$skill" >&2
           operation_failed=1
         else
@@ -323,7 +324,7 @@ reconcile_states() {
         fi
         ;;
       remove:claude)
-        if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+        if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
           printf 'distribute phase does not remove Claude plugins: %s\n' "$skill" >&2
           operation_failed=1
         else
@@ -347,7 +348,9 @@ reconcile_states() {
       failed=1
     fi
   done < "$plan_path"
-  remove_legacy_path || failed=1
+  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
+    remove_legacy_path || failed=1
+  fi
   refresh_staging_metadata || failed=1
   return "$failed"
 }

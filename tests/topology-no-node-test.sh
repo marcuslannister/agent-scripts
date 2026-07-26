@@ -6,7 +6,7 @@ TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 mkdir -p "$TMP_ROOT/bin"
-for required_tool in bash git jq rg; do
+for required_tool in bash git jq python3 rg; do
   executable="$(command -v "$required_tool")"
   ln -s "$executable" "$TMP_ROOT/bin/$required_tool"
 done
@@ -35,7 +35,7 @@ for test_file in \
   update-copy-distributed-topology-test.sh \
   update-npx-distributed-topology-test.sh \
   update-plugin-distributed-topology-test.sh \
-  update-skill-topology-test.sh \
+  update-skill-topology-acquire-test.sh \
   sync-skill-surfaces-test.sh \
   matrix-driven-topology-test.sh
 do

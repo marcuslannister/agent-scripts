@@ -2,7 +2,7 @@
 
 topology_help() {
   local command_name="${TOPOLOGY_COMMAND_NAME:-update-skill-topology.sh}"
-  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
     cat <<EOF
 Usage: ${command_name} [--check] [--json]
 
@@ -27,10 +27,12 @@ EOF
     cat <<EOF
 Usage: ${command_name} [--check] [--json]
 
-Reconcile the manifest-owned skill distribution topology. Use --check to preview.
+Acquire phase: refresh upstream sources, mirror complete inventories into tracked
+staging, and reconcile native plugins. Selection-blind — never reads the skills
+matrix, never writes overrides, never touches agent surfaces, never runs git.
 
 Options:
-  --check  Discover inventory and report topology drift.
+  --check  Preview upstream drift without writes.
   --json   Write one JSON result document.
   -h, --help
             Show this help.

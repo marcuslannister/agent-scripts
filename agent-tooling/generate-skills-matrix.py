@@ -40,7 +40,7 @@ def topology_plan():
     if plan_path:
         with open(plan_path) as file:
             return json.load(file)
-    command = f"{REPO}/agent-tooling/update-skill-topology.sh"
+    command = f"{REPO}/agent-tooling/sync-skill-surfaces.sh"
     result = subprocess.run([command, "--check", "--json"], text=True, capture_output=True)
     try:
         state = json.loads(result.stdout)

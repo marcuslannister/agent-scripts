@@ -32,11 +32,11 @@ Optional / maintainer's call: installed-plugin cuts (`typescript-lsp`, `superpow
 
 ## Gotchas (not captured elsewhere)
 
-- **Topology reconcile is env-blocked on this machine.** `./scripts/update-skill-topology.sh --check` returns `failed (48 changes)`: hard error `cannot verify visual-explainer/visual-explainer on claude: invalid-plugin-settings` (this HALTS reconcile), the entire Codex surface shows `installed:missing` (unsynced here), and `waza` is `disabled`. None of this is from the reorg — pre-existing. Fix visual-explainer's plugin settings before expecting any reconcile to apply.
+- **Acquire was env-blocked on this machine.** `./scripts/update-skill-topology.sh --check` returns `failed (48 changes)`: hard error `cannot verify visual-explainer/visual-explainer on claude: invalid-plugin-settings` (this HALTS acquire), the entire Codex surface shows `installed:missing` (unsynced here), and `waza` is `disabled`. None of this is from the reorg — pre-existing. Fix visual-explainer's plugin settings before expecting acquire to apply; run `./agent-tooling/sync-skill-surfaces.sh` separately for offline surface distribution.
 - **No scoped reconcile.** The tool runs all sources; one source's inspection failure blocks the whole apply. That's why the anthropic change can't be applied in isolation right now.
 - **Override `[]` excludes a skill**, but only for per-skill sources (copy/npx). Plugin sources are all-or-nothing.
 - **Commit helper:** `./scripts/committer "<msg>" <file>...` (validates 46 skills, then commits). This repo is authorized for commit+push without asking.
-- **zsh test-runner traps:** `noclobber` breaks `> file` reuse — use `>|` and a fresh `mktemp` per test. Topology tests are slow; `topology-no-node-test.sh` re-runs a full sub-suite and can exceed a 2-minute timeout — run it (and `update-skill-topology-test.sh`) individually with a longer timeout.
+- **zsh test-runner traps:** `noclobber` breaks `> file` reuse — use `>|` and a fresh `mktemp` per test. Topology tests are slow; `topology-no-node-test.sh` re-runs a full sub-suite and can exceed a 2-minute timeout — run it (and `update-skill-topology-acquire-test.sh`) individually with a longer timeout.
 - **Green baseline:** all 9 topology tests + `tests/skill-index-test.sh` pass.
 
 ## Suggested skills

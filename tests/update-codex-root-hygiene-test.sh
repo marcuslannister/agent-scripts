@@ -16,7 +16,7 @@ make_fixture() { # fixture_root
     "$fixture_root/home/.agents/skills" \
     "$fixture_root/home/.claude/skills" \
     "$fixture_root/runtime"
-  cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture_root/agent-tooling/"
+  cp "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture_root/agent-tooling/"
   cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$fixture_root/agent-tooling/"
   jq '[.[] | select(.sourceId == "repo-claude")]' \
     "$fixture_root/agent-tooling/distribution-topology/registry.json" > "$fixture_root/registry.tmp"
@@ -48,7 +48,7 @@ run_topology() { # fixture_root mode output
   HOME="$fixture_root/home" \
   TMPDIR="$fixture_root/runtime" \
   AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260714-120000 \
-    "$fixture_root/agent-tooling/update-skill-topology.sh" $mode --json > "$output"
+    "$fixture_root/agent-tooling/sync-skill-surfaces.sh" $mode --json > "$output"
   RUN_EXIT=$?
   set -e
 }
@@ -150,7 +150,7 @@ HOME="$BLOCKED/home" \
 TMPDIR="$BLOCKED/runtime" \
 PATH="$BLOCKED/failbin:$PATH" \
 AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260714-120000 \
-  "$BLOCKED/agent-tooling/update-skill-topology.sh" --json > "$BLOCKED/failed.json"
+  "$BLOCKED/agent-tooling/sync-skill-surfaces.sh" --json > "$BLOCKED/failed.json"
 blocked_exit=$?
 set -e
 test "$blocked_exit" -eq 1

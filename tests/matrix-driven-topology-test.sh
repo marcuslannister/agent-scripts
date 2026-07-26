@@ -25,7 +25,7 @@ mkdir -p \
   "$UPSTREAM/.git" \
   "$BIN"
 
-cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" \
+cp "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" \
   "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" \
   "$REPO_ROOT/agent-tooling/lib-copies.sh" \
   "$FIXTURE/agent-tooling/"
@@ -38,7 +38,11 @@ done
 for skill in foreign-remove foreign-same foreign-install; do
   printf '%s\n' '---' "name: $skill" 'description: "fixture"' '---' \
     > "$UPSTREAM/skills/$skill/SKILL.md"
+  mkdir -p "$FIXTURE/other-skills/anthropics/$skill"
+  cp "$UPSTREAM/skills/$skill/SKILL.md" "$FIXTURE/other-skills/anthropics/$skill/SKILL.md"
 done
+printf '%s\n' '{"repo":"anthropics/skills","commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","syncedAt":"2026-07-25T00:00:00Z"}' \
+  > "$FIXTURE/other-skills/anthropics/.source.json"
 printf '%s\n' '---' 'name: test-plugin' 'description: "fixture"' '---' \
   > "$FIXTURE/home/.claude/plugins/cache/test-market/test-plugin/1.0.0/SKILL.md"
 printf '%s\n' '{"test-market":{"source":{"repo":"https://github.com/example/test-plugin.git"}}}' \
@@ -158,12 +162,12 @@ cat > "$FIXTURE/agent-tooling/skills-matrix.md" <<'MARKDOWN'
 MARKDOWN
 
 git -C "$FIXTURE" init -q
-git -C "$FIXTURE" add skills
+git -C "$FIXTURE" add skills other-skills
 
 run_topology() {
   FAKE_ANTHROPIC_UPSTREAM="$UPSTREAM" REAL_GIT="$REAL_GIT" \
     HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-    "$FIXTURE/agent-tooling/update-skill-topology.sh" "$@"
+    "$FIXTURE/agent-tooling/sync-skill-surfaces.sh" "$@"
 }
 
 replace_row() {
@@ -247,12 +251,12 @@ jq -e '.status == "failed" and any(.errors[]; contains("skills matrix is missing
   "$FIXTURE/missing-matrix.json" >/dev/null
 mv "$FIXTURE/agent-tooling/skills-matrix.missing" "$FIXTURE/agent-tooling/skills-matrix.md"
 
-mkdir -p "$UPSTREAM/skills/foreign-new" "$FIXTURE/home/Projects/anthropic-skills/skills/foreign-new"
+mkdir -p "$UPSTREAM/skills/foreign-new" "$FIXTURE/other-skills/anthropics/foreign-new"
 printf '%s\n' '---' 'name: foreign-new' 'description: "fixture"' '---' \
   > "$UPSTREAM/skills/foreign-new/SKILL.md"
-cp "$UPSTREAM/skills/foreign-new/SKILL.md" "$FIXTURE/home/Projects/anthropic-skills/skills/foreign-new/SKILL.md"
+cp "$UPSTREAM/skills/foreign-new/SKILL.md" "$FIXTURE/other-skills/anthropics/foreign-new/SKILL.md"
 awk '
-  /^\| `test-plugin` \|/ { print "| `foreign-removed` | anthropics/skills | skill | Y | N | ~1 |" }
+  /^\| `test-plugin` \|/ { print "| `foreign-removed` | anthropics/skills | skill | N | N | ~1 |" }
   { print }
 ' "$FIXTURE/agent-tooling/skills-matrix.md" > "$FIXTURE/agent-tooling/skills-matrix.tmp"
 mv "$FIXTURE/agent-tooling/skills-matrix.tmp" "$FIXTURE/agent-tooling/skills-matrix.md"
@@ -276,7 +280,8 @@ for mode in check reconcile; do
   ' "$FIXTURE/$mode-blocked.json" >/dev/null
   test "$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")" = "$manifest_before_block"
   diff -r "$FIXTURE/home-before-block" "$FIXTURE/home"
-  test ! -e "$FIXTURE/other-skills/anthropics/foreign-new"
+  # Distribute inventory is staging; foreign-new stays staged while decisions block mutation.
+  test -f "$FIXTURE/other-skills/anthropics/foreign-new/SKILL.md"
 done
 
 replace_row test-plugin '| `test-plugin` | example/test-plugin | plugin | Y | X | ~1 |'

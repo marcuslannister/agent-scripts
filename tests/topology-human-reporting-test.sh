@@ -12,7 +12,7 @@ mkdir -p \
   "$FIXTURE/home/.agents/skills" \
   "$FIXTURE/home/.claude/skills" \
   "$FIXTURE/runtime"
-cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$FIXTURE/agent-tooling/"
+cp "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"   "$REPO_ROOT/agent-tooling/lib-copies.sh"   "$REPO_ROOT/agent-tooling/generate-skills-matrix.py"   "$FIXTURE/agent-tooling/"
 cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 jq '[.[] | select(.sourceId == "repo-claude")]' \
   "$FIXTURE/agent-tooling/distribution-topology/registry.json" > "$FIXTURE/registry.tmp"
@@ -71,7 +71,7 @@ fi
 exec "${BASH_SOURCE[0]%/*}/codex-root-hygiene-real.sh" "$@"
 BASH
 chmod +x "$FIXTURE/agent-tooling/distribution-topology/codex-root-hygiene.sh"
-COMMAND="$FIXTURE/agent-tooling/update-skill-topology.sh"
+COMMAND="$FIXTURE/agent-tooling/sync-skill-surfaces.sh"
 
 assert_row() {
   local output="$1" source="$2" destination="$3" change="$4" result="$5"

@@ -80,7 +80,7 @@ matrix_source_overrides() { # source-id matrix-source inventory current output f
   while IFS=$'\t' read -r skill claude codex; do
     [ -n "$skill" ] || continue
     if ! rg -Fxq -- "$skill" "$inventory"; then
-      if [ "${TOPOLOGY_PHASE:-full}" = distribute ] && { [ "$claude" = Y ] || [ "$codex" = Y ]; }; then
+      if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ] && { [ "$claude" = Y ] || [ "$codex" = Y ]; }; then
         topology_fail 1 "matrix selects $source_id/$skill but staging has no copy; run acquire (update-skill-topology.sh) or git pull"
         return 1
       fi

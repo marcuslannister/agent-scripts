@@ -799,6 +799,7 @@ reconcile_states() {
   done < "$plan_path"
   [ "$failed" -eq 0 ] || return "$failed"
   [ "$classification" = dual-plugin ] || return 0
+  # Verified dual-plugin duplicate cleanup remains native-plugin policy.
   remove_dual_plugin_copies "$discovery_root/$source_id.refresh-states.tsv"
 }
 
@@ -875,7 +876,7 @@ verify_states() {
 
 case "$action" in
   discover)
-    if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+    if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
       # Offline inventory from registry only; native plugin work stays with acquire.
       jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry"
       exit 0
@@ -886,14 +887,14 @@ case "$action" in
     ;;
   inspect)
     failed=0
-    if [ "${TOPOLOGY_PHASE:-full}" != distribute ]; then
+    if [ "${TOPOLOGY_PHASE:-acquire}" != distribute ]; then
       scan_unknown_plugins || failed=1
       inspect_states || failed=1
     fi
     exit "$failed"
     ;;
   reconcile)
-    if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+    if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
       # Distribute does not mutate native plugins.
       exit 0
     fi

@@ -126,7 +126,7 @@ discover_from_staging() {
 discover_source() {
   local clone_root upstream_root skill_file skill relative count=0
   mkdir -p "$state_root"
-  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
     discover_from_staging
     return
   fi
@@ -228,23 +228,25 @@ emit_inspection() {
       printf 'npx-decision\t%s\tcodex\t%s\n' "$lock_skill" "$lock_source"
     fi
   done < "$current_lock"
-  for marker in "$codex_root"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || continue
-    orphan="$(basename "$(dirname "$marker")")"
-    awk -F '\t' -v skill="$orphan" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file" && continue
-    printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
-  done
-  for marker in "$claude_root"/*/.agent-scripts-copy; do
-    [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-    [ "$marker_owner" = "$owner" ] || { [ -n "$retired_owner" ] && [ "$marker_owner" = "$retired_owner" ]; } || continue
-    orphan="$(basename "$(dirname "$marker")")"
-    if ! awk -F '\t' -v skill="$orphan" '$2 == skill && $3 == "claude" { found = 1 } END { exit !found }' "$plan_path"; then
-      printf 'orphan\t%s\tclaude\tmanaged\n' "$orphan"
-    fi
-  done
+  if [ "${TOPOLOGY_PHASE:-acquire}" != acquire ]; then
+    for marker in "$codex_root"/*/.agent-scripts-copy; do
+      [ -f "$marker" ] || continue
+      marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+      [ "$marker_owner" = "$owner" ] || continue
+      orphan="$(basename "$(dirname "$marker")")"
+      awk -F '\t' -v skill="$orphan" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file" && continue
+      printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
+    done
+    for marker in "$claude_root"/*/.agent-scripts-copy; do
+      [ -f "$marker" ] || continue
+      marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+      [ "$marker_owner" = "$owner" ] || { [ -n "$retired_owner" ] && [ "$marker_owner" = "$retired_owner" ]; } || continue
+      orphan="$(basename "$(dirname "$marker")")"
+      if ! awk -F '\t' -v skill="$orphan" '$2 == skill && $3 == "claude" { found = 1 } END { exit !found }' "$plan_path"; then
+        printf 'orphan\t%s\tclaude\tmanaged\n' "$orphan"
+      fi
+    done
+  fi
   for skill_file in "$staging_root"/*/SKILL.md; do
     [ -f "$skill_file" ] || continue
     orphan="$(basename "$(dirname "$skill_file")")"
@@ -264,6 +266,7 @@ install_staged_skill() { # skill
 }
 
 refresh_installed_codex_copy() { # skill
+  [ "${TOPOLOGY_PHASE:-acquire}" = acquire ] && return 0
   refresh_owned_staged_surface_copy "$plan_path" "$staging_root" "$1" \
     "$codex_root" codex "$owner"
 }
@@ -280,7 +283,7 @@ refresh_staging_metadata() {
   if [ -f "$repo_root/.git/info/exclude" ]; then
     remove_gitignore_block "$repo_root/.git/info/exclude" "$owner" || return 1
   fi
-  [ "${TOPOLOGY_PHASE:-full}" = distribute ] && return 0
+  [ "${TOPOLOGY_PHASE:-acquire}" = distribute ] && return 0
   clone_dir="$state_root/repo"
   write_staging_source_json "$staging_root" "$upstream_repo" "$clone_dir"
 }

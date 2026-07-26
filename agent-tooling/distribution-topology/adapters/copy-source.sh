@@ -59,7 +59,7 @@ discover_from_staging() {
 
 discover_source() {
   local clone_dir source_root marker_root skill_file skill count=0
-  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
     discover_from_staging
     return
   fi
@@ -133,20 +133,22 @@ emit_staging_inspection() {
   done < "$plan_path"
 
   local surface marker marker_owner orphan
-  for destination in claude codex; do
-    surface="$(surface_for_destination "$destination")"
-    [ -d "$surface" ] || continue
-    for marker in "$surface"/*/.agent-scripts-copy; do
-      [ -f "$marker" ] || continue
-      marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-      [ "$marker_owner" = "$owner" ] || continue
-      orphan="$(basename "$(dirname "$marker")")"
-      if ! awk -F '\t' -v skill="$orphan" -v destination="$destination" \
-        '$2 == skill && $3 == destination { found = 1 } END { exit !found }' "$plan_path"; then
-        printf 'orphan\t%s\t%s\tmanaged\n' "$orphan" "$destination"
-      fi
+  if [ "${TOPOLOGY_PHASE:-acquire}" != acquire ]; then
+    for destination in claude codex; do
+      surface="$(surface_for_destination "$destination")"
+      [ -d "$surface" ] || continue
+      for marker in "$surface"/*/.agent-scripts-copy; do
+        [ -f "$marker" ] || continue
+        marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+        [ "$marker_owner" = "$owner" ] || continue
+        orphan="$(basename "$(dirname "$marker")")"
+        if ! awk -F '\t' -v skill="$orphan" -v destination="$destination" \
+          '$2 == skill && $3 == destination { found = 1 } END { exit !found }' "$plan_path"; then
+          printf 'orphan\t%s\t%s\tmanaged\n' "$orphan" "$destination"
+        fi
+      done
     done
-  done
+  fi
 
   local skill_file
   for skill_file in "$staging_root"/*/SKILL.md; do
@@ -166,6 +168,8 @@ remove_owned_legacy_copy() { # skill destination
 }
 
 refresh_installed_surface_copies() { # skill
+  # Acquire owns staging only; surface refresh is distribute's job.
+  [ "${TOPOLOGY_PHASE:-acquire}" = acquire ] && return 0
   local skill="$1" destination surface failed=0
   for destination in claude codex; do
     surface="$(surface_for_destination "$destination")"
@@ -184,7 +188,7 @@ refresh_staging_metadata() {
   done
   clear_staging_gitignore "$repo_root" "$owner" || return 1
   # Distribute never rewrites provenance; staged .source.json is acquire-owned.
-  [ "${TOPOLOGY_PHASE:-full}" = distribute ] && return 0
+  [ "${TOPOLOGY_PHASE:-acquire}" = distribute ] && return 0
   clone_dir="$source_root"
   [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
   write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"

@@ -30,9 +30,9 @@ Rules:
 - Quote `description` in front matter.
 
 Global discovery — one skills root per CLI:
-- Claude Code: `~/.claude/skills` only; `agent-tooling/sync-skill-surfaces.sh` (offline distribute) installs marker-owned per-skill copies selected by `agent-tooling/skills-matrix.md`; `agent-tooling/update-skill-topology.sh` still runs the full single-pass reconcile until the acquire-only split lands.
+- Claude Code: `~/.claude/skills` only; `agent-tooling/update-skill-topology.sh` acquires upstream inventories into tracked staging and reconciles native plugins; `agent-tooling/sync-skill-surfaces.sh` distributes matrix-selected, marker-owned copies offline.
 - Codex: `~/.agents/skills` only; the same matrix selects every `Type: skill` row independently for Claude and Codex. `Type: plugin` rows remain report-only.
-- The old `~/.codex/skills` root is legacy. Distribute and the full topology command migrate every non-system entry into collision-safe timestamped backups and verify that only Codex's `.system` entry may remain.
+- The old `~/.codex/skills` root is legacy. Distribute migrates every non-system entry into collision-safe timestamped backups and verifies that only Codex's `.system` entry may remain.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
 - Recovery from migrated backups: `docs/codex-skill-backup-recovery.md`. Upstream mirror rollback: `docs/upstream-skills-mirror-rollback.md`.
 
@@ -58,7 +58,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `agent-tooling/update-all.sh`
-- Top-level updater: exactly two ordered steps — `update-agents.sh`, then `update-skill-topology.sh` (full reconcile). Offline surface sync: `sync-skill-surfaces.sh`. Three-step acquire/distribute updater lands in the follow-up.
+- Top-level updater: exactly three ordered steps — `update-agents.sh`, `update-skill-topology.sh` (acquire), then `sync-skill-surfaces.sh` (distribute).
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `agent-tooling/verify.sh`
@@ -66,11 +66,12 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `agent-tooling/update-skill-topology.sh` / `agent-tooling/sync-skill-surfaces.sh`
-- Public commands and private topology core are Bash; topology reconciliation neither invokes nor requires Node. `sync-skill-surfaces.sh` is the offline distribute phase (matrix + surfaces). Browser-helper verification keeps its unrelated Node requirement.
-- Default mode discovers repo-owned, Matt, Anthropic, neat-freak, visual-explainer, OpenAI Codex for Claude, Waza, and claude-mem inventories; validates matrix rows before any distribution write; regenerates marked manifest overrides for `Type: skill` sources; independently migrates legacy Codex-root drift; reconciles approved copies/plugins; performs owner-scoped cleanup; verifies the root plus every managed destination; then regenerates `agent-tooling/skills-matrix.md` from the verified state. Unmarked and other-owner active-surface entries remain untouched. `--check` never rewrites the matrix.
+- Public commands and private topology core are Bash; topology reconciliation neither invokes nor requires Node. Browser-helper verification keeps its unrelated Node requirement.
+- Acquire (`update-skill-topology.sh`) refreshes upstreams, mirrors complete foreign inventories into tracked `other-skills/` staging with `.source.json` provenance, and reconciles native plugins (including verified dual-plugin duplicate cleanup). It ignores matrix selections and leaves ordinary agent surfaces and generated manifest overrides untouched. `--check` previews only upstream/staging and native-plugin drift without writes.
+- Distribute (`sync-skill-surfaces.sh`) is fully offline. It validates matrix rows against tracked staging, persists generated `Type: skill` overrides, copies selected skills to both surfaces, performs owner-scoped cleanup and legacy-root hygiene, verifies every managed destination, then regenerates `agent-tooling/skills-matrix.md`. Unmarked and other-owner active-surface entries remain untouched.
 - Human mode streams discovery, planning, adapter, and verification progress to standard output, then prints a source/destination/change/result table; diagnostics stay on standard error, color is TTY-only, and `NO_COLOR` disables it. Add `--check` for a non-mutating preview or `--json` for one stable JSON document without human output. Exit codes: `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, `130` interrupted.
 - OpenAI Codex is Claude-only; Waza and claude-mem are dual-plugin skills with manifest-scoped native Claude/Codex adapters and explicit expected skill identities. Check mode compares installed versions with each configured marketplace snapshot, confirms every declared skill through each native plugin install, and reports pending/blocked/verified migration gates plus retained and eventual duplicate-copy removals without mutation. Reconciliation removes tracked, untracked, managed, or edited copies of only the verified skill after both native paths pass; partial native success retains both copies, and cleanup failure remains visible without fallback delivery. Human and JSON output separate native reconciliation, runtime verification, retained copies, gated removals, and blocking failures; repeated healthy reconciliation reports clean/idempotent state. Recovery stays plugin-managed and is limited to upstream repair, native rollback, or an explicit manifest decision. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
-- Matt skills default to both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; `find-skills` is retired and its known lock/copy state is removed during reconciliation.
+- Matt skills default to both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; known legacy npx lock entries also require an explicit decision and remain byte-identical.
 - Exit `3` means no distribution mutation occurred. Inspect `--check --json` decisions, make an explicit manifest or installed-state decision, then rerun; do not guess a fallback or delete unowned entries.
 
 `agent-tooling/update-agents.sh`
@@ -85,7 +86,7 @@ Topology authoring:
 - Select Claude/Codex destinations by editing `Y`/`N` on `Type: skill` rows in `agent-tooling/skills-matrix.md`; generated override blocks in `agent-tooling/skill-topology.json` are not hand-edited.
 - Resolve every reported new/removed skill row explicitly before reconciliation. Plugin rows are report-only; editing their destination cells blocks the run.
 - For an external skill-bearing source, add exactly one `agent-tooling/skill-topology.json` source and one private adapter registration with its matrix source identity. Stage source-only and npx-only inventories under the matching `other-skills/<owner>/`; never write them directly into `skills/`. Record source defaults and plugin policy in the manifest; never add another public updater.
-- Preview surfaces offline with `agent-tooling/sync-skill-surfaces.sh --check`; run `agent-tooling/sync-skill-surfaces.sh` to distribute and regenerate the matrix report; full single-pass remains `agent-tooling/update-skill-topology.sh`. Then run `agent-tooling/verify.sh` before commit.
+- Preview upstream/staging drift with `agent-tooling/update-skill-topology.sh --check`; run it to acquire. Preview surfaces offline with `agent-tooling/sync-skill-surfaces.sh --check`; run it to distribute and regenerate the matrix report. Then run `agent-tooling/verify.sh` before commit.
 
 `scripts/committer`
 - Stages exactly the listed files.

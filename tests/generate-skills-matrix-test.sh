@@ -16,7 +16,7 @@ mkdir -p \
   "$FIXTURE_ROOT/other-skills/khazix/foreign-both" \
   "$FIXTURE_HOME"
 cp "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" "$FIXTURE_ROOT/scripts/"
-cat > "$FIXTURE_ROOT/agent-tooling/update-skill-topology.sh" <<'BASH'
+cat > "$FIXTURE_ROOT/agent-tooling/sync-skill-surfaces.sh" <<'BASH'
 #!/usr/bin/env bash
 cat <<'JSON'
 {
@@ -32,7 +32,7 @@ cat <<'JSON'
 JSON
 exit 1
 BASH
-chmod +x "$FIXTURE_ROOT/agent-tooling/update-skill-topology.sh"
+chmod +x "$FIXTURE_ROOT/agent-tooling/sync-skill-surfaces.sh"
 printf '%s\n' 'fixture upstream both' > "$FIXTURE_ROOT/skills/upstream-both/SKILL.md"
 printf '%s\n' 'fixture upstream claude' > "$FIXTURE_ROOT/skills/upstream-claude/SKILL.md"
 printf '%s\n' 'fixture fork codex' > "$FIXTURE_ROOT/codex-skills/fork-codex/SKILL.md"

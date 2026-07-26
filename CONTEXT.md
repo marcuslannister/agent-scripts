@@ -35,7 +35,7 @@ The repo `other-skills/<owner>/` holding area, not an agent surface. Fully track
 _Avoid_: Claude surface, Codex surface, automatic install, gitignored copy
 
 **Acquire phase**:
-`update-skill-topology.sh`. Network phase: refreshes upstream sources, mirrors complete inventories into tracked staging, reconciles native plugins. Selection-blind — never reads the skills matrix. Writes files only; the operator commits and pushes.
+`update-skill-topology.sh`. Network phase: refreshes upstream sources, mirrors complete inventories into tracked staging, reconciles native plugins, and applies verified dual-plugin duplicate cleanup owned by native-plugin policy. Selection-blind — never reads the skills matrix. The operator reviews, commits, and pushes staging changes.
 _Avoid_: update step, fetch script
 
 **Distribute phase**:

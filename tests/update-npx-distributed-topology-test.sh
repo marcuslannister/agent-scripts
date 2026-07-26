@@ -41,7 +41,8 @@ JSON
     "classification": "npx-only",
     "supportedDestinations": ["codex"],
     "command": "adapters/npx-source.sh",
-    "stateInspection": "adapter"
+    "stateInspection": "adapter",
+    "matrixSource": "mattpocock/skills"
   }
 ]
 JSON
@@ -55,7 +56,10 @@ make_fixture() { # fixture upstream
     "$fixture/home/.agents/skills" "$fixture/home/.claude/skills" "$fixture/runtime" "$fixture/bin" \
     "$upstream/skills/engineering" "$upstream/skills/deprecated"
   printf 'claude-skills\n' > "$fixture/home/.claude/skills/.agent-scripts-root"
-  cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture/agent-tooling/"
+  cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" \
+    "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" \
+    "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" \
+    "$REPO_ROOT/agent-tooling/lib-copies.sh" "$fixture/agent-tooling/"
   cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$fixture/agent-tooling/"
   git -C "$fixture" init -q
 
@@ -116,6 +120,16 @@ exit 1
 BASH
   chmod +x "$fixture/bin/git" "$fixture/bin/npx"
   : > "$fixture/npx.log"
+
+  cat > "$fixture/agent-tooling/skills-matrix.md" <<'MD'
+# Skills Matrix
+
+| Skill | Source | Type | Claude | Codex |
+| --- | --- | --- | --- | --- |
+| `alpha` | mattpocock/skills | skill | N | Y |
+| `code-review` | mattpocock/skills | skill | N | Y |
+| `new-skill` | mattpocock/skills | skill | N | Y |
+MD
 
   write_policy "$fixture"
 }
@@ -180,14 +194,31 @@ BASH
   chmod +x "$fixture/bin/claude" "$fixture/bin/codex"
 }
 
-run_topology() { # fixture upstream output [extra env...]
+run_phase() { # command fixture upstream output [extra env...]
+  local command="$1"
+  local fixture="$2"
+  local upstream="$3"
+  local output="$4"
+  shift 4
+  env "$@" REAL_GIT="$REAL_GIT" FAKE_MATT_UPSTREAM="$upstream" FAKE_NPX_LOG="$fixture/npx.log" \
+    HOME="$fixture/home" TMPDIR="$fixture/runtime" PATH="$fixture/bin:$PATH" \
+    "$fixture/agent-tooling/$command" --json > "$output"
+}
+
+run_acquire() { # fixture upstream output [extra env...]
   local fixture="$1"
   local upstream="$2"
   local output="$3"
   shift 3
-  env "$@" REAL_GIT="$REAL_GIT" FAKE_MATT_UPSTREAM="$upstream" FAKE_NPX_LOG="$fixture/npx.log" \
-    HOME="$fixture/home" TMPDIR="$fixture/runtime" PATH="$fixture/bin:$PATH" \
-    "$fixture/agent-tooling/update-skill-topology.sh" --json > "$output"
+  run_phase update-skill-topology.sh "$fixture" "$upstream" "$output" "$@"
+}
+
+run_distribute() { # fixture upstream output [extra env...]
+  local fixture="$1"
+  local upstream="$2"
+  local output="$3"
+  shift 3
+  run_phase sync-skill-surfaces.sh "$fixture" "$upstream" "$output" "$@"
 }
 
 jq -e '
@@ -205,14 +236,22 @@ FIXTURE="$TMP_ROOT/happy"
 UPSTREAM="$TMP_ROOT/upstream"
 make_fixture "$FIXTURE" "$UPSTREAM"
 cp "$FIXTURE/home/.agents/.skill-lock.json" "$FIXTURE/lock-before.json"
-run_topology "$FIXTURE" "$UPSTREAM" "$FIXTURE/first.json"
+run_acquire "$FIXTURE" "$UPSTREAM" "$FIXTURE/acquire.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and .decisions == [] and
+  all(.plan[] | select(.sourceId == "matt-skills"); .destinations == []) and
+  ([.changes[] | select(.action == "installed" and .destination == "staging")] | length) == 3 and
+  ([.changes[] | select(.destination == "claude" or .destination == "codex")] | length) == 0
+' "$FIXTURE/acquire.json" >/dev/null
+test -e "$FIXTURE/home/.agents/skills/old-name"
+test -e "$FIXTURE/home/.claude/skills/old-name"
+run_distribute "$FIXTURE" "$UPSTREAM" "$FIXTURE/first.json"
 jq -e '
   .status == "reconciled" and .errors == [] and .decisions == [] and
   (.plan[] | select(.skill == "alpha") | .destinations == ["codex"]) and
   (.plan[] | select(.skill == "new-skill") | .destinations == ["codex"]) and
   (.plan[] | select(.skill == "code-review") | .destinations == ["codex"]) and
   ([.changes[] | select(.action == "removed" and .skill == "old-name")] | length) == 2 and
-  ([.changes[] | select(.action == "installed" and .destination == "staging")] | length) == 3 and
   ([.changes[] | select(.action == "removed" and .skill == "find-skills")] | length) == 2
 ' "$FIXTURE/first.json" >/dev/null
 for skill in alpha code-review new-skill; do
@@ -242,12 +281,17 @@ COMBINED="$TMP_ROOT/combined-matt"
 COMBINED_UPSTREAM="$TMP_ROOT/combined-matt-upstream"
 make_fixture "$COMBINED" "$COMBINED_UPSTREAM"
 enable_matt_plugin_fixture "$COMBINED" "$COMBINED_UPSTREAM"
-run_topology "$COMBINED" "$COMBINED_UPSTREAM" "$COMBINED/result.json"
+run_acquire "$COMBINED" "$COMBINED_UPSTREAM" "$COMBINED/acquire.json"
 jq -e '
   .status == "reconciled" and .errors == [] and .decisions == [] and
   (.plan[] | select(.sourceId == "matt-plugin" and .skill == "mattpocock-skills") | .destinations == ["claude"]) and
-  (.plan[] | select(.sourceId == "matt-skills" and .skill == "alpha") | .destinations == ["codex"]) and
   (.changes[] | select(.skill == "mattpocock-skills") | .action == "installed" and .destination == "claude") and
+  (.changes[] | select(.skill == "alpha" and .destination == "staging") | .action == "installed")
+' "$COMBINED/acquire.json" >/dev/null
+run_distribute "$COMBINED" "$COMBINED_UPSTREAM" "$COMBINED/result.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and .decisions == [] and
+  (.plan[] | select(.sourceId == "matt-skills" and .skill == "alpha") | .destinations == ["codex"]) and
   (.changes[] | select(.skill == "alpha" and .destination == "codex") | .action == "installed")
 ' "$COMBINED/result.json" >/dev/null
 test -f "$COMBINED/home/plugin-roots/claude/mattpocock-skills/skills/ask-matt/SKILL.md"
@@ -260,8 +304,12 @@ cp -R "$FIXTURE/home" "$FIXTURE/home-before-second"
 cp -R "$FIXTURE/skills" "$FIXTURE/skills-before-second"
 cp -R "$FIXTURE/other-skills" "$FIXTURE/other-skills-before-second"
 : > "$FIXTURE/npx.log"
-run_topology "$FIXTURE" "$UPSTREAM" "$FIXTURE/second.json"
-jq -e '.status == "reconciled" and .changes == [] and .errors == [] and .decisions == []' "$FIXTURE/second.json" >/dev/null
+run_acquire "$FIXTURE" "$UPSTREAM" "$FIXTURE/second-acquire.json"
+jq -e '(.status == "clean" or .status == "reconciled") and .changes == [] and .errors == [] and .decisions == []' \
+  "$FIXTURE/second-acquire.json" >/dev/null
+run_distribute "$FIXTURE" "$UPSTREAM" "$FIXTURE/second.json"
+jq -e '(.status == "clean" or .status == "reconciled") and .changes == [] and .errors == [] and .decisions == []' \
+  "$FIXTURE/second.json" >/dev/null
 test ! -s "$FIXTURE/npx.log"
 diff -r "$FIXTURE/home-before-second" "$FIXTURE/home"
 diff -r "$FIXTURE/skills-before-second" "$FIXTURE/skills"
@@ -273,12 +321,20 @@ jq -e '
 ' "$FIXTURE/other-skills/matt/.source.json" >/dev/null
 
 mv "$UPSTREAM/skills/engineering/new-skill" "$FIXTURE/new-skill.upstream-removed"
-run_topology "$FIXTURE" "$UPSTREAM" "$FIXTURE/staging-orphan.json"
+run_acquire "$FIXTURE" "$UPSTREAM" "$FIXTURE/staging-orphan.json"
 jq -e '
   .status == "reconciled" and
-  (.changes[] | .action == "removed" and .skill == "new-skill")
+  (.changes[] | .action == "removed" and .skill == "new-skill" and .destination == "staging")
 ' "$FIXTURE/staging-orphan.json" >/dev/null
 test ! -e "$FIXTURE/other-skills/matt/new-skill"
+test -e "$FIXTURE/home/.agents/skills/new-skill"
+printf '%s\n' '# Skills Matrix' '' \
+  '| Skill | Source | Type | Claude | Codex |' \
+  '| --- | --- | --- | --- | --- |' \
+  '| `alpha` | mattpocock/skills | skill | N | Y |' \
+  '| `code-review` | mattpocock/skills | skill | N | Y |' \
+  > "$FIXTURE/agent-tooling/skills-matrix.md"
+run_distribute "$FIXTURE" "$UPSTREAM" "$FIXTURE/surface-orphan.json"
 test ! -e "$FIXTURE/home/.agents/skills/new-skill"
 test ! -s "$FIXTURE/npx.log"
 
@@ -302,7 +358,7 @@ cp -R "$KNOWN_LOCK/skills" "$KNOWN_LOCK/skills-before"
 cp -R "$KNOWN_LOCK/other-skills" "$KNOWN_LOCK/other-skills-before"
 : > "$KNOWN_LOCK/npx.log"
 set +e
-run_topology "$KNOWN_LOCK" "$KNOWN_LOCK_UPSTREAM" "$KNOWN_LOCK/result.json"
+run_acquire "$KNOWN_LOCK" "$KNOWN_LOCK_UPSTREAM" "$KNOWN_LOCK/result.json"
 known_exit=$?
 set -e
 test "$known_exit" -eq 3
@@ -331,7 +387,7 @@ cp -R "$UNKNOWN/home" "$UNKNOWN/home-before"
 cp -R "$UNKNOWN/skills" "$UNKNOWN/skills-before"
 cp -R "$UNKNOWN/other-skills" "$UNKNOWN/other-skills-before"
 set +e
-run_topology "$UNKNOWN" "$UNKNOWN_UPSTREAM" "$UNKNOWN/result.json"
+run_acquire "$UNKNOWN" "$UNKNOWN_UPSTREAM" "$UNKNOWN/result.json"
 unknown_exit=$?
 set -e
 test "$unknown_exit" -eq 3
@@ -349,9 +405,13 @@ STALE="$TMP_ROOT/stale"
 STALE_UPSTREAM="$TMP_ROOT/stale-upstream"
 make_fixture "$STALE" "$STALE_UPSTREAM"
 write_policy "$STALE" ', "renamed-skill": ["codex"]'
+jq '.[0] |= del(.matrixSource)' "$STALE/agent-tooling/distribution-topology/registry.json" \
+  > "$STALE/registry.tmp"
+mv "$STALE/registry.tmp" "$STALE/agent-tooling/distribution-topology/registry.json"
 : > "$STALE/npx.log"
+run_acquire "$STALE" "$STALE_UPSTREAM" "$STALE/acquire.json"
 set +e
-run_topology "$STALE" "$STALE_UPSTREAM" "$STALE/result.json"
+run_distribute "$STALE" "$STALE_UPSTREAM" "$STALE/result.json"
 stale_exit=$?
 set -e
 test "$stale_exit" -eq 3
@@ -364,8 +424,9 @@ COLLISION_UPSTREAM="$TMP_ROOT/collision-upstream"
 make_fixture "$COLLISION" "$COLLISION_UPSTREAM"
 make_skill "$COLLISION/home/.agents/skills" alpha installed-old-alpha
 : > "$COLLISION/npx.log"
+run_acquire "$COLLISION" "$COLLISION_UPSTREAM" "$COLLISION/acquire.json"
 set +e
-run_topology "$COLLISION" "$COLLISION_UPSTREAM" "$COLLISION/result.json"
+run_distribute "$COLLISION" "$COLLISION_UPSTREAM" "$COLLISION/result.json"
 collision_exit=$?
 set -e
 test "$collision_exit" -eq 3
@@ -377,7 +438,7 @@ DIRECT_STAGE="$TMP_ROOT/direct-stage"
 DIRECT_STAGE_UPSTREAM="$TMP_ROOT/direct-stage-upstream"
 make_fixture "$DIRECT_STAGE" "$DIRECT_STAGE_UPSTREAM"
 : > "$DIRECT_STAGE/npx.log"
-run_topology "$DIRECT_STAGE" "$DIRECT_STAGE_UPSTREAM" "$DIRECT_STAGE/result.json"
+run_acquire "$DIRECT_STAGE" "$DIRECT_STAGE_UPSTREAM" "$DIRECT_STAGE/result.json"
 jq -e '.status == "reconciled" and .errors == []' "$DIRECT_STAGE/result.json" >/dev/null
 test -f "$DIRECT_STAGE/other-skills/matt/new-skill/SKILL.md"
 test ! -s "$DIRECT_STAGE/npx.log"

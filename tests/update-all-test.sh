@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Black-box contract: routine updates have exactly two ordered steps and still
-# attempt both, summarize both, and aggregate failure.
+# Black-box contract: routine updates have exactly three ordered steps and still
+# attempt all, summarize all, and aggregate failure.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
@@ -13,7 +13,7 @@ UPDATE_LOG="$TMPDIR/update.log"
 mkdir -p "$SCRIPTS"
 cp "$REPO_ROOT/agent-tooling/update-all.sh" "$SCRIPTS/"
 
-UPDATERS=(update-agents.sh update-skill-topology.sh)
+UPDATERS=(update-agents.sh update-skill-topology.sh sync-skill-surfaces.sh)
 
 for updater in "${UPDATERS[@]}"; do
   printf '%s\n' \
@@ -29,7 +29,8 @@ printf '%s\n' "${UPDATERS[@]}" > "$TMPDIR/expected.log"
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
 
 grep -F 'agent CLIs' "$TMPDIR/out" >/dev/null
-grep -F 'skill topology' "$TMPDIR/out" >/dev/null
+grep -F 'skill acquire' "$TMPDIR/out" >/dev/null
+grep -F 'skill distribute' "$TMPDIR/out" >/dev/null
 
 printf '%s\n' \
   '#!/usr/bin/env bash' \
@@ -45,6 +46,7 @@ if UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" > "$TMPDIR/failure.out" 2>&
 fi
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
 grep -F 'agent CLIs' "$TMPDIR/failure.out" >/dev/null
-grep -F 'skill topology' "$TMPDIR/failure.out" >/dev/null
+grep -F 'skill acquire' "$TMPDIR/failure.out" >/dev/null
+grep -F 'skill distribute' "$TMPDIR/failure.out" >/dev/null
 
 echo "update-all tests passed"

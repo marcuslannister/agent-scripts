@@ -158,7 +158,11 @@ test "$check_exit" -eq 1
 jq -e '.mode == "check" and (.status == "drift" or .status == "failed")' "$FIXTURE/check.json" >/dev/null
 test "$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")" = "$manifest_before"
 test "$(shasum -a 256 "$FIXTURE/agent-tooling/skills-matrix.md")" = "$matrix_before"
-diff -r "$FIXTURE/home-before-check" "$FIXTURE/home" >/dev/null
+if ! diff -r "$FIXTURE/home-before-check" "$FIXTURE/home" >/dev/null; then
+  echo "FAIL: distribute --check mutated HOME" >&2
+  diff -r "$FIXTURE/home-before-check" "$FIXTURE/home" >&2 || true
+  exit 1
+fi
 
 # --- fresh-machine distribute populates both surfaces offline ---
 set +e
@@ -261,8 +265,8 @@ cp "$FIXTURE/agent-tooling/skills-matrix.md" "$FIXTURE/skills-matrix.with-ghost.
 # rewrite matrix without ghost
 grep -v 'ghost-skill' "$FIXTURE/skills-matrix.with-ghost.md" > "$FIXTURE/agent-tooling/skills-matrix.md"
 
-# --- existing full command still green beside distribute ---
-# Provide a fake upstream clone path so full command can discover without real network:
+# --- acquire still green beside distribute ---
+# Provide a fake upstream clone path so acquire can discover without real network:
 # restore a git shim that serves local staged trees as "clone".
 cat > "$BIN/git" <<'BASH'
 #!/usr/bin/env bash
@@ -297,13 +301,13 @@ exec "$REAL_GIT" "$@"
 BASH
 chmod +x "$BIN/git"
 
-FULL="$FIXTURE/agent-tooling/update-skill-topology.sh"
+ACQUIRE="$FIXTURE/agent-tooling/update-skill-topology.sh"
 FIXTURE_STAGING="$FIXTURE/other-skills/anthropics"
 export FIXTURE_STAGING
-# full command needs Projects clone layout for anthropics skills suffix
+# Acquire needs Projects clone layout for anthropics skills suffix
 mkdir -p "$FIXTURE/home/Projects"
 HOME="$FIXTURE/home" TMPDIR="$FIXTURE/runtime" PATH="$BIN:$PATH" \
-  "$FULL" --json > "$FIXTURE/full.json"
-jq -e '.status == "reconciled" and .errors == []' "$FIXTURE/full.json" >/dev/null
+  "$ACQUIRE" --json > "$FIXTURE/acquire.json"
+jq -e '.status == "reconciled" and .errors == []' "$FIXTURE/acquire.json" >/dev/null
 
 echo "sync-skill-surfaces offline distribute tests passed"

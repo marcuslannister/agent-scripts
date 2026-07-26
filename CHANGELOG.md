@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Made `agent-tooling/update-skill-topology.sh` acquire-only (complete tracked staging + native plugins), changed `update-all.sh` to agent updates → acquire → offline distribute, and hardened verification against resurrected single-pass entry points (#47).
+
 - Added offline distribute command `agent-tooling/sync-skill-surfaces.sh`: matrix validation/overrides/report, surface copies from tracked staging, orphan cleanup, Codex hygiene, and Claude root migration without network; missing selected staging content fails naming acquire/`git pull` (#46).
 
 - visual-explainer Codex delivery stages under `other-skills/nicobailon/` with `.source.json`; surface marker points at staging; Claude stays native-plugin (#45).
