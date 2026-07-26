@@ -24,6 +24,8 @@ if command jq -b -n empty >/dev/null 2>&1; then
 fi
 
 MODE=reconcile
+TOPOLOGY_PHASE="${TOPOLOGY_PHASE:-full}"
+TOPOLOGY_COMMAND_NAME="${TOPOLOGY_COMMAND_NAME:-update-skill-topology.sh}"
 JSON_OUTPUT=0
 REQUESTED_JSON=0
 INTERRUPTED=0
@@ -136,6 +138,21 @@ topology_claimed_by_other() { # plan source skill destination
   ' "$1" >/dev/null
 }
 
+
+topology_phase_manages_destination() { # source_id destination
+  local source_id="$1" destination="$2" classification
+  [ "$TOPOLOGY_PHASE" != distribute ] && return 0
+  classification="$(topology_registry_value "$source_id" '.classification')"
+  case "$classification" in
+    dual-plugin) return 1 ;;
+    plugin-claude-only)
+      [ "$destination" = claude ] && return 1
+      return 0
+      ;;
+    *) return 0 ;;
+  esac
+}
+
 topology_expected_states() { # source_id output_tsv plan_json
   local source_id="$1" output="$2" plan_json="$3" skill destination desired classification wants_staging=0
   classification="$(topology_registry_value "$source_id" '.classification')"
@@ -152,6 +169,7 @@ topology_expected_states() { # source_id output_tsv plan_json
     if [ "$wants_staging" -eq 1 ]; then
       printf 'present\t%s\tstaging\n' "$skill" >> "$output"
       while IFS= read -r destination; do
+        topology_phase_manages_destination "$source_id" "$destination" || continue
         desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
           .[] | select(.sourceId == $source and .skill == $skill) | (.destinations | index($destination) != null)
         ' "$plan_json")"
@@ -165,6 +183,7 @@ topology_expected_states() { # source_id output_tsv plan_json
     fi
     while IFS= read -r destination; do
       [ "$source_id" = repo-claude ] && [ "$destination" = claude ] && continue
+      topology_phase_manages_destination "$source_id" "$destination" || continue
       desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
         .[] | select(.sourceId == $source and .skill == $skill) | (.destinations | index($destination) != null)
       ' "$plan_json")"
@@ -403,7 +422,7 @@ topology_inspect_plan() { # plan_json output_dir mode
 }
 
 topology_build_plan_for_manifest() { # manifest output-ndjson
-  local manifest="$1" output="$2" source_id skill destinations_json
+  local manifest="$1" output="$2" source_id skill destinations_json destination filtered
   : > "$output"
   while IFS= read -r source_id; do
     while IFS= read -r skill; do
@@ -411,6 +430,15 @@ topology_build_plan_for_manifest() { # manifest output-ndjson
         (.sources[] | select(.id == $source) | (.overrides[$skill] // .defaultDestinations)) as $wanted |
         ["claude","codex"] | map(select(. as $destination | $wanted | index($destination) != null))
       ' "$manifest")"
+      if [ "$TOPOLOGY_PHASE" = distribute ]; then
+        filtered='[]'
+        while IFS= read -r destination; do
+          [ -n "$destination" ] || continue
+          topology_phase_manages_destination "$source_id" "$destination" || continue
+          filtered="$(jq -c --arg destination "$destination" '. + [$destination]' <<<"$filtered")"
+        done < <(jq -r '.[]' <<<"$destinations_json")
+        destinations_json="$filtered"
+      fi
       jq -cn --arg sourceId "$source_id" --arg skill "$skill" --argjson destinations "$destinations_json" \
         '{sourceId:$sourceId,skill:$skill,destinations:$destinations,missingDestinations:[],unexpectedDestinations:[]}' >> "$output"
     done < "$DISCOVERY_ROOT/$source_id.inventory"
@@ -937,6 +965,10 @@ for argument in "$@"; do
   esac
 done
 if [ "$check_count" -gt 1 ] || [ "$json_count" -gt 1 ]; then topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; fi
+case "$TOPOLOGY_PHASE" in
+  full|distribute) ;;
+  *) topology_fail 2 "invalid TOPOLOGY_PHASE: $TOPOLOGY_PHASE (use full or distribute)" ;;
+esac
 topology_init_color
 if [ -n "$TOPOLOGY_ERROR_MESSAGE" ]; then
   topology_write_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"

@@ -80,6 +80,10 @@ matrix_source_overrides() { # source-id matrix-source inventory current output f
   while IFS=$'\t' read -r skill claude codex; do
     [ -n "$skill" ] || continue
     if ! rg -Fxq -- "$skill" "$inventory"; then
+      if [ "${TOPOLOGY_PHASE:-full}" = distribute ] && { [ "$claude" = Y ] || [ "$codex" = Y ]; }; then
+        topology_fail 1 "matrix selects $source_id/$skill but staging has no copy; run acquire (update-skill-topology.sh) or git pull"
+        return 1
+      fi
       matrix_add_finding "$findings" removed-skill "$source_id" "$skill" \
         "matrix row has no known skill: $source_id/$skill"
       continue
@@ -151,7 +155,7 @@ matrix_prepare() { # current-plan findings
     entries="$DISCOVERY_ROOT/$source_id.matrix-overrides.ndjson"
     : > "$entries"
     matrix_source_overrides "$source_id" "$matrix_source" \
-      "$DISCOVERY_ROOT/$source_id.inventory" "$current" "$entries" "$findings"
+      "$DISCOVERY_ROOT/$source_id.inventory" "$current" "$entries" "$findings" || return $?
     overrides="$(jq -s 'sort_by(.key) | from_entries' "$entries")"
     jq --arg source "$source_id" --argjson overrides "$overrides" '
       .sources |= map(

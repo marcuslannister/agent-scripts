@@ -35,7 +35,9 @@ for test_file in \
   update-copy-distributed-topology-test.sh \
   update-npx-distributed-topology-test.sh \
   update-plugin-distributed-topology-test.sh \
-  update-skill-topology-test.sh
+  update-skill-topology-test.sh \
+  sync-skill-surfaces-test.sh \
+  matrix-driven-topology-test.sh
 do
   PATH="$TMP_ROOT/bin" bash "$REPO_ROOT/tests/$test_file" >/dev/null
 done

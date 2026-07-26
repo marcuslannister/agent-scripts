@@ -11,8 +11,8 @@ fail() {
   failed=1
 }
 
-for required in update-agents.sh update-all.sh update-skill-topology.sh; do
-  [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public updater: $required"
+for required in update-agents.sh update-all.sh update-skill-topology.sh sync-skill-surfaces.sh; do
+  [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public command: $required"
 done
 
 for candidate in "$REPO_ROOT"/agent-tooling/update-*.sh; do
@@ -32,6 +32,12 @@ TOPOLOGY_DIR="$REPO_ROOT/agent-tooling/distribution-topology"
   || fail "private Bash topology core missing or not executable"
 if rg -q 'exec node|topology\.mjs' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
   fail "public topology command still invokes the retired Node core"
+fi
+if ! rg -q 'TOPOLOGY_PHASE=distribute' "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"; then
+  fail "sync-skill-surfaces.sh must run the distribute phase"
+fi
+if rg -q 'TOPOLOGY_PHASE=distribute' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
+  fail "update-skill-topology.sh must not force distribute phase yet"
 fi
 if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
   fail "retired Node topology implementation remains"

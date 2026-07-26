@@ -101,9 +101,35 @@ upstream_path_for() { # skill
   printf '%s/%s\n' "$(sed -n '1p' "$upstream_root_file")" "$relative"
 }
 
+discover_from_staging() {
+  local skill_file skill relative count=0
+  mkdir -p "$state_root" "$staging_root"
+  printf '%s\n' "$staging_root" > "$upstream_root_file"
+  : > "$inventory_file"
+  for skill_file in "$staging_root"/*/SKILL.md; do
+    [ -f "$skill_file" ] || continue
+    skill="$(basename "$(dirname "$skill_file")")"
+    valid_skill_name "$skill" || { printf 'invalid staged %s skill: %s\n' "$upstream_repo" "$skill" >&2; return 1; }
+    relative="$skill"
+    printf '%s\t%s\n' "$skill" "$relative" >> "$inventory_file"
+    count=$((count + 1))
+  done
+  if cut -f1 "$inventory_file" | LC_ALL=C sort | uniq -d | grep -q .; then
+    printf '%s staged inventory contains duplicate skill names\n' "$upstream_repo" >&2
+    return 1
+  fi
+  LC_ALL=C sort -u "$inventory_file" -o "$inventory_file"
+  read_lock_inventory "$lock_snapshot"
+  cut -f1 "$inventory_file"
+}
+
 discover_source() {
   local clone_root upstream_root skill_file skill relative count=0
   mkdir -p "$state_root"
+  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+    discover_from_staging
+    return
+  fi
   clone_root="$state_root/repo"
   git clone --depth 1 --quiet "https://github.com/$upstream_repo.git" "$clone_root"
   upstream_root="$clone_root"
@@ -254,6 +280,7 @@ refresh_staging_metadata() {
   if [ -f "$repo_root/.git/info/exclude" ]; then
     remove_gitignore_block "$repo_root/.git/info/exclude" "$owner" || return 1
   fi
+  [ "${TOPOLOGY_PHASE:-full}" = distribute ] && return 0
   clone_dir="$state_root/repo"
   write_staging_source_json "$staging_root" "$upstream_repo" "$clone_dir"
 }

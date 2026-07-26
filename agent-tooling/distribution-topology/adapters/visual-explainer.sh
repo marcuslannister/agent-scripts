@@ -27,6 +27,15 @@ legacy_target="../Projects/visual-explainer/plugins/visual-explainer"
 
 discover_source() {
   local clone_dir source_root commit
+  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+    mkdir -p "$staging_root"
+    printf '%s\n' "$staging_root" > "$source_file"
+    printf 'offline\n' > "$commit_file"
+    if [ -f "$staging_root/visual-explainer/SKILL.md" ]; then
+      printf 'visual-explainer\n'
+    fi
+    return 0
+  fi
   if [ "$mode" = check ]; then
     clone_dir="$discovery_root/$source_id/repo"
   else
@@ -251,6 +260,7 @@ refresh_staging_metadata() {
   done
   clear_staging_gitignore "$repo_root" "$owner" || return 1
   clear_staging_gitignore "$repo_root" "$staging_owner" || return 1
+  [ "${TOPOLOGY_PHASE:-full}" = distribute ] && return 0
   clone_dir="$source_root"
   [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
   write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
@@ -291,9 +301,14 @@ reconcile_states() {
         fi
         ;;
       install:claude)
-        reconcile_claude_plugin install || operation_failed=1
-        if [ "$operation_failed" -eq 0 ]; then
-          continue
+        if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+          printf 'distribute phase does not install Claude plugins: %s\n' "$skill" >&2
+          operation_failed=1
+        else
+          reconcile_claude_plugin install || operation_failed=1
+          if [ "$operation_failed" -eq 0 ]; then
+            continue
+          fi
         fi
         ;;
       remove:staging)
@@ -308,9 +323,14 @@ reconcile_states() {
         fi
         ;;
       remove:claude)
-        reconcile_claude_plugin remove || operation_failed=1
-        if [ "$operation_failed" -eq 0 ]; then
-          continue
+        if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+          printf 'distribute phase does not remove Claude plugins: %s\n' "$skill" >&2
+          operation_failed=1
+        else
+          reconcile_claude_plugin remove || operation_failed=1
+          if [ "$operation_failed" -eq 0 ]; then
+            continue
+          fi
         fi
         ;;
       *)

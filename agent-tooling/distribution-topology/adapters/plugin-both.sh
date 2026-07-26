@@ -875,17 +875,28 @@ verify_states() {
 
 case "$action" in
   discover)
+    if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+      # Offline inventory from registry only; native plugin work stays with acquire.
+      jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry"
+      exit 0
+    fi
     require_source_dependencies || exit 1
     discover_remote_marketplace || exit 1
     jq -er --arg source_id "$source_id"       '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry"
     ;;
   inspect)
     failed=0
-    scan_unknown_plugins || failed=1
-    inspect_states || failed=1
+    if [ "${TOPOLOGY_PHASE:-full}" != distribute ]; then
+      scan_unknown_plugins || failed=1
+      inspect_states || failed=1
+    fi
     exit "$failed"
     ;;
   reconcile)
+    if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+      # Distribute does not mutate native plugins.
+      exit 0
+    fi
     reconcile_states
     ;;
   verify)

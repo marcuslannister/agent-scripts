@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
 
 topology_help() {
-  cat <<'EOF'
-Usage: update-skill-topology.sh [--check] [--json]
+  local command_name="${TOPOLOGY_COMMAND_NAME:-update-skill-topology.sh}"
+  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+    cat <<EOF
+Usage: ${command_name} [--check] [--json]
+
+Offline distribute phase: validate the skills matrix against tracked staging,
+persist generated overrides, copy matrix-selected skills to Claude/Codex surfaces,
+remove owner-scoped orphans, and run root hygiene. Never touches the network.
+
+Options:
+  --check  Preview surface drift without writes.
+  --json   Write one JSON result document.
+  -h, --help
+            Show this help.
+
+Exit codes:
+  0   reconciled or check clean
+  1   drift or verification failure
+  2   invalid usage or manifest
+  3   user decision required
+  130 interrupted
+EOF
+  else
+    cat <<EOF
+Usage: ${command_name} [--check] [--json]
 
 Reconcile the manifest-owned skill distribution topology. Use --check to preview.
 
@@ -19,6 +42,7 @@ Exit codes:
   3   user decision required
   130 interrupted
 EOF
+  fi
 }
 
 topology_failure_document() { # message code mode

@@ -38,8 +38,31 @@ source_file="$discovery_root/$source_id.source-root"
 marker_file="$discovery_root/$source_id.marker-root"
 staging_root="$repo_root/other-skills/$staging_owner"
 
+discover_from_staging() {
+  local skill_file skill count=0
+  mkdir -p "$staging_root"
+  printf '%s\n' "$staging_root" > "$source_file"
+  printf '%s\n' "$staging_root" > "$marker_file"
+  for skill_file in "$staging_root"/*/SKILL.md; do
+    [ -f "$skill_file" ] || continue
+    skill="$(basename "$(dirname "$skill_file")")"
+    case "$skill" in ''|*[!a-z0-9-]*) printf 'invalid staged inventory skill: %s\n' "$skill" >&2; return 1 ;; esac
+    if git -C "$repo_root" ls-files --error-unmatch -- "skills/$skill/SKILL.md" >/dev/null 2>&1; then
+      continue
+    fi
+    printf '%s\n' "$skill"
+    count=$((count + 1))
+  done
+  # Empty staging is allowed offline; matrix selection then fails with acquire guidance.
+  return 0
+}
+
 discover_source() {
   local clone_dir source_root marker_root skill_file skill count=0
+  if [ "${TOPOLOGY_PHASE:-full}" = distribute ]; then
+    discover_from_staging
+    return
+  fi
   marker_root="$home/Projects/$clone_name"
   [ -n "$source_suffix" ] && marker_root="$marker_root/$source_suffix"
   if [ "$mode" = check ]; then
@@ -160,6 +183,8 @@ refresh_staging_metadata() {
     rm -f "$skill_file"
   done
   clear_staging_gitignore "$repo_root" "$owner" || return 1
+  # Distribute never rewrites provenance; staged .source.json is acquire-owned.
+  [ "${TOPOLOGY_PHASE:-full}" = distribute ] && return 0
   clone_dir="$source_root"
   [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
   write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
