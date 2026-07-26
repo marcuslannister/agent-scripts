@@ -587,13 +587,27 @@ HOME="$VISUAL_FIXTURE/home" TMPDIR="$VISUAL_FIXTURE/runtime" PATH="$VISUAL_BIN:$
   "$VISUAL_COMMAND" --json > "$VISUAL_FIXTURE/first.json"
 jq -e '
   .status == "reconciled" and
-  ([.changes[] | select(.skill == "visual-explainer" and .action == "installed")] | length) == 2 and
+  ([.changes[] | select(.skill == "visual-explainer" and .action == "installed")] | length) == 3 and
+  any(.changes[]; .skill == "visual-explainer" and .action == "installed" and .destination == "staging") and
+  any(.changes[]; .skill == "visual-explainer" and .action == "installed" and .destination == "claude") and
+  any(.changes[]; .skill == "visual-explainer" and .action == "installed" and .destination == "codex") and
   (.plan[] | select(.skill == "visual-explainer") | .destinations == ["claude", "codex"])
 ' "$VISUAL_FIXTURE/first.json" >/dev/null
 jq -e '.plugins["visual-explainer@visual-explainer-marketplace"][0].gitCommitSha == $sha' \
   --arg sha "$VISUAL_SHA" "$VISUAL_FIXTURE/home/.claude/plugins/installed_plugins.json" >/dev/null
+test -f "$VISUAL_FIXTURE/other-skills/nicobailon/visual-explainer/SKILL.md"
+test -f "$VISUAL_FIXTURE/other-skills/nicobailon/visual-explainer/commands/explain.md"
+test ! -e "$VISUAL_FIXTURE/other-skills/nicobailon/visual-explainer/.agent-scripts-copy"
+jq -e '
+  .repo == "https://github.com/nicobailon/visual-explainer.git" and
+  .commit == $sha and
+  (.syncedAt | type == "string" and length > 0)
+' --arg sha "$VISUAL_SHA" "$VISUAL_FIXTURE/other-skills/nicobailon/.source.json" >/dev/null
 test -f "$VISUAL_FIXTURE/home/.agents/skills/visual-explainer/SKILL.md"
 test -f "$VISUAL_FIXTURE/home/.agents/skills/visual-explainer/commands/explain.md"
+test "$(sed -n '1p' "$VISUAL_FIXTURE/home/.agents/skills/visual-explainer/.agent-scripts-copy")" = \
+  "$VISUAL_FIXTURE/other-skills/nicobailon/visual-explainer"
+test "$(sed -n '2p' "$VISUAL_FIXTURE/home/.agents/skills/visual-explainer/.agent-scripts-copy")" = visual-explainer
 test ! -e "$VISUAL_FIXTURE/skills/visual-explainer"
 grep -Fx 'plugin marketplace add nicobailon/visual-explainer' "$VISUAL_FIXTURE/home/claude-calls.log" >/dev/null
 grep -Fx 'plugin install visual-explainer@visual-explainer-marketplace' "$VISUAL_FIXTURE/home/claude-calls.log" >/dev/null

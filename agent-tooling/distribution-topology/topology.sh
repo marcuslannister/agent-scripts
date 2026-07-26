@@ -137,11 +137,19 @@ topology_claimed_by_other() { # plan source skill destination
 }
 
 topology_expected_states() { # source_id output_tsv plan_json
-  local source_id="$1" output="$2" plan_json="$3" skill destination desired classification
+  local source_id="$1" output="$2" plan_json="$3" skill destination desired classification wants_staging=0
   classification="$(topology_registry_value "$source_id" '.classification')"
+  case "$classification" in
+    source-only|npx-only) wants_staging=1 ;;
+    plugin-claude-only)
+      if [ "$(topology_registry_value "$source_id" '(.supportedDestinations | index("codex") != null)')" = true ]; then
+        wants_staging=1
+      fi
+      ;;
+  esac
   : > "$output"
   while IFS= read -r skill; do
-    if [ "$classification" = source-only ] || [ "$classification" = npx-only ]; then
+    if [ "$wants_staging" -eq 1 ]; then
       printf 'present\t%s\tstaging\n' "$skill" >> "$output"
       while IFS= read -r destination; do
         desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '

@@ -15,11 +15,13 @@ source "${BASH_SOURCE[0]%/*}/copy-state.sh"
 
 repo_url="https://github.com/nicobailon/visual-explainer.git"
 owner="visual-explainer"
+staging_owner="nicobailon"
 plugin_id="visual-explainer@visual-explainer-marketplace"
 marketplace="visual-explainer-marketplace"
 source_file="$discovery_root/$source_id.source-root"
-marker_file="$discovery_root/$source_id.marker-root"
 commit_file="$discovery_root/$source_id.commit"
+staging_root="$repo_root/other-skills/$staging_owner"
+codex_root="$home/.agents/skills"
 legacy_path="$home/.codex/visual-explainer"
 legacy_target="../Projects/visual-explainer/plugins/visual-explainer"
 
@@ -38,16 +40,14 @@ discover_source() {
   [ -n "$commit" ] && [[ "$commit" != *$'\t'* ]] \
     || { printf 'visual-explainer source commit is invalid\n' >&2; return 1; }
   printf '%s\n' "$source_root" > "$source_file"
-  printf '%s\n' "$home/Projects/visual-explainer/plugins" > "$marker_file"
   printf '%s\n' "$commit" > "$commit_file"
   printf 'visual-explainer\n'
 }
 
 read_source_state() {
-  [ -f "$source_file" ] && [ -f "$marker_file" ] && [ -f "$commit_file" ] \
+  [ -f "$source_file" ] && [ -f "$commit_file" ] \
     || { printf 'visual-explainer discovery state missing\n' >&2; return 1; }
   source_root="$(sed -n '1p' "$source_file")"
-  marker_root="$(sed -n '1p' "$marker_file")"
   source_commit="$(sed -n '1p' "$commit_file")"
 }
 
@@ -112,18 +112,29 @@ remove_legacy_path() {
   fi
 }
 
+inspect_stage_state() { # skill
+  inspect_stage_tree "$source_root/$1" "$staging_root/$1"
+}
+
+install_staged_skill() { # skill
+  install_stage_tree "$source_root/$1" "$staging_root/$1" >/dev/null
+}
+
 inspect_destination_state() { # skill destination
   local skill="$1"
   local destination="$2"
   local state detail
   case "$destination" in
+    staging)
+      inspect_stage_state "$skill"
+      ;;
     claude)
       inspect_claude_plugin
       ;;
     codex)
       IFS=$'\t' read -r state detail < <(
-        inspect_copy_state "$source_root/$skill" "$marker_root/$skill" \
-          "$home/.agents/skills/$skill" "$owner" "$repo_root"
+        inspect_copy_state "$staging_root/$skill" "$staging_root/$skill" \
+          "$codex_root/$skill" "$owner" "$repo_root"
       )
       if [ "$state" = present ] && legacy_path_present; then
         state=drift
@@ -136,17 +147,31 @@ inspect_destination_state() { # skill destination
 }
 
 inspect_states() {
-  local expected skill destination state detail
+  local expected skill destination state detail marker marker_owner orphan skill_file
   while IFS=$'\t' read -r expected skill destination; do
     IFS=$'\t' read -r state detail < <(inspect_destination_state "$skill" "$destination")
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
-  emit_copy_inspection "$plan_path" "$source_root" "$marker_root" \
-    "$home/.agents/skills" codex "$owner" "$repo_root" \
-    | while IFS=$'\t' read -r state skill destination detail; do
-        [ "$state" = orphan ] || continue
-        printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
-      done
+
+  if [ -d "$codex_root" ]; then
+    for marker in "$codex_root"/*/.agent-scripts-copy; do
+      [ -f "$marker" ] || continue
+      marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+      [ "$marker_owner" = "$owner" ] || continue
+      orphan="$(basename "$(dirname "$marker")")"
+      if ! awk -F '\t' -v skill="$orphan" \
+        '$2 == skill && $3 == "codex" { found = 1 } END { exit !found }' "$plan_path"; then
+        printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
+      fi
+    done
+  fi
+
+  for skill_file in "$staging_root"/*/SKILL.md; do
+    [ -f "$skill_file" ] || continue
+    orphan="$(basename "$(dirname "$skill_file")")"
+    rg -Fxq -- "$orphan" "$discovery_root/$source_id.inventory" && continue
+    printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
+  done
 }
 
 plugin_is_installed() {
@@ -217,15 +242,93 @@ reconcile_claude_plugin() { # install|remove
   esac
 }
 
+refresh_staging_metadata() {
+  local skill_file clone_dir
+  mkdir -p "$staging_root"
+  for skill_file in "$staging_root"/*/.agent-scripts-copy "$staging_root"/*/.agent-scripts-copy-source; do
+    [ -e "$skill_file" ] || continue
+    rm -f "$skill_file"
+  done
+  clear_staging_gitignore "$repo_root" "$owner" || return 1
+  clear_staging_gitignore "$repo_root" "$staging_owner" || return 1
+  clone_dir="$source_root"
+  [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
+  write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
+}
+
+refresh_installed_codex_copy() { # skill
+  local skill="$1" marker_owner
+  if awk -F '\t' -v skill="$skill" \
+    '$1 == "remove" && $2 == skill && $3 == "codex" { found = 1 } END { exit !found }' "$plan_path"; then
+    return 0
+  fi
+  marker_owner="$(sed -n '2p' "$codex_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+  [ "$marker_owner" = "$owner" ] || return 0
+  install_skill_copy "$staging_root/$skill" "$codex_root/$skill" "$owner" \
+    "$staging_root/$skill" >/dev/null
+  printf 'installed\t%s\tcodex\n' "$skill"
+}
+
 reconcile_states() {
-  local operation skill destination failed=0
+  local operation skill destination state detail marker_owner
+  local failed=0 operation_failed
   while IFS=$'\t' read -r operation skill destination; do
-    [ "$destination" = claude ] || continue
-    reconcile_claude_plugin "$operation" || failed=1
+    operation_failed=0
+    case "$operation:$destination" in
+      install:staging)
+        IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
+        ensure_staged_skill "$skill" || operation_failed=1
+        if [ "$operation_failed" -eq 0 ] && [ "$state" = drift ]; then
+          refresh_installed_codex_copy "$skill" || operation_failed=1
+        fi
+        ;;
+      install:codex)
+        if ! ensure_staged_skill "$skill"; then
+          operation_failed=1
+        elif ! install_staged_surface_copy "$staging_root" "$skill" "$codex_root" \
+          codex "$owner" "$repo_root"; then
+          operation_failed=1
+        fi
+        ;;
+      install:claude)
+        reconcile_claude_plugin install || operation_failed=1
+        if [ "$operation_failed" -eq 0 ]; then
+          continue
+        fi
+        ;;
+      remove:staging)
+        if [ -e "$staging_root/$skill" ]; then
+          rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
+        fi
+        ;;
+      remove:codex)
+        marker_owner="$(sed -n '2p' "$codex_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
+        if [ "$marker_owner" = "$owner" ]; then
+          rm -rf -- "${codex_root:?}/$skill" || operation_failed=1
+        fi
+        ;;
+      remove:claude)
+        reconcile_claude_plugin remove || operation_failed=1
+        if [ "$operation_failed" -eq 0 ]; then
+          continue
+        fi
+        ;;
+      *)
+        printf 'unknown visual operation: %s %s\n' "$operation" "$destination" >&2
+        operation_failed=1
+        ;;
+    esac
+    if [ "$operation_failed" -eq 0 ]; then
+      case "$operation" in
+        install) printf 'installed\t%s\t%s\n' "$skill" "$destination" ;;
+        remove) printf 'removed\t%s\t%s\n' "$skill" "$destination" ;;
+      esac
+    else
+      failed=1
+    fi
   done < "$plan_path"
   remove_legacy_path || failed=1
-  reconcile_copy_actions "$plan_path" "$source_root" "$marker_root" \
-    "$home/.agents/skills" codex "$owner" "$repo_root" || failed=1
+  refresh_staging_metadata || failed=1
   return "$failed"
 }
 
