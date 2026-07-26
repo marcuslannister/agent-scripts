@@ -210,6 +210,24 @@ topology_inspect_adapter() { # source_id plan_json output_dir mode
           '{code:"unknown-installed-plugin",sourceId:$sourceId,skill:$skill,destination:$destination,pluginId:$pluginId,message:("installed third-party plugin " + $pluginId + " on " + $destination + " is not listed in skill-topology.json")}' \
           >> "$output/decisions.ndjson"
         ;;
+      legacy-npx-lock)
+        detail_key="legacy-npx"$'\034'"$skill"$'\034'"$destination"
+        if [[ ! "$detail" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || topology_seen "$seen_file" "$detail_key"; then
+          topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid legacy npx lock inspection output"
+          continue
+        fi
+        topology_mark_seen "$seen_file" "$detail_key"
+        if rg -q -F $'\t'"$skill"$'\t'"$destination" "$expected"; then
+          if topology_seen "$seen_file" "$key"; then
+            topology_append_json_string "$output/errors.ndjson" "source $source_id returned invalid legacy npx lock inspection output"
+            continue
+          fi
+          topology_mark_seen "$seen_file" "$key"
+        fi
+        jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" --arg lockSource "$detail" \
+          '{code:"legacy-npx-lock-entry",sourceId:$sourceId,skill:$skill,destination:$destination,lockSource:$lockSource,message:("skills lock entry " + $skill + " still belongs to known npx source " + $lockSource + "; remove it deliberately")}' \
+          >> "$output/decisions.ndjson"
+        ;;
       npx-decision)
         detail_key="npx"$'\034'"$skill"$'\034'"$destination"
         if [[ ! "$detail" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || topology_seen "$seen_file" "$detail_key"; then

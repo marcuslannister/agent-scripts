@@ -50,7 +50,6 @@ JSON
 make_fixture() { # fixture upstream
   local fixture="$1"
   local upstream="$2"
-  local old_source
 
   mkdir -p "$fixture/agent-tooling" "$fixture/skills" "$fixture/other-skills/matt" \
     "$fixture/home/.agents/skills" "$fixture/home/.claude/skills" "$fixture/runtime" "$fixture/bin" \
@@ -64,11 +63,13 @@ make_fixture() { # fixture upstream
   make_skill "$upstream/skills/engineering" code-review upstream-code-review
   make_skill "$upstream/skills/engineering" new-skill upstream-new
 
-  make_skill "$fixture/home/.agents/skills" alpha installed-old-alpha
+  # Marker-owned surface leftovers only — empty lock is the healthy baseline.
   make_skill "$fixture/home/.agents/skills" old-name installed-old-name
   make_skill "$fixture/home/.agents/skills" find-skills installed-find
-
-  install_skill_copy "$fixture/home/.agents/skills/alpha" "$fixture/home/.claude/skills/alpha" matt-skills >/dev/null
+  printf '%s\n' "$fixture/other-skills/matt/old-name" matt-skills hash > \
+    "$fixture/home/.agents/skills/old-name/.agent-scripts-copy"
+  printf '%s\n' "$fixture/other-skills/matt/find-skills" matt-skills hash > \
+    "$fixture/home/.agents/skills/find-skills/.agent-scripts-copy"
   install_skill_copy "$fixture/home/.agents/skills/old-name" "$fixture/home/.claude/skills/old-name" matt-skills >/dev/null
   install_skill_copy "$fixture/home/.agents/skills/find-skills" "$fixture/home/.claude/skills/find-skills" cli-skills >/dev/null
 
@@ -80,11 +81,7 @@ make_fixture() { # fixture upstream
   cat > "$fixture/home/.agents/.skill-lock.json" <<'JSON'
 {
   "version": 3,
-  "skills": {
-    "alpha": {"source":"mattpocock/skills","sourceType":"github","skillPath":"skills/engineering/alpha/SKILL.md"},
-    "old-name": {"source":"mattpocock/skills","sourceType":"github","skillPath":"skills/deprecated/old-name/SKILL.md"},
-    "find-skills": {"source":"vercel-labs/skills","sourceType":"github","skillPath":"skills/find-skills/SKILL.md"}
-  }
+  "skills": {}
 }
 JSON
   perl -0pi -e 's/\n/\r\n/g' "$fixture/home/.agents/.skill-lock.json"
@@ -109,63 +106,18 @@ printf 'unexpected git call: %s\n' "$*" >&2
 exit 1
 BASH
 
+  # npx must never be invoked; any call fails the run and is logged.
   cat > "$fixture/bin/npx" <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "$FAKE_NPX_LOG"
-[ "${1:-}" = --yes ] && shift
-[ "${1:-}" = skills@latest ] && shift
-command="${1:-}"
-shift || true
-
-update_lock_entry() {
-  local name="$1"
-  local skill_path="$2"
-  local tmp="$HOME/.agents/.skill-lock.json.tmp"
-  jq --arg name "$name" --arg skill_path "$skill_path" \
-    '.skills[$name] = {source:"mattpocock/skills", sourceType:"github", skillPath:$skill_path}' \
-    "$HOME/.agents/.skill-lock.json" > "$tmp"
-  mv "$tmp" "$HOME/.agents/.skill-lock.json"
-}
-
-case "$command" in
-  add)
-    count=0
-    while IFS= read -r skill_file; do
-      source_dir="$(dirname "$skill_file")"
-      name="$(basename "$source_dir")"
-      rm -rf "$HOME/.agents/skills/$name"
-      cp -R "$source_dir" "$HOME/.agents/skills/$name"
-      skill_path="${skill_file#"$FAKE_MATT_UPSTREAM/"}"
-      update_lock_entry "$name" "$skill_path"
-      count=$((count + 1))
-      if [ "${FAKE_NPX_PARTIAL:-0}" = 1 ] && [ "$count" -eq 1 ]; then
-        printf 'Failed to install remaining skills\r\n'
-        exit 0
-      fi
-    done < <(find "$FAKE_MATT_UPSTREAM/skills" -name SKILL.md | LC_ALL=C sort)
-    ;;
-  remove)
-    names=()
-    while [ "$#" -gt 0 ] && [ "$1" != --global ]; do
-      names+=("$1")
-      shift
-    done
-    for name in "${names[@]}"; do
-      rm -rf "$HOME/.agents/skills/$name"
-      tmp="$HOME/.agents/.skill-lock.json.tmp"
-      jq --arg name "$name" 'del(.skills[$name])' "$HOME/.agents/.skill-lock.json" > "$tmp"
-      mv "$tmp" "$HOME/.agents/.skill-lock.json"
-    done
-    ;;
-  *) printf 'unexpected npx command: %s\n' "$command" >&2; exit 1 ;;
-esac
+printf 'npx skills CLI must not be invoked\n' >&2
+exit 1
 BASH
   chmod +x "$fixture/bin/git" "$fixture/bin/npx"
+  : > "$fixture/npx.log"
 
   write_policy "$fixture"
-  old_source="$fixture/home/.agents/skills/old-name"
-  test "$(sed -n '1p' "$fixture/home/.claude/skills/old-name/.agent-scripts-copy")" = "$old_source"
 }
 
 enable_matt_plugin_fixture() { # fixture upstream
@@ -252,6 +204,7 @@ jq -e '
 FIXTURE="$TMP_ROOT/happy"
 UPSTREAM="$TMP_ROOT/upstream"
 make_fixture "$FIXTURE" "$UPSTREAM"
+cp "$FIXTURE/home/.agents/.skill-lock.json" "$FIXTURE/lock-before.json"
 run_topology "$FIXTURE" "$UPSTREAM" "$FIXTURE/first.json"
 jq -e '
   .status == "reconciled" and .errors == [] and .decisions == [] and
@@ -282,11 +235,8 @@ test ! -e "$FIXTURE/home/.claude/skills/old-name"
 test ! -e "$FIXTURE/home/.agents/skills/find-skills"
 test ! -e "$FIXTURE/home/.claude/skills/find-skills"
 if grep -F '# cli-skills ' "$FIXTURE/.gitignore" >/dev/null; then exit 1; fi
-jq -e '.skills | has("old-name") | not' "$FIXTURE/home/.agents/.skill-lock.json" >/dev/null
-jq -e '.skills | has("find-skills") | not' "$FIXTURE/home/.agents/.skill-lock.json" >/dev/null
-if grep -F 'add mattpocock/skills' "$FIXTURE/npx.log" >/dev/null; then exit 1; fi
-grep -F 'remove alpha old-name find-skills --global --agent codex --yes' "$FIXTURE/npx.log" >/dev/null
-if grep -F ' update ' "$FIXTURE/npx.log" >/dev/null; then exit 1; fi
+cmp -s "$FIXTURE/lock-before.json" "$FIXTURE/home/.agents/.skill-lock.json"
+test ! -s "$FIXTURE/npx.log"
 
 COMBINED="$TMP_ROOT/combined-matt"
 COMBINED_UPSTREAM="$TMP_ROOT/combined-matt-upstream"
@@ -330,7 +280,44 @@ jq -e '
 ' "$FIXTURE/staging-orphan.json" >/dev/null
 test ! -e "$FIXTURE/other-skills/matt/new-skill"
 test ! -e "$FIXTURE/home/.agents/skills/new-skill"
-if grep -F 'add mattpocock/skills' "$FIXTURE/npx.log" >/dev/null; then exit 1; fi
+test ! -s "$FIXTURE/npx.log"
+
+KNOWN_LOCK="$TMP_ROOT/known-lock"
+KNOWN_LOCK_UPSTREAM="$TMP_ROOT/known-lock-upstream"
+make_fixture "$KNOWN_LOCK" "$KNOWN_LOCK_UPSTREAM"
+cat > "$KNOWN_LOCK/home/.agents/.skill-lock.json" <<'JSON'
+{
+  "version": 3,
+  "skills": {
+    "alpha": {"source":"mattpocock/skills","sourceType":"github","skillPath":"skills/engineering/alpha/SKILL.md"},
+    "old-name": {"source":"mattpocock/skills","sourceType":"github","skillPath":"skills/deprecated/old-name/SKILL.md"},
+    "find-skills": {"source":"vercel-labs/skills","sourceType":"github","skillPath":"skills/find-skills/SKILL.md"}
+  }
+}
+JSON
+perl -0pi -e 's/\n/\r\n/g' "$KNOWN_LOCK/home/.agents/.skill-lock.json"
+cp "$KNOWN_LOCK/home/.agents/.skill-lock.json" "$KNOWN_LOCK/lock-before.json"
+cp -R "$KNOWN_LOCK/home" "$KNOWN_LOCK/home-before"
+cp -R "$KNOWN_LOCK/skills" "$KNOWN_LOCK/skills-before"
+cp -R "$KNOWN_LOCK/other-skills" "$KNOWN_LOCK/other-skills-before"
+: > "$KNOWN_LOCK/npx.log"
+set +e
+run_topology "$KNOWN_LOCK" "$KNOWN_LOCK_UPSTREAM" "$KNOWN_LOCK/result.json"
+known_exit=$?
+set -e
+test "$known_exit" -eq 3
+jq -e '
+  .status == "decision-required" and .changes == [] and
+  ([.decisions[] | select(.code == "legacy-npx-lock-entry")] | length) >= 1 and
+  (.decisions[] | select(.code == "legacy-npx-lock-entry" and .skill == "alpha" and .lockSource == "mattpocock/skills")) and
+  (.decisions[] | select(.code == "legacy-npx-lock-entry" and .skill == "old-name" and .lockSource == "mattpocock/skills")) and
+  (.decisions[] | select(.code == "legacy-npx-lock-entry" and .skill == "find-skills" and .lockSource == "vercel-labs/skills"))
+' "$KNOWN_LOCK/result.json" >/dev/null
+test ! -s "$KNOWN_LOCK/npx.log"
+cmp -s "$KNOWN_LOCK/lock-before.json" "$KNOWN_LOCK/home/.agents/.skill-lock.json"
+diff -r "$KNOWN_LOCK/home-before" "$KNOWN_LOCK/home"
+diff -r "$KNOWN_LOCK/skills-before" "$KNOWN_LOCK/skills"
+diff -r "$KNOWN_LOCK/other-skills-before" "$KNOWN_LOCK/other-skills"
 
 UNKNOWN="$TMP_ROOT/unknown"
 UNKNOWN_UPSTREAM="$TMP_ROOT/unknown-upstream"
@@ -338,6 +325,7 @@ make_fixture "$UNKNOWN" "$UNKNOWN_UPSTREAM"
 jq '.skills["other-skill"] = {source:"other/repo",sourceType:"github",skillPath:"skills/other-skill/SKILL.md"}' \
   "$UNKNOWN/home/.agents/.skill-lock.json" > "$UNKNOWN/lock.tmp"
 mv "$UNKNOWN/lock.tmp" "$UNKNOWN/home/.agents/.skill-lock.json"
+cp "$UNKNOWN/home/.agents/.skill-lock.json" "$UNKNOWN/lock-before.json"
 : > "$UNKNOWN/npx.log"
 cp -R "$UNKNOWN/home" "$UNKNOWN/home-before"
 cp -R "$UNKNOWN/skills" "$UNKNOWN/skills-before"
@@ -352,6 +340,7 @@ jq -e '
   (.decisions[] | .code == "unknown-npx-lock-source" and .skill == "other-skill" and .lockSource == "other/repo")
 ' "$UNKNOWN/result.json" >/dev/null
 test ! -s "$UNKNOWN/npx.log"
+cmp -s "$UNKNOWN/lock-before.json" "$UNKNOWN/home/.agents/.skill-lock.json"
 diff -r "$UNKNOWN/home-before" "$UNKNOWN/home"
 diff -r "$UNKNOWN/skills-before" "$UNKNOWN/skills"
 diff -r "$UNKNOWN/other-skills-before" "$UNKNOWN/other-skills"
@@ -373,8 +362,7 @@ test ! -s "$STALE/npx.log"
 COLLISION="$TMP_ROOT/collision"
 COLLISION_UPSTREAM="$TMP_ROOT/collision-upstream"
 make_fixture "$COLLISION" "$COLLISION_UPSTREAM"
-jq 'del(.skills.alpha)' "$COLLISION/home/.agents/.skill-lock.json" > "$COLLISION/lock.tmp"
-mv "$COLLISION/lock.tmp" "$COLLISION/home/.agents/.skill-lock.json"
+make_skill "$COLLISION/home/.agents/skills" alpha installed-old-alpha
 : > "$COLLISION/npx.log"
 set +e
 run_topology "$COLLISION" "$COLLISION_UPSTREAM" "$COLLISION/result.json"
@@ -389,9 +377,9 @@ DIRECT_STAGE="$TMP_ROOT/direct-stage"
 DIRECT_STAGE_UPSTREAM="$TMP_ROOT/direct-stage-upstream"
 make_fixture "$DIRECT_STAGE" "$DIRECT_STAGE_UPSTREAM"
 : > "$DIRECT_STAGE/npx.log"
-run_topology "$DIRECT_STAGE" "$DIRECT_STAGE_UPSTREAM" "$DIRECT_STAGE/result.json" FAKE_NPX_PARTIAL=1
+run_topology "$DIRECT_STAGE" "$DIRECT_STAGE_UPSTREAM" "$DIRECT_STAGE/result.json"
 jq -e '.status == "reconciled" and .errors == []' "$DIRECT_STAGE/result.json" >/dev/null
 test -f "$DIRECT_STAGE/other-skills/matt/new-skill/SKILL.md"
-if grep -F 'add mattpocock/skills' "$DIRECT_STAGE/npx.log" >/dev/null; then exit 1; fi
+test ! -s "$DIRECT_STAGE/npx.log"
 
 echo "npx-distributed topology tests passed"

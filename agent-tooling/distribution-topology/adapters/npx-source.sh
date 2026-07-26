@@ -155,9 +155,11 @@ inspect_staging_state() { # expected skill destination current-lock
       ;;
     codex)
       lock_source="$(lock_source_for "$current_lock" "$skill")"
-      if [ "$lock_source" = "$upstream_repo" ] \
-        || { [ "$skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; }; then
-        printf 'drift\tlegacy-npx\n'
+      if [ -n "$lock_source" ] && {
+        [ "$lock_source" = "$upstream_repo" ] \
+          || { [ -n "$retired_repo" ] && [ "$lock_source" = "$retired_repo" ]; }
+      }; then
+        printf 'legacy-npx-lock\t%s\n' "$lock_source"
       elif [ -n "$lock_source" ]; then
         printf 'foreign\t%s\n' "$lock_source"
       else
@@ -187,12 +189,13 @@ emit_inspection() {
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
   while IFS=$'\t' read -r lock_skill lock_source; do
-    if [ "$lock_source" = "$upstream_repo" ]; then
-      if ! awk -F '\t' -v skill="$lock_skill" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file"; then
-        printf 'orphan\t%s\tcodex\tmanaged\n' "$lock_skill"
+    if [ "$lock_source" = "$upstream_repo" ] \
+      || { [ -n "$retired_repo" ] && [ "$lock_source" = "$retired_repo" ]; }; then
+      # Plan-row skills already emit legacy-npx-lock from inspect_staging_state.
+      if awk -F '\t' -v skill="$lock_skill" '$2 == skill && $3 == "codex" { found = 1 } END { exit !found }' "$plan_path"; then
+        continue
       fi
-    elif [ "$lock_skill" = find-skills ] && [ -n "$retired_repo" ] && [ "$lock_source" = "$retired_repo" ]; then
-      printf 'orphan\tfind-skills\tcodex\tmanaged\n'
+      printf 'legacy-npx-lock\t%s\tcodex\t%s\n' "$lock_skill" "$lock_source"
     elif is_known_npx_repo "$lock_source"; then
       : # owned by a sibling registered npx source; that source's own scan covers it
     else
@@ -222,28 +225,6 @@ emit_inspection() {
     awk -F '\t' -v skill="$orphan" '$1 == skill { found = 1 } END { exit !found }' "$inventory_file" && continue
     printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
   done
-}
-
-run_skills() {
-  local output rc=0
-  output="$(npx --yes skills@latest "$@" 2>&1)" || rc=$?
-  if [ "$rc" -ne 0 ] || printf '%s' "$output" | grep -q 'Failed to '; then
-    [ -n "$output" ] && printf '%s\n' "$output" >&2
-    return 1
-  fi
-}
-
-remove_lock_entries() { # names...
-  local name tmp
-  [ "$#" -gt 0 ] || return 0
-  [ -f "$lock" ] || return 0
-  tmp="$lock.tmp.$$"
-  cp "$lock" "$tmp"
-  for name in "$@"; do
-    jq --arg name "$name" 'del(.skills[$name])' "$tmp" > "$tmp.next"
-    mv "$tmp.next" "$tmp"
-  done
-  mv "$tmp" "$lock"
 }
 
 inspect_stage_state() { # skill
@@ -279,30 +260,12 @@ refresh_staging_metadata() {
 
 reconcile_states() {
   local current_lock="$state_root/pre-reconcile-lock.tsv"
-  local operation skill destination lock_source state detail marker_owner
+  local operation skill destination state detail marker_owner
   local failed=0 operation_failed
-  local matt_removals=() retired_removals=()
   read_lock_inventory "$current_lock"
   if ! cmp -s "$lock_snapshot" "$current_lock"; then
     printf 'skills lock changed after Matt preflight\n' >&2
     return 1
-  fi
-  while IFS=$'\t' read -r operation skill destination; do
-    [ "$destination" = codex ] || continue
-    case "$operation" in install|remove) ;; *) continue ;; esac
-    lock_source="$(lock_source_for "$current_lock" "$skill")"
-    if [ "$lock_source" = "$upstream_repo" ]; then
-      matt_removals+=("$skill")
-    elif [ "$skill" = find-skills ] && [ "$lock_source" = "$retired_repo" ]; then
-      retired_removals+=("$skill")
-    fi
-  done < "$plan_path"
-  if [ "${#matt_removals[@]}" -gt 0 ] || [ "${#retired_removals[@]}" -gt 0 ]; then
-    if ! run_skills remove "${matt_removals[@]}" "${retired_removals[@]}" --global --agent codex --yes; then
-      printf 'Matt skills removal failed\n' >&2
-      return 1
-    fi
-    remove_lock_entries "${matt_removals[@]}" "${retired_removals[@]}"
   fi
   while IFS=$'\t' read -r operation skill destination; do
     operation_failed=0

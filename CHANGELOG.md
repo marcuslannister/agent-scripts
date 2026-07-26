@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Deleted legacy npx skills-lock removal mutation; known npx lock entries now report `legacy-npx-lock-entry` decision-required with the lock left byte-identical (#44).
+
 - Tracked foreign skill staging: `other-skills/<owner>/` is fully tracked with no staging gitignore blocks or per-skill `.agent-scripts-copy` markers; each source dir gets a refreshed `.source.json` (upstream repo, commit, sync time), and surface copies keep three-line markers pointing at the tracked staging path.
 
 ## 2026-07-25 — Mattpocock/Humanlayer Governance Migration
