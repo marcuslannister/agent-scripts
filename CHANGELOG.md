@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Dropped the staged `skill-creator` Codex copy (matrix row now `N|N`); Claude keeps it through the native `claude-plugins-official` plugin.
+
 - Fixed `generate-skills-matrix.py` folding the staged `anthropics/skills` `skill-creator` copy into the `claude-plugins-official` plugin row once that plugin was installed locally: the registry's explicit `matrixSource` now wins over the plugin-name-collision fallback, which had blocked distribute with a spurious plugin-row-edit decision.
 
 - Made `agent-tooling/update-skill-topology.sh` acquire-only (complete tracked staging + native plugins), changed `update-all.sh` to agent updates → acquire → offline distribute, and hardened verification against resurrected single-pass entry points (#47).

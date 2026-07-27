@@ -147,9 +147,7 @@
         "mcp-builder": [],
         "pdf": [],
         "pptx": [],
-        "skill-creator": [
-          "codex"
-        ],
+        "skill-creator": [],
         "slack-gif-creator": [],
         "theme-factory": [],
         "web-artifacts-builder": [],

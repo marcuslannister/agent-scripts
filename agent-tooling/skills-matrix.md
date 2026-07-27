@@ -2,9 +2,9 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 95 | 76 |
+| Total | 95 | 75 |
 | Shared | 75 | 75 |
-| Agent-only | 20 | 1 |
+| Agent-only | 20 | 0 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
@@ -18,7 +18,7 @@
 | `claude-api` | anthropics/skills | skill | N | N | ~17744 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | Y | N | ~2709 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | Y | Y | ~1088 |
-| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1173 |
+| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1826 |
 | `claude-mem:design-is` | thedotmack/claude-mem | plugin | Y | Y | ~4648 |
 | `claude-mem:do` | thedotmack/claude-mem | plugin | Y | Y | ~508 |
 | `claude-mem:how-it-works` | thedotmack/claude-mem | plugin | Y | Y | ~308 |
@@ -31,7 +31,7 @@
 | `claude-mem:smart-explore` | thedotmack/claude-mem | plugin | Y | Y | ~2304 |
 | `claude-mem:standup` | thedotmack/claude-mem | plugin | Y | Y | ~1659 |
 | `claude-mem:timeline-report` | thedotmack/claude-mem | plugin | Y | Y | ~3172 |
-| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | Y | Y | ~1152 |
+| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | Y | Y | ~1155 |
 | `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | Y | Y | ~3530 |
 | `claude-mem:what-the` | thedotmack/claude-mem | plugin | Y | Y | ~62 |
 | `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | Y | Y | ~2208 |
@@ -97,7 +97,7 @@
 | `mattpocock-skills:teach` | mattpocock/skills | plugin | Y | Y | ~2374 |
 | `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | Y | Y | ~726 |
 | `mattpocock-skills:to-spec` | mattpocock/skills | plugin | Y | Y | ~766 |
-| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1415 |
+| `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | Y | Y | ~1438 |
 | `mattpocock-skills:triage` | mattpocock/skills | plugin | Y | Y | ~1628 |
 | `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | Y | Y | ~1220 |
 | `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | Y | Y | ~2948 |
@@ -126,7 +126,7 @@
 | `remote-mac` | steipete/agent-scripts | skill | N | N | ~2018 |
 | `skill-cleaner` | steipete/agent-scripts | skill | N | N | ~1046 |
 | `skill-creator` | anthropics/claude-plugins-official | plugin | Y | N | ~8247 |
-| `skill-creator` | anthropics/skills | skill | N | Y | ~8247 |
+| `skill-creator` | anthropics/skills | skill | N | N | ~8247 |
 | `slack-gif-creator` | anthropics/skills | skill | N | N | ~1960 |
 | `sonos` | steipete/agent-scripts | skill | N | N | ~440 |
 | `speaking` | steipete/agent-scripts | skill | N | N | ~1159 |
@@ -156,14 +156,14 @@
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
 | `visual-explainer` | nicobailon/visual-explainer | plugin | Y | Y | ~9330 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1554 |
-| `waza:check` | tw93/Waza | plugin | Y | Y | ~10394 |
+| `waza:check` | tw93/Waza | plugin | Y | Y | ~10617 |
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~6320 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~5076 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4928 |
 | `waza:learn` | tw93/Waza | plugin | Y | Y | ~2565 |
 | `waza:read` | tw93/Waza | plugin | Y | Y | ~2156 |
 | `waza:think` | tw93/Waza | plugin | Y | Y | ~3908 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~5019 |
-| `waza:write` | tw93/Waza | plugin | Y | Y | ~5706 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~5058 |
+| `waza:write` | tw93/Waza | plugin | Y | Y | ~5735 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
 | `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
@@ -172,7 +172,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~841 |
 
-<!-- total=163 both=75 claude_only=20 codex_only=1 total_claude=95 total_codex=76 -->
+<!-- total=163 both=75 claude_only=20 codex_only=0 total_claude=95 total_codex=75 -->
 
 ## Enable-state
 
@@ -180,10 +180,10 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 62 | 26 |
-| Disabled | 26 | 0 |
-| Always-on | 7 | 50 |
-| Total | 95 | 76 |
+| Enabled | 62 | 18 |
+| Disabled | 26 | 8 |
+| Always-on | 7 | 49 |
+| Total | 95 | 75 |
 
 ## Repos
 
