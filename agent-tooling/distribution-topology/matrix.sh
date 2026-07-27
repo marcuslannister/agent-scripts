@@ -52,7 +52,8 @@ matrix_compare_plugin_rows() { # current expected findings
     }
     $3 == "plugin" {
       key = $1 SUBSEP $2
-      if (!(key in expected) || expected[key] != $4 SUBSEP $5) {
+      # Missing keys are stale report rows; regeneration drops them.
+      if ((key in expected) && expected[key] != $4 SUBSEP $5) {
         print $1 "\t" $2
       }
     }

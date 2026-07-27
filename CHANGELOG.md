@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Stopped stale report-only plugin rows from blocking skill-surface reconciliation after their local plugin caches are removed; live plugin destination edits still require a decision.
+
 - Migrated legacy Claude skills-root pointer files into collision-safe backups before creating the managed per-skill surface, fixing Windows distribution failures.
 
 - Dropped the staged `skill-creator` Codex copy (matrix row now `N|N`); Claude keeps it through the native `claude-plugins-official` plugin.

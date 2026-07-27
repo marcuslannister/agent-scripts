@@ -9,6 +9,26 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 FIXTURE="$TMP_ROOT/repo"
 UPSTREAM="$TMP_ROOT/anthropic-skills"
 BIN="$TMP_ROOT/bin"
+EXPECTED_PLUGIN_ROWS="$TMP_ROOT/expected-plugin-rows.tsv"
+CURRENT_PLUGIN_ROWS="$TMP_ROOT/current-plugin-rows.tsv"
+PLUGIN_FINDINGS="$TMP_ROOT/plugin-findings.ndjson"
+INVALID_PLUGIN_MATRIX="$TMP_ROOT/invalid-plugin-matrix.md"
+INVALID_PLUGIN_ROWS="$TMP_ROOT/invalid-plugin-rows.tsv"
+printf 'test-plugin\texample/test-plugin\tplugin\tY\tN\n' > "$EXPECTED_PLUGIN_ROWS"
+printf 'test-plugin\texample/test-plugin\tplugin\tY\tY\n' > "$CURRENT_PLUGIN_ROWS"
+: > "$PLUGIN_FINDINGS"
+source "$REPO_ROOT/agent-tooling/distribution-topology/matrix.sh"
+matrix_compare_plugin_rows "$CURRENT_PLUGIN_ROWS" "$EXPECTED_PLUGIN_ROWS" "$PLUGIN_FINDINGS"
+jq -e 'any(.code == "plugin-row-edit" and .skill == "test-plugin")' \
+  "$PLUGIN_FINDINGS" --slurp >/dev/null
+printf '%s\n' \
+  '| Skill | Source | Type | Claude | Codex | ~Tokens |' \
+  '|---|---|---|---|---|---|' \
+  '| `test-plugin` | example/test-plugin | plugin | Y | X | ~1 |' \
+  > "$INVALID_PLUGIN_MATRIX"
+matrix_parse "$INVALID_PLUGIN_MATRIX" "$TMP_ROOT/parsed-plugin-rows.tsv" "$INVALID_PLUGIN_ROWS"
+rg -F $'test-plugin\texample/test-plugin\tplugin\tY\tX' "$INVALID_PLUGIN_ROWS" >/dev/null
+
 mkdir -p \
   "$FIXTURE/agent-tooling" \
   "$FIXTURE/skills/repo-remove" \
@@ -240,6 +260,33 @@ jq -e '
     "foreign-same":["claude","codex"]
   })
 ' "$FIXTURE/agent-tooling/skill-topology.json" >/dev/null
+cp "$FIXTURE/agent-tooling/skills-matrix.md" \
+  "$FIXTURE/skills-matrix-before-plugin-lifecycle.md"
+
+mv "$FIXTURE/home/.claude/plugins/cache/test-market/test-plugin/1.0.0" \
+  "$FIXTURE/plugin-cache-absent"
+run_topology --check --json > "$FIXTURE/absent-plugin-check.json"
+jq -e '.status == "clean" and .decisions == []' \
+  "$FIXTURE/absent-plugin-check.json" >/dev/null
+run_topology --json > "$FIXTURE/absent-plugin-reconciled.json"
+jq -e '.status == "reconciled" and .decisions == []' \
+  "$FIXTURE/absent-plugin-reconciled.json" >/dev/null
+if rg -F '| `test-plugin` | example/test-plugin | plugin |' \
+  "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null; then
+  echo 'successful reconcile retained an absent plugin row' >&2
+  exit 1
+fi
+
+mkdir -p "$FIXTURE/home/.claude/plugins/cache/test-market/test-plugin"
+mv "$FIXTURE/plugin-cache-absent" \
+  "$FIXTURE/home/.claude/plugins/cache/test-market/test-plugin/1.0.0"
+run_topology --json > "$FIXTURE/restored-plugin.json"
+jq -e '.status == "reconciled" and .decisions == []' \
+  "$FIXTURE/restored-plugin.json" >/dev/null
+rg '^| `test-plugin` | example/test-plugin | plugin | Y | N | ~[0-9][0-9]* |$' \
+  "$FIXTURE/agent-tooling/skills-matrix.md" >/dev/null
+cp "$FIXTURE/skills-matrix-before-plugin-lifecycle.md" \
+  "$FIXTURE/agent-tooling/skills-matrix.md"
 
 mv "$FIXTURE/agent-tooling/skills-matrix.md" "$FIXTURE/agent-tooling/skills-matrix.missing"
 set +e
@@ -256,11 +303,10 @@ printf '%s\n' '---' 'name: foreign-new' 'description: "fixture"' '---' \
   > "$UPSTREAM/skills/foreign-new/SKILL.md"
 cp "$UPSTREAM/skills/foreign-new/SKILL.md" "$FIXTURE/other-skills/anthropics/foreign-new/SKILL.md"
 awk '
-  /^\| `test-plugin` \|/ { print "| `foreign-removed` | anthropics/skills | skill | N | N | ~1 |" }
+  /^\| `foreign-install` \|/ { print "| `foreign-removed` | anthropics/skills | skill | N | N | ~1 |" }
   { print }
 ' "$FIXTURE/agent-tooling/skills-matrix.md" > "$FIXTURE/agent-tooling/skills-matrix.tmp"
 mv "$FIXTURE/agent-tooling/skills-matrix.tmp" "$FIXTURE/agent-tooling/skills-matrix.md"
-replace_row test-plugin '| `test-plugin` | example/test-plugin | plugin | Y | Y | ~1 |'
 cp -R "$FIXTURE/home" "$FIXTURE/home-before-block"
 manifest_before_block="$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")"
 
@@ -272,36 +318,15 @@ for mode in check reconcile; do
   blocked_exit=$?
   set -e
   test "$blocked_exit" -eq 3
-  jq -e '
-    .status == "decision-required" and
-    any(.decisions[]; .code == "new-skill" and .skill == "foreign-new") and
-    any(.decisions[]; .code == "removed-skill" and .skill == "foreign-removed") and
-    any(.decisions[]; .code == "plugin-row-edit" and .skill == "test-plugin")
-  ' "$FIXTURE/$mode-blocked.json" >/dev/null
+  jq -e '.status == "decision-required"' "$FIXTURE/$mode-blocked.json" >/dev/null
+  jq -e 'any(.decisions[]; .code == "new-skill" and .skill == "foreign-new")' \
+    "$FIXTURE/$mode-blocked.json" >/dev/null
+  jq -e 'any(.decisions[]; .code == "removed-skill" and .skill == "foreign-removed")' \
+    "$FIXTURE/$mode-blocked.json" >/dev/null
   test "$(shasum -a 256 "$FIXTURE/agent-tooling/skill-topology.json")" = "$manifest_before_block"
   diff -r "$FIXTURE/home-before-block" "$FIXTURE/home"
   # Distribute inventory is staging; foreign-new stays staged while decisions block mutation.
   test -f "$FIXTURE/other-skills/anthropics/foreign-new/SKILL.md"
 done
-
-replace_row test-plugin '| `test-plugin` | example/test-plugin | plugin | Y | X | ~1 |'
-set +e
-run_topology --check --json > "$FIXTURE/invalid-plugin-cell.json"
-invalid_plugin_exit=$?
-set -e
-test "$invalid_plugin_exit" -eq 3
-jq -e 'any(.decisions[]; .code == "plugin-row-edit" and .skill == "test-plugin")' \
-  "$FIXTURE/invalid-plugin-cell.json" >/dev/null
-
-mv "$FIXTURE/home/.claude/plugins/cache/test-market/test-plugin/1.0.0" \
-  "$FIXTURE/plugin-cache-absent"
-replace_row test-plugin '| `test-plugin` | example/test-plugin | plugin | Y | Y | ~1 |'
-set +e
-run_topology --check --json > "$FIXTURE/absent-plugin.json"
-absent_plugin_exit=$?
-set -e
-test "$absent_plugin_exit" -eq 3
-jq -e 'any(.decisions[]; .code == "plugin-row-edit" and .skill == "test-plugin")' \
-  "$FIXTURE/absent-plugin.json" >/dev/null
 
 echo "matrix-driven topology tests passed"
