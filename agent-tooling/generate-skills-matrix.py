@@ -208,10 +208,13 @@ def staged_source(source_path, source_id, name):
     repo = github_repo(lock_source)
     if repo:
         return repo
+    matrix_source = matrix_sources.get(source_id)
+    if matrix_source:
+        return matrix_source
     plugin_sources = plugin_sources_by_name.get(name, set())
     if len(plugin_sources) == 1:
         return next(iter(plugin_sources))
-    return matrix_sources.get(source_id) or source_id
+    return source_id
 
 
 plan_sources_by_skill = {}
