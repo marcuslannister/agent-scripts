@@ -115,3 +115,17 @@ more edits to the same file, always use `anvil-file-batch`.
 Skill `anvil-advanced-ops` covers org-mode editing, worker-pool
 dispatch for heavy Emacs ops, anvil-cron scheduled tasks, and
 shell/context output compression.
+
+## MCP tool self-reinforcement
+
+If during a task you notice any of the following, switch to
+the appropriate Anvil tool before continuing:
+
+- The same elisp pattern is being written twice in one session
+- Three or more `anvil-eval` calls were issued for one logical edit
+  (a single `anvil-file-batch` would have sufficed)
+- Repeated full-file Reads of the same large file
+- A heavy elisp op blocked the main session — should have been
+  routed via `anvil-worker-call` / `mcp__anvil-worker__eval`
+
+Course-correct mid-task — do not wait until the end.
