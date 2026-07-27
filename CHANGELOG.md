@@ -16,6 +16,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Tracked foreign skill staging: `other-skills/<owner>/` is fully tracked with no staging gitignore blocks or per-skill `.agent-scripts-copy` markers; each source dir gets a refreshed `.source.json` (upstream repo, commit, sync time), and surface copies keep three-line markers pointing at the tracked staging path.
 
+- Reserved GPT-5.6's maximum output budget in `codex-huge-context` and moved fleet compaction to a verified 922K input window with an 820K safety threshold.
+- Made `codex-first` treat the Gorilla-backed Clawdex endpoint as already model-routed, preventing recursive Codex delegation after the fleet proxy migration.
+- Added a secret-safe Codex direct-API preflight so million-token launches fail before an unauthenticated Responses request when a machine is missing its Keychain delivery copy.
+
 ## 2026-07-25 — Mattpocock/Humanlayer Governance Migration
 - Generalized `npx-source.sh` to support multiple npx-only sources instead of hardcoding mattpocock/skills, and registered `humanlayer/skills`.
 - Migrated 39 mattpocock skills from raw, stale npx installs to governed staged copies on codex.
