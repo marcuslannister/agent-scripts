@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Migrated legacy Claude skills-root pointer files into collision-safe backups before creating the managed per-skill surface, fixing Windows distribution failures.
+
 - Dropped the staged `skill-creator` Codex copy (matrix row now `N|N`); Claude keeps it through the native `claude-plugins-official` plugin.
 
 - Fixed `generate-skills-matrix.py` folding the staged `anthropics/skills` `skill-creator` copy into the `claude-plugins-official` plugin row once that plugin was installed locally: the registry's explicit `matrixSource` now wins over the plugin-name-collision fallback, which had blocked distribute with a spurious plugin-row-edit decision.

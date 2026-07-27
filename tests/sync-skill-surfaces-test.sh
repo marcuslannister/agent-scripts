@@ -222,6 +222,33 @@ jq -e '.commit == "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"' \
 run_distribute --json > "$FIXTURE/second.json"
 jq -e '.status == "reconciled" and .changes == [] and .errors == []' "$FIXTURE/second.json" >/dev/null
 
+# --- legacy Claude plain pointer file: preview, backup, migrate, repopulate ---
+rm -rf "$FIXTURE/home/.claude/skills"
+printf '../agent-scripts/skills' > "$FIXTURE/home/.claude/skills"
+mkdir -p "$FIXTURE/home/.claude/skills-migrated-20260727-220000"
+printf 'collision sentinel\n' > "$FIXTURE/home/.claude/skills-migrated-20260727-220000/keep"
+set +e
+AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260727-220000 \
+  run_distribute --check --json > "$FIXTURE/pointer-check.json"
+pointer_check_exit=$?
+set -e
+test "$pointer_check_exit" -eq 1
+jq -e '.claudeRoot.state == "legacy-pointer" and .claudeRoot.action == "migrate" and
+  any(.drift[]; .reason == "root-migration")' "$FIXTURE/pointer-check.json" >/dev/null
+test "$(cat "$FIXTURE/home/.claude/skills")" = ../agent-scripts/skills
+test ! -e "$FIXTURE/home/.claude/skills-migrated-20260727-220000-1"
+
+AGENT_SCRIPTS_MIGRATION_TIMESTAMP=20260727-220000 \
+  run_distribute --json > "$FIXTURE/pointer.json"
+jq -e '.status == "reconciled" and .errors == []' "$FIXTURE/pointer.json" >/dev/null
+test -d "$FIXTURE/home/.claude/skills"
+test "$(sed -n '1p' "$FIXTURE/home/.claude/skills/.agent-scripts-root")" = claude-skills
+test "$(cat "$FIXTURE/home/.claude/skills-migrated-20260727-220000-1/skills")" = ../agent-scripts/skills
+test "$(cat "$FIXTURE/home/.claude/skills-migrated-20260727-220000/keep")" = 'collision sentinel'
+for skill in docx foreign-same pdf repo-same; do
+  test -f "$FIXTURE/home/.claude/skills/$skill/SKILL.md"
+done
+
 # --- missing staged skill selected by matrix: blocking error naming acquire ---
 # Insert inside the live skill table (append after last skill row would miss if Counts follows).
 awk '

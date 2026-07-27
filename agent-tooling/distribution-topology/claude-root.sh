@@ -24,6 +24,28 @@ claude_root_canonical_path() { # path
   fi
 }
 
+claude_root_make_backup_dir() { # home
+  local home="$1" stamp base candidate suffix
+  stamp="${AGENT_SCRIPTS_MIGRATION_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
+  base="$home/.claude/skills-migrated-$stamp"
+  candidate="$base"
+  suffix=1
+  while [ -e "$candidate" ] || [ -L "$candidate" ]; do
+    candidate="$base-$suffix"
+    suffix=$((suffix + 1))
+  done
+  mkdir -p "$home/.claude"
+  mkdir "$candidate"
+  printf '%s\n' "$candidate"
+}
+
+claude_root_needs_migration() {
+  case "$CLAUDE_ROOT_STATE" in
+    legacy-symlink|legacy-pointer) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 claude_root_inspect() { # repo_root home
   local repo_root="$1" home="$2" root target expected marker
   root="$home/.claude/skills"
@@ -52,6 +74,9 @@ claude_root_inspect() { # repo_root home
     else
       CLAUDE_ROOT_MESSAGE="Claude skills root is not managed by agent-scripts: $root"
     fi
+  elif [ -f "$root" ]; then
+    CLAUDE_ROOT_STATE=legacy-pointer
+    CLAUDE_ROOT_ACTION=migrate
   elif [ -e "$root" ]; then
     CLAUDE_ROOT_MESSAGE="Claude skills root is not a directory: $root"
   else
@@ -60,21 +85,32 @@ claude_root_inspect() { # repo_root home
 }
 
 claude_root_reconcile() { # repo_root home
-  local repo_root="$1" home="$2" root
+  local repo_root="$1" home="$2" root backup destination
   root="$home/.claude/skills"
   claude_root_inspect "$repo_root" "$home"
   case "$CLAUDE_ROOT_STATE" in
     managed) return 0 ;;
     legacy-symlink)
       unlink "$root" || return 1
-      mkdir -p "$root" || return 1
-      printf 'claude-skills\n' > "$root/.agent-scripts-root" || return 1
-      CLAUDE_ROOT_STATE=managed
-      CLAUDE_ROOT_ACTION=migrated
-      CLAUDE_ROOT_MIGRATED=1
+      ;;
+    legacy-pointer)
+      if ! backup="$(claude_root_make_backup_dir "$home")"; then
+        printf 'could not create Claude-root migration backup under %s; legacy pointer preserved\n' "$home/.claude" >&2
+        return 1
+      fi
+      destination="$backup/skills"
+      if ! mv "$root" "$destination"; then
+        printf 'could not migrate legacy Claude root %s; preserved in place\n' "$root" >&2
+        return 1
+      fi
       ;;
     *) printf '%s\n' "$CLAUDE_ROOT_MESSAGE" >&2; return 1 ;;
   esac
+  mkdir -p "$root" || return 1
+  printf 'claude-skills\n' > "$root/.agent-scripts-root" || return 1
+  CLAUDE_ROOT_STATE=managed
+  CLAUDE_ROOT_ACTION=migrated
+  CLAUDE_ROOT_MIGRATED=1
 }
 
 claude_root_cleanup_legacy_copies() { # repo_root home registry plan changes errors

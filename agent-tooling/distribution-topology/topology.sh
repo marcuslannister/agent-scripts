@@ -644,7 +644,7 @@ topology_evaluate() {
     jq -n --arg path "$CLAUDE_ROOT_PATH" --arg state "$CLAUDE_ROOT_STATE" \
       --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
       '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
-    if [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
+    if claude_root_needs_migration; then
       export TOPOLOGY_CLAUDE_ROOT_LEGACY=1
     elif [ "$CLAUDE_ROOT_STATE" = unexpected ]; then
       topology_fail 1 "$CLAUDE_ROOT_MESSAGE"
@@ -756,7 +756,7 @@ topology_evaluate() {
   fi
   inspect_dir="$DISCOVERY_ROOT/inspect-initial"
   topology_inspect_plan "$plan_json" "$inspect_dir" "$MODE" || return $?
-  if topology_phase_owns_surfaces && [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
+  if topology_phase_owns_surfaces && claude_root_needs_migration; then
     jq -cn '{sourceId:"topology",skill:"claude-root",destination:"claude",reason:"root-migration"}' \
       >> "$inspect_dir/drift.ndjson"
   fi
@@ -794,7 +794,7 @@ topology_evaluate() {
         return 1
       fi
     fi
-    if topology_phase_owns_surfaces && [ "$CLAUDE_ROOT_STATE" = legacy-symlink ]; then
+    if topology_phase_owns_surfaces && claude_root_needs_migration; then
       if ! claude_root_reconcile "$REPO_ROOT" "$HOME"; then
         topology_append_json_string "$base_errors" 'Claude skills root migration failed'
         topology_build_document "$MODE" failed "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
