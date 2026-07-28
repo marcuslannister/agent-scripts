@@ -4,211 +4,206 @@ topology_is_name() {
   [[ "$1" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]
 }
 
-topology_is_classification() {
-  case "$1" in
-    repo-owned|npx-only|source-only|dual-plugin|plugin-claude-only) return 0 ;;
-    *) return 1 ;;
+read -r -d '' TOPOLOGY_SCHEMA_JQ <<'JQ' || true
+def is_name: type == "string" and test("^[a-z0-9]+(-[a-z0-9]+)*$");
+
+def is_classification: . as $value | ["repo-owned", "npx-only", "source-only", "dual-plugin", "plugin-claude-only"] | index($value) != null;
+def pretty_json($indent):
+  if type == "object" then if length == 0 then "{}" else "{\n" + (to_entries | map((" " * ($indent + 2)) + (.key | tojson) + ": " + (.value | pretty_json($indent + 2))) | join(",\n")) + "\n" + (" " * $indent) + "}" end
+  elif type == "array" then if length == 0 then "[]" else "[\n" + (map((" " * ($indent + 2)) + (. | pretty_json($indent + 2))) | join(",\n")) + "\n" + (" " * $indent) + "]" end
+  else tojson end;
+def raw_output: if type == "string" then . elif type == "object" or type == "array" then pretty_json(0) else tostring end;
+def head_output: raw_output | split("\n")[0];
+
+def fields_error($value; $allowed; $required; $label):
+  ($value | type) as $type | ($value | if type == "object" then (keys - $allowed | first) else null end) as $unknown |
+  ($required - ($value | if type == "object" then keys else [] end) | first) as $missing |
+  if $type != "object" then
+    "\($label) must be an object"
+  elif $unknown != null then
+    "\($label) contains unknown field: \($unknown)"
+  elif $missing != null then
+    "\($label) is missing required field: \($missing)"
+  else
+    null
+  end;
+def destinations_error($value; $label):
+  ($value | type) as $type | ($value | if type == "array" then
+    ([.[] | select(. != "claude" and . != "codex") | tostring] | first) else null end) as $unknown |
+  if $type != "array" or ($value | length) == 0 then
+    "\($label) must be a non-empty destination array"
+  elif $unknown != null then
+    "\($label) contains unknown destination: \($unknown)"
+  elif ($value | length) != ($value | unique | length) then
+    "\($label) contains a duplicate destination"
+  else
+    null
+  end;
+def duplicate_group($values): $values | group_by(.) | map(select(length > 1)) | first;
+
+def manifest_source_error($index):
+  .sources[$index] as $source |
+  "skill topology manifest source \($index)" as $label |
+  fields_error($source; ["id", "classification", "defaultDestinations"];
+    ["id", "classification", "defaultDestinations"]; $label) as $error |
+  if $error != null then
+    $error
+  elif ($source.id | is_name | not) then
+    "\($label) has an invalid id"
+  elif ($source.classification | is_classification | not) then
+    "\($label) contains unknown classification: \($source.classification | raw_output)"
+  else
+    destinations_error($source.defaultDestinations; "\($label) defaultDestinations")
+  end;
+
+def validate_manifest:
+  fields_error(.; ["version", "sources"]; ["version", "sources"]; "skill topology manifest") as $error |
+  if $error != null then
+    $error
+  elif .version != 1 then
+    "skill topology manifest version must be 1"
+  elif ((.sources | type) != "array" or (.sources | length) == 0) then
+    "skill topology manifest sources must be a non-empty array"
+  else
+    duplicate_group([.sources[] | select(type == "object") | .id]) as $duplicate |
+    if $duplicate != null then
+      "skill topology manifest contains duplicate source id: \($duplicate[0] | head_output)"
+    else
+      ([range(0; (.sources | length)) as $index | manifest_source_error($index) | select(. != null)] | first)
+    end
+  end;
+
+def plugin_error($entry; $index):
+  "topology adapter registry entry \($index)" as $label |
+  $entry.plugin as $plugin |
+  if ($plugin | type) != "object" then
+    "\($label) requires plugin metadata for a plugin source"
+  else
+    fields_error($plugin; ["name", "repo", "marketplaces", "identifiers", "skills"];
+      ["name", "repo", "marketplaces", "skills"]; "\($label) plugin") as $error |
+    if $error != null then
+      $error
+    elif ($plugin.name | is_name | not) then
+      "\($label) plugin has an invalid name"
+    elif (($plugin.repo | type) != "string" or ($plugin.repo | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$") | not)) then
+      "\($label) plugin has an invalid repo"
+    elif (($plugin.marketplaces | type) != "object" or ($plugin.marketplaces | length) == 0) then
+      "\($label) plugin marketplaces must be a non-empty object"
+    else
+      ([$plugin.marketplaces | keys[] as $destination |
+        if $destination != "claude" and $destination != "codex" then
+          "\($label) plugin marketplaces contains unknown destination: \($destination)"
+        elif ($entry.classification == "plugin-claude-only" and $destination != "claude") or
+          (($entry.supportedDestinations | index($destination)) == null) then
+          "\($label) plugin marketplaces contains unsupported destination: \($destination)"
+        else empty end] | first) as $marketplace_error |
+      if $marketplace_error != null then
+        $marketplace_error
+      elif ($plugin | has("identifiers")) and (($plugin.identifiers | type) != "object" or ($plugin.identifiers | length) == 0) then
+        "\($label) plugin identifiers must be a non-empty object"
+      else
+        ([$plugin.identifiers // {} | keys[] as $destination |
+          if $destination != "claude" and $destination != "codex" then
+            "\($label) plugin identifiers contains unknown destination: \($destination)"
+          elif ($plugin.identifiers[$destination] | is_name) | not then
+            "\($label) plugin has an invalid native \($destination) identifier"
+          else empty end] | first) as $identifier_error |
+        (["claude"] + (if $entry.classification == "dual-plugin" then ["codex"] else [] end)) as $required_marketplaces |
+        ([$required_marketplaces[] as $destination | select(
+          ($plugin.marketplaces[$destination] | is_name) | not) | $destination] | first) as $missing_marketplace |
+        if $identifier_error != null then
+          $identifier_error
+        elif $missing_marketplace != null then
+          "\($label) plugin is missing a valid \($missing_marketplace) marketplace"
+        elif (($plugin.skills | type) != "array" or ($plugin.skills | length) == 0) then
+          "\($label) plugin skills must be a non-empty array"
+        elif ($plugin.skills | length) != ($plugin.skills | unique | length) then
+          "\($label) plugin skills contains a duplicate skill"
+        else
+          ([$plugin.skills[] | tostring | select(is_name | not)] | first) as $invalid_skill |
+          if $invalid_skill != null then
+            "\($label) plugin skills contains an invalid skill name: \($invalid_skill)"
+          else
+            null
+          end
+        end
+      end
+    end
+  end;
+
+def registry_entry_error($index):
+  .[$index] as $entry |
+  "topology adapter registry entry \($index)" as $label |
+  fields_error($entry;
+    ["sourceId", "classification", "supportedDestinations", "command", "stateInspection", "matrixSource", "plugin"];
+    ["sourceId", "classification", "supportedDestinations", "command"]; $label) as $error |
+  if $error != null then
+    $error
+  elif ($entry.sourceId | is_name | not) then
+    "\($label) has an invalid sourceId"
+  elif ($entry.classification | is_classification | not) then
+    "\($label) contains unknown classification: \($entry.classification | raw_output)"
+  else
+    destinations_error($entry.supportedDestinations; "\($label) supportedDestinations") as $destination_error |
+    if $destination_error != null then
+      $destination_error
+    elif (
+      ($entry.command | type) != "string" or
+      $entry.command == "" or
+      ($entry.command | startswith("/")) or
+      (("/" + ($entry.command | gsub("\\\\"; "/")) + "/") | contains("/../"))
+    ) then
+      "\($label) has an invalid command"
+    elif (($entry | if has("stateInspection") then .stateInspection else "topology" end) as $state | $state != "topology" and $state != "adapter") then
+      "\($label) has an invalid stateInspection"
+    elif ($entry | has("matrixSource")) and (
+      ($entry.matrixSource | type) != "string" or
+      ($entry.matrixSource | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$") | not)
+    ) then
+      "\($label) has an invalid matrixSource"
+    elif ($entry.classification == "dual-plugin" or $entry.classification == "plugin-claude-only") then
+      plugin_error($entry; $index)
+    elif ($entry | has("plugin")) then
+      "\($label) has plugin metadata for a non-plugin source"
+    else
+      null
+    end
+  end;
+
+def validate_registry:
+  if (type != "array" or length == 0) then
+    "topology adapter registry must be a non-empty array"
+  else
+    duplicate_group([.[] | select(type == "object") | .sourceId]) as $duplicate |
+    if $duplicate != null then
+      "topology adapter registry contains duplicate sourceId: \($duplicate[0] | head_output)"
+    else
+      ([range(0; length) as $index | registry_entry_error($index) | select(. != null)] | first)
+    end
+  end;
+
+.[0] |
+(if $kind == "manifest" then validate_manifest else validate_registry end) |
+select(. != null)
+JQ
+
+topology_validate_document() { # file kind
+  local file="$1" kind="$2" parse_label validation
+  case "$kind" in
+    manifest) parse_label='skill topology manifest' ;;
+    registry) parse_label='topology adapter registry' ;;
   esac
-}
 
-topology_validate_fields() { # file jq_path allowed_json required_json label
-  local file="$1" path="$2" allowed="$3" required="$4" label="$5" unknown missing
-  if ! jq -e "$path | type == \"object\"" "$file" >/dev/null 2>&1; then
-    topology_fail 2 "$label must be an object"
+  if ! validation="$(jq -rs --arg kind "$kind" "$TOPOLOGY_SCHEMA_JQ" "$file" 2>&1)"; then
+    topology_fail 2 "$parse_label is not valid JSON: $validation"
     return 2
   fi
-  unknown="$(jq -r "$path | (keys - ($allowed)) | first // empty" "$file")"
-  if [ -n "$unknown" ]; then
-    topology_fail 2 "$label contains unknown field: $unknown"
-    return 2
-  fi
-  missing="$(jq -r "$path as \$value | ($required)[] as \$key | select(\$value | has(\$key) | not) | \$key" "$file" | head -1)"
-  if [ -n "$missing" ]; then
-    topology_fail 2 "$label is missing required field: $missing"
+  if [ -n "$validation" ]; then
+    topology_fail 2 "$validation"
     return 2
   fi
 }
 
-topology_validate_destinations() { # file jq_path label [allow_empty]
-  local file="$1" path="$2" label="$3" allow_empty="${4:-false}" unknown
-  if [ "$allow_empty" = true ]; then
-    if ! jq -e "$path | type == \"array\"" "$file" >/dev/null 2>&1; then
-      topology_fail 2 "$label must be a destination array"
-      return 2
-    fi
-  elif ! jq -e "$path | type == \"array\" and length > 0" "$file" >/dev/null 2>&1; then
-    topology_fail 2 "$label must be a non-empty destination array"
-    return 2
-  fi
-  unknown="$(jq -r "${path}[] | select(. != \"claude\" and . != \"codex\") | tostring" "$file" | head -1)"
-  if [ -n "$unknown" ]; then
-    topology_fail 2 "$label contains unknown destination: $unknown"
-    return 2
-  fi
-  if ! jq -e "$path | length == (unique | length)" "$file" >/dev/null; then
-    topology_fail 2 "$label contains a duplicate destination"
-    return 2
-  fi
-}
+topology_validate_manifest() { topology_validate_document "$1" manifest; }
 
-topology_validate_manifest() { # file
-  local file="$1" parse_error count index label source_id classification skill
-  if ! parse_error="$(jq empty "$file" 2>&1)"; then
-    topology_fail 2 "skill topology manifest is not valid JSON: $parse_error"
-    return 2
-  fi
-  topology_validate_fields "$file" '.' '["version","sources"]' '["version","sources"]' 'skill topology manifest' || return $?
-  if ! jq -e '.version == 1' "$file" >/dev/null; then
-    topology_fail 2 'skill topology manifest version must be 1'
-    return 2
-  fi
-  if ! jq -e '.sources | type == "array" and length > 0' "$file" >/dev/null; then
-    topology_fail 2 'skill topology manifest sources must be a non-empty array'
-    return 2
-  fi
-  if ! jq -e '[.sources[].id] | length == (unique | length)' "$file" >/dev/null; then
-    source_id="$(jq -r '[.sources[].id] | group_by(.)[] | select(length > 1) | first' "$file" | head -1)"
-    topology_fail 2 "skill topology manifest contains duplicate source id: $source_id"
-    return 2
-  fi
-
-  count="$(jq '.sources | length' "$file")"
-  for ((index = 0; index < count; index++)); do
-    label="skill topology manifest source $index"
-    topology_validate_fields "$file" ".sources[$index]" '["id","classification","defaultDestinations"]' '["id","classification","defaultDestinations"]' "$label" || return $?
-    source_id="$(jq -r ".sources[$index].id" "$file")"
-    if ! jq -e ".sources[$index].id | type == \"string\"" "$file" >/dev/null || ! topology_is_name "$source_id"; then
-      topology_fail 2 "$label has an invalid id"
-      return 2
-    fi
-    classification="$(jq -r ".sources[$index].classification" "$file")"
-    if ! topology_is_classification "$classification"; then
-      topology_fail 2 "$label contains unknown classification: $classification"
-      return 2
-    fi
-    topology_validate_destinations "$file" ".sources[$index].defaultDestinations" "$label defaultDestinations" || return $?
-  done
-}
-
-topology_validate_plugin() { # file index label classification
-  local file="$1" index="$2" label="$3" classification="$4" destination value supported
-  if ! jq -e ".[${index}].plugin | type == \"object\"" "$file" >/dev/null 2>&1; then
-    topology_fail 2 "$label requires plugin metadata for a plugin source"
-    return 2
-  fi
-  topology_validate_fields "$file" ".[${index}].plugin" '["name","repo","marketplaces","identifiers","skills"]' '["name","repo","marketplaces","skills"]' "$label plugin" || return $?
-  value="$(jq -r ".[${index}].plugin.name" "$file")"
-  jq -e ".[${index}].plugin.name | type == \"string\"" "$file" >/dev/null \
-    && topology_is_name "$value" \
-    || { topology_fail 2 "$label plugin has an invalid name"; return 2; }
-  value="$(jq -r ".[${index}].plugin.repo" "$file")"
-  jq -e ".[${index}].plugin.repo | type == \"string\"" "$file" >/dev/null \
-    && [[ "$value" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
-    || { topology_fail 2 "$label plugin has an invalid repo"; return 2; }
-  if ! jq -e ".[${index}].plugin.marketplaces | type == \"object\" and length > 0" "$file" >/dev/null; then
-    topology_fail 2 "$label plugin marketplaces must be a non-empty object"
-    return 2
-  fi
-  while IFS= read -r destination; do
-    case "$destination" in
-      claude|codex) ;;
-      *) topology_fail 2 "$label plugin marketplaces contains unknown destination: $destination"; return 2 ;;
-    esac
-    supported="$(jq -r --arg destination "$destination" ".[${index}].supportedDestinations | index(\$destination) != null" "$file")"
-    if { [ "$classification" = plugin-claude-only ] && [ "$destination" != claude ]; } || [ "$supported" != true ]; then
-      topology_fail 2 "$label plugin marketplaces contains unsupported destination: $destination"
-      return 2
-    fi
-  done < <(jq -r ".[${index}].plugin.marketplaces | keys[]" "$file")
-  if jq -e ".[${index}].plugin | has(\"identifiers\")" "$file" >/dev/null; then
-    if ! jq -e ".[${index}].plugin.identifiers | type == \"object\" and length > 0" "$file" >/dev/null; then
-      topology_fail 2 "$label plugin identifiers must be a non-empty object"
-      return 2
-    fi
-    while IFS= read -r destination; do
-      case "$destination" in
-        claude|codex) ;;
-        *) topology_fail 2 "$label plugin identifiers contains unknown destination: $destination"; return 2 ;;
-      esac
-      value="$(jq -r --arg destination "$destination" ".[${index}].plugin.identifiers[\$destination] // empty" "$file")"
-      if ! jq -e --arg destination "$destination" ".[${index}].plugin.identifiers[\$destination] | type == \"string\"" "$file" >/dev/null \
-        || ! topology_is_name "$value"; then
-        topology_fail 2 "$label plugin has an invalid native $destination identifier"
-        return 2
-      fi
-    done < <(jq -r ".[${index}].plugin.identifiers | keys[]" "$file")
-  fi
-  for destination in claude $([ "$classification" = dual-plugin ] && printf codex); do
-    value="$(jq -r --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] // empty" "$file")"
-    if ! jq -e --arg destination "$destination" ".[${index}].plugin.marketplaces[\$destination] | type == \"string\"" "$file" >/dev/null \
-      || ! topology_is_name "$value"; then
-      topology_fail 2 "$label plugin is missing a valid $destination marketplace"
-      return 2
-    fi
-  done
-  if ! jq -e ".[${index}].plugin.skills | type == \"array\" and length > 0" "$file" >/dev/null; then
-    topology_fail 2 "$label plugin skills must be a non-empty array"
-    return 2
-  fi
-  if ! jq -e ".[${index}].plugin.skills | length == (unique | length)" "$file" >/dev/null; then
-    topology_fail 2 "$label plugin skills contains a duplicate skill"
-    return 2
-  fi
-  while IFS= read -r skill; do
-    if ! topology_is_name "$skill"; then
-      topology_fail 2 "$label plugin skills contains an invalid skill name: $skill"
-      return 2
-    fi
-  done < <(jq -r ".[${index}].plugin.skills[] | tostring" "$file")
-}
-
-topology_validate_registry() { # file
-  local file="$1" parse_error count index label source_id classification command normalized_command state plugin_kind
-  if ! parse_error="$(jq empty "$file" 2>&1)"; then
-    topology_fail 2 "topology adapter registry is not valid JSON: $parse_error"
-    return 2
-  fi
-  if ! jq -e 'type == "array" and length > 0' "$file" >/dev/null; then
-    topology_fail 2 'topology adapter registry must be a non-empty array'
-    return 2
-  fi
-  if ! jq -e '[.[].sourceId] | length == (unique | length)' "$file" >/dev/null; then
-    source_id="$(jq -r '[.[].sourceId] | group_by(.)[] | select(length > 1) | first' "$file" | head -1)"
-    topology_fail 2 "topology adapter registry contains duplicate sourceId: $source_id"
-    return 2
-  fi
-  count="$(jq 'length' "$file")"
-  for ((index = 0; index < count; index++)); do
-    label="topology adapter registry entry $index"
-    topology_validate_fields "$file" ".[$index]" '["sourceId","classification","supportedDestinations","command","stateInspection","matrixSource","plugin"]' '["sourceId","classification","supportedDestinations","command"]' "$label" || return $?
-    source_id="$(jq -r ".[$index].sourceId" "$file")"
-    jq -e ".[$index].sourceId | type == \"string\"" "$file" >/dev/null \
-      && topology_is_name "$source_id" \
-      || { topology_fail 2 "$label has an invalid sourceId"; return 2; }
-    classification="$(jq -r ".[$index].classification" "$file")"
-    topology_is_classification "$classification" || { topology_fail 2 "$label contains unknown classification: $classification"; return 2; }
-    topology_validate_destinations "$file" ".[$index].supportedDestinations" "$label supportedDestinations" || return $?
-    command="$(jq -r ".[$index].command" "$file")"
-    normalized_command="${command//\\//}"
-    if ! jq -e ".[$index].command | type == \"string\"" "$file" >/dev/null \
-      || [ -z "$command" ] || [[ "$command" = /* ]] || [[ "/$normalized_command/" = *'/../'* ]]; then
-      topology_fail 2 "$label has an invalid command"
-      return 2
-    fi
-    state="$(jq -r "if .[$index] | has(\"stateInspection\") then .[$index].stateInspection else \"topology\" end" "$file")"
-    case "$state" in topology|adapter) ;; *) topology_fail 2 "$label has an invalid stateInspection"; return 2 ;; esac
-    if jq -e ".[$index] | has(\"matrixSource\")" "$file" >/dev/null \
-      && ! jq -e ".[$index].matrixSource | type == \"string\" and test(\"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$\")" "$file" >/dev/null; then
-      topology_fail 2 "$label has an invalid matrixSource"
-      return 2
-    fi
-    plugin_kind=0
-    case "$classification" in dual-plugin|plugin-claude-only) plugin_kind=1 ;; esac
-    if [ "$plugin_kind" -eq 1 ]; then
-      topology_validate_plugin "$file" "$index" "$label" "$classification" || return $?
-    elif jq -e ".[$index] | has(\"plugin\")" "$file" >/dev/null; then
-      topology_fail 2 "$label has plugin metadata for a non-plugin source"
-      return 2
-    fi
-  done
-}
+topology_validate_registry() { topology_validate_document "$1" registry; }

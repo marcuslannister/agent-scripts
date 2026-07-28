@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Collapsed acquire manifest and registry schema validation from 360 per-field `jq` launches to two single-pass invocations, removing the Windows Git Bash startup bottleneck while preserving diagnostics (#50).
+
 - Replaced manifest-generated distribution overrides with direct, offline matrix reconciliation and selection-preserving matrix generation (#49).
 
 - Kept skills-matrix output UTF-8 on Windows and preserved canonical npx source attribution after deliberate legacy lock removal.
