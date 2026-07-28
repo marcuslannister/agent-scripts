@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Kept skills-matrix output UTF-8 on Windows and preserved canonical npx source attribution after deliberate legacy lock removal.
+
 - Stopped stale report-only plugin rows from blocking skill-surface reconciliation after their local plugin caches are removed; live plugin destination edits still require a decision.
 
 - Migrated legacy Claude skills-root pointer files into collision-safe backups before creating the managed per-skill surface, fixing Windows distribution failures.

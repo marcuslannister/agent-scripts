@@ -99,11 +99,133 @@
       "defaultDestinations": [
         "codex"
       ],
+      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
       "overrides": {
+        "ask-matt": [
+          "codex"
+        ],
+        "batch-grill-me": [
+          "codex"
+        ],
+        "claude-handoff": [
+          "codex"
+        ],
         "code-review": [
           "codex"
+        ],
+        "codebase-design": [
+          "codex"
+        ],
+        "design-an-interface": [
+          "codex"
+        ],
+        "diagnosing-bugs": [
+          "codex"
+        ],
+        "domain-modeling": [
+          "codex"
+        ],
+        "edit-article": [
+          "codex"
+        ],
+        "git-guardrails-claude-code": [
+          "codex"
+        ],
+        "grill-me": [
+          "codex"
+        ],
+        "grill-with-docs": [
+          "codex"
+        ],
+        "grilling": [
+          "codex"
+        ],
+        "handoff": [
+          "codex"
+        ],
+        "implement": [
+          "codex"
+        ],
+        "improve-codebase-architecture": [
+          "codex"
+        ],
+        "loop-me": [
+          "codex"
+        ],
+        "migrate-to-shoehorn": [
+          "codex"
+        ],
+        "obsidian-vault": [
+          "codex"
+        ],
+        "prototype": [
+          "codex"
+        ],
+        "qa": [
+          "codex"
+        ],
+        "request-refactor-plan": [
+          "codex"
+        ],
+        "research": [
+          "codex"
+        ],
+        "resolving-merge-conflicts": [
+          "codex"
+        ],
+        "scaffold-exercises": [
+          "codex"
+        ],
+        "setup-matt-pocock-skills": [
+          "codex"
+        ],
+        "setup-pre-commit": [
+          "codex"
+        ],
+        "setup-ts-deep-modules": [
+          "codex"
+        ],
+        "tdd": [
+          "codex"
+        ],
+        "teach": [
+          "codex"
+        ],
+        "to-questionnaire": [
+          "codex"
+        ],
+        "to-spec": [
+          "codex"
+        ],
+        "to-tickets": [
+          "codex"
+        ],
+        "triage": [
+          "codex"
+        ],
+        "ubiquitous-language": [
+          "codex"
+        ],
+        "wayfinder": [
+          "codex"
+        ],
+        "wizard": [
+          "codex"
+        ],
+        "writing-beats": [
+          "codex"
+        ],
+        "writing-fragments": [
+          "codex"
+        ],
+        "writing-great-skills": [
+          "codex"
+        ],
+        "writing-shape": [
+          "codex"
         ]
-      }
+      },
+      "matrixOverridesEnd": "end generated overrides"
     },
     {
       "id": "matt-plugin",

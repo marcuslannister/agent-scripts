@@ -10,8 +10,11 @@ import json
 import os
 import re
 import subprocess
+import sys
 from collections import Counter
 from dataclasses import dataclass
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 HOME = os.path.expanduser("~")
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

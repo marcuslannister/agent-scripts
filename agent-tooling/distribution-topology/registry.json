@@ -18,7 +18,8 @@
     "classification": "npx-only",
     "supportedDestinations": ["codex"],
     "command": "adapters/npx-source.sh",
-    "stateInspection": "adapter"
+    "stateInspection": "adapter",
+    "matrixSource": "mattpocock/skills"
   },
   {
     "sourceId": "humanlayer-skills",
