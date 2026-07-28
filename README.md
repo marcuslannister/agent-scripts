@@ -58,7 +58,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 ## Helpers
 
 `agent-tooling/update-all.sh`
-- Top-level updater: four ordered steps — `update-agents.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.py`, then `sync-skill-surfaces.sh` (distribute).
+- Top-level updater: four ordered steps — `update-agents.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `agent-tooling/verify.sh`

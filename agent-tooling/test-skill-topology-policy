@@ -13,7 +13,7 @@ fail() {
 }
 
 for required in update-agents.sh update-all.sh update-skill-topology.sh \
-  generate-skills-matrix.py sync-skill-surfaces.sh; do
+  generate-skills-matrix.sh sync-skill-surfaces.sh; do
   [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public command: $required"
 done
 
@@ -55,12 +55,12 @@ if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
 fi
 
 invocations="$(
-  rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|generate-skills-matrix\.py|sync-skill-surfaces\.sh)' \
+  rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|generate-skills-matrix\.sh|sync-skill-surfaces\.sh)' \
     "$REPO_ROOT/agent-tooling/update-all.sh" | sed 's#\$SCRIPT_DIR/##'
 )"
 expected_invocations='update-agents.sh
 update-skill-topology.sh
-generate-skills-matrix.py
+generate-skills-matrix.sh
 sync-skill-surfaces.sh'
 [ "$invocations" = "$expected_invocations" ] \
   || fail "update-all.sh must invoke agent updates, acquire, matrix refresh, then distribute"

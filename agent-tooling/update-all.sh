@@ -27,7 +27,7 @@ section "Acquiring skill topology"
 "$SCRIPT_DIR/update-skill-topology.sh" || acquire_status=$?
 
 section "Refreshing skills matrix"
-"$SCRIPT_DIR/generate-skills-matrix.py" > "$SCRIPT_DIR/skills-matrix.md.tmp" \
+"$SCRIPT_DIR/generate-skills-matrix.sh" > "$SCRIPT_DIR/skills-matrix.md.tmp" \
   && mv "$SCRIPT_DIR/skills-matrix.md.tmp" "$SCRIPT_DIR/skills-matrix.md" \
   || matrix_status=$?
 

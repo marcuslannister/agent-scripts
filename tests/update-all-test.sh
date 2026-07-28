@@ -13,7 +13,7 @@ UPDATE_LOG="$TMPDIR/update.log"
 mkdir -p "$SCRIPTS"
 cp "$REPO_ROOT/agent-tooling/update-all.sh" "$SCRIPTS/"
 
-UPDATERS=(update-agents.sh update-skill-topology.sh generate-skills-matrix.py sync-skill-surfaces.sh)
+UPDATERS=(update-agents.sh update-skill-topology.sh generate-skills-matrix.sh sync-skill-surfaces.sh)
 
 for updater in "${UPDATERS[@]}"; do
   printf '%s\n' \
