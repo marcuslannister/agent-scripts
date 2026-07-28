@@ -1,22 +1,10 @@
 [
   {
-    "sourceId": "repo-claude",
-    "classification": "repo-owned",
-    "supportedDestinations": ["claude", "codex"],
-    "command": "adapters/repo-owned.sh",
-    "matrixSource": "steipete/agent-scripts"
-  },
-  {
-    "sourceId": "repo-codex",
-    "classification": "repo-owned",
-    "supportedDestinations": ["codex"],
-    "command": "adapters/repo-owned.sh",
-    "matrixSource": "marcuslannister/agent-scripts"
-  },
-  {
     "sourceId": "matt-skills",
     "classification": "npx-only",
-    "supportedDestinations": ["codex"],
+    "supportedDestinations": [
+      "codex"
+    ],
     "command": "adapters/npx-source.sh",
     "stateInspection": "adapter",
     "matrixSource": "mattpocock/skills"
@@ -24,7 +12,9 @@
   {
     "sourceId": "humanlayer-skills",
     "classification": "npx-only",
-    "supportedDestinations": ["codex"],
+    "supportedDestinations": [
+      "codex"
+    ],
     "command": "adapters/npx-source.sh",
     "stateInspection": "adapter",
     "matrixSource": "humanlayer/skills"
@@ -32,7 +22,9 @@
   {
     "sourceId": "matt-plugin",
     "classification": "plugin-claude-only",
-    "supportedDestinations": ["claude"],
+    "supportedDestinations": [
+      "claude"
+    ],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
     "plugin": {
@@ -41,13 +33,18 @@
       "marketplaces": {
         "claude": "mattpocock"
       },
-      "skills": ["mattpocock-skills"]
+      "skills": [
+        "mattpocock-skills"
+      ]
     }
   },
   {
     "sourceId": "anthropic-skills",
     "classification": "source-only",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": [
+      "claude",
+      "codex"
+    ],
     "command": "adapters/copy-source.sh",
     "stateInspection": "adapter",
     "matrixSource": "anthropics/skills"
@@ -55,7 +52,10 @@
   {
     "sourceId": "khazix-skills",
     "classification": "source-only",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": [
+      "claude",
+      "codex"
+    ],
     "command": "adapters/copy-source.sh",
     "stateInspection": "adapter",
     "matrixSource": "KKKKhazix/khazix-skills"
@@ -63,7 +63,10 @@
   {
     "sourceId": "visual-explainer",
     "classification": "plugin-claude-only",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": [
+      "claude",
+      "codex"
+    ],
     "command": "adapters/visual-explainer.sh",
     "stateInspection": "adapter",
     "plugin": {
@@ -72,13 +75,17 @@
       "marketplaces": {
         "claude": "visual-explainer-marketplace"
       },
-      "skills": ["visual-explainer"]
+      "skills": [
+        "visual-explainer"
+      ]
     }
   },
   {
     "sourceId": "openai-codex",
     "classification": "plugin-claude-only",
-    "supportedDestinations": ["claude"],
+    "supportedDestinations": [
+      "claude"
+    ],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
     "plugin": {
@@ -87,13 +94,18 @@
       "marketplaces": {
         "claude": "openai-codex"
       },
-      "skills": ["codex"]
+      "skills": [
+        "codex"
+      ]
     }
   },
   {
     "sourceId": "waza",
     "classification": "dual-plugin",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": [
+      "claude",
+      "codex"
+    ],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
     "plugin": {
@@ -103,13 +115,18 @@
         "claude": "waza",
         "codex": "waza"
       },
-      "skills": ["waza"]
+      "skills": [
+        "waza"
+      ]
     }
   },
   {
     "sourceId": "claude-mem",
     "classification": "dual-plugin",
-    "supportedDestinations": ["claude", "codex"],
+    "supportedDestinations": [
+      "claude",
+      "codex"
+    ],
     "command": "adapters/plugin-both.sh",
     "stateInspection": "adapter",
     "plugin": {
@@ -119,7 +136,9 @@
         "claude": "thedotmack",
         "codex": "claude-mem-local"
       },
-      "skills": ["claude-mem"]
+      "skills": [
+        "claude-mem"
+      ]
     }
   }
 ]

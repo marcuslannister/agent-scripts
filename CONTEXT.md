@@ -39,7 +39,7 @@ _Avoid_: Claude surface, Codex surface, automatic install, gitignored copy
 _Avoid_: update step, fetch script
 
 **Distribute phase**:
-`agent-tooling/sync-skill-surfaces.sh`. Offline phase: owns the skills matrix (validation, generated overrides, report), copies selected skills from tracked repo content to both surfaces, removes orphans, runs root hygiene. Never touches the network; a matrix row without staged content is a blocking error naming acquire.
+`agent-tooling/sync-skill-surfaces.sh`. Offline phase: reads the skills matrix directly, resolves selected names from tracked repo content, and reconciles both surfaces with one marker owner. It reads neither the topology manifest nor adapter registry. Unresolvable rows are reported after all resolvable work is applied.
 _Avoid_: install script, deploy step
 
 **Dual-plugin skill**:
@@ -73,18 +73,18 @@ A surface-resident skill directory rsynced from tracked repo content by distribu
 _Avoid_: vendored copy, symlink
 
 **Owner**:
-The private adapter reconciliation scope a copy belongs to, recorded on line 2 of the copy's `.agent-scripts-copy` marker (line 1 is the tracked-staging source path, line 3 the sync-time content hash); markers exist only on surface copies. Orphan cleanup keys on the owner, so several registered sources can share one surface without deleting each other's copies. A pre-owner copy with a single-line marker is left untouched until its adapter re-syncs it and stamps the owner.
-_Avoid_: source prefix, gitignore block (the pre-owner ways ownership was inferred)
+The single surface-copy writer, `skill-matrix`, recorded on line 2 of `.agent-scripts-copy` (line 1 is the tracked source path and line 3 the sync-time hash). Markers exist only on surfaces; staging provenance stays in git and `.source.json`.
+_Avoid_: adapter owner, source prefix, gitignore block
 
 **Sync-time hash**:
 Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden files, stamped by `install_skill_copy` at sync time (best-effort; omitted when no sha256 tool exists). Topology checks compare it to the current upstream source (→ upstream advanced) and to the on-disk copy (→ hand-edited locally), so drift in gitignored copies is detectable without a full re-sync. Surfaced by `sync-skill-surfaces.sh --check`.
 _Avoid_: reusing it as an identity or cache key — it only answers "did content change since last sync".
 
 **Topology manifest**:
-`agent-tooling/skill-topology.json`, one entry per skill-bearing source. `Type: skill` overrides are marked generated blocks derived from `agent-tooling/skills-matrix.md` by the distribute phase; plugin bundle policy and source defaults remain hand-maintained manifest content. An empty generated override selects no agent surface while preserving staged content.
+`agent-tooling/skill-topology.json`, one entry per acquire-owned source. It records source ids, classifications, and default native/staging destinations. Distribution never reads it.
 
 **Private adapter**:
 An implementation under `agent-tooling/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
 
 **Routine updater**:
-`update-all.sh`. Exactly three ordered steps: agent CLI updates, then acquire, then distribute.
+`update-all.sh`. Four ordered steps: agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute.

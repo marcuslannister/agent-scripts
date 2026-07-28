@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Replaced manifest-generated distribution overrides with direct, offline matrix reconciliation and selection-preserving matrix generation (#49).
+
 - Kept skills-matrix output UTF-8 on Windows and preserved canonical npx source attribution after deliberate legacy lock removal.
 
 - Stopped stale report-only plugin rows from blocking skill-surface reconciliation after their local plugin caches are removed; live plugin destination edits still require a decision.

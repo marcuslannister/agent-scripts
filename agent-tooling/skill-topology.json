@@ -6,246 +6,35 @@
       "classification": "repo-owned",
       "defaultDestinations": [
         "claude"
-      ],
-      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
-      "overrides": {
-        "agent-transcript": [
-          "claude",
-          "codex"
-        ],
-        "beeper": [],
-        "browser-use": [],
-        "clawsweeper-status": [],
-        "clickclack": [],
-        "cloudflare-registrar": [],
-        "codex-debugging": [],
-        "codex-first": [],
-        "codex-huge-context": [],
-        "create-cli": [
-          "claude",
-          "codex"
-        ],
-        "discord-clawd": [],
-        "domain-dns-ops": [],
-        "fleet-maintenance": [],
-        "frontend-design": [],
-        "github-author-context": [],
-        "github-cache-hygiene": [],
-        "github-deep-review": [],
-        "github-project-triage": [],
-        "hopper-debugger": [],
-        "instruments-profiling": [],
-        "mac-maintenance": [
-          "claude",
-          "codex"
-        ],
-        "maintainer-orchestrator": [],
-        "markdown-converter": [
-          "claude",
-          "codex"
-        ],
-        "nano-banana-pro": [],
-        "native-app-performance": [],
-        "notcrawl": [],
-        "npm": [],
-        "obsidian": [
-          "claude",
-          "codex"
-        ],
-        "one-password": [],
-        "openai-image-gen": [],
-        "openclaw-relay": [],
-        "oracle": [],
-        "peekaboo": [
-          "claude",
-          "codex"
-        ],
-        "release-mac-app": [],
-        "release-tweets": [],
-        "reminders": [],
-        "remote-mac": [],
-        "skill-cleaner": [],
-        "sonos": [],
-        "speaking": [],
-        "ssh-doctor": [],
-        "swift-concurrency-expert": [],
-        "swiftui-liquid-glass": [],
-        "swiftui-performance-audit": [],
-        "swiftui-view-refactor": [],
-        "things-todo": [],
-        "twilio-sms": [],
-        "video-transcript-downloader": [],
-        "vm-lab": [],
-        "whatsapp": [],
-        "wrangler": [],
-        "xcode-sync": [],
-        "xurl": []
-      },
-      "matrixOverridesEnd": "end generated overrides"
+      ]
     },
     {
       "id": "repo-codex",
       "classification": "repo-owned",
       "defaultDestinations": [
         "codex"
-      ],
-      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
-      "overrides": {},
-      "matrixOverridesEnd": "end generated overrides"
+      ]
     },
     {
       "id": "matt-skills",
       "classification": "npx-only",
       "defaultDestinations": [
         "codex"
-      ],
-      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
-      "overrides": {
-        "ask-matt": [
-          "codex"
-        ],
-        "batch-grill-me": [
-          "codex"
-        ],
-        "claude-handoff": [
-          "codex"
-        ],
-        "code-review": [
-          "codex"
-        ],
-        "codebase-design": [
-          "codex"
-        ],
-        "design-an-interface": [
-          "codex"
-        ],
-        "diagnosing-bugs": [
-          "codex"
-        ],
-        "domain-modeling": [
-          "codex"
-        ],
-        "edit-article": [
-          "codex"
-        ],
-        "git-guardrails-claude-code": [
-          "codex"
-        ],
-        "grill-me": [
-          "codex"
-        ],
-        "grill-with-docs": [
-          "codex"
-        ],
-        "grilling": [
-          "codex"
-        ],
-        "handoff": [
-          "codex"
-        ],
-        "implement": [
-          "codex"
-        ],
-        "improve-codebase-architecture": [
-          "codex"
-        ],
-        "loop-me": [
-          "codex"
-        ],
-        "migrate-to-shoehorn": [
-          "codex"
-        ],
-        "obsidian-vault": [
-          "codex"
-        ],
-        "prototype": [
-          "codex"
-        ],
-        "qa": [
-          "codex"
-        ],
-        "request-refactor-plan": [
-          "codex"
-        ],
-        "research": [
-          "codex"
-        ],
-        "resolving-merge-conflicts": [
-          "codex"
-        ],
-        "scaffold-exercises": [
-          "codex"
-        ],
-        "setup-matt-pocock-skills": [
-          "codex"
-        ],
-        "setup-pre-commit": [
-          "codex"
-        ],
-        "setup-ts-deep-modules": [
-          "codex"
-        ],
-        "tdd": [
-          "codex"
-        ],
-        "teach": [
-          "codex"
-        ],
-        "to-questionnaire": [
-          "codex"
-        ],
-        "to-spec": [
-          "codex"
-        ],
-        "to-tickets": [
-          "codex"
-        ],
-        "triage": [
-          "codex"
-        ],
-        "ubiquitous-language": [
-          "codex"
-        ],
-        "wayfinder": [
-          "codex"
-        ],
-        "wizard": [
-          "codex"
-        ],
-        "writing-beats": [
-          "codex"
-        ],
-        "writing-fragments": [
-          "codex"
-        ],
-        "writing-great-skills": [
-          "codex"
-        ],
-        "writing-shape": [
-          "codex"
-        ]
-      },
-      "matrixOverridesEnd": "end generated overrides"
+      ]
     },
     {
       "id": "matt-plugin",
       "classification": "plugin-claude-only",
       "defaultDestinations": [
         "claude"
-      ],
-      "overrides": {}
+      ]
     },
     {
       "id": "humanlayer-skills",
       "classification": "npx-only",
       "defaultDestinations": [
         "codex"
-      ],
-      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
-      "overrides": {
-        "improve-claude-md": []
-      },
-      "matrixOverridesEnd": "end generated overrides"
+      ]
     },
     {
       "id": "anthropic-skills",
@@ -253,30 +42,7 @@
       "defaultDestinations": [
         "claude",
         "codex"
-      ],
-      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
-      "overrides": {
-        "algorithmic-art": [],
-        "brand-guidelines": [],
-        "canvas-design": [],
-        "claude-api": [],
-        "doc-coauthoring": [],
-        "docx": [],
-        "internal-comms": [
-          "claude",
-          "codex"
-        ],
-        "mcp-builder": [],
-        "pdf": [],
-        "pptx": [],
-        "skill-creator": [],
-        "slack-gif-creator": [],
-        "theme-factory": [],
-        "web-artifacts-builder": [],
-        "webapp-testing": [],
-        "xlsx": []
-      },
-      "matrixOverridesEnd": "end generated overrides"
+      ]
     },
     {
       "id": "khazix-skills",
@@ -284,16 +50,7 @@
       "defaultDestinations": [
         "claude",
         "codex"
-      ],
-      "matrixOverridesStart": "generated from agent-tooling/skills-matrix.md",
-      "overrides": {
-        "aihot": [],
-        "hv-analysis": [],
-        "khazix-writer": [],
-        "neat-freak": [],
-        "storage-analyzer": []
-      },
-      "matrixOverridesEnd": "end generated overrides"
+      ]
     },
     {
       "id": "visual-explainer",
@@ -301,21 +58,14 @@
       "defaultDestinations": [
         "claude",
         "codex"
-      ],
-      "overrides": {
-        "visual-explainer": [
-          "claude",
-          "codex"
-        ]
-      }
+      ]
     },
     {
       "id": "openai-codex",
       "classification": "plugin-claude-only",
       "defaultDestinations": [
         "claude"
-      ],
-      "overrides": {}
+      ]
     },
     {
       "id": "waza",
@@ -323,13 +73,7 @@
       "defaultDestinations": [
         "claude",
         "codex"
-      ],
-      "overrides": {
-        "waza": [
-          "claude",
-          "codex"
-        ]
-      }
+      ]
     },
     {
       "id": "claude-mem",
@@ -337,13 +81,7 @@
       "defaultDestinations": [
         "claude",
         "codex"
-      ],
-      "overrides": {
-        "claude-mem": [
-          "claude",
-          "codex"
-        ]
-      }
+      ]
     }
   ]
 }

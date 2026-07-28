@@ -64,17 +64,12 @@ cat > "$FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
     {
       "id": "repo-claude",
       "classification": "repo-owned",
-      "defaultDestinations": ["claude"],
-      "overrides": {}
+      "defaultDestinations": ["claude"]
     },
     {
       "id": "anthropic-skills",
       "classification": "source-only",
-      "defaultDestinations": ["claude", "codex"],
-      "overrides": {
-        "docx": ["claude"],
-        "pdf": []
-      }
+      "defaultDestinations": ["claude", "codex"]
     }
   ]
 }
@@ -82,12 +77,6 @@ JSON
 
 cat > "$FIXTURE/agent-tooling/distribution-topology/registry.json" <<'JSON'
 [
-  {
-    "sourceId": "repo-claude",
-    "classification": "repo-owned",
-    "supportedDestinations": ["claude", "codex"],
-    "command": "adapters/repo-owned.sh"
-  },
   {
     "sourceId": "anthropic-skills",
     "classification": "source-only",

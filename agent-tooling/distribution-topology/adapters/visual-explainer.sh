@@ -21,21 +21,9 @@ marketplace="visual-explainer-marketplace"
 source_file="$discovery_root/$source_id.source-root"
 commit_file="$discovery_root/$source_id.commit"
 staging_root="$repo_root/other-skills/$staging_owner"
-codex_root="$home/.agents/skills"
-legacy_path="$home/.codex/visual-explainer"
-legacy_target="../Projects/visual-explainer/plugins/visual-explainer"
 
 discover_source() {
   local clone_dir source_root commit
-  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-    mkdir -p "$staging_root"
-    printf '%s\n' "$staging_root" > "$source_file"
-    printf 'offline\n' > "$commit_file"
-    if [ -f "$staging_root/visual-explainer/SKILL.md" ]; then
-      printf 'visual-explainer\n'
-    fi
-    return 0
-  fi
   if [ "$mode" = check ]; then
     clone_dir="$discovery_root/$source_id/repo"
   else
@@ -103,24 +91,6 @@ inspect_claude_plugin() {
   fi
 }
 
-legacy_path_present() {
-  if [ -L "$legacy_path" ]; then
-    [ "$(readlink "$legacy_path")" = "$legacy_target" ]
-  elif [ -f "$legacy_path" ]; then
-    [ "$(cat "$legacy_path")" = "$legacy_target" ]
-  else
-    return 1
-  fi
-}
-
-remove_legacy_path() {
-  if [ -L "$legacy_path" ] && [ "$(readlink "$legacy_path")" = "$legacy_target" ]; then
-    unlink "$legacy_path"
-  elif [ -f "$legacy_path" ] && [ "$(cat "$legacy_path")" = "$legacy_target" ]; then
-    rm -f "$legacy_path"
-  fi
-}
-
 inspect_stage_state() { # skill
   inspect_stage_tree "$source_root/$1" "$staging_root/$1"
 }
@@ -140,40 +110,16 @@ inspect_destination_state() { # skill destination
     claude)
       inspect_claude_plugin
       ;;
-    codex)
-      IFS=$'\t' read -r state detail < <(
-        inspect_copy_state "$staging_root/$skill" "$staging_root/$skill" \
-          "$codex_root/$skill" "$owner" "$repo_root"
-      )
-      if [ "$state" = present ] && legacy_path_present; then
-        state=drift
-        detail=legacy-path
-      fi
-      printf '%s\t%s\n' "$state" "$detail"
-      ;;
     *) printf 'error\tinvalid-destination\n' ;;
   esac
 }
 
 inspect_states() {
-  local expected skill destination state detail marker marker_owner orphan skill_file
+  local expected skill destination state detail orphan skill_file
   while IFS=$'\t' read -r expected skill destination; do
     IFS=$'\t' read -r state detail < <(inspect_destination_state "$skill" "$destination")
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
-
-  if [ "${TOPOLOGY_PHASE:-acquire}" != acquire ] && [ -d "$codex_root" ]; then
-    for marker in "$codex_root"/*/.agent-scripts-copy; do
-      [ -f "$marker" ] || continue
-      marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-      [ "$marker_owner" = "$owner" ] || continue
-      orphan="$(basename "$(dirname "$marker")")"
-      if ! awk -F '\t' -v skill="$orphan" \
-        '$2 == skill && $3 == "codex" { found = 1 } END { exit !found }' "$plan_path"; then
-        printf 'orphan\t%s\tcodex\tmanaged\n' "$orphan"
-      fi
-    done
-  fi
 
   for skill_file in "$staging_root"/*/SKILL.md; do
     [ -f "$skill_file" ] || continue
@@ -260,56 +206,24 @@ refresh_staging_metadata() {
   done
   clear_staging_gitignore "$repo_root" "$owner" || return 1
   clear_staging_gitignore "$repo_root" "$staging_owner" || return 1
-  [ "${TOPOLOGY_PHASE:-acquire}" = distribute ] && return 0
   clone_dir="$source_root"
   [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
   write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
 }
 
-refresh_installed_codex_copy() { # skill
-  [ "${TOPOLOGY_PHASE:-acquire}" = acquire ] && return 0
-  local skill="$1" marker_owner
-  if awk -F '\t' -v skill="$skill" \
-    '$1 == "remove" && $2 == skill && $3 == "codex" { found = 1 } END { exit !found }' "$plan_path"; then
-    return 0
-  fi
-  marker_owner="$(sed -n '2p' "$codex_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-  [ "$marker_owner" = "$owner" ] || return 0
-  install_skill_copy "$staging_root/$skill" "$codex_root/$skill" "$owner" \
-    "$staging_root/$skill" >/dev/null
-  printf 'installed\t%s\tcodex\n' "$skill"
-}
-
 reconcile_states() {
-  local operation skill destination state detail marker_owner
+  local operation skill destination
   local failed=0 operation_failed
   while IFS=$'\t' read -r operation skill destination; do
     operation_failed=0
     case "$operation:$destination" in
       install:staging)
-        IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
         ensure_staged_skill "$skill" || operation_failed=1
-        if [ "$operation_failed" -eq 0 ] && [ "$state" = drift ]; then
-          refresh_installed_codex_copy "$skill" || operation_failed=1
-        fi
-        ;;
-      install:codex)
-        if ! ensure_staged_skill "$skill"; then
-          operation_failed=1
-        elif ! install_staged_surface_copy "$staging_root" "$skill" "$codex_root" \
-          codex "$owner" "$repo_root"; then
-          operation_failed=1
-        fi
         ;;
       install:claude)
-        if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-          printf 'distribute phase does not install Claude plugins: %s\n' "$skill" >&2
-          operation_failed=1
-        else
-          reconcile_claude_plugin install || operation_failed=1
-          if [ "$operation_failed" -eq 0 ]; then
-            continue
-          fi
+        reconcile_claude_plugin install || operation_failed=1
+        if [ "$operation_failed" -eq 0 ]; then
+          continue
         fi
         ;;
       remove:staging)
@@ -317,21 +231,10 @@ reconcile_states() {
           rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
         fi
         ;;
-      remove:codex)
-        marker_owner="$(sed -n '2p' "$codex_root/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-        if [ "$marker_owner" = "$owner" ]; then
-          rm -rf -- "${codex_root:?}/$skill" || operation_failed=1
-        fi
-        ;;
       remove:claude)
-        if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-          printf 'distribute phase does not remove Claude plugins: %s\n' "$skill" >&2
-          operation_failed=1
-        else
-          reconcile_claude_plugin remove || operation_failed=1
-          if [ "$operation_failed" -eq 0 ]; then
-            continue
-          fi
+        reconcile_claude_plugin remove || operation_failed=1
+        if [ "$operation_failed" -eq 0 ]; then
+          continue
         fi
         ;;
       *)
@@ -348,9 +251,6 @@ reconcile_states() {
       failed=1
     fi
   done < "$plan_path"
-  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-    remove_legacy_path || failed=1
-  fi
   refresh_staging_metadata || failed=1
   return "$failed"
 }

@@ -9,8 +9,6 @@ plan_path="${5:-}"
 home="${6:?home required}"
 mode="${7:-reconcile}"
 
-source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
-
 registry="$repo_root/agent-tooling/distribution-topology/registry.json"
 classification="$(jq -er --arg source_id "$source_id" \
   '.[] | select(.sourceId == $source_id) | .classification' "$registry")"
@@ -592,7 +590,7 @@ inspect_states() {
 
 dual_plugin_copy_path() { # skill destination
   case "$2" in
-    claude) printf '%s/%s\n' "$(claude_root_surface_path "$home" "$discovery_root")" "$1" ;;
+    claude) printf '%s/.claude/skills/%s\n' "$home" "$1" ;;
     codex) printf '%s/.agents/skills/%s\n' "$home" "$1" ;;
   esac
 }
@@ -876,28 +874,17 @@ verify_states() {
 
 case "$action" in
   discover)
-    if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-      # Offline inventory from registry only; native plugin work stays with acquire.
-      jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry"
-      exit 0
-    fi
     require_source_dependencies || exit 1
     discover_remote_marketplace || exit 1
     jq -er --arg source_id "$source_id"       '.[] | select(.sourceId == $source_id) | .plugin.skills[]' "$registry"
     ;;
   inspect)
     failed=0
-    if [ "${TOPOLOGY_PHASE:-acquire}" != distribute ]; then
-      scan_unknown_plugins || failed=1
-      inspect_states || failed=1
-    fi
+    scan_unknown_plugins || failed=1
+    inspect_states || failed=1
     exit "$failed"
     ;;
   reconcile)
-    if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-      # Distribute does not mutate native plugins.
-      exit 0
-    fi
     reconcile_states
     ;;
   verify)

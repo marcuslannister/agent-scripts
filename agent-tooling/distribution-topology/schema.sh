@@ -75,7 +75,7 @@ topology_validate_manifest() { # file
   count="$(jq '.sources | length' "$file")"
   for ((index = 0; index < count; index++)); do
     label="skill topology manifest source $index"
-    topology_validate_fields "$file" ".sources[$index]" '["id","classification","defaultDestinations","matrixOverridesStart","overrides","matrixOverridesEnd"]' '["id","classification","defaultDestinations","overrides"]' "$label" || return $?
+    topology_validate_fields "$file" ".sources[$index]" '["id","classification","defaultDestinations"]' '["id","classification","defaultDestinations"]' "$label" || return $?
     source_id="$(jq -r ".sources[$index].id" "$file")"
     if ! jq -e ".sources[$index].id | type == \"string\"" "$file" >/dev/null || ! topology_is_name "$source_id"; then
       topology_fail 2 "$label has an invalid id"
@@ -87,26 +87,6 @@ topology_validate_manifest() { # file
       return 2
     fi
     topology_validate_destinations "$file" ".sources[$index].defaultDestinations" "$label defaultDestinations" || return $?
-    if ! jq -e ".sources[$index].overrides | type == \"object\"" "$file" >/dev/null; then
-      topology_fail 2 "$label overrides must be an object"
-      return 2
-    fi
-    if ! jq -e ".sources[$index] |
-      ((has(\"matrixOverridesStart\") and has(\"matrixOverridesEnd\")) or
-       (has(\"matrixOverridesStart\") | not) and (has(\"matrixOverridesEnd\") | not)) and
-      ((has(\"matrixOverridesStart\") | not) or
-       (.matrixOverridesStart == \"generated from agent-tooling/skills-matrix.md\" and
-        .matrixOverridesEnd == \"end generated overrides\"))" "$file" >/dev/null; then
-      topology_fail 2 "$label has invalid matrix override markers"
-      return 2
-    fi
-    while IFS= read -r skill; do
-      if ! topology_is_name "$skill"; then
-        topology_fail 2 "$label has an invalid override skill name: $skill"
-        return 2
-      fi
-      topology_validate_destinations "$file" ".sources[$index].overrides[\"$skill\"]" "$label override $skill" true || return $?
-    done < <(jq -r ".sources[$index].overrides | keys[]" "$file")
   done
 }
 

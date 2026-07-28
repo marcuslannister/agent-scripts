@@ -13,6 +13,7 @@ mkdir -p "$FIXTURE/agent-tooling"
 cp "$REPO_ROOT/agent-tooling/update-all.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/update-agents.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$FIXTURE/agent-tooling/"
+cp "$REPO_ROOT/agent-tooling/generate-skills-matrix.py" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/skill-topology.json" "$FIXTURE/agent-tooling/"
 cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
@@ -23,7 +24,7 @@ printf '%s\n' '#!/usr/bin/env bash' \
   > "$FIXTURE/agent-tooling/sync-skills.sh"
 printf '%s\n' 'TOPOLOGY_PHASE="${TOPOLOGY_PHASE:-full}"' \
   >> "$FIXTURE/agent-tooling/distribution-topology/topology.sh"
-jq '(.sources[] | select(.id == "repo-claude") | .defaultDestinations) = ["claude", "codex"]' \
+jq '(.sources[] | select(.id == "repo-claude") | .overrides) = {}' \
   "$FIXTURE/agent-tooling/skill-topology.json" > "$FIXTURE/manifest.tmp"
 mv "$FIXTURE/manifest.tmp" "$FIXTURE/agent-tooling/skill-topology.json"
 
@@ -32,8 +33,8 @@ if "$POLICY" "$FIXTURE" > "$TMP_ROOT/out" 2>&1; then
   exit 1
 fi
 grep -F 'unexpected public updater: update-repo-skills.sh' "$TMP_ROOT/out" >/dev/null
-grep -F 'unexpected public topology command: sync-skills.sh' "$TMP_ROOT/out" >/dev/null
-grep -F 'single-pass topology phase must stay deleted' "$TMP_ROOT/out" >/dev/null
-grep -F 'repo-claude must default only to Claude' "$TMP_ROOT/out" >/dev/null
+grep -F 'unexpected public acquire command: sync-skills.sh' "$TMP_ROOT/out" >/dev/null
+grep -F 'acquire topology core must not contain phase gating' "$TMP_ROOT/out" >/dev/null
+grep -F 'topology manifest must contain acquire source policy only' "$TMP_ROOT/out" >/dev/null
 
 echo "topology cutover policy tests passed"

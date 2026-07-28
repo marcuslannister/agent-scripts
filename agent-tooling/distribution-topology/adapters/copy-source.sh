@@ -11,7 +11,6 @@ mode="${7:-reconcile}"
 
 source "$repo_root/agent-tooling/lib-copies.sh"
 source "${BASH_SOURCE[0]%/*}/copy-state.sh"
-source "${BASH_SOURCE[0]%/*}/../claude-root.sh"
 
 case "$source_id" in
   anthropic-skills)
@@ -38,31 +37,8 @@ source_file="$discovery_root/$source_id.source-root"
 marker_file="$discovery_root/$source_id.marker-root"
 staging_root="$repo_root/other-skills/$staging_owner"
 
-discover_from_staging() {
-  local skill_file skill count=0
-  mkdir -p "$staging_root"
-  printf '%s\n' "$staging_root" > "$source_file"
-  printf '%s\n' "$staging_root" > "$marker_file"
-  for skill_file in "$staging_root"/*/SKILL.md; do
-    [ -f "$skill_file" ] || continue
-    skill="$(basename "$(dirname "$skill_file")")"
-    case "$skill" in ''|*[!a-z0-9-]*) printf 'invalid staged inventory skill: %s\n' "$skill" >&2; return 1 ;; esac
-    if git -C "$repo_root" ls-files --error-unmatch -- "skills/$skill/SKILL.md" >/dev/null 2>&1; then
-      continue
-    fi
-    printf '%s\n' "$skill"
-    count=$((count + 1))
-  done
-  # Empty staging is allowed offline; matrix selection then fails with acquire guidance.
-  return 0
-}
-
 discover_source() {
   local clone_dir source_root marker_root skill_file skill count=0
-  if [ "${TOPOLOGY_PHASE:-acquire}" = distribute ]; then
-    discover_from_staging
-    return
-  fi
   marker_root="$home/Projects/$clone_name"
   [ -n "$source_suffix" ] && marker_root="$marker_root/$source_suffix"
   if [ "$mode" = check ]; then
@@ -97,13 +73,6 @@ read_roots() {
   marker_root="$(sed -n '1p' "$marker_file")"
 }
 
-surface_for_destination() {
-  case "$1" in
-    claude) claude_root_surface_path "$home" "$discovery_root" ;;
-    codex) printf '%s/.agents/skills\n' "$home" ;;
-  esac
-}
-
 inspect_stage_state() { # skill
   local skill="$1"
   inspect_stage_tree "$source_root/$skill" "$staging_root/$skill"
@@ -115,14 +84,9 @@ install_staged_skill() { # skill
 }
 
 inspect_staging_state() { # expected skill destination
-  local _expected="$1" skill="$2" destination="$3" surface
-  if [ "$destination" = staging ]; then
-    inspect_stage_state "$skill"
-    return
-  fi
-  surface="$(surface_for_destination "$destination")"
-  inspect_copy_state "$staging_root/$skill" "$staging_root/$skill" \
-    "$surface/$skill" "$owner" "$repo_root"
+  local _expected="$1" skill="$2" destination="$3"
+  [ "$destination" = staging ] || { printf 'invalid acquire destination: %s\n' "$destination" >&2; return 1; }
+  inspect_stage_state "$skill"
 }
 
 emit_staging_inspection() {
@@ -132,51 +96,13 @@ emit_staging_inspection() {
     printf '%s\t%s\t%s\t%s\n' "$state" "$skill" "$destination" "$detail"
   done < "$plan_path"
 
-  local surface marker marker_owner orphan
-  if [ "${TOPOLOGY_PHASE:-acquire}" != acquire ]; then
-    for destination in claude codex; do
-      surface="$(surface_for_destination "$destination")"
-      [ -d "$surface" ] || continue
-      for marker in "$surface"/*/.agent-scripts-copy; do
-        [ -f "$marker" ] || continue
-        marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-        [ "$marker_owner" = "$owner" ] || continue
-        orphan="$(basename "$(dirname "$marker")")"
-        if ! awk -F '\t' -v skill="$orphan" -v destination="$destination" \
-          '$2 == skill && $3 == destination { found = 1 } END { exit !found }' "$plan_path"; then
-          printf 'orphan\t%s\t%s\tmanaged\n' "$orphan" "$destination"
-        fi
-      done
-    done
-  fi
-
-  local skill_file
+  local skill_file orphan
   for skill_file in "$staging_root"/*/SKILL.md; do
     [ -f "$skill_file" ] || continue
     orphan="$(basename "$(dirname "$skill_file")")"
     rg -Fxq -- "$orphan" "$discovery_root/$source_id.inventory" && continue
     printf 'orphan\t%s\tstaging\tmanaged\n' "$orphan"
   done
-}
-
-remove_owned_legacy_copy() { # skill destination
-  local skill="$1" destination="$2" surface marker_owner
-  surface="$(surface_for_destination "$destination")"
-  marker_owner="$(sed -n '2p' "$surface/$skill/.agent-scripts-copy" 2>/dev/null || true)"
-  [ "$marker_owner" = "$owner" ] || return 0
-  rm -rf -- "${surface:?}/$skill"
-}
-
-refresh_installed_surface_copies() { # skill
-  # Acquire owns staging only; surface refresh is distribute's job.
-  [ "${TOPOLOGY_PHASE:-acquire}" = acquire ] && return 0
-  local skill="$1" destination surface failed=0
-  for destination in claude codex; do
-    surface="$(surface_for_destination "$destination")"
-    refresh_owned_staged_surface_copy "$plan_path" "$staging_root" "$skill" \
-      "$surface" "$destination" "$owner" || failed=1
-  done
-  return "$failed"
 }
 
 refresh_staging_metadata() {
@@ -187,41 +113,23 @@ refresh_staging_metadata() {
     rm -f "$skill_file"
   done
   clear_staging_gitignore "$repo_root" "$owner" || return 1
-  # Distribute never rewrites provenance; staged .source.json is acquire-owned.
-  [ "${TOPOLOGY_PHASE:-acquire}" = distribute ] && return 0
   clone_dir="$source_root"
   [ -d "$clone_dir/.git" ] || clone_dir="$(dirname "$source_root")"
   write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
 }
 
 reconcile_staging() {
-  local operation skill destination state detail marker_owner surface failed=0 operation_failed
+  local operation skill destination failed=0 operation_failed
   while IFS=$'\t' read -r operation skill destination; do
     operation_failed=0
     case "$operation:$destination" in
       install:staging)
-        IFS=$'\t' read -r state detail < <(inspect_stage_state "$skill")
         ensure_staged_skill "$skill" || operation_failed=1
-        if [ "$operation_failed" -eq 0 ] && [ "$state" = drift ]; then
-          refresh_installed_surface_copies "$skill" || operation_failed=1
-        fi
-        ;;
-      install:claude|install:codex)
-        surface="$(surface_for_destination "$destination")"
-        if ! ensure_staged_skill "$skill"; then
-          operation_failed=1
-        elif ! install_staged_surface_copy "$staging_root" "$skill" "$surface" \
-          "$destination" "$owner" "$repo_root"; then
-          operation_failed=1
-        fi
         ;;
       remove:staging)
         if [ -e "$staging_root/$skill" ]; then
           rm -rf -- "${staging_root:?}/$skill" || operation_failed=1
         fi
-        ;;
-      remove:claude|remove:codex)
-        remove_owned_legacy_copy "$skill" "$destination" || operation_failed=1
         ;;
       *)
         printf 'unknown staging operation: %s %s\n' "$operation" "$destination" >&2

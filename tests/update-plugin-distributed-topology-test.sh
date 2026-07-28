@@ -9,7 +9,7 @@ jq -e '
   .sources[] | select(.id == "openai-codex") |
   .classification == "plugin-claude-only" and
   .defaultDestinations == ["claude"] and
-  .overrides == {}
+  has("overrides") == false
 ' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 jq -e '
   .[] | select(.sourceId == "openai-codex") |
@@ -29,7 +29,9 @@ jq -e '
     id, classification, defaultDestinations, overrides
   }] | length) == 2 and
   all(.sources[] | select(.id == "waza" or .id == "claude-mem");
-    .classification == "dual-plugin" and .defaultDestinations == ["claude","codex"])
+    .classification == "dual-plugin" and
+    .defaultDestinations == ["claude","codex"] and
+    (has("overrides") | not))
 ' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 jq -e '
   ([.[] | select(.sourceId == "waza" or .sourceId == "claude-mem")] | length) == 2 and
@@ -100,8 +102,7 @@ cat > "$FIXTURE/agent-tooling/skill-topology.json" <<'JSON'
     {
       "id": "waza",
       "classification": "dual-plugin",
-      "defaultDestinations": ["claude", "codex"],
-      "overrides": {"waza": ["claude", "codex"]}
+      "defaultDestinations": ["claude", "codex"]
     }
   ]
 }
@@ -450,11 +451,14 @@ mkdir -p "$MIGRATION_FIXTURE/home/.claude/skills/waza" \
   "$MIGRATION_FIXTURE/home/.agents/skills/waza" \
   "$MIGRATION_FIXTURE/home/.agents/skills/not-native"
 printf '# tracked Waza copy\n' > "$MIGRATION_FIXTURE/home/.claude/skills/waza/SKILL.md"
+printf '%s\n%s\n%s\n' \
+  "$MIGRATION_FIXTURE/remote-marketplace/skills" repo-skills stale-hash \
+  > "$MIGRATION_FIXTURE/home/.claude/skills/waza/.agent-scripts-copy"
 printf '# unrelated tracked copy\n' > "$MIGRATION_FIXTURE/home/.claude/skills/not-native/SKILL.md"
 printf '# hand edit\n' >> "$MIGRATION_FIXTURE/home/.claude/skills/waza/SKILL.md"
 printf '# managed Waza copy\n' > "$MIGRATION_FIXTURE/home/.agents/skills/waza/SKILL.md"
 printf '%s\n%s\n%s\n' \
-  "$MIGRATION_FIXTURE/remote-marketplace/skills" waza stale-hash \
+  "$MIGRATION_FIXTURE/remote-marketplace/skills" repo-skills stale-hash \
   > "$MIGRATION_FIXTURE/home/.agents/skills/waza/.agent-scripts-copy"
 printf '# unrelated untracked copy\n' \
   > "$MIGRATION_FIXTURE/home/.agents/skills/not-native/SKILL.md"
@@ -469,7 +473,7 @@ PATH="$MIGRATION_FIXTURE/bin:$PATH" \
 migration_check_exit=$?
 set -e
 test "$migration_check_exit" -eq 1
-jq -e '
+if ! jq -e '
   .status == "drift" and
   (.migrations == [{
     sourceId:"waza",
@@ -484,7 +488,10 @@ jq -e '
       {destination:"codex",state:"present",action:"retain",afterGate:"remove"}
     ]
   }])
-' "$MIGRATION_FIXTURE/check.json" >/dev/null
+' "$MIGRATION_FIXTURE/check.json" >/dev/null; then
+  cat "$MIGRATION_FIXTURE/check.json" >&2
+  exit 1
+fi
 jq -e '
   .policy == {scope:"dual-plugin-migrations",distribution:"plugin-managed",fallback:"forbidden"} and
   .recovery == {required:false,actions:[]} and
@@ -670,14 +677,15 @@ seed_multi_skill_duplicates() {
   for skill in think write; do
     printf '# duplicate\n' > "$root/home/.claude/skills/$skill/SKILL.md"
     printf '# duplicate\n' > "$root/home/.agents/skills/$skill/SKILL.md"
+    printf '%s\n%s\n%s\n' "$root/remote-marketplace/skills" repo-skills stale-hash \
+      > "$root/home/.claude/skills/$skill/.agent-scripts-copy"
+    printf '%s\n%s\n%s\n' "$root/remote-marketplace/skills" repo-skills stale-hash \
+      > "$root/home/.agents/skills/$skill/.agent-scripts-copy"
   done
 }
 
 MULTI_SKILL_FIXTURE="$TMP_ROOT/multi-skill-migration"
 cp -R "$FIXTURE" "$MULTI_SKILL_FIXTURE"
-jq '.sources[0].overrides = {}' "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json" \
-  > "$MULTI_SKILL_FIXTURE/manifest.tmp"
-mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json"
 jq '.[0].plugin.skills = ["think","write"]' \
   "$MULTI_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$MULTI_SKILL_FIXTURE/registry.tmp"
@@ -855,7 +863,7 @@ grep -Fx 'plugin marketplace upgrade waza' "$FIXTURE/home/codex-mutations.log" >
 
 REMOVE_FIXTURE="$TMP_ROOT/remove"
 cp -R "$FIXTURE" "$REMOVE_FIXTURE"
-jq '.sources[0].defaultDestinations = ["claude"] | .sources[0].overrides.waza = ["claude"]' \
+jq '.sources[0].defaultDestinations = ["claude"]' \
   "$REMOVE_FIXTURE/agent-tooling/skill-topology.json" > "$REMOVE_FIXTURE/manifest.tmp"
 mv "$REMOVE_FIXTURE/manifest.tmp" "$REMOVE_FIXTURE/agent-tooling/skill-topology.json"
 HOME="$REMOVE_FIXTURE/home" TMPDIR="$REMOVE_FIXTURE/runtime" PATH="$REMOVE_FIXTURE/bin:$PATH" \
@@ -1163,10 +1171,12 @@ grep -F 'error: final verification failed: waza/waza -> codex: missing' "$FAILUR
 
 jq -e '
   ([.sources[] | select(.id == "waza" or .id == "claude-mem") | {
-    id, classification, defaultDestinations, overrides
+    id, classification, defaultDestinations
   }] | length) == 2 and
   all(.sources[] | select(.id == "waza" or .id == "claude-mem");
-    .classification == "dual-plugin" and .defaultDestinations == ["claude","codex"])
+    .classification == "dual-plugin" and
+    .defaultDestinations == ["claude","codex"] and
+    (has("overrides") | not))
 ' "$REPO_ROOT/agent-tooling/skill-topology.json" >/dev/null
 
 MEM_FIXTURE="$TMP_ROOT/claude-mem"
@@ -1377,9 +1387,6 @@ diff -r "$MISSING_RUNTIME_SKILL_FIXTURE/home-before-check" "$MISSING_RUNTIME_SKI
 # Multi-skill bundle: one declared expected skill missing from runtime inventory.
 MULTI_SKILL_FIXTURE="$TMP_ROOT/multi-skill-bundle"
 cp -R "$FIXTURE" "$MULTI_SKILL_FIXTURE"
-jq '.sources[0].overrides = {"waza":["claude","codex"],"ghost-skill":["claude","codex"]}' \
-  "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json" > "$MULTI_SKILL_FIXTURE/manifest.tmp"
-mv "$MULTI_SKILL_FIXTURE/manifest.tmp" "$MULTI_SKILL_FIXTURE/agent-tooling/skill-topology.json"
 jq '.[0].plugin.skills = ["waza","ghost-skill"]' \
   "$MULTI_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$MULTI_SKILL_FIXTURE/registry.tmp"
@@ -1463,9 +1470,6 @@ test -f "$MULTI_SKILL_FIXTURE/home/.agents/skills/ghost-skill/SKILL.md"
 # Exact component skill identity succeeds when present on both CLIs.
 COMPONENT_SKILL_FIXTURE="$TMP_ROOT/component-skill"
 cp -R "$FIXTURE" "$COMPONENT_SKILL_FIXTURE"
-jq '.sources[0].overrides = {"think":["claude","codex"]}' \
-  "$COMPONENT_SKILL_FIXTURE/agent-tooling/skill-topology.json" > "$COMPONENT_SKILL_FIXTURE/manifest.tmp"
-mv "$COMPONENT_SKILL_FIXTURE/manifest.tmp" "$COMPONENT_SKILL_FIXTURE/agent-tooling/skill-topology.json"
 jq '.[0].plugin.skills = ["think"]' \
   "$COMPONENT_SKILL_FIXTURE/agent-tooling/distribution-topology/registry.json" \
   > "$COMPONENT_SKILL_FIXTURE/registry.tmp"

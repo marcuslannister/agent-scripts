@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; matrix/distribute ownership superseded by ADR-0006
 ---
 
 # Acquire/distribute split with tracked staging

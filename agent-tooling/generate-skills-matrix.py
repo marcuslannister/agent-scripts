@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerate the skill/plugin table in agent-tooling/skills-matrix.md.
+"""Refresh matrix inventory and derived sections without changing selections."""
 
-Combines the reconciler's selected-destination plan with repo and staged
-inventories. Installed plugin caches supply plugin skill names, provenance,
-token sizes, and enable state. Prints generated matrix sections to stdout.
-"""
 import glob
 import json
 import os
 import re
-import subprocess
 import sys
 from collections import Counter
 from dataclasses import dataclass
@@ -18,269 +13,165 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 HOME = os.path.expanduser("~")
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MATRIX = f"{REPO}/agent-tooling/skills-matrix.md"
 SELF = "marcuslannister/agent-scripts"
 UPSTREAM_MIRROR = "steipete/agent-scripts"
-DELIVERY_PRIORITY = {"skill": 1, "plugin": 2}
 
 
 def load_json(path):
     try:
-        with open(path) as file:
+        with open(path, encoding="utf-8") as file:
             return json.load(file)
-    except Exception:
+    except (OSError, ValueError):
         return {}
 
 
 def github_repo(value):
     if not value:
         return None
-    match = re.search(r"(?:https?://github\.com/|git@github\.com:)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?$", value.strip())
+    match = re.search(
+        r"(?:https?://github\.com/|git@github\.com:)?"
+        r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?$",
+        value.strip(),
+    )
     return match.group(1) if match else None
 
 
-def topology_plan():
-    plan_path = os.environ.get("SKILL_MATRIX_PLAN_PATH")
-    if plan_path:
-        with open(plan_path) as file:
-            return json.load(file)
-    command = f"{REPO}/agent-tooling/sync-skill-surfaces.sh"
-    result = subprocess.run([command, "--check", "--json"], text=True, capture_output=True)
+def token_count(path):
     try:
-        state = json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise SystemExit(f"topology check did not return JSON: {error}") from error
-    if result.returncode not in (0, 1, 3) or state.get("errors"):
-        detail = "; ".join(state.get("errors", [])) or f"exit {result.returncode}"
-        raise SystemExit(f"topology check failed: {detail}")
-    return state.get("plan", [])
+        with open(path, "r", errors="ignore") as file:
+            return max(1, round(len(file.read()) / 4))
+    except OSError:
+        return 1
 
 
-plan = topology_plan()
-plan_agents = {
-    (entry["sourceId"], entry["skill"]): set(entry.get("destinations", []))
-    for entry in plan
-}
+@dataclass
+class Row:
+    display: str
+    source: str
+    delivery: str
+    claude: str
+    codex: str
+    tokens: int
+    claude_plugin_key: str | None = None
+    codex_plugin_key: str | None = None
 
 
-def selected_agents(source_id, skill):
-    return set(plan_agents.get((source_id, skill), ()))
+ROW_PATTERN = re.compile(
+    r"^\|\s*`([^`]+)`\s*\|\s*([^|]+?)\s*\|\s*"
+    r"(skill|plugin)\s*\|\s*([YN])\s*\|\s*([YN])\s*\|\s*~?([0-9]+)\s*\|$"
+)
 
 
-def toks(path):
-    with open(path, "r", errors="ignore") as file:
-        return max(1, round(len(file.read()) / 4))
+def read_existing_rows():
+    rows = {}
+    try:
+        with open(MATRIX, encoding="utf-8") as file:
+            lines = file
+            for raw_line in lines:
+                match = ROW_PATTERN.match(raw_line.rstrip("\n"))
+                if not match:
+                    continue
+                display, source, delivery, claude, codex, tokens = match.groups()
+                rows[(display, delivery)] = Row(
+                    display,
+                    source.strip(),
+                    delivery,
+                    claude,
+                    codex,
+                    int(tokens),
+                )
+    except OSError:
+        pass
+    return rows
+
+
+rows = read_existing_rows()
+
+
+def merge_discovered(
+    display,
+    source,
+    delivery,
+    path,
+    claude_plugin_key=None,
+    codex_plugin_key=None,
+):
+    key = (display, delivery)
+    existing = rows.get(key)
+    if existing is None:
+        existing = Row(display, source, delivery, "N", "N", token_count(path))
+        rows[key] = existing
+    else:
+        existing.source = source
+        existing.tokens = token_count(path)
+    existing.claude_plugin_key = claude_plugin_key
+    existing.codex_plugin_key = codex_plugin_key
 
 
 def skill_name(path):
     return os.path.basename(os.path.dirname(path))
 
 
-def repo_skill_paths(root):
-    if not os.path.isdir(f"{REPO}/.git"):
-        return glob.glob(f"{REPO}/{root}/*/SKILL.md")
-    result = subprocess.run(
-        ["git", "-C", REPO, "ls-files", f"{root}/*/SKILL.md"],
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-    return [f"{REPO}/{path}" for path in result.stdout.splitlines()]
+mirror_names = set()
+for path in sorted(glob.glob(f"{REPO}/skills/*/SKILL.md")):
+    name = skill_name(path)
+    mirror_names.add(name)
+    merge_discovered(name, UPSTREAM_MIRROR, "skill", path)
 
+for path in sorted(glob.glob(f"{REPO}/codex-skills/*/SKILL.md")):
+    name = skill_name(path)
+    if name not in mirror_names:
+        merge_discovered(name, SELF, "skill", path)
 
-@dataclass(frozen=True)
-class PluginRecord:
-    name: str
-    display: str
-    source: str
-    agents: frozenset
-    path: str
-    plugin_keys: dict
-
-
-@dataclass(frozen=True)
-class StagedRecord:
-    name: str
-    source: str
-    agents: frozenset
-    path: str
-
-
-rows = {}
-
-
-def merge_skill_row(display, source, delivery, agents, path, plugin_keys=None):
-    token_count = toks(path)
-    priority = 3 if source == UPSTREAM_MIRROR else DELIVERY_PRIORITY[delivery]
-    key = (display, source, delivery)
-    if key not in rows:
-        rows[key] = {
-            "source": source,
-            "type": delivery,
-            "claude": False,
-            "codex": False,
-            "tokens": token_count,
-            "priority": priority,
-            "claude_plugin_key": None,
-            "codex_plugin_key": None,
-        }
-    if priority > rows[key]["priority"]:
-        rows[key].update(
-            source=source,
-            type=delivery,
-            priority=priority,
-            claude_plugin_key=None,
-            codex_plugin_key=None,
-        )
-    if priority == rows[key]["priority"] and plugin_keys:
-        rows[key]["claude_plugin_key"] = plugin_keys.get("claude")
-        rows[key]["codex_plugin_key"] = plugin_keys.get("codex")
-    for agent in agents:
-        rows[key][agent] = True
-    rows[key]["tokens"] = max(rows[key]["tokens"], token_count)
-
-
-registry = load_json(f"{REPO}/agent-tooling/distribution-topology/registry.json")
-matrix_sources = {entry["sourceId"]: entry.get("matrixSource") for entry in registry}
-plugin_registry = {}
-for entry in registry:
-    plugin = entry.get("plugin")
-    if not plugin:
+staged_names = set()
+for path in sorted(glob.glob(f"{REPO}/other-skills/*/*/SKILL.md")):
+    name = skill_name(path)
+    if name in mirror_names or name in staged_names:
         continue
-    for agent, marketplace in plugin.get("marketplaces", {}).items():
-        plugin_registry[(agent, marketplace, plugin["name"])] = entry
+    staged_names.add(name)
+    owner_root = os.path.dirname(os.path.dirname(path))
+    owner = os.path.basename(owner_root)
+    provenance = load_json(f"{owner_root}/.source.json")
+    source = github_repo(provenance.get("repo")) or owner
+    merge_discovered(name, source, "skill", path)
 
 marketplaces = load_json(f"{HOME}/.claude/plugins/known_marketplaces.json")
 marketplace_sources = {
     name: github_repo(value.get("source", {}).get("repo"))
     for name, value in marketplaces.items()
 }
-
-plugin_records = []
 cache_root = f"{HOME}/.claude/plugins/cache"
-for version_root in glob.glob(f"{cache_root}/*/*/*"):
+for version_root in sorted(glob.glob(f"{cache_root}/*/*/*")):
     relative = os.path.relpath(version_root, cache_root).split(os.sep)
     if len(relative) != 3:
         continue
     marketplace, plugin_name, _version = relative
-    paths = glob.glob(f"{version_root}/**/SKILL.md", recursive=True)
-    if not paths:
-        continue
-    registration = plugin_registry.get(("claude", marketplace, plugin_name))
-    source_id = registration["sourceId"] if registration else None
-    plugin = registration.get("plugin", {}) if registration else {}
-    source = marketplace_sources.get(marketplace) or github_repo(plugin.get("repo")) or marketplace
-    bundle_agents = selected_agents(source_id, plugin_name) if source_id else {"claude"}
-    plugin_keys = {"claude": f"{plugin_name}@{marketplace}"}
-    codex_marketplace = plugin.get("marketplaces", {}).get("codex")
-    if codex_marketplace and "codex" in bundle_agents:
-        plugin_keys["codex"] = f"{plugin_name}@{codex_marketplace}"
+    paths = sorted(glob.glob(f"{version_root}/**/SKILL.md", recursive=True))
+    source = marketplace_sources.get(marketplace) or marketplace
     for path in paths:
         name = plugin_name if os.path.dirname(path) == version_root else skill_name(path)
         display = name if len(paths) == 1 else f"{plugin_name}:{name}"
-        plugin_records.append(
-            PluginRecord(name, display, source, frozenset(bundle_agents), path, plugin_keys)
-        )
-
-plugin_sources_by_name = {}
-for record in plugin_records:
-    plugin_sources_by_name.setdefault(record.name, set()).add(record.source)
-
-skills_lock = load_json(f"{HOME}/.agents/.skill-lock.json").get("skills", {})
-
-
-def copy_marker(path):
-    marker = f"{os.path.dirname(path)}/.agent-scripts-copy"
-    if not os.path.isfile(marker):
-        return None, None
-    with open(marker, errors="ignore") as file:
-        return file.readline().strip() or None, file.readline().strip() or None
-
-
-def staged_source(source_path, source_id, name):
-    if source_path:
-        remote = subprocess.run(
-            ["git", "-C", source_path, "remote", "get-url", "origin"],
-            text=True,
-            capture_output=True,
-        )
-        repo = github_repo(remote.stdout)
-        if repo:
-            return repo
-    lock_entry = skills_lock.get(name, {})
-    lock_source = lock_entry if isinstance(lock_entry, str) else lock_entry.get("source")
-    repo = github_repo(lock_source)
-    if repo:
-        return repo
-    matrix_source = matrix_sources.get(source_id)
-    if matrix_source:
-        return matrix_source
-    plugin_sources = plugin_sources_by_name.get(name, set())
-    if len(plugin_sources) == 1:
-        return next(iter(plugin_sources))
-    return source_id
-
-
-plan_sources_by_skill = {}
-plugin_source_ids = {entry["sourceId"] for entry in registry if entry.get("plugin")}
-for source_id, name in plan_agents:
-    if source_id not in {"repo-claude", "repo-codex"} and source_id not in plugin_source_ids:
-        plan_sources_by_skill.setdefault(name, []).append(source_id)
-
-staged_records = []
-for path in glob.glob(f"{REPO}/other-skills/*/*/SKILL.md"):
-    name = skill_name(path)
-    source_path, source_id = copy_marker(path)
-    if source_id is None:
-        candidates = plan_sources_by_skill.get(name, [])
-        source_id = candidates[0] if len(candidates) == 1 else None
-    if source_id is None:
-        continue
-    staged_records.append(
-        StagedRecord(
-            name,
-            staged_source(source_path, source_id, name),
-            frozenset(selected_agents(source_id, name)),
+        merge_discovered(
+            display,
+            source,
+            "plugin",
             path,
+            f"{plugin_name}@{marketplace}",
+            plugin_name,
         )
-    )
 
-mirror_names = set()
-for path in repo_skill_paths("skills"):
-    name = skill_name(path)
-    mirror_names.add(name)
-    merge_skill_row(name, UPSTREAM_MIRROR, "skill", selected_agents("repo-claude", name), path)
 
-for path in repo_skill_paths("codex-skills"):
-    name = skill_name(path)
-    merge_skill_row(name, SELF, "skill", selected_agents("repo-codex", name), path)
+def selected(row, agent):
+    return getattr(row, agent) == "Y"
 
-staged_agents = {}
-plugin_source_names = {(record.source, record.name) for record in plugin_records}
-for record in staged_records:
-    if record.name in mirror_names:
-        continue
-    key = (record.source, record.name)
-    staged_agents.setdefault(key, set()).update(record.agents)
-    if key not in plugin_source_names:
-        merge_skill_row(record.name, record.source, "skill", record.agents, record.path)
 
-for record in plugin_records:
-    agents = set(record.agents)
-    agents.update(staged_agents.get((record.source, record.name), ()))
-    merge_skill_row(
-        record.display,
-        record.source,
-        "plugin",
-        agents,
-        record.path,
-        record.plugin_keys,
-    )
-
-both = sum(1 for row in rows.values() if row["claude"] and row["codex"])
-claude_only = sum(1 for row in rows.values() if row["claude"] and not row["codex"])
-codex_only = sum(1 for row in rows.values() if row["codex"] and not row["claude"])
-total_claude = sum(1 for row in rows.values() if row["claude"])
-total_codex = sum(1 for row in rows.values() if row["codex"])
+all_rows = sorted(rows.values(), key=lambda row: (row.display, row.source, row.delivery))
+both = sum(selected(row, "claude") and selected(row, "codex") for row in all_rows)
+claude_only = sum(selected(row, "claude") and not selected(row, "codex") for row in all_rows)
+codex_only = sum(selected(row, "codex") and not selected(row, "claude") for row in all_rows)
+total_claude = both + claude_only
+total_codex = both + codex_only
 
 print("## Counts\n")
 print("| Availability | Claude | Codex |")
@@ -291,56 +182,71 @@ print(f"| Agent-only | {claude_only} | {codex_only} |")
 
 print("\n| Skill | Source | Type | Claude | Codex | ~Tokens |")
 print("|---|---|---|---|---|---|")
-for display, source, delivery in sorted(rows):
-    row = rows[(display, source, delivery)]
-    claude = "Y" if row["claude"] else "N"
-    codex = "Y" if row["codex"] else "N"
-    print(f"| `{display}` | {row['source']} | {row['type']} | {claude} | {codex} | ~{row['tokens']} |")
+for row in all_rows:
+    print(
+        f"| `{row.display}` | {row.source} | {row.delivery} | "
+        f"{row.claude} | {row.codex} | ~{row.tokens} |"
+    )
 
-print(f"\n<!-- total={len(rows)} both={both} claude_only={claude_only} codex_only={codex_only} total_claude={total_claude} total_codex={total_codex} -->")
+print(
+    f"\n<!-- total={len(all_rows)} both={both} claude_only={claude_only} "
+    f"codex_only={codex_only} total_claude={total_claude} total_codex={total_codex} -->"
+)
 
 claude_enabled = load_json(f"{HOME}/.claude/settings.json").get("enabledPlugins", {})
 try:
-    with open(f"{HOME}/.codex/config.toml") as file:
+    with open(f"{HOME}/.codex/config.toml", encoding="utf-8") as file:
         codex_config = file.read()
-except Exception:
+except OSError:
     codex_config = ""
 codex_enabled = {
     match.group(1): match.group(2) == "true"
-    for match in re.finditer(r'\[plugins\."([^"]+)"\]\s*\nenabled\s*=\s*(true|false)', codex_config)
+    for match in re.finditer(
+        r'\[plugins\."([^"]+)"\]\s*\nenabled\s*=\s*(true|false)', codex_config
+    )
 }
 
 
-def plugin_state(key, enabled):
-    if key is None:
+def plugin_state(row, agent):
+    if row.delivery == "skill":
         return "always-on"
+    key = getattr(row, f"{agent}_plugin_key")
+    if not key:
+        return "disabled"
+    enabled = claude_enabled if agent == "claude" else codex_enabled
     return "enabled" if enabled.get(key) else "disabled"
 
 
 claude_state = Counter()
 codex_state = Counter()
-for row in rows.values():
-    if row["claude"]:
-        claude_state[plugin_state(row["claude_plugin_key"], claude_enabled)] += 1
-    if row["codex"]:
-        codex_state[plugin_state(row["codex_plugin_key"], codex_enabled)] += 1
+for row in all_rows:
+    if selected(row, "claude"):
+        claude_state[plugin_state(row, "claude")] += 1
+    if selected(row, "codex"):
+        codex_state[plugin_state(row, "codex")] += 1
 
 print("\n## Enable-state\n")
-print("Config truth on this machine, point-in-time (mutable — retoggling a plugin "
-      "changes these). *Enabled/disabled* apply only to native plugin-delivered "
-      "skills; selected plain copies have no toggle and count as *always-on*. "
-      "Claude Code's `/skills` picker reports fewer because it lists only enabled, "
-      "plugin-registered skills, while this is the full selected inventory.\n")
+print(
+    "Config truth on this machine, point-in-time (mutable — retoggling a plugin "
+    "changes these). *Enabled/disabled* apply only to native plugin-delivered "
+    "skills; selected plain copies have no toggle and count as *always-on*. "
+    "Claude Code's `/skills` picker reports fewer because it lists only enabled, "
+    "plugin-registered skills, while this is the full selected inventory.\n"
+)
 print("| State | Claude | Codex |")
 print("|---|---|---|")
-for label, key in (("Enabled", "enabled"), ("Disabled", "disabled"), ("Always-on", "always-on")):
+for label, key in (
+    ("Enabled", "enabled"),
+    ("Disabled", "disabled"),
+    ("Always-on", "always-on"),
+):
     print(f"| {label} | {claude_state[key]} | {codex_state[key]} |")
 print(f"| Total | {sum(claude_state.values())} | {sum(codex_state.values())} |")
 
 print("\n## Repos\n")
 print("| Repo | URL |")
 print("|---|---|")
-for source in sorted({row["source"] for row in rows.values()}):
+for source in sorted({row.source for row in all_rows}):
     repo = github_repo(source)
     url = f"https://github.com/{repo}" if repo else "?"
     print(f"| `{source}` | {url} |")

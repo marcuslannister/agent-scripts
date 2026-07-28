@@ -10,10 +10,8 @@ source "$MODULE_DIR/errors.sh"
 source "$MODULE_DIR/lock.sh"
 source "$MODULE_DIR/schema.sh"
 source "$MODULE_DIR/repo-owned-paths.sh"
-source "$MODULE_DIR/claude-root.sh"
 source "$MODULE_DIR/state.sh"
 source "$MODULE_DIR/report.sh"
-source "$MODULE_DIR/matrix.sh"
 
 # Git Bash may run Windows jq, whose default text mode emits CRLF.
 if command jq -b -n empty >/dev/null 2>&1; then
@@ -24,7 +22,6 @@ if command jq -b -n empty >/dev/null 2>&1; then
 fi
 
 MODE=reconcile
-TOPOLOGY_PHASE="${TOPOLOGY_PHASE:-acquire}"
 TOPOLOGY_COMMAND_NAME="${TOPOLOGY_COMMAND_NAME:-update-skill-topology.sh}"
 JSON_OUTPUT=0
 REQUESTED_JSON=0
@@ -77,44 +74,6 @@ topology_run_process() { # command args...
   fi
 }
 
-topology_decode_hex() { # encoded
-  local encoded="$1"
-  [[ "$encoded" =~ ^([0-9a-f][0-9a-f])*$ ]] || return 1
-  printf '%b' "$(printf '%s' "$encoded" | sed 's/../\\x&/g')"
-}
-
-topology_inspect_hygiene() { # output_directory
-  local output="$1" line record encoded kind extra name status
-  mkdir -p "$output"
-  : > "$output/entries.ndjson"
-  : > "$output/errors.ndjson"
-  topology_run_process "$MODULE_DIR/codex-root-hygiene.sh" inspect "$HOME" || return $?
-  if [ "$PROCESS_CODE" -ne 0 ]; then
-    topology_add_process_errors "$PROCESS_ERR" 'Codex-root hygiene inspection failed' "$output/errors.ndjson"
-  fi
-  while IFS= read -r line || [ -n "$line" ]; do
-    [ -n "$line" ] || continue
-    IFS=$'\t' read -r record encoded kind extra <<< "$line"
-    case "$kind" in root-symlink|root-file|directory|symlink|file|other) ;; *) kind=invalid ;; esac
-    if [ "$record" != entry ] || [ -n "${extra:-}" ] || [ "$kind" = invalid ] || ! name="$(topology_decode_hex "$encoded")"; then
-      topology_append_json_string "$output/errors.ndjson" 'Codex-root hygiene returned invalid inspection output'
-      continue
-    fi
-    jq -cn --arg name "$name" --arg kind "$kind" '{name:$name,kind:$kind}' >> "$output/entries.ndjson"
-  done < "$PROCESS_OUT"
-  if [ -s "$output/errors.ndjson" ]; then status=failed
-  elif [ -s "$output/entries.ndjson" ]; then status=drift
-  else status=clean
-  fi
-  jq -n \
-    --arg status "$status" \
-    --arg legacyRoot "$HOME/.codex/skills" \
-    --slurpfile entries "$output/entries.ndjson" \
-    --slurpfile errors "$output/errors.ndjson" \
-    '{status:$status,legacyRoot:$legacyRoot,entries:($entries|sort_by(.name)),changes:[],errors:$errors}' \
-    > "$output/hygiene.json"
-}
-
 topology_write_native_allowlist() {
   jq -r --slurpfile registry "$REGISTRY_PATH" '
     .sources[] as $source |
@@ -125,7 +84,22 @@ topology_write_native_allowlist() {
 }
 
 topology_registry_value() { # source_id jq_suffix
-  jq -r --arg source "$1" ".[] | select(.sourceId == \$source) | $2" "$REGISTRY_PATH"
+  local source_id="$1" query="$2"
+  if jq -e --arg source "$source_id" 'any(.[]; .sourceId == $source)' "$REGISTRY_PATH" >/dev/null; then
+    jq -r --arg source "$source_id" ".[] | select(.sourceId == \$source) | $query" "$REGISTRY_PATH"
+    return
+  fi
+  case "$source_id:$query" in
+    repo-claude:.classification|repo-codex:.classification) printf 'repo-owned\n' ;;
+    repo-claude:'.supportedDestinations[]') printf 'claude\ncodex\n' ;;
+    repo-codex:'.supportedDestinations[]') printf 'codex\n' ;;
+    repo-claude:*supportedDestinations*codex*) printf 'true\n' ;;
+    repo-codex:*supportedDestinations*codex*) printf 'true\n' ;;
+    repo-claude:*supportedDestinations*) printf '["claude","codex"]\n' ;;
+    repo-codex:*supportedDestinations*) printf '["codex"]\n' ;;
+    repo-claude:*stateInspection*|repo-codex:*stateInspection*) printf 'topology\n' ;;
+    *) return 1 ;;
+  esac
 }
 
 topology_manifest_value() { # source_id jq_suffix
@@ -139,41 +113,18 @@ topology_claimed_by_other() { # plan source skill destination
 }
 
 
-topology_phase_manages_destination() { # source_id destination
+topology_acquire_manages_destination() { # source_id destination
   local source_id="$1" destination="$2" classification
   classification="$(topology_registry_value "$source_id" '.classification')"
-  case "$TOPOLOGY_PHASE" in
-    acquire)
-      # Native plugin destinations only; staging is owned via wants_staging.
-      case "$classification" in
-        dual-plugin) return 0 ;;
-        plugin-claude-only)
-          [ "$destination" = claude ] && return 0
-          return 1
-          ;;
-        *) return 1 ;;
-      esac
+  # Acquire owns native plugin destinations only; staging is handled separately.
+  case "$classification" in
+    dual-plugin) return 0 ;;
+    plugin-claude-only)
+      [ "$destination" = claude ] && return 0
+      return 1
       ;;
-    distribute)
-      case "$classification" in
-        dual-plugin) return 1 ;;
-        plugin-claude-only)
-          [ "$destination" = claude ] && return 1
-          return 0
-          ;;
-        *) return 0 ;;
-      esac
-      ;;
-    *) return 0 ;;
+    *) return 1 ;;
   esac
-}
-
-topology_phase_owns_matrix() {
-  [ "$TOPOLOGY_PHASE" = distribute ]
-}
-
-topology_phase_owns_surfaces() {
-  [ "$TOPOLOGY_PHASE" = distribute ]
 }
 
 topology_expected_states() { # source_id output_tsv plan_json
@@ -192,7 +143,7 @@ topology_expected_states() { # source_id output_tsv plan_json
     if [ "$wants_staging" -eq 1 ]; then
       printf 'present\t%s\tstaging\n' "$skill" >> "$output"
       while IFS= read -r destination; do
-        topology_phase_manages_destination "$source_id" "$destination" || continue
+        topology_acquire_manages_destination "$source_id" "$destination" || continue
         desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
           .[] | select(.sourceId == $source and .skill == $skill) | (.destinations | index($destination) != null)
         ' "$plan_json")"
@@ -206,7 +157,7 @@ topology_expected_states() { # source_id output_tsv plan_json
     fi
     while IFS= read -r destination; do
       [ "$source_id" = repo-claude ] && [ "$destination" = claude ] && continue
-      topology_phase_manages_destination "$source_id" "$destination" || continue
+      topology_acquire_manages_destination "$source_id" "$destination" || continue
       desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
         .[] | select(.sourceId == $source and .skill == $skill) | (.destinations | index($destination) != null)
       ' "$plan_json")"
@@ -398,7 +349,7 @@ topology_inspect_plan() { # plan_json output_dir mode
   while IFS=$'\t' read -r source_id skill; do
     [ "$(topology_registry_value "$source_id" '.stateInspection // "topology"')" = adapter ] && continue
     while IFS= read -r destination; do
-      topology_phase_manages_destination "$source_id" "$destination" || continue
+      topology_acquire_manages_destination "$source_id" "$destination" || continue
       desired="$(jq -r --arg source "$source_id" --arg skill "$skill" --arg destination "$destination" '
         .[] | select(.sourceId == $source and .skill == $skill) | (.destinations | index($destination) != null)
       ' "$plan_json")"
@@ -431,16 +382,6 @@ topology_inspect_plan() { # plan_json output_dir mode
     done < <(topology_registry_value "$source_id" '.supportedDestinations[]')
   done < <(jq -r '.[] | [.sourceId,.skill] | @tsv' "$plan_json")
 
-  if topology_phase_owns_surfaces; then
-    while IFS= read -r retired; do
-      jq -e --arg skill "$retired" 'any(.skill == $skill and (.destinations | index("codex") != null))' "$plan_json" >/dev/null && continue
-      jq -s -e --arg skill "$retired" 'any(.[]; .skill == $skill and .destination == "codex")' "$output/drift.ndjson" >/dev/null && continue
-      retired_source="$(jq -r --arg skill "$retired" '[.[] | select(.skill == $skill) | .sourceId][0] // "repo-claude"' "$plan_json")"
-      jq -cn --arg sourceId "$retired_source" --arg skill "$retired" \
-        '{sourceId:$sourceId,skill:$skill,destination:"codex",reason:"unexpected"}' >> "$output/drift.ndjson"
-    done < <(topology_list_retired_copies | LC_ALL=C sort)
-  fi
-
   while IFS= read -r source_id; do
     [ "$(topology_registry_value "$source_id" '.stateInspection // "topology"')" = adapter ] || continue
     topology_inspect_adapter "$source_id" "$plan_json" "$output" "$mode" || return $?
@@ -452,23 +393,15 @@ topology_build_plan_for_manifest() { # manifest output-ndjson [filter_phase=1]
   : > "$output"
   while IFS= read -r source_id; do
     while IFS= read -r skill; do
-      if [ "$TOPOLOGY_PHASE" = acquire ]; then
-        # Selection-blind: defaults only (never matrix overrides).
-        destinations_json="$(jq -c --arg source "$source_id" '
-          (.sources[] | select(.id == $source) | .defaultDestinations) as $wanted |
-          ["claude","codex"] | map(select(. as $destination | $wanted | index($destination) != null))
-        ' "$manifest")"
-      else
-        destinations_json="$(jq -c --arg source "$source_id" --arg skill "$skill" '
-          (.sources[] | select(.id == $source) | (.overrides[$skill] // .defaultDestinations)) as $wanted |
-          ["claude","codex"] | map(select(. as $destination | $wanted | index($destination) != null))
-        ' "$manifest")"
-      fi
+      destinations_json="$(jq -c --arg source "$source_id" '
+        (.sources[] | select(.id == $source) | .defaultDestinations) as $wanted |
+        ["claude","codex"] | map(select(. as $destination | $wanted | index($destination) != null))
+      ' "$manifest")"
       if [ "$filter_phase" = 1 ]; then
         filtered='[]'
         while IFS= read -r destination; do
           [ -n "$destination" ] || continue
-          topology_phase_manages_destination "$source_id" "$destination" || continue
+          topology_acquire_manages_destination "$source_id" "$destination" || continue
           filtered="$(jq -c --arg destination "$destination" '. + [$destination]' <<<"$filtered")"
         done < <(jq -r '.[]' <<<"$destinations_json")
         destinations_json="$filtered"
@@ -625,11 +558,12 @@ topology_evaluate() {
   topology_validate_registry "$REGISTRY_PATH" || return $?
 
   while IFS= read -r source_id; do
-    if ! jq -e --arg source "$source_id" 'any(.[]; .sourceId == $source)' "$REGISTRY_PATH" >/dev/null; then
+    classification="$(topology_manifest_value "$source_id" '.classification')"
+    if [ "$classification" != repo-owned ] \
+      && ! jq -e --arg source "$source_id" 'any(.[]; .sourceId == $source)' "$REGISTRY_PATH" >/dev/null; then
       topology_fail 2 "manifest source has no registered adapter: $source_id"
       return 2
     fi
-    classification="$(topology_manifest_value "$source_id" '.classification')"
     registry_classification="$(topology_registry_value "$source_id" '.classification')"
     if [ "$classification" != "$registry_classification" ]; then
       topology_fail 2 "source classification mismatch for $source_id: manifest=$classification, registry=$registry_classification"
@@ -637,33 +571,18 @@ topology_evaluate() {
     fi
   done < <(jq -r '.sources[].id' "$MANIFEST_PATH")
 
-  if topology_phase_owns_surfaces; then
-    topology_inspect_hygiene "$DISCOVERY_ROOT/hygiene-initial" || return $?
-    claude_root_inspect "$REPO_ROOT" "$HOME"
-    CLAUDE_ROOT_PATH="$HOME/.claude/skills"
-    jq -n --arg path "$CLAUDE_ROOT_PATH" --arg state "$CLAUDE_ROOT_STATE" \
-      --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
-      '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
-    if claude_root_needs_migration; then
-      export TOPOLOGY_CLAUDE_ROOT_LEGACY=1
-    elif [ "$CLAUDE_ROOT_STATE" = unexpected ]; then
-      topology_fail 1 "$CLAUDE_ROOT_MESSAGE"
-      return 1
-    fi
-  else
-    mkdir -p "$DISCOVERY_ROOT/hygiene-initial"
-    : > "$DISCOVERY_ROOT/hygiene-initial/entries.ndjson"
-    : > "$DISCOVERY_ROOT/hygiene-initial/errors.ndjson"
-    jq -n '{status:"clean",legacyRoot:"",entries:[],changes:[],errors:[]}' \
-      > "$DISCOVERY_ROOT/hygiene-initial/hygiene.json"
-    CLAUDE_ROOT_PATH="$HOME/.claude/skills"
-    CLAUDE_ROOT_STATE=managed
-    CLAUDE_ROOT_ACTION=none
-    CLAUDE_ROOT_MESSAGE=
-    jq -n --arg path "$CLAUDE_ROOT_PATH" --arg state "$CLAUDE_ROOT_STATE" \
-      --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
-      '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
-  fi
+  mkdir -p "$DISCOVERY_ROOT/hygiene-initial"
+  : > "$DISCOVERY_ROOT/hygiene-initial/entries.ndjson"
+  : > "$DISCOVERY_ROOT/hygiene-initial/errors.ndjson"
+  jq -n '{status:"clean",legacyRoot:"",entries:[],changes:[],errors:[]}' \
+    > "$DISCOVERY_ROOT/hygiene-initial/hygiene.json"
+  CLAUDE_ROOT_PATH="$HOME/.claude/skills"
+  CLAUDE_ROOT_STATE=managed
+  CLAUDE_ROOT_ACTION=none
+  CLAUDE_ROOT_MESSAGE=
+  jq -n --arg path "$CLAUDE_ROOT_PATH" --arg state "$CLAUDE_ROOT_STATE" \
+    --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
+    '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
   topology_write_native_allowlist
   : > "$DISCOVERY_ROOT/pre-decisions.ndjson"
 
@@ -676,33 +595,31 @@ topology_evaluate() {
 
   while IFS= read -r source_id; do
     inventory_file="$DISCOVERY_ROOT/$source_id.inventory"
-    adapter_command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
-    topology_run_process "$adapter_command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" discover '' "$HOME" "$MODE" || return $?
-    if [ "$PROCESS_CODE" -ne 0 ]; then
-      detail="$(topology_trim "$(cat "$PROCESS_ERR")")"
-      topology_fail 1 "source $source_id discovery failed${detail:+: $detail}"
-      return 1
+    classification="$(topology_manifest_value "$source_id" '.classification')"
+    if [ "$classification" = repo-owned ]; then
+      repo_subdir=skills
+      [ "$source_id" = repo-codex ] && repo_subdir=codex-skills
+      for skill_file in "$REPO_ROOT/$repo_subdir"/*/SKILL.md; do
+        [ -f "$skill_file" ] && basename "$(dirname "$skill_file")"
+      done | LC_ALL=C sort > "$inventory_file"
+    else
+      adapter_command="$MODULE_DIR/$(topology_registry_value "$source_id" '.command')"
+      topology_run_process "$adapter_command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" discover '' "$HOME" "$MODE" || return $?
+      if [ "$PROCESS_CODE" -ne 0 ]; then
+        detail="$(topology_trim "$(cat "$PROCESS_ERR")")"
+        topology_fail 1 "source $source_id discovery failed${detail:+: $detail}"
+        return 1
+      fi
+      LC_ALL=C sort "$PROCESS_OUT" | awk 'NF' > "$inventory_file"
     fi
-    LC_ALL=C sort "$PROCESS_OUT" | awk 'NF' > "$inventory_file"
     if [ "$(LC_ALL=C sort -u "$inventory_file" | wc -l | tr -d ' ')" != "$(wc -l < "$inventory_file" | tr -d ' ')" ]; then
       topology_fail 1 "source $source_id returned an invalid inventory"; return 1
     fi
     while IFS= read -r skill; do topology_is_name "$skill" || { topology_fail 1 "source $source_id returned an invalid inventory"; return 1; }; done < "$inventory_file"
   done < <(jq -r '.sources | sort_by(.id) | .[].id' "$MANIFEST_PATH")
 
-  # Matrix generation needs full selection destinations, not phase-filtered ones.
-  if topology_phase_owns_matrix; then
-    topology_build_plan_for_manifest "$MANIFEST_PATH" "$current_plan_file" 0
-    jq -s '.' "$current_plan_file" > "$current_plan_json"
-    matrix_prepare "$current_plan_json" "$DISCOVERY_ROOT/pre-decisions.ndjson" || return $?
-    MANIFEST_PATH="$MATRIX_EFFECTIVE_MANIFEST"
-  else
-    topology_build_plan_for_manifest "$MANIFEST_PATH" "$current_plan_file"
-    jq -s '.' "$current_plan_file" > "$current_plan_json"
-    MATRIX_EFFECTIVE_MANIFEST="$MANIFEST_PATH"
-    MATRIX_SOURCE_MANIFEST="$MANIFEST_PATH"
-    MATRIX_MANIFEST_CHANGED=0
-  fi
+  topology_build_plan_for_manifest "$MANIFEST_PATH" "$current_plan_file"
+  jq -s '.' "$current_plan_file" > "$current_plan_json"
 
   : > "$sources_file"
   : > "$plan_file"
@@ -710,25 +627,12 @@ topology_evaluate() {
     classification="$(topology_manifest_value "$source_id" '.classification')"
     inventory_file="$DISCOVERY_ROOT/$source_id.inventory"
     while IFS= read -r destination; do
-      if ! jq -e --arg source "$source_id" --arg destination "$destination" '.[] | select(.sourceId == $source) | .supportedDestinations | index($destination) != null' "$REGISTRY_PATH" >/dev/null; then
+      if ! topology_registry_value "$source_id" '.supportedDestinations[]' | rg -Fxq -- "$destination"; then
         jq -cn --arg sourceId "$source_id" --arg destination "$destination" \
           '{code:"unsupported-destination",sourceId:$sourceId,destination:$destination,message:($sourceId + " does not support its default destination " + $destination)}' \
           >> "$DISCOVERY_ROOT/pre-decisions.ndjson"
       fi
     done < <(topology_manifest_value "$source_id" '.defaultDestinations[]')
-    if topology_phase_owns_matrix; then
-      while IFS=$'\t' read -r skill destination; do
-        if ! jq -e --arg source "$source_id" --arg destination "$destination" '.[] | select(.sourceId == $source) | .supportedDestinations | index($destination) != null' "$REGISTRY_PATH" >/dev/null; then
-          jq -cn --arg sourceId "$source_id" --arg skill "$skill" --arg destination "$destination" \
-            '{code:"unsupported-destination",sourceId:$sourceId,skill:$skill,destination:$destination,message:($sourceId + " cannot distribute " + $skill + " to " + $destination)}' \
-            >> "$DISCOVERY_ROOT/pre-decisions.ndjson"
-        fi
-      done < <(jq -r --arg source "$source_id" '.sources[] | select(.id == $source) | .overrides | to_entries[] | .key as $skill | .value[] | [$skill,.] | @tsv' "$MANIFEST_PATH")
-      while IFS= read -r skill; do
-        rg -Fxq "$skill" "$inventory_file" || jq -cn --arg sourceId "$source_id" --arg skill "$skill" \
-          '{code:"stale-override",sourceId:$sourceId,skill:$skill,message:("override names a skill absent from " + $sourceId + ": " + $skill)}' >> "$DISCOVERY_ROOT/pre-decisions.ndjson"
-      done < <(topology_manifest_value "$source_id" '.overrides | keys[]')
-    fi
     defaults_json="$(topology_manifest_value "$source_id" '["claude","codex"] as $order | .defaultDestinations as $wanted | [$order[] | select(. as $d | $wanted | index($d) != null)]')"
     supported_json="$(topology_registry_value "$source_id" '["claude","codex"] as $order | .supportedDestinations as $wanted | [$order[] | select(. as $d | $wanted | index($d) != null)]')"
     source_count="$(wc -l < "$inventory_file" | tr -d ' ')"
@@ -756,14 +660,6 @@ topology_evaluate() {
   fi
   inspect_dir="$DISCOVERY_ROOT/inspect-initial"
   topology_inspect_plan "$plan_json" "$inspect_dir" "$MODE" || return $?
-  if topology_phase_owns_surfaces && claude_root_needs_migration; then
-    jq -cn '{sourceId:"topology",skill:"claude-root",destination:"claude",reason:"root-migration"}' \
-      >> "$inspect_dir/drift.ndjson"
-  fi
-  if topology_phase_owns_matrix && [ "$MATRIX_MANIFEST_CHANGED" -eq 1 ]; then
-    jq -cn '{sourceId:"topology",skill:"matrix-overrides",destination:"manifest",reason:"matrix-overrides"}' \
-      >> "$inspect_dir/drift.ndjson"
-  fi
   [ -s "$DISCOVERY_ROOT/pre-decisions.ndjson" ] && cat "$DISCOVERY_ROOT/pre-decisions.ndjson" >> "$inspect_dir/decisions.ndjson"
   cat "$DISCOVERY_ROOT/hygiene-initial/errors.ndjson" >> "$inspect_dir/errors.ndjson"
   cat "$base_errors" >> "$inspect_dir/errors.ndjson"
@@ -786,26 +682,6 @@ topology_evaluate() {
   mv "$DISCOVERY_ROOT/sources-updated.ndjson" "$sources_file"
 
   if [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && [ ! -s "$inspect_dir/errors.ndjson" ]; then
-    if topology_phase_owns_matrix; then
-      if ! matrix_persist_manifest; then
-        topology_append_json_string "$base_errors" 'skills matrix override generation failed'
-        topology_build_document "$MODE" failed "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
-        DOCUMENT_PATH="$DISCOVERY_ROOT/document.json"
-        return 1
-      fi
-    fi
-    if topology_phase_owns_surfaces && claude_root_needs_migration; then
-      if ! claude_root_reconcile "$REPO_ROOT" "$HOME"; then
-        topology_append_json_string "$base_errors" 'Claude skills root migration failed'
-        topology_build_document "$MODE" failed "$sources_file" "$plan_file" "$inspect_dir" "$base_errors" "$warnings" "$changes" "$DISCOVERY_ROOT/hygiene-initial/hygiene.json" "$DISCOVERY_ROOT/document.json"
-        DOCUMENT_PATH="$DISCOVERY_ROOT/document.json"
-        return 1
-      fi
-      unset TOPOLOGY_CLAUDE_ROOT_LEGACY
-      jq -n --arg path "$HOME/.claude/skills" --arg state "$CLAUDE_ROOT_STATE" \
-        --arg action "$CLAUDE_ROOT_ACTION" --arg message "$CLAUDE_ROOT_MESSAGE" \
-        '{path:$path,state:$state,action:$action,message:$message}' > "$claude_root_document"
-    fi
     topology_reconcile "$sources_file" "$plan_file" "$plan_json" "$inspect_dir" "$warnings" "$changes"
     return $?
   elif [ "$MODE" = reconcile ] && [ "$exit_code" -ne 3 ] && \
@@ -894,25 +770,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
   local hygiene_dir="$DISCOVERY_ROOT/hygiene-reconcile" final_hygiene="$DISCOVERY_ROOT/hygiene-final" final_inspect="$DISCOVERY_ROOT/inspect-final"
   local status exit_code reason
   : > "$errors"; : > "$changes"
-  if [ "$CLAUDE_ROOT_MIGRATED" = 1 ]; then
-    jq -cn '{action:"root-migrated",sourceId:"topology",skill:"claude-root",destination:"claude"}' >> "$changes"
-  fi
-
   mkdir -p "$hygiene_dir"; : > "$hygiene_dir/changes.ndjson"; : > "$hygiene_dir/errors.ndjson"
-  if topology_phase_owns_surfaces; then
-    topology_run_process "$MODULE_DIR/codex-root-hygiene.sh" reconcile "$HOME" || return $?
-    while IFS= read -r line || [ -n "$line" ]; do
-      [ -n "$line" ] || continue
-      IFS=$'\t' read -r action encoded kind backup extra <<< "$line"
-      if [ "$action" != migrated ] || [ -n "${extra:-}" ] || ! name="$(topology_decode_hex "$encoded")" || ! backup_path="$(topology_decode_hex "$backup")"; then
-        topology_append_json_string "$hygiene_dir/errors.ndjson" 'Codex-root hygiene returned invalid reconcile output'
-        continue
-      fi
-      jq -cn --arg name "$name" --arg kind "$kind" --arg backupPath "$backup_path" '{name:$name,kind:$kind,backupPath:$backupPath}' >> "$hygiene_dir/changes.ndjson"
-    done < "$PROCESS_OUT"
-    [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" 'Codex-root hygiene reconciliation failed' "$hygiene_dir/errors.ndjson"
-    cat "$hygiene_dir/errors.ndjson" >> "$errors"
-  fi
 
   while IFS= read -r source_id; do
     action_file="$DISCOVERY_ROOT/$source_id.reconcile.tsv"
@@ -956,19 +814,11 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" "source $source_id verification failed" "$errors"
   done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
 
-  if topology_phase_owns_surfaces; then
-    claude_root_cleanup_legacy_copies "$REPO_ROOT" "$HOME" "$REGISTRY_PATH" "$plan_json" "$changes" "$errors" || true
-  fi
-
   topology_inspect_plan "$plan_json" "$final_inspect" reconcile || return $?
-  if topology_phase_owns_surfaces; then
-    topology_inspect_hygiene "$final_hygiene" || return $?
-  else
-    mkdir -p "$final_hygiene"
-    : > "$final_hygiene/entries.ndjson"
-    : > "$final_hygiene/errors.ndjson"
-    jq -n '{status:"clean",legacyRoot:"",entries:[],changes:[],errors:[]}' > "$final_hygiene/hygiene.json"
-  fi
+  mkdir -p "$final_hygiene"
+  : > "$final_hygiene/entries.ndjson"
+  : > "$final_hygiene/errors.ndjson"
+  jq -n '{status:"clean",legacyRoot:"",entries:[],changes:[],errors:[]}' > "$final_hygiene/hygiene.json"
   cat "$final_inspect/errors.ndjson" >> "$errors"
   cat "$final_hygiene/errors.ndjson" >> "$errors"
   while IFS=$'\t' read -r source_id skill destination reason; do
@@ -983,15 +833,6 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
   if [ -s "$final_inspect/decisions.ndjson" ]; then status=decision-required; exit_code=3
   elif [ -s "$errors" ]; then status=failed; exit_code=1
   else status=reconciled; exit_code=0
-  fi
-  if topology_phase_owns_matrix && [ "$status" = reconciled ]; then
-    topology_build_plan_for_manifest "$MANIFEST_PATH" "$DISCOVERY_ROOT/matrix-report-plan.ndjson" 0
-    jq -s '.' "$DISCOVERY_ROOT/matrix-report-plan.ndjson" > "$DISCOVERY_ROOT/matrix-report-plan.json"
-    if ! matrix_regenerate_report "$DISCOVERY_ROOT/matrix-report-plan.json"; then
-      topology_append_json_string "$errors" 'skills matrix report regeneration failed'
-      status=failed
-      exit_code=1
-    fi
   fi
   jq -n --arg status "$([ -s "$hygiene_dir/errors.ndjson" ] && printf failed || printf clean)" --arg root "$HOME/.codex/skills" \
     --slurpfile entries "$final_hygiene/entries.ndjson" --slurpfile changes "$hygiene_dir/changes.ndjson" --slurpfile errors "$hygiene_dir/errors.ndjson" \
@@ -1042,10 +883,6 @@ for argument in "$@"; do
   esac
 done
 if [ "$check_count" -gt 1 ] || [ "$json_count" -gt 1 ]; then topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; fi
-case "$TOPOLOGY_PHASE" in
-  acquire|distribute) ;;
-  *) topology_fail 2 "invalid TOPOLOGY_PHASE: $TOPOLOGY_PHASE (use acquire or distribute)" ;;
-esac
 topology_init_color
 if [ -n "$TOPOLOGY_ERROR_MESSAGE" ]; then
   topology_write_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"

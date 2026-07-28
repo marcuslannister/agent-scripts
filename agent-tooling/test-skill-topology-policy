@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT="${1:-$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)}"
 MANIFEST="$REPO_ROOT/agent-tooling/skill-topology.json"
 REGISTRY="$REPO_ROOT/agent-tooling/distribution-topology/registry.json"
+TOPOLOGY_DIR="$REPO_ROOT/agent-tooling/distribution-topology"
 failed=0
 
 fail() {
@@ -11,7 +12,8 @@ fail() {
   failed=1
 }
 
-for required in update-agents.sh update-all.sh update-skill-topology.sh sync-skill-surfaces.sh; do
+for required in update-agents.sh update-all.sh update-skill-topology.sh \
+  generate-skills-matrix.py sync-skill-surfaces.sh; do
   [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public command: $required"
 done
 
@@ -26,74 +28,66 @@ done
 
 while IFS= read -r candidate; do
   [ -n "$candidate" ] || continue
-  name="${candidate##*/}"
-  case "$name" in
-    update-skill-topology.sh|sync-skill-surfaces.sh) ;;
-    *) fail "unexpected public topology command: $name" ;;
-  esac
-done < <(
-  rg -l 'distribution-topology/topology\.sh|TOPOLOGY_PHASE=' \
-    "$REPO_ROOT"/agent-tooling/*.sh || true
-)
+  [ "${candidate##*/}" = update-skill-topology.sh ] \
+    || fail "unexpected public acquire command: ${candidate##*/}"
+done < <(rg -l 'distribution-topology/topology\.sh|TOPOLOGY_PHASE=' \
+  "$REPO_ROOT"/agent-tooling/*.sh || true)
 
-[ ! -e "$REPO_ROOT/agent-tooling/lib-plugins.sh" ] \
-  || fail "generic plugin policy owner remains: lib-plugins.sh"
-
-TOPOLOGY_DIR="$REPO_ROOT/agent-tooling/distribution-topology"
 [ -x "$TOPOLOGY_DIR/topology.sh" ] \
-  || fail "private Bash topology core missing or not executable"
-if rg -q 'exec node|topology\.mjs' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
-  fail "public topology command still invokes the retired Node core"
-fi
-if ! rg -q 'TOPOLOGY_PHASE=distribute' "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh"; then
-  fail "sync-skill-surfaces.sh must run the distribute phase"
-fi
+  || fail "private Bash acquire core missing or not executable"
+[ -x "$TOPOLOGY_DIR/distribute.sh" ] \
+  || fail "private Bash distribute core missing or not executable"
 if ! rg -q 'TOPOLOGY_PHASE=acquire' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
-  fail "update-skill-topology.sh must run the acquire phase"
+  fail "update-skill-topology.sh must retain the acquire phase entry point"
 fi
-if rg -q 'TOPOLOGY_PHASE=.*full' \
-  "$REPO_ROOT/agent-tooling/update-skill-topology.sh" \
-  "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" \
-  "$REPO_ROOT/agent-tooling/distribution-topology/topology.sh"; then
-  fail "single-pass topology phase must stay deleted"
+if rg -q 'TOPOLOGY_PHASE=' "$TOPOLOGY_DIR/topology.sh"; then
+  fail "acquire topology core must not contain phase gating"
 fi
+if rg -q 'skill-topology\.json|registry\.json|distribution-topology/topology\.sh|TOPOLOGY_PHASE=' \
+  "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" "$TOPOLOGY_DIR/distribute.sh"; then
+  fail "distribute must read neither the topology manifest nor adapter registry"
+fi
+for retired in matrix.sh claude-root.sh adapters/repo-owned.sh; do
+  [ ! -e "$TOPOLOGY_DIR/$retired" ] || fail "retired topology module remains: $retired"
+done
 if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
   fail "retired Node topology implementation remains"
 fi
 
 invocations="$(
-  # shellcheck disable=SC2016
-  rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|sync-skill-surfaces\.sh)' \
-    "$REPO_ROOT/agent-tooling/update-all.sh" \
-    | sed 's#\$SCRIPT_DIR/##'
+  rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|generate-skills-matrix\.py|sync-skill-surfaces\.sh)' \
+    "$REPO_ROOT/agent-tooling/update-all.sh" | sed 's#\$SCRIPT_DIR/##'
 )"
 expected_invocations='update-agents.sh
 update-skill-topology.sh
+generate-skills-matrix.py
 sync-skill-surfaces.sh'
 [ "$invocations" = "$expected_invocations" ] \
-  || fail "update-all.sh must invoke agent updates, acquire, then distribute"
-
-if ! jq -e --slurpfile registry "$REGISTRY" '
-    ([.sources[].id] | length) == ([.sources[].id] | unique | length) and
-    ([$registry[0][].sourceId] | length) == ([$registry[0][].sourceId] | unique | length) and
-    ([.sources[].id] | sort) == ([$registry[0][].sourceId] | sort) and
-    (all($registry[0][];
-      (.command | startswith("adapters/")) and
-      (.command | contains("..") | not)))
-  ' "$MANIFEST" >/dev/null; then
-  fail "manifest/adapter handshake or private adapter policy failed"
-fi
+  || fail "update-all.sh must invoke agent updates, acquire, matrix refresh, then distribute"
 
 if ! jq -e '
-    .sources[] | select(.id == "repo-claude") |
-    .defaultDestinations == ["claude"]
+    .version == 1 and
+    (.sources | type == "array" and length > 0) and
+    ([.sources[].id] | length) == ([.sources[].id] | unique | length) and
+    all(.sources[];
+      (keys | sort) == ["classification","defaultDestinations","id"])
   ' "$MANIFEST" >/dev/null; then
-  fail "repo-claude must default only to Claude"
+  fail "topology manifest must contain acquire source policy only"
+fi
+
+if ! jq -e --slurpfile manifest "$MANIFEST" '
+    ([.[].sourceId] | length) == ([.[].sourceId] | unique | length) and
+    all(.[];
+      (.command | startswith("adapters/")) and
+      (.command | contains("..") | not) and
+      (.sourceId as $id | any($manifest[0].sources[];
+        .id == $id and .classification != "repo-owned")))
+  ' "$REGISTRY" >/dev/null; then
+  fail "acquire adapter registry policy failed"
 fi
 
 while IFS= read -r command; do
-  [ -f "$REPO_ROOT/agent-tooling/distribution-topology/$command" ] \
-    || fail "registered adapter missing: $command"
+  [ -f "$TOPOLOGY_DIR/$command" ] || fail "registered adapter missing: $command"
 done < <(jq -r '.[].command' "$REGISTRY")
 
 [ "$failed" -eq 0 ] || exit 1
