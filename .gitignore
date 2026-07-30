@@ -8,3 +8,4 @@ bin/*
 !bin/git
 !bin/rm
 skills/.system/
+.codegraph/
