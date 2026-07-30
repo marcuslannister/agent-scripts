@@ -111,9 +111,13 @@ edits in one round trip, and avoid full-file reads.
 Use the built-in `Edit` only for small one-off changes. For 3 or
 more edits to the same file, always use `anvil-file-batch`.
 
-Skill `anvil-advanced-ops` covers org-mode editing, worker-pool
-dispatch for heavy Emacs ops, anvil-cron scheduled tasks, and
-shell/context output compression.
+Skill `anvil-advanced-ops` covers worker-pool dispatch for heavy
+Emacs ops, anvil-cron scheduled tasks, and shell/context output
+compression. Anvil's `org` module is disabled (see ~/.emacs.d
+lisp/init-local-ai.el) — it raced with interactive Emacs buffers
+and caused Syncthing sync-conflict storms on org files. Edit org
+files directly (Read/Edit or the built-in org tools), not via
+Anvil org MCP tools.
 
 ## MCP tool self-reinforcement
 
