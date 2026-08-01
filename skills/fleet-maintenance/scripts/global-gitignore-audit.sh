@@ -42,14 +42,24 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
+node_bin=$(command -v node 2>/dev/null || true)
+if [[ -z "$node_bin" ]]; then
+  for candidate in /opt/homebrew/bin/node /usr/local/bin/node; do
+    if [[ -x "$candidate" ]]; then
+      node_bin="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$node_bin" ]]; then
   printf 'global-gitignore: node is unavailable\n' >&2
   exit 1
 fi
 
 # JavaScript template literals below are intentionally protected from shell expansion.
 # shellcheck disable=SC2016
-patterns_text=$(node -e '
+patterns_text=$("$node_bin" -e '
   const fs = require("node:fs");
   const [fleetPath, hostId] = process.argv.slice(1);
   const fleet = JSON.parse(fs.readFileSync(fleetPath, "utf8"));
