@@ -1,11 +1,42 @@
 ---
 name: fleet-maintenance
-description: "Mac fleet upkeep: global packages, safe repo sync, Xcode, disk, Trash, and health."
+description: "Mac fleet inventory and upkeep with full/worker profiles: collect installed apps and packages, compare desired versus observed state, audit local-account escrow references, update Homebrew/global packages, safely sync repos and Xcode, and report disk, service, backup, update, and security health."
 ---
 
 # Fleet Maintenance
 
 Maintain Peter's Macs while protecting ambiguous local work. Package updates are explicitly allowed during active sessions and may disrupt the software being upgraded. Use `$remote-mac` for inventory/SSH and `$xcode-sync` for all Xcode work.
+
+## Desired state
+
+- Read `~/Projects/manager/fleet/inventory.json` for desired software and local-account escrow references. Read `references/fleet-schema.md` before changing its schema or adopting packages.
+- Keep exactly two profiles unless Peter explicitly changes the model:
+  - `full`: daily-driver Macs with the complete development, communication, media, and agentic toolset.
+  - `worker`: lean remote Macs that mainly run Codex, Claude, OpenClaw nodes, and supporting agent infrastructure.
+- Treat profile policy as `minimum`: install required entries and report extras without removing them. Never silently turn observed software into desired state.
+- Keep topology, SSH routing, and handed-off status in `~/Projects/manager/computers.yaml`. Do not duplicate live topology in this skill.
+- Keep passwords, recovery keys, and private keys in 1Password. The inventory stores opaque item IDs only. Invoke `$one-password` before any `op` command; a `pending` reference is not an error during package maintenance.
+- Require the agent skill mirror on every fleet Mac. Audit it with `scripts/agent-skill-links-audit.sh`; use `--repair` only when both canonical repos exist. This owns the Codex root links, Claude flat mirror, and shared instruction pointers documented in `references/fleet-schema.md` and `~/Projects/manager/docs/fleet-setup.md`.
+- Require the shared global Git ignore on every fleet Mac. Audit it with `scripts/global-gitignore-audit.sh`; `--repair` creates `~/.config/git/ignore`, preserves unrelated entries, adds the inventory's macOS metadata patterns, and points `core.excludesFile` at it. An already-configured alternate excludes file requires manual review so existing rules are never discarded.
+
+Use the deterministic profile tool:
+
+```bash
+node skills/fleet-maintenance/scripts/fleet-profile.mjs collect
+node skills/fleet-maintenance/scripts/fleet-profile.mjs \
+  plan --fleet ~/Projects/manager/fleet/inventory.json \
+  --host mac-studio-sf --snapshot /path/to/mac-studio-sf.json
+node skills/fleet-maintenance/scripts/fleet-profile.mjs \
+  diff --source /path/to/macbook-pro.json --target /path/to/mac-studio-sf.json
+node skills/fleet-maintenance/scripts/fleet-profile.mjs \
+  brewfile --fleet ~/Projects/manager/fleet/inventory.json --host mac-studio-sf
+node skills/fleet-maintenance/scripts/fleet-profile.mjs \
+  validate --fleet ~/Projects/manager/fleet/inventory.json
+skills/fleet-maintenance/scripts/agent-skill-links-audit.sh
+skills/fleet-maintenance/scripts/global-gitignore-audit.sh --host mac-studio-sf
+```
+
+Collector snapshots are observed evidence, not configuration. Store reviewed snapshots under `~/Projects/manager/fleet/snapshots/<host-id>.json`. `diff` reports source-only candidates; Peter chooses which enter `full`.
 
 ## Safety contract
 
@@ -19,7 +50,7 @@ Maintain Peter's Macs while protecting ambiguous local work. Package updates are
 
 ## Run order
 
-1. Inventory, package ownership, and preflight.
+1. Resolve the host's `full` or `worker` profile, collect observed inventory, and run package-ownership preflight.
 2. Sync eligible repos using the existing Git/toolchain.
 3. Update Homebrew and global npm packages on every eligible, reachable host regardless of active agents/services.
 4. Verify each host's macOS stable/beta track.
@@ -32,7 +63,10 @@ Maintain Peter's Macs while protecting ambiguous local work. Package updates are
 Record hostname, hardware UUID, macOS, architecture, uptime, Tailscale state, selected Xcode, free bytes/percent, Trash size, Homebrew prefix/version, Node/npm versions, running Brew services, active coding-agent processes, and resident-memory outliers:
 
 ```bash
+node skills/fleet-maintenance/scripts/fleet-profile.mjs collect
 skills/fleet-maintenance/scripts/host-health-audit.sh 30
+ssh -o RequestTTY=no -o RemoteCommand=none HOST 'node --input-type=module - collect' \
+  < skills/fleet-maintenance/scripts/fleet-profile.mjs
 ssh -o RequestTTY=no -o RemoteCommand=none HOST 'bash -s -- 30' \
   < skills/fleet-maintenance/scripts/host-health-audit.sh
 ```
@@ -88,6 +122,8 @@ Never use `pull` or `merge` as a conflict resolver. Never pass `--autostash`, cr
 ## Homebrew
 
 Skip only if Homebrew is absent. Running agents/services do not block package mutation:
+
+First render the host's resolved profile to a temporary Brewfile and run `brew bundle check --verbose --file FILE`. Review missing entries. `brew bundle install --file FILE` may install or upgrade declared dependencies. Never run `brew bundle cleanup --force`; extras are allowed under the default `minimum` policy. Remove an entry only through an explicitly approved prune action.
 
 ```bash
 brew update
@@ -166,4 +202,4 @@ Useful optional maintenance: stale package caches/logs, abandoned containers/VMs
 
 ## Finish
 
-Return a host matrix with: reachability, active/deferred reason, disk before/after, Trash reclaimed, Brew/npm changes, repos pulled/current/skipped/escalated, Xcode stable/prerelease build and selected track, backup/update/service warnings, and remaining user decisions.
+Return a host matrix with: reachability, agent skill-link state, global Git-ignore state, active/deferred reason, disk before/after, Trash reclaimed, Brew/npm changes, repos pulled/current/skipped/escalated, Xcode stable/prerelease build and selected track, backup/update/service warnings, and remaining user decisions.
