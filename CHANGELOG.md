@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added `agent-tooling/update-local.sh`: agent CLI updates + offline distribute only, for secondary machines that pull already-committed staging changes instead of running the network acquire phase.
+
 - Ported the selection-preserving skills-matrix generator from Python to Bash/awk without changing its generated report, including Unicode character-based token estimates (#51).
 
 - Collapsed acquire manifest and registry schema validation from 360 per-field `jq` launches to two single-pass invocations, removing the Windows Git Bash startup bottleneck while preserving diagnostics (#50).
