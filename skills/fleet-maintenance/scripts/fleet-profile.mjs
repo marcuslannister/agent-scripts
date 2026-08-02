@@ -189,6 +189,7 @@ function collectNpm() {
 function collectTools() {
   const names = [
     "birdclaw",
+    "camsnap",
     "claude",
     "codex",
     "discrawl",
