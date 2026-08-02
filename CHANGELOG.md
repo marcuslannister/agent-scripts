@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added ClawMac provider-outage triage that escalates console, NIC-link, and switch-port inspection without repeated power cycles or data-affecting recovery.
 - Restored MiniClaw's canonical Homebrew Tailscale node and removed its duplicate GUI identity from fleet guidance.
 - Removed obsolete Mac identities from remote fleet discovery guidance after pruning them from Tailscale.
 - Reconciled the remote-Mac topology with provider purchases, including FoundationClaw's pending bootstrap and MiniClaw's canonical Tailscale identity.

@@ -12,7 +12,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `me
 - Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
 - London workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local` when on its LAN.
 - San Francisco workstations: `mac-studio-sf` (`100.72.210.5`) and `mac-studio-sf2` (`100.70.201.26`). Always prefer their live Tailscale addresses over these cached values.
-- Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected.
+- Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), MacStadium service `100121942`, Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected. The current 2026-08-01 provider network outage is tracked by Atlanta remote hands on tickets #11481/#11484; one hard reboot restored SSH only briefly, so do not repeat power cycles.
 - Network split:
   - `corporate`: Peter's work-managed environment. Treat Mac Studio as the main remote Mac to configure and inspect there.
   - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
@@ -40,16 +40,17 @@ Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac)
 
 1. Start with live `tailscale status --json`; match hostname/DNS name and use the node's current IP. Manager-cached Tailscale IPs may be stale.
 2. For rented Macs, reconcile the live identity with the provider service/product record in `computers.yaml`. Provider-active does not mean fleet-configured, and a public IP alone is not enough to merge identities.
-3. In the `corporate` environment, default to Mac Studio for remote configuration work. Reach it through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery from there.
-4. In the `personal` environment, if Tailscale is down or SSH times out, try LAN discovery:
+3. For `clawmac`, if MacStadium reports Active while the public IP, SSH/VNC, and Tailscale all fail, treat it as a provider network/hardware incident. Check the current incident note in `computers.yaml`, update the existing ticket, and request console, NIC-link, and switch-port inspection. Do not repeat hard reboots or authorize reimage, erase, reinstall, storage replacement, credential resets, or other data-affecting work without Peter's approval.
+4. In the `corporate` environment, default to Mac Studio for remote configuration work. Reach it through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery from there.
+5. In the `personal` environment, if Tailscale is down or SSH times out, try LAN discovery:
 
 ```bash
 dns-sd -B _ssh._tcp local
 arp -a
 ```
 
-5. Try mDNS names such as `HOST.local` only when on the same LAN.
-6. If Mac Studio's live Tailscale node is offline from the `corporate` environment, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
+6. Try mDNS names such as `HOST.local` only when on the same LAN.
+7. If Mac Studio's live Tailscale node is offline from the `corporate` environment, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
 
 ## SSH Rules
 
@@ -99,6 +100,7 @@ clawmac healthy shape:
 
 ## clawmac GUI Access
 
+- If `computers.yaml` records a provider network outage and public SSH/VNC plus Tailscale are all unreachable, GUI access is unavailable too. Continue through the existing MacStadium remote-hands ticket; do not power-cycle the host again.
 - Prefer direct clawmac automation over Tailscale/SSH first: `open -a "Google Chrome"`, AppleScript, Chrome DOM JavaScript, and remote Peekaboo clicks.
 - For `gog` OAuth on clawmac, keep the browser on clawmac. Start `gog auth add` in remote tmux, open the printed URL on clawmac Chrome, click consent with AppleScript/DOM automation, then verify with `zsh -lc 'gog auth list --check --json --no-input'`.
 - If `GOG_KEYRING_PASSWORD` is exported by the remote shell environment, use the matching login shell for checks and tmux prompt feeding, and never print the value.
