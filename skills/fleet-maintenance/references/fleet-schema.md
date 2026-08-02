@@ -24,6 +24,9 @@ The mutable desired-state inventory lives at `~/Projects/manager/fleet/inventory
 - `requirements.filevault` and `requirements.git_signing`: non-package configuration checks. Report drift; do not mutate security or signing configuration during ordinary package apply.
 - `requirements.agent_skill_links`: require the MacBook-style agent skill mirror on both profiles.
 - `requirements.git_global_ignore`: exact patterns required in `~/.config/git/ignore` on both profiles. The fleet action also pins `core.excludesFile` to that canonical path; alternate configured files require manual review before repair.
+- `requirements.op_cli_integrity`: require a native-architecture, Apple Developer ID-validated, single-link regular file at `~/bin/op` from AgileBits, with both it and `~/bin` current-user-owned, ACL-free, and not group/world writable, plus `/opt/homebrew/bin/op -> ~/bin/op`. This requirement applies to every host and is not waived by a service-account exception.
+- `requirements.op_service_account_profile`: require a single-link, current-user-owned, mode-0600, ACL-free `~/.config/op/molty-service-account-token` beneath canonical non-symlink home/config ancestors; one file-backed Codex-managed loader block in `~/.profile`; and a secure `~/.zprofile` that either sources `.profile` or loads its service-account export. The token value never belongs in inventory or Git.
+- `hosts.<id>.requirement_exceptions`: narrowly exempt a host from named profile requirements when a documented security boundary makes the shared desired state unsafe. This does not exempt the host from `managed.tools` or `op_cli_integrity`; for example, `clawmac` still requires the verified `op` CLI but not the personal service-account token until its device class and authorization are verified.
 
 ## Agent skill mirror
 
@@ -40,7 +43,7 @@ Homebrew dependencies do not belong in `formulae`; declare intentionally install
 
 ## Hosts and accounts
 
-Each host selects one profile. Use `aliases` only for common spoken names.
+Each host selects one profile. Use `aliases` only for common spoken names. Keep any `requirement_exceptions` minimal and explain the security boundary in the fleet setup document.
 
 Each account entry contains:
 

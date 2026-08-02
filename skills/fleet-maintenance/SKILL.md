@@ -16,6 +16,7 @@ Maintain Peter's Macs while protecting ambiguous local work. Package updates are
 - Treat profile policy as `minimum`: install required entries and report extras without removing them. Never silently turn observed software into desired state.
 - Keep topology, SSH routing, and handed-off status in `~/Projects/manager/computers.yaml`. Do not duplicate live topology in this skill.
 - Keep passwords, recovery keys, and private keys in 1Password. The inventory stores opaque item IDs only. Invoke `$one-password` before any `op` command; a `pending` reference is not an error during package maintenance.
+- Require the stable 1Password CLI integrity baseline on every fleet Mac. Require the file-backed service-account profile block unless that host has a documented `requirement_exceptions` security boundary in inventory. Audit eligible hosts with `scripts/op-profile-audit.sh`; audit token-exempt hosts with `scripts/op-profile-audit.sh --cli-only`. Repair only after `$one-password` is loaded and the mode-0600 token file is provisioned; never print or store the token in inventory.
 - Require the agent skill mirror on every fleet Mac. Audit it with `scripts/agent-skill-links-audit.sh`; use `--repair` only when both canonical repos exist. This owns the Codex root links, Claude flat mirror, and shared instruction pointers documented in `references/fleet-schema.md` and `~/Projects/manager/docs/fleet-setup.md`.
 - Require the shared global Git ignore on every fleet Mac. Audit it with `scripts/global-gitignore-audit.sh`; `--repair` creates `~/.config/git/ignore`, preserves unrelated entries, adds the inventory's macOS metadata patterns, and points `core.excludesFile` at it. An already-configured alternate excludes file requires manual review so existing rules are never discarded.
 
@@ -34,6 +35,7 @@ node skills/fleet-maintenance/scripts/fleet-profile.mjs \
   validate --fleet ~/Projects/manager/fleet/inventory.json
 skills/fleet-maintenance/scripts/agent-skill-links-audit.sh
 skills/fleet-maintenance/scripts/global-gitignore-audit.sh --host mac-studio-sf
+skills/fleet-maintenance/scripts/op-profile-audit.sh
 ```
 
 Collector snapshots are observed evidence, not configuration. Store reviewed snapshots under `~/Projects/manager/fleet/snapshots/<host-id>.json`. `diff` reports source-only candidates; Peter chooses which enter `full`.
