@@ -9,7 +9,7 @@
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
 | `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~1126 |
-| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~994 |
+| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1150 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4934 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~740 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2043 |
@@ -79,6 +79,7 @@
 | `instruments-profiling` | steipete/agent-scripts | skill | N | N | ~937 |
 | `internal-comms` | anthropics/skills | skill | Y | Y | ~378 |
 | `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2947 |
+| `leader` | KKKKhazix/khazix-skills | skill | N | N | ~723 |
 | `loop-me` | mattpocock/skills | skill | N | Y | ~632 |
 | `mac-maintenance` | steipete/agent-scripts | skill | Y | Y | ~184 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~11236 |
@@ -216,7 +217,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~841 |
 
-<!-- total=207 both=34 claude_only=1 codex_only=42 total_claude=35 total_codex=76 -->
+<!-- total=208 both=34 claude_only=1 codex_only=42 total_claude=35 total_codex=76 -->
 
 ## Enable-state
 
