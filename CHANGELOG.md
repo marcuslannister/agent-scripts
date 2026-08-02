@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Established the SF Mini's classic OpenSSH fleet path, documented symmetric tailnet TCP 22 policy and proof rules, and recorded the MiniClaw duplicate-daemon regression and public-SSH fallback.
 - Added the separately owned SF Mac Mini and distinguished its local/Tailscale names from FoundationClaw while its trusted SSH path remains pending.
 - Verified FoundationClaw's provider identity, installed Tailscale and Jump Desktop Connect v10, and documented its data-preserving credential-reset escalation before GUI activation.
 - Added ClawMac provider-outage triage that escalates console, NIC-link, and switch-port inspection without repeated power cycles or data-affecting recovery.
