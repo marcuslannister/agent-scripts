@@ -208,15 +208,20 @@ function collectTools() {
     "tmux",
     "wacrawl",
   ];
-  return names.map((name) => ({
-    name,
-    executable: findExecutable([
+  return names.map((name) => {
+    const executable = findExecutable([
       name,
       path.join(os.homedir(), "bin", name),
       path.join("/opt/homebrew/bin", name),
       path.join("/usr/local/bin", name),
-    ]),
-  }));
+    ]);
+    const tool = { name, executable };
+    if (name === "camsnap" && executable) {
+      tool.version = lines(run(executable, ["--version"]))[0] || null;
+      tool.sha256 = run("/usr/bin/shasum", ["-a", "256", executable]).split(/\s+/)[0] || null;
+    }
+    return tool;
+  });
 }
 
 function collect() {
