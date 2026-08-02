@@ -54,7 +54,6 @@ Exact titles; go straight to the service-account read. No enumeration needed.
 | Cloudflare (OpenClaw services) | `OpenClaw Services Cloudflare API Token` | `credential` |
 | Sparkle signing | `Nameplate Sparkle EdDSA` | `private key` |
 | Octopool | `Octopool Proxy Secret`, `Octopool Admin Token (OpenClaw account)` | `credential` |
-| GitHub PAT | `GitHub Personal Access Token`, `GitHub Personal Access Token Xcode 26` | `credential` |
 | Crabyard deploy | `Cloudflare OpenClaw Crabyard Deploy Token` | `credential` |
 | Hetzner (crabyard) | `API Key - Hetzner Cloud - OpenClaw - crabyard-ssh-gateway` | `credential` |
 | Anthropic (Peekaboo) | `Anthropic API Key - Peekaboo Live Test` | `credential` |
