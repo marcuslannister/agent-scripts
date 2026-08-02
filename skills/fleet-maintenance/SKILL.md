@@ -170,6 +170,8 @@ Invoke `$xcode-sync`; do not duplicate its install logic. Resolve current stable
 
 Verify product build, signature, first-launch state, selection, host compatibility, and free space. Report unsupported and unreachable Macs separately.
 
+Simulator hygiene is a required fleet invariant, not optional disk cleanup. Run the `$xcode-sync` simulator-hygiene audit on every reachable Mac. A host without Xcode/`simctl` is `not-applicable`; a host with Xcode is current only when Apple reports no outdated or unusable runtime images and no devices tied to unavailable runtimes. Repair only after checking for active Xcode work; the canonical action refuses while simulator devices are booted.
+
 ## Trash and disk
 
 Measure Trash on every run. Keep it read-only unless the current request explicitly says to clear/empty Trash. With that consent, empty only the current user's home-volume Trash after resolving and verifying the path:
@@ -201,7 +203,7 @@ Include these read-only checks in the report; mutations need separate authority:
 - FileVault, firewall, Gatekeeper, and SIP status drift
 - Developer ID certificate and important SSH credential expiry dates, never secret values
 
-Useful optional maintenance: stale package caches/logs, abandoned containers/VMs, old simulators/device support, orphaned launch agents, and large Downloads. Audit first; delete only with explicit scope.
+Useful optional maintenance: stale package caches/logs, abandoned containers/VMs, old device-support files not managed by CoreSimulator, orphaned launch agents, and large Downloads. Audit first; delete only with explicit scope.
 
 ## Finish
 

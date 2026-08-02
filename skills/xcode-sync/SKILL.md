@@ -22,6 +22,20 @@ ssh -o RequestTTY=no -o RemoteCommand=none HOST 'bash -s' \
 
 Treat unreachable hosts as pending, not synchronized. Try live Tailscale IP, Tailscale SSH, then mDNS/LAN only when network topology permits.
 
+## Simulator hygiene
+
+Every fleet Mac must pass the simulator-hygiene audit, including worker Macs where the correct result is `not-applicable` because Xcode and `simctl` are absent. Apple CoreSimulator's own classifications are authoritative: remove runtime images reported by `simctl runtime delete --outdated --dry-run` or `--unusable --dry-run`, plus simulator devices attached to unavailable runtimes. Do not classify a runtime as stale from its version number alone; stable and beta Xcodes can legitimately need different runtime generations on the same Mac.
+
+Run the dependency-light audit locally or stream it to a remote Mac:
+
+```bash
+skills/xcode-sync/scripts/xcode-simulator-hygiene.sh
+ssh -o RequestTTY=no -o RemoteCommand=none HOST 'bash -s' \
+  < skills/xcode-sync/scripts/xcode-simulator-hygiene.sh
+```
+
+The audit exits `1` for drift. After verifying the host identity and current Xcode work, repair with `--repair`; the action deletes unavailable devices and Apple's outdated/unusable runtime candidates, then re-audits. It refuses repair while a simulator device is booted. Do not use age-based runtime deletion, `--notUsedSinceDays`, or `all` for routine fleet maintenance.
+
 ## Inspect source
 
 Prefer the user's downloaded `.xip`; do not redownload it.
@@ -96,4 +110,4 @@ sudo env DEVELOPER_DIR="$app/Contents/Developer" xcodebuild -runFirstLaunch
 
 Recheck until status `0`. If sudo/admin UI is unavailable, the app is installed but not ready; report that distinction.
 
-Finish with a host matrix: macOS, desired version/build, installed path, selected path, signature, first-launch state, previous-major removal date, and skip/failure reason. Keep source archives unless deletion is explicitly requested.
+Finish with a host matrix: macOS, desired version/build, installed path, selected path, signature, first-launch state, simulator-hygiene state, previous-major removal date, and skip/failure reason. Keep source archives unless deletion is explicitly requested.

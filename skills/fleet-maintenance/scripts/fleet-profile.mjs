@@ -371,6 +371,12 @@ function validateInventory(inventory) {
   if (JSON.stringify(profileNames) !== JSON.stringify(["full", "worker"])) {
     errors.push(`profiles must be exactly full and worker; found: ${profileNames.join(", ") || "none"}`);
   }
+  for (const profileName of profileNames) {
+    const simulatorPolicy = inventory.profiles?.[profileName]?.requirements?.xcode_simulator_hygiene;
+    if (simulatorPolicy !== "no-outdated") {
+      errors.push(`${profileName}: xcode_simulator_hygiene must be no-outdated`);
+    }
+  }
   for (const [hostId, host] of Object.entries(inventory.hosts || {})) {
     if (!inventory.profiles?.[host.profile]) errors.push(`${hostId}: unknown profile ${host.profile}`);
     for (const account of host.accounts || []) {
