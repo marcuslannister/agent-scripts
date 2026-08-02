@@ -6,10 +6,12 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added the separately owned SF Mac Mini and distinguished its local/Tailscale names from FoundationClaw while its trusted SSH path remains pending.
+- Verified FoundationClaw's provider identity, installed Tailscale and Jump Desktop Connect v10, and documented its data-preserving credential-reset escalation before GUI activation.
 - Added ClawMac provider-outage triage that escalates console, NIC-link, and switch-port inspection without repeated power cycles or data-affecting recovery.
 - Restored MiniClaw's canonical Homebrew Tailscale node and removed its duplicate GUI identity from fleet guidance.
 - Removed obsolete Mac identities from remote fleet discovery guidance after pruning them from Tailscale.
-- Reconciled the remote-Mac topology with provider purchases, including FoundationClaw's pending bootstrap and MiniClaw's canonical Tailscale identity.
+- Reconciled the remote-Mac topology with provider purchases, including FoundationClaw's MacStadium identity and MiniClaw's canonical Tailscale identity.
 - Reserved GPT-5.6's maximum output budget in `codex-huge-context` and moved fleet compaction to a verified 922K input window with an 820K safety threshold.
 - Made `codex-first` treat the Gorilla-backed Clawdex endpoint as already model-routed, preventing recursive Codex delegation after the fleet proxy migration.
 - Added a secret-safe Codex direct-API preflight so million-token launches fail before an unauthenticated Responses request when a machine is missing its Keychain delivery copy.

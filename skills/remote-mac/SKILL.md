@@ -5,13 +5,13 @@ description: "Remote Macs: MacBooks, Mac Studios, hosted claw Macs, Tailscale, S
 
 # Remote Mac
 
-Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `megaclaw`, `miniclaw`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
+Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `foundationmac`, `megaclaw`, `miniclaw`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
 
 ## Peter's Topology
 
 - Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
 - London workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local` when on its LAN.
-- San Francisco workstations: `mac-studio-sf` (`100.72.210.5`) and `mac-studio-sf2` (`100.70.201.26`). Always prefer their live Tailscale addresses over these cached values.
+- San Francisco machines: `mac-studio-sf` (`100.72.210.5`), `mac-studio-sf2` (`100.70.201.26`), and the separately owned `mac-mini-sf` (local/Tailscale name `steipete-mini-sf`, `100.78.75.51`). Always prefer live Tailscale addresses over these cached values. The Mini's trusted SSH/account path and host-side Tailscale SSH handler are pending; do not confuse it with FoundationClaw.
 - Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), MacStadium service `100121942`, Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected. The current 2026-08-01 provider network outage is tracked by Atlanta remote hands on tickets #11481/#11484; one hard reboot restored SSH only briefly, so do not repeat power cycles.
 - Network split:
   - `corporate`: Peter's work-managed environment. Treat Mac Studio as the main remote Mac to configure and inspect there.
@@ -20,7 +20,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `me
 - Molty's former Mac Studio gateway is retired and must remain disabled; real Molty runs separately on Hetzner. Do not use the old Mac Studio runtime as a healthy-state expectation.
 - `megaclaw`: Virtualized.gg product 22 (Mac Studio M4 Max, Phoenix), the active alternate Mac worker. Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
 - `miniclaw`: Virtualized.gg product 24 (Mac mini M4 Pro, Phoenix). Its sole Tailscale identity is the canonical Homebrew-daemon node `miniclaw`; the GUI app login helper is disabled and must stay disabled while the bundle remains installed.
-- `foundationclaw`: MacStadium service 100124960, M2.L in Atlanta, public address recorded in `computers.yaml`. The provider lists it active, but it has no verified hostname, account, or Tailscale node yet. Treat all fleet setup as pending until first authenticated bootstrap.
+- `foundationclaw`: MacStadium service 100124960, M2.L in Atlanta, public address recorded in `computers.yaml`. Provider SSH verified a Mac14,12 M2 Pro Mac mini, hardware UUID, and the `administrator` admin account; its canonical local hostname is `foundationclaw`. Signed Tailscale and Jump Desktop Connect v10 are installed, but the previously working provider credential stopped authenticating and a data-preserving reset is pending on ticket #11386 before Tailscale enrollment and first-run GUI permissions can continue. Do not merge it with the separate SF Mini.
 
 Non-Mac fleet nodes (full detail in `computers.yaml`):
 
