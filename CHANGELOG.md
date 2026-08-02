@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `agent-tooling/update-agents.sh` now installs Claude Code (native installer) and Codex (`npm install -g @openai/codex`) when the binary is missing from `PATH`, instead of only updating an existing install; verifies the binary is runnable after install before reporting success.
+
 - Added `agent-tooling/update-local.sh`: agent CLI updates + offline distribute only, for secondary machines that pull already-committed staging changes instead of running the network acquire phase.
 
 - Ported the selection-preserving skills-matrix generator from Python to Bash/awk without changing its generated report, including Unicode character-based token estimates (#51).
