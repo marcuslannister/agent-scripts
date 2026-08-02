@@ -18,7 +18,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `me
   - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
 - Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
 - Molty's former Mac Studio gateway is retired and must remain disabled; real Molty runs separately on Hetzner. Do not use the old Mac Studio runtime as a healthy-state expectation.
-- `megaclaw`: Virtualized.gg product 22 (Mac Studio M4 Max, Phoenix), replacing retired `moltymac`. Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
+- `megaclaw`: Virtualized.gg product 22 (Mac Studio M4 Max, Phoenix), the active alternate Mac worker. Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
 - `miniclaw`: Virtualized.gg product 24 (Mac mini M4 Pro, Phoenix). Canonical Tailscale identity is `miniclaw`; `miniclaw-1` is a duplicate GUI identity for the same physical Mac, never a second inventory host.
 - `foundationclaw`: MacStadium service 100124960, M2.L in Atlanta, public address recorded in `computers.yaml`. The provider lists it active, but it has no verified hostname, account, or Tailscale node yet. Treat all fleet setup as pending until first authenticated bootstrap.
 
@@ -30,11 +30,6 @@ Non-Mac fleet nodes (full detail in `computers.yaml`):
 Not Peter's Macs (do not configure/brand as his):
 
 - `crabhammer`: Scaleway M4-XL given to vince; on Peter's tailnet + billing but provisioned for vince (no SSH access). Listed under `handed_off:` in `computers.yaml`.
-
-Unresolved tailnet identities (observe only):
-
-- `peters-macbook-air`, `steipete-air-m3`, and `apple-silicon-lucid-allen` are stale macOS identities without enough hardware/provider proof to merge into current inventory.
-- Never assume `apple-silicon-lucid-allen` is FoundationClaw merely from its generated name; MacStadium and Virtualized.gg show no matching current service, and Scaleway's only current Apple-silicon rental is Crabhammer's different provider identity.
 
 Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac):
 

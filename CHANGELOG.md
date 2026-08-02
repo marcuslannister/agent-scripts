@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Removed obsolete Mac identities from remote fleet discovery guidance after pruning them from Tailscale.
 - Reconciled the remote-Mac topology with provider purchases, including FoundationClaw's pending bootstrap and MiniClaw's duplicate Tailscale identity.
 - Reserved GPT-5.6's maximum output budget in `codex-huge-context` and moved fleet compaction to a verified 922K input window with an 820K safety threshold.
 - Made `codex-first` treat the Gorilla-backed Clawdex endpoint as already model-routed, preventing recursive Codex delegation after the fleet proxy migration.
