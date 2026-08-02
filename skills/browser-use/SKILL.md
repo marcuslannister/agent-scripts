@@ -1,6 +1,6 @@
 ---
 name: browser-use
-description: "Existing Chrome automation: Chrome plugin first, mcporter fallback."
+description: "Existing Chrome automation: Chrome plugin first; OpenClaw extension-backed mcporter fallback."
 ---
 
 # Browser Use
@@ -31,7 +31,120 @@ inspection, Worker smoke tests, or local Playwright are supporting proof only;
 do not treat them as equivalent when the user showed a rendered browser problem
 or the page may depend on login/profile state.
 
+## Prompt-free OpenClaw relay
+
+Current mcporter `main` can replace `chrome-devtools-mcp --autoConnect` with the
+paired OpenClaw extension relay. This keeps the real Chrome profile while
+avoiding Chrome's blocking **Allow remote debugging?** dialog.
+
+Use this route when the OpenClaw checkout and extension are available:
+
+The examples use an installed `openclaw` command. If it is absent, run the
+same arguments as `pnpm -s openclaw ...` from `~/Projects/openclaw`.
+
+1. Resolve and verify the unpacked extension directory before presenting it:
+
+   ```bash
+   extension_dir="$(openclaw browser extension path)"
+   if [ ! -f "$extension_dir/manifest.json" ]; then
+     extension_dir="$HOME/Projects/openclaw/extensions/browser/chrome-extension"
+   fi
+   test -f "$extension_dir/manifest.json"
+   printf '%s\n' "$extension_dir"
+   ```
+
+   A source checkout may report an unstaged `dist/extensions/...` path. Never
+   hand that path to the user unless `manifest.json` exists. The verified source
+   fallback is `~/Projects/openclaw/extensions/browser/chrome-extension`.
+
+2. In the real Chrome profile, open `chrome://extensions`, enable Developer
+   mode, choose **Load unpacked**, and select the verified directory. Use
+   Peekaboo for UI automation or give the user the exact verified path.
+
+3. Start or reach the OpenClaw gateway/browser service, then generate and paste
+   the pairing string with `openclaw browser extension pair`. Pairing strings
+   contain a host-local secret: never print one in chat or tool output. For
+   automated local pairing, extract `pairingString` from `--json` directly into
+   `pbcopy`, paste only into the confirmed OpenClaw popup, and clear the
+   clipboard immediately afterward.
+
+4. Run `openclaw browser status --browser-profile chrome --json` to activate
+   the browser sidecar when necessary. The extension popup must say
+   **Connected to OpenClaw**. Share one controlled tab; success moves it into
+   the orange **OpenClaw** tab group.
+
+5. Confirm the mcporter definition is still the normal auto-connect form:
+
+   ```bash
+   mcporter config get chrome-devtools
+   # Transport should include: chrome-devtools-mcp ... --autoConnect
+   ```
+
+   Do not manually replace the server definition with a token-bearing command.
+   mcporter reads `~/.openclaw/credentials/browser-extension-relay.secret`,
+   probes the relay, and rewrites the child arguments in memory.
+
+6. Use a mcporter build that contains the relay rewrite. When testing current
+   source rather than the installed binary:
+
+   ```bash
+   cd "$HOME/Projects/mcporter"
+   pnpm install
+   pnpm build
+   node dist/cli.js --version
+   ```
+
+   Call that `node dist/cli.js` entry point for the proof; an older global
+   `mcporter` binary does not prove current `main`.
+
+The default relay URL is `http://127.0.0.1:18799`. A custom gateway port can
+produce a different relay port; read `relayPort` from
+`openclaw browser extension pair --json` and pass only the non-secret URL:
+
+```bash
+relay_port=18799 # replace with the reported relayPort when non-default
+MCPORTER_CHROME_DEVTOOLS_RELAY_URL="http://127.0.0.1:$relay_port" \
+  mcporter call chrome-devtools.list_pages --args '{}' --output text
+```
+
+If OpenClaw uses a custom `OPENCLAW_STATE_DIR`, pass the same variable to
+mcporter so it can find the relay secret. Never display the secret itself.
+
+### Relay proof
+
+After sharing a controlled tab, prove read and write access through the normal
+`--autoConnect` definition:
+
+```bash
+mcporter call chrome-devtools.list_pages --args '{}' --output text
+mcporter call chrome-devtools.navigate_page \
+  --args '{"url":"https://example.com/?mcporter-relay-proof=1"}' --output text
+mcporter call chrome-devtools.evaluate_script \
+  --args '{"function":"() => ({title: document.title, href: location.href})"}' \
+  --output text
+```
+
+Success requires all of the following:
+
+- `list_pages` shows the explicitly shared real-profile tab, not an isolated
+  blank Chrome.
+- navigation and evaluation return the proof URL from that tab.
+- Chrome does not show the blocking **Allow remote debugging?** dialog.
+- Chrome may show the dismissible **"OpenClaw" started debugging this browser**
+  banner with a **Cancel** button. That banner is expected; Cancel revokes the
+  tab share and is not the MCP attach alert.
+
+If the blocking remote-debugging dialog appears while the extension is paired,
+treat the relay rewrite as failed. Check the mcporter binary, relay URL, shared
+tab, secret location, and relay reachability before clicking anything. Do not
+count a fallback `--autoConnect` attachment as success for this flow.
+
 ## Check MCP
+
+The attach-alert recovery below is only for the direct/legacy `--autoConnect`
+path when the extension relay is unavailable. During an OpenClaw relay proof,
+do not click **Allow remote debugging?**; its appearance means the rewrite did
+not apply.
 
 ```bash
 mcporter list chrome-devtools --schema
