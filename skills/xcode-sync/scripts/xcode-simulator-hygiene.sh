@@ -17,14 +17,15 @@ esac
 host_name=$(hostname)
 developer_dir=$(xcode-select -p 2>/dev/null || true)
 simctl=""
+xcode_app_count=0
 if [[ -n $developer_dir ]]; then
   simctl=$(DEVELOPER_DIR="$developer_dir" xcrun --find simctl 2>/dev/null || true)
 fi
 
 if [[ -z $simctl ]]; then
   shopt -s nullglob
-  xcode_apps=(/Applications/Xcode*.app "$HOME"/Applications/Xcode*.app)
-  for app in "${xcode_apps[@]}"; do
+  for app in /Applications/Xcode*.app "$HOME"/Applications/Xcode*.app; do
+    xcode_app_count=$((xcode_app_count + 1))
     candidate_developer="$app/Contents/Developer"
     candidate_simctl=$(DEVELOPER_DIR="$candidate_developer" xcrun --find simctl 2>/dev/null || true)
     if [[ -n $candidate_simctl ]]; then
@@ -38,7 +39,7 @@ fi
 if [[ -z $simctl ]]; then
   printf 'host\t%s\n' "$host_name"
   printf 'simctl\tabsent\n'
-  if [[ ${#xcode_apps[@]} -gt 0 ]]; then
+  if [[ $xcode_app_count -gt 0 ]]; then
     printf 'status\tblocked-xcode-not-ready\n'
     exit 1
   fi
