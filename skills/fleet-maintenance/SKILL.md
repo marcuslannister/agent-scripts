@@ -128,6 +128,8 @@ Skip only if Homebrew is absent. Running agents/services do not block package mu
 
 First render the host's resolved profile to a temporary Brewfile and run `brew bundle check --verbose --file FILE`. Review missing entries. `brew bundle install --file FILE` may install or upgrade declared dependencies. Never run `brew bundle cleanup --force`; extras are allowed under the default `minimum` policy. Remove an entry only through an explicitly approved prune action.
 
+Homebrew 6 can refuse third-party formulae until they are trusted. If that happens, verify each formula is already declared in the resolved fleet profile, then grant trust to those exact formula names with `brew trust --formula ...`. Never trust an entire tap or a formula discovered only from the remote tap. Record the resulting trust list with `brew trust --json v1` and resume the same generated Brewfile.
+
 ```bash
 brew update
 brew outdated --json=v2
