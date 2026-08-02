@@ -124,7 +124,7 @@ A same-value CLI override such as `codex -c 'model_provider="openai_api_direct"'
 
 Use `$fleet-maintenance` and `$remote-mac` first. Read `~/Projects/manager/computers.yaml`, use live Tailscale state, deduplicate by hardware UUID, and exclude handed-off hosts. Audit all reachable hosts before mutation; mutate one host at a time.
 
-Peter's current personal Mac scope is MacBook Pro, Mac Studio, ClawMac, MegaClaw, and MiniClaw. Verify identity and the `agent-scripts` checkout before changing any remote files. Keep a per-host result with:
+Peter's current personal Mac scope is MacBook Pro; the London and two San Francisco Mac Studios; ClawMac; FoundationClaw; MegaClaw; and MiniClaw. FoundationClaw is provider-active but bootstrap-pending, and MiniClaw's `miniclaw`/`miniclaw-1` Tailscale identities are one physical host. Verify identity and the `agent-scripts` checkout before changing any remote files. Keep a per-host result with:
 
 - config and catalogue backups;
 - root safe input, compaction threshold, and scope;

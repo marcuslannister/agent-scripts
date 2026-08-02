@@ -1,23 +1,26 @@
 ---
 name: remote-mac
-description: "Remote Macs: MacBook, Mac Studio, clawmac, megaclaw, Tailscale, SSH, OpenClaw."
+description: "Remote Macs: MacBooks, Mac Studios, hosted claw Macs, Tailscale, SSH, and OpenClaw."
 ---
 
 # Remote Mac
 
-Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `megaclaw`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
+Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `megaclaw`, `miniclaw`, `Molty`, Tailscale, or asks to run/check something on one of Peter's Macs.
 
 ## Peter's Topology
 
 - Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
-- Corporate workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local`.
+- London workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local` when on its LAN.
+- San Francisco workstations: `mac-studio-sf` (`100.72.210.5`) and `mac-studio-sf2` (`100.70.201.26`). Always prefer their live Tailscale addresses over these cached values.
 - Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected.
 - Network split:
   - `corporate`: Peter's work-managed environment. Treat Mac Studio as the main remote Mac to configure and inspect there.
   - `personal`: Peter's personal LAN / personal cloud environment, including `clawmac`.
 - Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
-- Molty: runs on Mac Studio when healthy. Expected runtime is tmux session `openclaw-gateway-watch-main` from `/Users/steipete/clawdbot` with `pnpm gateway:watch --benchmark`, LAN bind `*:18789`, Discord bot `Molty`, plus Slack and Telegram connected.
-- `megaclaw`: alternate Mac node, replaced retired `moltymac` (2026-07-05). Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
+- Molty's former Mac Studio gateway is retired and must remain disabled; real Molty runs separately on Hetzner. Do not use the old Mac Studio runtime as a healthy-state expectation.
+- `megaclaw`: Virtualized.gg product 22 (Mac Studio M4 Max, Phoenix), replacing retired `moltymac`. Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
+- `miniclaw`: Virtualized.gg product 24 (Mac mini M4 Pro, Phoenix). Canonical Tailscale identity is `miniclaw`; `miniclaw-1` is a duplicate GUI identity for the same physical Mac, never a second inventory host.
+- `foundationclaw`: MacStadium service 100124960, M2.L in Atlanta, public address recorded in `computers.yaml`. The provider lists it active, but it has no verified hostname, account, or Tailscale node yet. Treat all fleet setup as pending until first authenticated bootstrap.
 
 Non-Mac fleet nodes (full detail in `computers.yaml`):
 
@@ -28,6 +31,11 @@ Not Peter's Macs (do not configure/brand as his):
 
 - `crabhammer`: Scaleway M4-XL given to vince; on Peter's tailnet + billing but provisioned for vince (no SSH access). Listed under `handed_off:` in `computers.yaml`.
 
+Unresolved tailnet identities (observe only):
+
+- `peters-macbook-air`, `steipete-air-m3`, and `apple-silicon-lucid-allen` are stale macOS identities without enough hardware/provider proof to merge into current inventory.
+- Never assume `apple-silicon-lucid-allen` is FoundationClaw merely from its generated name; MacStadium and Virtualized.gg show no matching current service.
+
 Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac):
 
 - `/Users/steipete/Projects/manager/computers.yaml`
@@ -36,16 +44,17 @@ Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac)
 ## Discovery
 
 1. Start with live `tailscale status --json`; match hostname/DNS name and use the node's current IP. Manager-cached Tailscale IPs may be stale.
-2. In the `corporate` environment, default to Mac Studio for remote configuration work. Reach it through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery from there.
-3. In the `personal` environment, if Tailscale is down or SSH times out, try LAN discovery:
+2. For rented Macs, reconcile the live identity with the provider service/product record in `computers.yaml`. Provider-active does not mean fleet-configured, and a public IP alone is not enough to merge identities.
+3. In the `corporate` environment, default to Mac Studio for remote configuration work. Reach it through its live Tailscale node. MagicDNS may be disabled; use the current `TailscaleIPs[0]` directly. Do not try `clawmac`, mDNS, or personal-LAN discovery from there.
+4. In the `personal` environment, if Tailscale is down or SSH times out, try LAN discovery:
 
 ```bash
 dns-sd -B _ssh._tcp local
 arp -a
 ```
 
-4. Try mDNS names such as `HOST.local` only when on the same LAN.
-5. If Mac Studio's live Tailscale node is offline from the `corporate` environment, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
+5. Try mDNS names such as `HOST.local` only when on the same LAN.
+6. If Mac Studio's live Tailscale node is offline from the `corporate` environment, stop: it must wake or reconnect before SSH or Screen Sharing diagnosis can continue.
 
 ## SSH Rules
 
