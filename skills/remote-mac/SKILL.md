@@ -19,7 +19,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `me
 - Network boundary: `clawmac` and the personal LAN are unreachable from Peter's corporate Mac. Never use `clawmac` as a relay or LAN vantage from there.
 - Molty's former Mac Studio gateway is retired and must remain disabled; real Molty runs separately on Hetzner. Do not use the old Mac Studio runtime as a healthy-state expectation.
 - `megaclaw`: Virtualized.gg product 22 (Mac Studio M4 Max, Phoenix), the active alternate Mac worker. Tailscale/SSH `steipete@megaclaw`. No OpenClaw gateway by design — the personal claw runs on `clawmac`; do not configure or start one on `megaclaw`.
-- `miniclaw`: Virtualized.gg product 24 (Mac mini M4 Pro, Phoenix). Canonical Tailscale identity is `miniclaw`; `miniclaw-1` is a duplicate GUI identity for the same physical Mac, never a second inventory host.
+- `miniclaw`: Virtualized.gg product 24 (Mac mini M4 Pro, Phoenix). Its sole Tailscale identity is the canonical Homebrew-daemon node `miniclaw`; the GUI app login helper is disabled and must stay disabled while the bundle remains installed.
 - `foundationclaw`: MacStadium service 100124960, M2.L in Atlanta, public address recorded in `computers.yaml`. The provider lists it active, but it has no verified hostname, account, or Tailscale node yet. Treat all fleet setup as pending until first authenticated bootstrap.
 
 Non-Mac fleet nodes (full detail in `computers.yaml`):
