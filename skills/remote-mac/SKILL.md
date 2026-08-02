@@ -34,7 +34,7 @@ Not Peter's Macs (do not configure/brand as his):
 Unresolved tailnet identities (observe only):
 
 - `peters-macbook-air`, `steipete-air-m3`, and `apple-silicon-lucid-allen` are stale macOS identities without enough hardware/provider proof to merge into current inventory.
-- Never assume `apple-silicon-lucid-allen` is FoundationClaw merely from its generated name; MacStadium and Virtualized.gg show no matching current service.
+- Never assume `apple-silicon-lucid-allen` is FoundationClaw merely from its generated name; MacStadium and Virtualized.gg show no matching current service, and Scaleway's only current Apple-silicon rental is Crabhammer's different provider identity.
 
 Manager repo source of truth (canonical inventory of all nodes, Mac and non-Mac):
 
