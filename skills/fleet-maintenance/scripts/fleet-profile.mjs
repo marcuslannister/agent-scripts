@@ -224,6 +224,29 @@ function collectTools() {
   });
 }
 
+function collectClaudeAttribution() {
+  const settingsFile = path.join(os.homedir(), ".claude", "settings.json");
+  if (!fs.existsSync(settingsFile)) {
+    return { configured: false, state: "missing" };
+  }
+  try {
+    const settings = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+    const attribution = settings?.attribution;
+    const commitDisabled = attribution?.commit === "";
+    const prDisabled = attribution?.pr === "";
+    const sessionUrlDisabled = attribution?.sessionUrl === false;
+    return {
+      configured: commitDisabled && prDisabled && sessionUrlDisabled,
+      state: "valid",
+      commit: commitDisabled ? "disabled" : "enabled",
+      pr: prDisabled ? "disabled" : "enabled",
+      session_url: sessionUrlDisabled ? "disabled" : "enabled",
+    };
+  } catch {
+    return { configured: false, state: "invalid" };
+  }
+}
+
 function collect() {
   const hardware = run("/usr/sbin/ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"]);
   const uuid = hardware.match(/"IOPlatformUUID"\s*=\s*"([^"]+)"/)?.[1] || null;
@@ -254,6 +277,7 @@ function collect() {
       filevault: /is on/i.test(fileVaultStatus) ? "on" : /is off/i.test(fileVaultStatus) ? "off" : "unknown",
     },
     configuration: {
+      claude_attribution: collectClaudeAttribution(),
       git_signing: {
         configured: gitSigningFormat === "ssh" && Boolean(gitSigningKey) && /^(true|yes|on|1)$/i.test(gitCommitSigning),
         format: gitSigningFormat || null,
@@ -346,6 +370,9 @@ function planProfile(inventory, hostId, snapshot) {
   if (requirements.git_signing === true && snapshot.configuration?.git_signing?.configured !== true) {
     configurationIssues.push("Git SSH commit signing is not fully configured");
   }
+  if (requirements.claude_attribution === "none" && snapshot.configuration?.claude_attribution?.configured !== true) {
+    configurationIssues.push("Claude commit, pull-request, or session attribution is enabled");
+  }
   return {
     profile: inventory.hosts[hostId].profile,
     missing_taps: (brew.taps || []).filter((name) => !installedTaps.has(name)),
@@ -397,6 +424,10 @@ function validateInventory(inventory) {
     errors.push(`profiles must be exactly full and worker; found: ${profileNames.join(", ") || "none"}`);
   }
   for (const profileName of profileNames) {
+    const attributionPolicy = inventory.profiles?.[profileName]?.requirements?.claude_attribution;
+    if (attributionPolicy !== "none") {
+      errors.push(`${profileName}: claude_attribution must be none`);
+    }
     const simulatorPolicy = inventory.profiles?.[profileName]?.requirements?.xcode_simulator_hygiene;
     if (simulatorPolicy !== "no-outdated") {
       errors.push(`${profileName}: xcode_simulator_hygiene must be no-outdated`);

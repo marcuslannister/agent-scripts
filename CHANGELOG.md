@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added a fleet audit and repair action that disables Claude commit, pull-request, and session-link attribution while preserving unrelated settings and detecting higher-precedence overrides.
 - Added narrow Homebrew 6 trust handling for exact third-party formulae already declared in a fleet profile.
 - Made Apple-classified outdated/unusable Xcode runtimes and unavailable simulator devices required fleet drift, with a booted-device-safe audit and repair action.
 - Established the SF Mini's classic OpenSSH fleet path, documented symmetric tailnet TCP 22 policy and proof rules, and recorded the MiniClaw duplicate-daemon regression and public-SSH fallback.
