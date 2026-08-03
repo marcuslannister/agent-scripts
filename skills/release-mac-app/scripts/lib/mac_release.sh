@@ -50,7 +50,8 @@ mac_release_tmux_quote() {
 mac_release_load_1password_env() {
   set +vx
   local mode=${1:-all} codesign_passwordless=${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}
-  local primary_missing=0 codesign_missing=0 release_op_field
+  local primary_missing=0 codesign_missing=0 env_refs_missing=0 release_op_field
+  local env_ref_entry env_ref_name
   [[ "$mode" == "all" || "$mode" == "codesign-only" ]] ||
     mac_release_die "Unknown 1Password load mode: $mode"
   if [[ "$codesign_passwordless" == "1" ]]; then
@@ -70,11 +71,29 @@ mac_release_load_1password_env() {
       [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || codesign_missing=1
     fi
   fi
-  if [[ "$primary_missing" != "1" && "$codesign_missing" != "1" ]]; then
+  # Extra env refs: ';'-separated NAME=op://Vault/Item/field entries (item names
+  # may contain spaces, so whitespace cannot be the separator).
+  if [[ "$mode" == "all" && -n "${MAC_RELEASE_OP_ENV_REFS:-}" ]]; then
+    while IFS= read -r env_ref_entry; do
+      [[ -n "${env_ref_entry// /}" ]] || continue
+      env_ref_name=${env_ref_entry%%=*}
+      [[ "$env_ref_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] ||
+        mac_release_die "Invalid MAC_RELEASE_OP_ENV_REFS name: $env_ref_name"
+      [[ "${env_ref_entry#*=}" == op://* ]] ||
+        mac_release_die "MAC_RELEASE_OP_ENV_REFS entry for $env_ref_name must be an op:// reference"
+      [[ -n "${!env_ref_name:-}" ]] || env_refs_missing=1
+    done < <(tr ';' '\n' <<<"${MAC_RELEASE_OP_ENV_REFS}")
+  fi
+  if [[ "$primary_missing" != "1" && "$codesign_missing" != "1" && "$env_refs_missing" != "1" ]]; then
     if [[ "$mode" == "all" ]]; then
       for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
         export "${release_op_field?}"
       done
+      while IFS= read -r env_ref_entry; do
+        [[ -n "${env_ref_entry// /}" ]] || continue
+        env_ref_name=${env_ref_entry%%=*}
+        export "${env_ref_name?}"
+      done < <(tr ';' '\n' <<<"${MAC_RELEASE_OP_ENV_REFS:-}")
     fi
     if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
       export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
@@ -216,6 +235,19 @@ if (!passwordless) {
 NODE
 fi
 
+if [[ "${MAC_RELEASE_OP_ENV_REFS_READ:-0}" == "1" && -n "${MAC_RELEASE_OP_ENV_REFS:-}" ]]; then
+  while IFS= read -r env_ref_entry; do
+    [[ -n "${env_ref_entry// /}" ]] || continue
+    env_ref_name=${env_ref_entry%%=*}
+    env_ref_uri=${env_ref_entry#*=}
+    env_ref_value=$(op read "$env_ref_uri" 2>>"$log_file") ||
+      { echo "op read failed for $env_ref_name" >&2; exit 1; }
+    [[ -n "$env_ref_value" ]] || { echo "empty 1Password value for $env_ref_name" >&2; exit 1; }
+    printf "export %s='%s'\n" "$env_ref_name" "${env_ref_value//\'/\'\\\'\'}" >>"$env_file"
+    echo "$env_ref_name: len=${#env_ref_value}" >&2
+  done < <(tr ';' '\n' <<<"${MAC_RELEASE_OP_ENV_REFS}")
+fi
+
 chmod 600 "$env_file"
 echo "1Password fields exported: $(wc -l <"$env_file" | tr -d ' ')"
 SCRIPT
@@ -239,6 +271,8 @@ SCRIPT
     printf 'export MAC_RELEASE_CODESIGN_PASSWORDLESS=%q\n' "$codesign_passwordless"
     printf 'export MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT=%q\n' "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT-${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}}"
     printf 'export MAC_RELEASE_CODESIGN_OP_READ=%q\n' "$codesign_missing"
+    printf 'export MAC_RELEASE_OP_ENV_REFS=%q\n' "${MAC_RELEASE_OP_ENV_REFS:-}"
+    printf 'export MAC_RELEASE_OP_ENV_REFS_READ=%q\n' "$env_refs_missing"
     printf 'export MAC_RELEASE_OP_ENV_FILE=%q\n' "$env_file"
     printf 'export MAC_RELEASE_OP_LOG_FILE=%q\n' "$log_file"
     printf 'bash %q\n' "$script"
