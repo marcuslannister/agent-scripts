@@ -428,6 +428,10 @@ function validateInventory(inventory) {
     if (attributionPolicy !== "none") {
       errors.push(`${profileName}: claude_attribution must be none`);
     }
+    const agentCliPolicy = inventory.profiles?.[profileName]?.requirements?.agent_clis;
+    if (agentCliPolicy !== "authenticated") {
+      errors.push(`${profileName}: agent_clis must be authenticated`);
+    }
     const simulatorPolicy = inventory.profiles?.[profileName]?.requirements?.xcode_simulator_hygiene;
     if (simulatorPolicy !== "no-outdated") {
       errors.push(`${profileName}: xcode_simulator_hygiene must be no-outdated`);
