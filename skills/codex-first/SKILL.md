@@ -1,6 +1,6 @@
 ---
 name: codex-first
-description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Direct hands-on delegation requires ANTHROPIC_BASE_URL to be unset or neither loopback nor gorillaclaw.sheep-coho.ts.net. Codex-backed autoreview is always allowed and preferred, independent of environment."
+description: "Claude Code-only work routing: delegate implementation, fixing, exploratory subagents, rebasing, and PR merging/landing to Codex CLI while Claude specifies, decides, reviews, and verifies. Gate is model-first: if the session's own model is a native Claude model (Fable/Opus/Sonnet/Haiku), delegate regardless of ANTHROPIC_BASE_URL; if it is a non-Claude routed model, work directly. Base-URL loopback check is only the fallback when the model cannot be identified. Codex-backed autoreview is always allowed and preferred, independent of environment."
 ---
 
 # Codex First
@@ -14,15 +14,33 @@ parent session is router-backed. This exception takes precedence over the gate
 below.
 
 For direct hands-on delegation, use this skill only when the active agent is
-Claude Code **and** `ANTHROPIC_BASE_URL` is either unset or its URL host is
-neither loopback nor `gorillaclaw.sheep-coho.ts.net`.
+Claude Code **and** the session is running on a native Claude model.
 
-Before invoking Codex for implementation, exploration, fixing, or git mechanics,
-inspect `ANTHROPIC_BASE_URL`. If its URL host is `gorillaclaw.sheep-coho.ts.net`
-(the Clawdex router), `localhost`, ends in `.localhost`, is in `127.0.0.0/8`, or
-is IPv6 loopback `::1`, stop here: the session is already router-backed or may
-be model-routed through a local proxy. Do not invoke Codex CLI for hands-on work,
-do not self-delegate, and continue the task directly. If the variable cannot be
+**Model check (primary).** The point of the gate is model economics: Claude
+tokens are metered and expensive, so hands-on work moves to Codex; but if the
+session is already routed to a cheaper/other model, delegation gains nothing.
+Decide by the model the session actually runs on, not by the transport:
+
+1. Read the model id from the system prompt's environment section ("You are
+   powered by the model …"). Router-wrapped ids may be opaque
+   (`claude-ccr-<hex>`); the hex suffix is often ASCII — decode it
+   (`echo <hex> | xxd -r -p`) to reveal the underlying route, e.g.
+   `Gorilla CCP/native-claude-fable-5`.
+2. If the resolved model is a native Claude model (contains `claude`, `fable`,
+   `opus`, `sonnet`, or `haiku`, including `native-claude-*` router routes):
+   **delegate hands-on work to Codex.** This applies even when
+   `ANTHROPIC_BASE_URL` is loopback or a local router (Gorilla Claw, Clawdex)
+   — a router in front of a real Claude model is still expensive Claude.
+3. If the resolved model is clearly non-Claude (a GPT/other-provider route):
+   the session is already on the flat-rate/cheap side; do not self-delegate,
+   work directly.
+
+**Base-URL fallback (only when the model cannot be identified).** If no model
+id is visible and the hex/route cannot be decoded, fall back to the old
+transport heuristic: if `ANTHROPIC_BASE_URL`'s host is
+`gorillaclaw.sheep-coho.ts.net`, `localhost`, ends in `.localhost`, is in
+`127.0.0.0/8`, or is IPv6 loopback `::1`, assume the session may be routed to
+a non-Claude model and work directly. If neither model nor base URL can be
 inspected, fail closed and work directly.
 
 Codex, ChatGPT, Pi, and every other harness: do not invoke Codex CLI for hands-on
