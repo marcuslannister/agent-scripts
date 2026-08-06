@@ -59,11 +59,6 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 ## Helpers
 
-`scripts/committer`
-- Stages exactly the listed files.
-- Enforces a non-empty commit message.
-- Runs skill validation before committing.
-
 `scripts/sync-skills`
 - Builds the per-machine skill mirror: Codex whole-root links, Claude flat per-skill links, shared `AGENTS.MD` pointers.
 - Idempotent; prints changes only, prunes broken/stale managed links, never clobbers real files.

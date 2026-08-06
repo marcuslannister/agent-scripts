@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Removed the obsolete scoped-commit helper and returned commit recipes to standard Git now that agent work uses isolated worktrees.
 - Made the million-token Codex provider and context settings an explicit atomic invariant, with a fatal preflight diagnostic for the unrecoverable `openai` plus 922K/700K split configuration.
 - Added a fleet audit and repair action that disables Claude commit, pull-request, and session-link attribution while preserving unrelated settings and detecting higher-precedence overrides.
 - Added narrow Homebrew 6 trust handling for exact third-party formulae already declared in a fleet profile.
@@ -149,7 +150,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## 2025-11-08 — Guardrail Sync & Docs Hardening
 - Synced guardrail helpers with Sweetistics so downstream repos share the same runner, docs-list helper, and supporting scripts.
 - Expanded README guidance around runner usage, portability, and multi-repo sync expectations.
-- Added committer lock cleanup, tightened path ignores, and refreshed misc. helper utilities (e.g., `toArray`) to reduce drift across repos.
+- Tightened path ignores and refreshed misc. helper utilities (e.g., `toArray`) to reduce drift across repos.
 
 ## 2025-11-08 — Initial Toolkit Import
 - Established the repo with the Sweetistics guardrail toolkit (runner, git policy enforcement, docs-list helper, etc.).

@@ -97,7 +97,6 @@
 - Branch change needs user consent or user-invoked workflow authorization.
 - Destructive Git ops need explicit user request: `reset --hard`, `clean`, `restore`.
 - Task-scoped file deletion allowed. Never delete/overwrite unknown or unrelated user data.
-- Commit helper on PATH: `committer` (bash); prefer it. Repo `./scripts/committer` wins.
 - Commit style: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
 - No repo-wide search/replace scripts. Small reviewable edits.
 - No amend unless asked.

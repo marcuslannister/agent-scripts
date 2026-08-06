@@ -62,7 +62,7 @@ Prefer current source and executable proof over issue comments. Treat stale comm
 For bug/regression reviews, include a compact `Provenance:` answer when feasible:
 
 - Use `git log -S/-G`, `git blame`, linked PRs/issues, and tests.
-- Separate author, committer/merger, and current PR author when they differ.
+- Separate commit author, merger, and current PR author when they differ.
 - Phrase as `introduced by`, `made visible by`, or `carried forward by`.
 - Include confidence: `clear`, `likely`, or `unknown`.
 - For features, docs, refactors, or untraceable bugs, write `N/A` or say what evidence is missing.

@@ -53,10 +53,11 @@ git rebase "temp/landpr-$prnum"
 5) Gate (before commit)
 - Run full repo gate (lint/typecheck/tests/docs). Example: `pnpm lint && pnpm build && pnpm test`.
 
-6) Commit (via `committer`)
+6) Commit
 
 ```sh
-committer "fix: <summary> (#$prnum) (thanks @$contrib)" CHANGELOG.md <changed files>
+git add CHANGELOG.md <changed files>
+git commit -m "fix: <summary> (#$prnum) (thanks @$contrib)"
 land_sha=$(git rev-parse HEAD)
 ```
 
