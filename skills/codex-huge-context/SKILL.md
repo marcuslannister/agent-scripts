@@ -14,6 +14,14 @@ Codex connectors -> normal ChatGPT login in auth.json
 
 This is not an HTTP proxy. The API remains authoritative for access, actual model limits, and billing.
 
+## Atomic provider and context invariant
+
+Treat the provider selector, context window, compaction threshold, and custom model catalogue as one atomic configuration. Never combine `model_provider = "openai"` with the direct-API `922000` context window and `700000` compaction threshold. The built-in `openai` route is the ChatGPT-backed provider, not the million-token direct Responses API route.
+
+That split configuration makes Codex advertise about 875,900 usable tokens to itself and postpone compaction until 700,000 tokens even though the selected provider can reject the request much earlier. A browser- or Computer Use-heavy thread can therefore grow past the provider's real limit without a single compaction, receive `context_length_exceeded`, and become unable to compact because the compaction request itself no longer fits.
+
+The required preflight treats this mismatch as fatal. Do not launch or resume Codex after any config writer, app settings change, model change, or fleet sync until the preflight passes. If it reports an unsafe split configuration, restore `model_provider = "openai_api_direct"`, restart every Codex desktop/shared app server, and start or fork a fresh thread. Resuming the failed thread preserves its recorded provider.
+
 ## Safe input window
 
 GPT-5.6 Sol exposes a 1,050,000-token total context window and can produce up to 128,000 output tokens. Codex does not set a smaller output budget on normal Responses API turns, so the catalogue must describe the safe input allowance rather than the raw total:
@@ -97,6 +105,8 @@ ruby ~/.codex/skills/agent-scripts/codex-huge-context/scripts/preflight.rb
 
 Do not mark a rollout complete or launch Codex when this fails. With `requires_openai_auth = false`, a missing Keychain delivery copy cannot fall back to the normal Codex login: the direct provider can reach `api.openai.com/v1/responses` without a bearer header and surface an opaque HTTP 401 instead. The preflight fails earlier with the bootstrap action needed. An unset `GITHUB_PAT_TOKEN` warning is independent and non-blocking for inference; it explains a concurrent GitHub MCP startup failure but must not be confused with OpenAI API authentication.
 
+The preflight's provider check is not cosmetic. A machine with the direct provider table and million-token catalogue present but root `model_provider = "openai"` is broken, even when every numeric value is otherwise correct.
+
 ## ChatGPT connector login
 
 `requires_openai_auth = false` applies only to the custom inference provider. The root Codex login must remain ChatGPT-authenticated for ChatGPT-connected plugins to work:
@@ -153,6 +163,7 @@ For final TUI proof, send the prompt text and Enter as separate terminal actions
 
 ## Failure policy
 
+- Preflight reports an unsafe split configuration: set the root provider to `openai_api_direct`; do not lower the direct-route threshold or leave the 922K/700K overrides attached to `openai`. Restart all app servers and use a fresh or forked thread because existing session metadata preserves the old provider.
 - API response still clamps or rejects a request: record the server response; do not claim a client catalogue override changed server entitlement.
 - Context overflow below 700,000 active tokens: preserve the session file and inspect the last token-accounting events before lowering the threshold further.
 - Context overflow above 700,000 without compaction: verify the running app-server version and loaded configuration; an old server can retain the previous threshold.

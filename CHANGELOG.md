@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Made the million-token Codex provider and context settings an explicit atomic invariant, with a fatal preflight diagnostic for the unrecoverable `openai` plus 922K/700K split configuration.
 - Added a fleet audit and repair action that disables Claude commit, pull-request, and session-link attribution while preserving unrelated settings and detecting higher-precedence overrides.
 - Added narrow Homebrew 6 trust handling for exact third-party formulae already declared in a fleet profile.
 - Made Apple-classified outdated/unusable Xcode runtimes and unavailable simulator devices required fleet drift, with a booted-device-safe audit and repair action.
