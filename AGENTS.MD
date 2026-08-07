@@ -11,6 +11,7 @@
 
 ## Core
 
+- Create or enter a plan only when the user explicitly asks for one; otherwise proceed directly.
 - Workspace: `~/Projects`. Missing steipete repo: clone `https://github.com/steipete/<repo>.git`. Other OSS: `~/Projects/oss`.
 - `../agent-skills` = canonical public OpenClaw skills, `https://github.com/openclaw/agent-skills`; never `steipete/agent-skills`.
 - "Make a note" here = terse `AGENTS.MD` edit. No separate `CLAUDE.md`.
