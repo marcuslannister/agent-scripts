@@ -3,7 +3,7 @@
 topology_help() {
   local command_name="${TOPOLOGY_COMMAND_NAME:-update-skill-topology.sh}"
   cat <<EOF
-Usage: ${command_name} [--check] [--json]
+Usage: ${command_name} [--check] [--json] [--plugins-only]
 
 Acquire phase: refresh upstream sources, mirror complete inventories into tracked
 staging, and reconcile native plugins. Selection-blind — never reads the skills
@@ -12,6 +12,10 @@ matrix, never writes overrides, never touches agent surfaces, never runs git.
 Options:
   --check  Preview upstream drift without writes.
   --json   Write one JSON result document.
+  --plugins-only
+           Reconcile native plugins only; skip every staging-bearing source so
+           tracked staging is never written. For secondary machines, which pull
+           staging via git but must still refresh their own plugins.
   -h, --help
             Show this help.
 

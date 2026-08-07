@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Fixed `agent-tooling/update-local.sh` never updating native plugins, which froze them at whatever version a secondary machine first installed (observed: `mattpocock-skills` stuck at 1.2.0 against upstream 1.2.3, plus claude-mem and Waza). Plugin reconciliation lived only in the acquire phase, which `update-local.sh` skips because acquire also mirrors tracked staging — but plugins are per-machine CLI state that git never carries, so distribute reported success while the plugins stayed stale. Acquire gains `--plugins-only`, which narrows every source loop to registry entries owning a native plugin and writes no staging, and `update-local.sh` now runs it between the CLI and distribute steps.
+
 - Fixed `sync-skill-surfaces.sh` permanently erroring on a selected skill whose surface copy predates the marker era: the planner rejected every unmarked directory outright, even though `install_skill_copy` would have adopted it, so a pre-marker copy could never gain a marker and the run failed on each pass. Both layers now share one `copy_is_adoptable` predicate, and a directory with planned drift is no longer also reported as preserved.
 
 - Refreshed staged third-party skills and author index, adding Matt Pocock's `wait-what` and `writing-for-agents` while retiring eight Codex selections removed upstream.

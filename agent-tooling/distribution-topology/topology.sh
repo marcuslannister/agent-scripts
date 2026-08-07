@@ -22,6 +22,7 @@ if command jq -b -n empty >/dev/null 2>&1; then
 fi
 
 MODE=reconcile
+PLUGINS_ONLY=0
 TOPOLOGY_COMMAND_NAME="${TOPOLOGY_COMMAND_NAME:-update-skill-topology.sh}"
 JSON_OUTPUT=0
 REQUESTED_JSON=0
@@ -106,6 +107,30 @@ topology_manifest_value() { # source_id jq_suffix
   jq -r --arg source "$1" ".sources[] | select(.id == \$source) | $2" "$MANIFEST_PATH"
 }
 
+# --plugins-only narrows every source loop to registry entries that own a native
+# plugin, so secondary machines can refresh plugins without mirroring staging.
+topology_source_selected() { # source_id
+  [ "$PLUGINS_ONLY" -eq 1 ] || return 0
+  jq -e --arg source "$1" 'any(.[]; .sourceId == $source and (.plugin? != null))' \
+    "$REGISTRY_PATH" >/dev/null
+}
+
+topology_manifest_source_ids() { # manifest
+  local manifest="${1:-$MANIFEST_PATH}" source_id
+  while IFS= read -r source_id; do
+    topology_source_selected "$source_id" || continue
+    printf '%s\n' "$source_id"
+  done < <(jq -r '.sources | sort_by(.id) | .[].id' "$manifest")
+}
+
+topology_registry_source_ids() {
+  local source_id
+  while IFS= read -r source_id; do
+    topology_source_selected "$source_id" || continue
+    printf '%s\n' "$source_id"
+  done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
+}
+
 topology_claimed_by_other() { # plan source skill destination
   jq -e --arg source "$2" --arg skill "$3" --arg destination "$4" '
     any(.sourceId != $source and .skill == $skill and (.destinations | index($destination) != null))
@@ -138,6 +163,8 @@ topology_expected_states() { # source_id output_tsv plan_json
       fi
       ;;
   esac
+  # --plugins-only reconciles native plugins without touching tracked staging.
+  [ "$PLUGINS_ONLY" -eq 0 ] || wants_staging=0
   : > "$output"
   while IFS= read -r skill; do
     if [ "$wants_staging" -eq 1 ]; then
@@ -385,7 +412,7 @@ topology_inspect_plan() { # plan_json output_dir mode
   while IFS= read -r source_id; do
     [ "$(topology_registry_value "$source_id" '.stateInspection // "topology"')" = adapter ] || continue
     topology_inspect_adapter "$source_id" "$plan_json" "$output" "$mode" || return $?
-  done < <(jq -r '.[].sourceId' "$REGISTRY_PATH")
+  done < <(topology_registry_source_ids)
 }
 
 topology_build_plan_for_manifest() { # manifest output-ndjson [filter_phase=1]
@@ -409,7 +436,7 @@ topology_build_plan_for_manifest() { # manifest output-ndjson [filter_phase=1]
       jq -cn --arg sourceId "$source_id" --arg skill "$skill" --argjson destinations "$destinations_json" \
         '{sourceId:$sourceId,skill:$skill,destinations:$destinations,missingDestinations:[],unexpectedDestinations:[]}' >> "$output"
     done < "$DISCOVERY_ROOT/$source_id.inventory"
-  done < <(jq -r '.sources | sort_by(.id) | .[].id' "$manifest")
+  done < <(topology_manifest_source_ids "$manifest")
 }
 
 topology_build_document() { # mode status sources plan inspect errors warnings changes hygiene output
@@ -616,7 +643,7 @@ topology_evaluate() {
       topology_fail 1 "source $source_id returned an invalid inventory"; return 1
     fi
     while IFS= read -r skill; do topology_is_name "$skill" || { topology_fail 1 "source $source_id returned an invalid inventory"; return 1; }; done < "$inventory_file"
-  done < <(jq -r '.sources | sort_by(.id) | .[].id' "$MANIFEST_PATH")
+  done < <(topology_manifest_source_ids)
 
   topology_build_plan_for_manifest "$MANIFEST_PATH" "$current_plan_file"
   jq -s '.' "$current_plan_file" > "$current_plan_json"
@@ -639,7 +666,7 @@ topology_evaluate() {
     jq -cn --arg id "$source_id" --arg classification "$classification" --argjson inventoryCount "$source_count" \
       --argjson defaults "$defaults_json" --argjson supported "$supported_json" \
       '{id:$id,classification:$classification,inventoryCount:$inventoryCount,defaultDestinations:$defaults,supportedDestinations:$supported,result:"clean"}' >> "$sources_file"
-  done < <(jq -r '.sources | sort_by(.id) | .[].id' "$MANIFEST_PATH")
+  done < <(topology_manifest_source_ids)
 
   topology_build_plan_for_manifest "$MANIFEST_PATH" "$plan_file"
 
@@ -796,7 +823,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     LC_ALL=C sort -t $'\t' -k2,2 -k3,3 "$action_file" -o "$action_file"
     topology_run_adapter_reconcile "$source_id" "$action_file" "$errors" "$changes" reconcile \
       "source $source_id reconciliation failed" || return $?
-  done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
+  done < <(topology_registry_source_ids)
 
   topology_progress 4 'Verifying final topology'
   while IFS= read -r source_id; do
@@ -812,7 +839,7 @@ topology_reconcile() { # sources plan_ndjson plan_json initial_inspect warnings 
     topology_run_process "$command" "$source_id" "$REPO_ROOT" "$DISCOVERY_ROOT" verify "$expected_file" "$HOME" reconcile || return $?
     [ ! -s "$PROCESS_OUT" ] || topology_append_json_string "$errors" "source $source_id returned invalid verification output"
     [ "$PROCESS_CODE" -eq 0 ] || topology_add_process_errors "$PROCESS_ERR" "source $source_id verification failed" "$errors"
-  done < <(jq -r '.[].sourceId' "$REGISTRY_PATH" | LC_ALL=C sort)
+  done < <(topology_registry_source_ids)
 
   topology_inspect_plan "$plan_json" "$final_inspect" reconcile || return $?
   mkdir -p "$final_hygiene"
@@ -875,14 +902,17 @@ if [ "$#" -eq 1 ] && { [ "$1" = --help ] || [ "$1" = -h ]; }; then
 fi
 check_count=0
 json_count=0
+plugins_only_count=0
 for argument in "$@"; do
   case "$argument" in
     --check) check_count=$((check_count + 1)); MODE=check ;;
     --json) json_count=$((json_count + 1)); JSON_OUTPUT=1 ;;
+    --plugins-only) plugins_only_count=$((plugins_only_count + 1)); PLUGINS_ONLY=1 ;;
     *) topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; break ;;
   esac
 done
-if [ "$check_count" -gt 1 ] || [ "$json_count" -gt 1 ]; then topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; fi
+if [ "$check_count" -gt 1 ] || [ "$json_count" -gt 1 ] || [ "$plugins_only_count" -gt 1 ]; then topology_fail 2 'invalid arguments; use --check only to preview the skill topology'; fi
+export TOPOLOGY_PLUGINS_ONLY="$PLUGINS_ONLY"
 topology_init_color
 if [ -n "$TOPOLOGY_ERROR_MESSAGE" ]; then
   topology_write_failure "$TOPOLOGY_ERROR_MESSAGE" "$TOPOLOGY_ERROR_CODE" "$MODE"

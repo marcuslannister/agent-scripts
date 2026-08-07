@@ -199,6 +199,8 @@ reconcile_claude_plugin() { # install|remove
 
 refresh_staging_metadata() {
   local skill_file clone_dir
+  # --plugins-only reconciles the Claude plugin only; staging stays git-owned.
+  [ "${TOPOLOGY_PLUGINS_ONLY:-0}" = 1 ] && return 0
   mkdir -p "$staging_root"
   for skill_file in "$staging_root"/*/.agent-scripts-copy "$staging_root"/*/.agent-scripts-copy-source; do
     [ -e "$skill_file" ] || continue
