@@ -159,6 +159,35 @@ test -f "$HOME_ROOT/.claude/skills/local-only/keep.txt"
 jq -e 'any(.skipped[]; .skill == "local-only" and .reason == "unmarked-directory")' \
   "$FIXTURE/unmarked.json" >/dev/null
 
+# A pre-marker copy of a selected skill is adopted rather than blocking it.
+adopt_marker="$HOME_ROOT/.claude/skills/repo-both/.agent-scripts-copy"
+rm -f "$adopt_marker"
+run_distribute --json > "$FIXTURE/adoptable.json"
+jq -e '
+  .status == "reconciled" and .errors == [] and
+  (any(.skipped[]; .skill == "repo-both") | not) and
+  (any(.warnings[]; .message | contains("repo-both")) | not) and
+  any(.changes[]; .skill == "repo-both" and .destination == "claude")
+' "$FIXTURE/adoptable.json" >/dev/null
+test "$(sed -n '2p' "$adopt_marker")" = skill-matrix
+
+# An unmarked directory holding the user's own content still blocks its skill.
+rm -f "$HOME_ROOT/.claude/skills/claude-only/.agent-scripts-copy"
+printf '%s\n' user-authored > "$HOME_ROOT/.claude/skills/claude-only/SKILL.md"
+set +e
+run_distribute --json > "$FIXTURE/unadoptable.json"
+unadoptable_exit=$?
+set -e
+test "$unadoptable_exit" -eq 1
+jq -e '
+  any(.errors[]; contains("unmarked directory blocks selected skill claude-only")) and
+  any(.skipped[]; .skill == "claude-only" and .reason == "unmarked-directory")
+' "$FIXTURE/unadoptable.json" >/dev/null
+rg -q user-authored "$HOME_ROOT/.claude/skills/claude-only/SKILL.md"
+rm -rf "$HOME_ROOT/.claude/skills/claude-only"
+run_distribute --json > "$FIXTURE/unadoptable-restored.json"
+test "$(sed -n '2p' "$HOME_ROOT/.claude/skills/claude-only/.agent-scripts-copy")" = skill-matrix
+
 # Pre-cutover agent-scripts owners are adopted or cleaned during the first sync.
 repo_marker="$HOME_ROOT/.claude/skills/repo-both/.agent-scripts-copy"
 repo_source="$(sed -n '1p' "$repo_marker")"

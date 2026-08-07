@@ -334,8 +334,15 @@ inspect_surface() { # destination root desired_tsv selected_names
     else
       case "$refresh_code" in
         2)
-          append_error "unmarked directory blocks selected skill $skill on $destination: $target"
-          printf '%s\t%s\tunmarked-directory\n' "$skill" "$destination" >> "$SKIPPED_TSV"
+          # No marker. A pre-marker copy of this same skill has nothing worth
+          # preserving, so plan an install and let install_skill_copy adopt it;
+          # anything else on this path is the user's and stays put.
+          if copy_is_adoptable "$source_path" "$target"; then
+            printf '%s\t%s\t%s\tunmarked\tinstall\n' "$source_id" "$skill" "$destination" >> "$DRIFT_TSV"
+          else
+            append_error "unmarked directory blocks selected skill $skill on $destination: $target"
+            printf '%s\t%s\tunmarked-directory\n' "$skill" "$destination" >> "$SKIPPED_TSV"
+          fi
           ;;
         3)
           append_error "foreign-owned directory blocks selected skill $skill on $destination: $target"
@@ -369,7 +376,9 @@ inspect_surface() { # destination root desired_tsv selected_names
     is_managed_owner "$marker_owner" && continue
     skipped_reason=unmarked-directory
     [ -n "$marker_owner" ] && skipped_reason=other-owner
-    if ! is_skipped "$name" "$destination"; then
+    # A directory with planned drift is one this run is about to take over, so
+    # it is not being preserved and must not be reported as such.
+    if ! is_skipped "$name" "$destination" && ! has_drift "$name" "$destination"; then
       printf '%s\t%s\t%s\n' "$name" "$destination" "$skipped_reason" >> "$SKIPPED_TSV"
       append_warning "preserving $skipped_reason on $destination: $name"
     fi

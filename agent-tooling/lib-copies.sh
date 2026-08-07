@@ -55,6 +55,21 @@ compute_copy_hash() { # dir
   )
 }
 
+# Can an unmarked destination directory be taken over by a marked copy without
+# losing anything? True for copies older updaters generated: lib-links.sh
+# fallback copies carried .agent-scripts-copy-source; pre-marker rsync copies
+# match their upstream SKILL.md. An empty directory has nothing to lose either.
+# Anything else is user-owned and must be preserved. Callers that plan surface
+# work consult this before install_skill_copy so the plan and the install agree
+# on which directories are adoptable.
+copy_is_adoptable() { # source_dir dest_dir
+  local src="$1" dst="$2"
+  [ -f "${dst}/.agent-scripts-copy-source" ] && return 0
+  [ -f "${src}/SKILL.md" ] && [ -f "${dst}/SKILL.md" ] \
+    && cmp -s "${src}/SKILL.md" "${dst}/SKILL.md" && return 0
+  [ -z "$(find "$dst" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]
+}
+
 install_skill_copy() { # source_dir dest_dir owner [marker_source]
   local src="$1"
   local dst="$2"
@@ -72,19 +87,9 @@ install_skill_copy() { # source_dir dest_dir owner [marker_source]
   elif [ -e "$dst" ] && [ ! -d "$dst" ]; then
     copy_warn "not a directory or symlink, refusing to replace: $dst"
     return 1
-  elif [ -d "$dst" ] && [ ! -f "$marker" ]; then
-    # Adopt copies older updaters generated: lib-links.sh fallback copies
-    # carried .agent-scripts-copy-source; pre-marker rsync copies match their
-    # upstream SKILL.md. Anything else non-empty is treated as user-owned.
-    if [ -f "${dst}/.agent-scripts-copy-source" ]; then
-      : # legacy fallback copy; the sync below replaces its marker with ours
-    elif [ -f "${src}/SKILL.md" ] && [ -f "${dst}/SKILL.md" ] \
-      && cmp -s "${src}/SKILL.md" "${dst}/SKILL.md"; then
-      : # matches upstream; pre-marker generated copy
-    elif [ -n "$(find "$dst" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]; then
-      copy_warn "existing directory is not an agent-scripts copy, refusing to overwrite: $dst (delete it if an older updater generated it)"
-      return 1
-    fi
+  elif [ -d "$dst" ] && [ ! -f "$marker" ] && ! copy_is_adoptable "$src" "$dst"; then
+    copy_warn "existing directory is not an agent-scripts copy, refusing to overwrite: $dst (delete it if an older updater generated it)"
+    return 1
   fi
   mkdir -p "$dst" || return 1
   if [ "${AGENT_SCRIPTS_DISABLE_RSYNC:-0}" != "1" ] && command -v rsync >/dev/null 2>&1; then

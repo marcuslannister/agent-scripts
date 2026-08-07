@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Fixed `sync-skill-surfaces.sh` permanently erroring on a selected skill whose surface copy predates the marker era: the planner rejected every unmarked directory outright, even though `install_skill_copy` would have adopted it, so a pre-marker copy could never gain a marker and the run failed on each pass. Both layers now share one `copy_is_adoptable` predicate, and a directory with planned drift is no longer also reported as preserved.
+
 - Refreshed staged third-party skills and author index, adding Matt Pocock's `wait-what` and `writing-for-agents` while retiring eight Codex selections removed upstream.
 
 - Fixed `agent-tooling/update-agents.sh` leaving Codex permanently unusable after an interrupted install: npm retires the Codex launcher before fetching the ~126MB platform tarball and only restores it on success, so a killed run dropped `codex` off `PATH` and every later run re-downloaded the whole tarball instead of recovering. The Codex step now restores a present-but-unlinked package on Unix and Windows Git Bash (falling through to a real reinstall if the tree is truncated), which also lets the existing up-to-date check skip the download.
