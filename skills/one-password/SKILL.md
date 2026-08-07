@@ -34,7 +34,7 @@ Follow the official CLI get-started steps for anything else. Don't guess install
 **2. Desktop app — explicit consent only.** For items genuinely outside Molty (personal `Private` vault, `OpenClaw-Core`). No automatic fallback.
 
 - STOP and ask in chat first: item name + why needed. Wait for yes.
-- On a VM/headless host, route this flow to Peter's active physical workstation, normally `steipete-studio-sf`; see "Remote routing - desktop path only".
+- On a non-primary, VM, or headless host, route this flow to the active physical workstation in the matching personal or work-managed environment; see "Remote routing - desktop path only".
 - After consent: one task window in the shared `op-work` session (see below). Inside that window, first `unset OP_SERVICE_ACCOUNT_TOKEN MOLTY_OP_SERVICE_ACCOUNT_TOKEN`; an exported service token overrides `--account my.1password.com` and silently confines reads to Molty. Then run `op signin --account my.1password.com` once, and batch every interactive read of the whole task into that same window and one `op run`/`op inject` invocation when practical. TTY reuse limits 1Password's Authorize prompts; it does not make the separate macOS App Data grant persist across new `op` PIDs.
 - No nameplate/sag pre-alerts. Audible page (`sag`) only if Peter approved the unlock in chat and the 1Password prompt then sits unanswered.
 
@@ -68,12 +68,12 @@ Outside Molty by design (desktop path, consent first): `OpenClaw Developer ID Re
 
 Applies to path 2 (interactive/desktop) flows only; path 1 service-account reads always run locally, no routing.
 
-- If the current host is Peter's active physical workstation with console user `steipete` and a usable 1Password GUI session, keep the entire desktop flow local. As of 2026-08-06, the default primary workstation is the SF Mac Studio `steipete-studio-sf`.
-- Before any desktop-app flow on a VM/headless/non-primary host: load `$remote-mac`, check `tailscale status --json`, and prefer `steipete-studio-sf`. Use the MacBook `steipete-mbp` only when the Studio is unavailable, Peter explicitly says he is using the MacBook, or live context proves it is the active approval surface.
-- Route the whole interactive flow to the chosen workstation over noninteractive SSH, running inside that workstation's OWN shared `op-work` tmux session. For the Studio use `ssh -o ConnectTimeout=5 -o RequestTTY=no -o RemoteCommand=none steipete@steipete-studio-sf ...`; for the fallback MacBook use the same options with `steipete@steipete-mbp`. 1Password prompts and Touch ID then fire where Peter is working.
+- Identify the current host first (`hostname; id -un`), then load the remote-Mac skill matching that environment. Keep personal and work-managed Mac topologies separate; never infer identity from a stale IP or a generic "Mac Studio" name.
+- If the current host is Peter's active physical workstation with a usable 1Password GUI session, keep the entire consented desktop flow local. In the personal environment, the default active workstation is `steipete-studio-sf`; use `steipete-mbp` only when Peter says he is using it or live context confirms it is the active approval surface. In the work-managed environment, default to its verified Studio; use its matching MacBook only when Peter identifies it as the active approval surface or live context confirms it.
+- On a VM, headless host, or other non-active workstation, check the matching topology skill's documented Tailscale command and select only an active Studio or MacBook from that same environment. Verify the configured SSH alias with `ssh -o ConnectTimeout=5 -o RequestTTY=no -o RemoteCommand=none <workstation-alias> 'hostname; id -un'` before routing the whole interactive flow into that workstation's OWN shared `op-work` tmux session.
 - Consent rule unchanged: still ask in chat first (item + why). Routing changes WHERE the prompt appears, not whether to ask.
 - Only the needed field values cross the SSH channel; same no-print, shape-check-only rules apply on both ends. Kill the remote task window at task end.
-- Both physical approval hosts unavailable or SSH-timed-out -> on a VM/headless host, report what was tried and STOP; no local desktop flow there because the prompt would be invisible. Local desktop fallback is allowed only on a host with a usable GUI session and 1Password app.
+- If the selected workstation is offline or SSH times out, use another same-environment physical workstation only when Peter or live context confirms it is the active approval surface. Local fallback requires a usable GUI session and explicit verification that the current same-environment host is Peter's active workstation; otherwise, including on any VM/headless host, report what was tried and STOP.
 
 ## Workflow
 

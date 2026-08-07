@@ -21,6 +21,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Reserved GPT-5.6's maximum output budget in `codex-huge-context` and moved fleet compaction to a verified 922K input window with a 700K safety threshold.
 - Made `codex-first` treat the Gorilla-backed Clawdex endpoint as already model-routed, preventing recursive Codex delegation after the fleet proxy migration.
 - Added a secret-safe Codex direct-API preflight so million-token launches fail before an unauthenticated Responses request when a machine is missing its Keychain delivery copy.
+- Generalized interactive 1Password routing to select the active approval workstation within the matching personal or work-managed environment while preserving service-account isolation and safe offline fallback.
 
 ## 2026-07-17 — 0.12.0
 

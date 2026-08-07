@@ -89,6 +89,7 @@
 
 ## Git
 
+- Identity boundary: before any commit or GitHub write, infer the intended identity from the repository/organization context and verify both Git author+committer and the authenticated GitHub writer. Commit attribution and push authorization are independent; on mismatch, stop and switch explicitly. Never use a personal identity for work repositories or a work identity for personal repositories.
 - Cwd inside repo: work there. No sibling checkout unless asked.
 - No CLI `git worktree` unless asked. Dirty/wrong branch/awkward: ask.
 - `~/Projects` has intentional same-repo checkouts. User-managed, not scratch.
