@@ -432,6 +432,10 @@ function validateInventory(inventory) {
     if (agentCliPolicy !== "authenticated") {
       errors.push(`${profileName}: agent_clis must be authenticated`);
     }
+    const windowTitleIconsPolicy = inventory.profiles?.[profileName]?.requirements?.window_title_icons;
+    if (windowTitleIconsPolicy !== true) {
+      errors.push(`${profileName}: window_title_icons must be true`);
+    }
     const simulatorPolicy = inventory.profiles?.[profileName]?.requirements?.xcode_simulator_hygiene;
     if (simulatorPolicy !== "no-outdated") {
       errors.push(`${profileName}: xcode_simulator_hygiene must be no-outdated`);
