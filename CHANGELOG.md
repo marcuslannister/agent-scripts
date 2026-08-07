@@ -6,9 +6,13 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills and author index, adding Matt Pocock's `wait-what` and `writing-for-agents` while retiring eight Codex selections removed upstream.
+
+- Fixed `agent-tooling/update-agents.sh` leaving Codex permanently unusable after an interrupted install: npm retires the Codex launcher before fetching the ~126MB platform tarball and only restores it on success, so a killed run dropped `codex` off `PATH` and every later run re-downloaded the whole tarball instead of recovering. The Codex step now restores a present-but-unlinked package on Unix and Windows Git Bash (falling through to a real reinstall if the tree is truncated), which also lets the existing up-to-date check skip the download.
+
 - `agent-tooling/update-agents.sh` now installs Claude Code (native installer) and Codex (`npm install -g @openai/codex`) when the binary is missing from `PATH`, instead of only updating an existing install; verifies the binary is runnable after install before reporting success.
 
-- Added `agent-tooling/update-local.sh`: agent CLI updates + offline distribute only, for secondary machines that pull already-committed staging changes instead of running the network acquire phase.
+- Added `agent-tooling/update-local.sh`: agent CLI updates + offline distribute only, for secondary machines that pull already-committed staging changes instead of running the network acquire phase; the topology cutover policy now recognizes and requires the public command.
 
 - Ported the selection-preserving skills-matrix generator from Python to Bash/awk without changing its generated report, including Unicode character-based token estimates (#51).
 

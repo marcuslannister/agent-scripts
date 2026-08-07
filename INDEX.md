@@ -65,16 +65,13 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - xcode-sync
 - xurl
 
-## matt (40)
+## matt (34)
 
 - ask-matt
-- batch-grill-me
 - claude-handoff
 - codebase-design
-- design-an-interface
 - diagnosing-bugs
 - domain-modeling
-- edit-article
 - git-guardrails-claude-code
 - grill-me
 - grill-with-docs
@@ -84,10 +81,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - improve-codebase-architecture
 - loop-me
 - migrate-to-shoehorn
-- obsidian-vault
 - prototype
-- qa
-- request-refactor-plan
 - research
 - resolving-merge-conflicts
 - scaffold-exercises
@@ -100,12 +94,12 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - to-spec
 - to-tickets
 - triage
-- ubiquitous-language
+- wait-what
 - wayfinder
 - wizard
 - writing-beats
+- writing-for-agents
 - writing-fragments
-- writing-great-skills
 - writing-shape
 
 ## anthropic (16)

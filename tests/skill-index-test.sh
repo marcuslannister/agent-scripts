@@ -5,8 +5,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="$REPO_ROOT/agent-tooling/skill-authors.json"
 GEN="$REPO_ROOT/agent-tooling/generate-skill-index.sh"
 
-# Registry shape (per issue #26: explicit per-skill registry, all 116 stated).
-jq -e '.skills | length == 116' "$REGISTRY" >/dev/null
+# Registry shape (per issue #26: explicit per-skill registry, all 110 stated).
+jq -e '.skills | length == 110' "$REGISTRY" >/dev/null
 jq -e '.skills | has("onecli-gateway") | not' "$REGISTRY" >/dev/null
 jq -e '.skills | has("onecli-run") | not' "$REGISTRY" >/dev/null
 jq -e '.authorOrder == ["marcus","steipete","matt","anthropic","khazix"]' "$REGISTRY" >/dev/null
