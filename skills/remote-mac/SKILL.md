@@ -9,7 +9,7 @@ Use when the user says `MacBook`, `Mac Studio`, `clawmac`, `foundationclaw`, `fo
 
 ## Peter's Topology
 
-- Primary daily driver: Peter's MacBook Pro, local host `steipete-mbp`, Tailscale `peters-macbook-pro-1`.
+- Primary workstation for interactive approvals and day-to-day work: Peter's SF Mac Studio, local/Tailscale name `steipete-studio-sf`. Peter's MacBook Pro (`steipete-mbp`) is the portable/fallback workstation; do not route prompts there merely because it is online.
 - London workhorse: Mac Studio, Tailscale `peters-mac-studio-1`, usually best reached as `steipete@steipete-macstudio.local` when on its LAN.
 - San Francisco machines: `mac-studio-sf` (`100.72.210.5`), `mac-studio-sf2` (`100.70.201.26`), and the separately owned `mac-mini-sf` (local/Tailscale name `steipete-mini-sf`, `100.78.75.51`; SSH `steipete@100.78.75.51`). Always prefer live Tailscale addresses over these cached values. The Mini uses classic key-only OpenSSH over the tailnet TCP 22 grant because GUI Tailscale builds cannot host Tailscale SSH. Its own key is installed on both SF Studios, MegaClaw, and MiniClaw; see `manager/docs/fleet-setup.md` for live proof and offline/provider-blocked directions. Do not confuse it with FoundationClaw.
 - Personal cloud OpenClaw: `clawmac` (Peter may typo/say `crabmac`), MacStadium service `100121942`, Tailscale/SSH `steipete@clawmac`, gateway via LaunchAgent `ai.openclaw.gateway`, loopback `127.0.0.1:18789`, Telegram connected. The current 2026-08-01 provider network outage is tracked by Atlanta remote hands on tickets #11481/#11484; one hard reboot restored SSH only briefly, so do not repeat power cycles.
