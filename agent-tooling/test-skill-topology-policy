@@ -12,7 +12,7 @@ fail() {
   failed=1
 }
 
-for required in update-agents.sh update-all.sh update-skill-topology.sh \
+for required in update-agents.sh update-all.sh update-local.sh update-skill-topology.sh \
   generate-skills-matrix.sh sync-skill-surfaces.sh; do
   [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public command: $required"
 done
@@ -21,7 +21,7 @@ for candidate in "$REPO_ROOT"/agent-tooling/update-*.sh; do
   [ -e "$candidate" ] || continue
   name="${candidate##*/}"
   case "$name" in
-    update-agents.sh|update-all.sh|update-skill-topology.sh) ;;
+    update-agents.sh|update-all.sh|update-local.sh|update-skill-topology.sh) ;;
     *) fail "unexpected public updater: $name" ;;
   esac
 done
