@@ -23,6 +23,21 @@ requirements = {
   "single public admission gate" => "admit no additional public action until the overlap clears",
   "frozen means public only" => "means public-mutation-frozen only when that restriction existed before the worker crossed the public boundary",
   "decision wait does not idle" => "Keep all other qualified private project lanes active while that answer is pending.",
+  "quota-aware concurrency" => "Use a quota-aware concurrency target, defaulting to a maximum of 8 eligible root-owned Codex app project threads",
+  "quota-health admission control" => "reduce admissions while Octopool/backend or GitHub quota alerts are active",
+  "no numeric worker filling" => "never create a worker solely to reach a number",
+  "one polling owner" => "Assign exactly one polling owner per external state.",
+  "worker exact-run watcher" => "The repository worker owns one exact-run watcher",
+  "root notification ownership" => "root reads worker state and relies on harness task-completion notifications",
+  "root coherent-wait polling ban" => "While that worker has an active coherent wait, root never polls GitHub or CI for the repository.",
+  "targeted root read" => "Root performs at most one targeted external read only when worker state is stale, terminal, or ambiguous, or when the worker reports a blocker.",
+  "Octopool read verification" => "verify `command -v gh` resolves to Octopool",
+  "real-gh boundary" => "Name real-gh explicitly only for writes or read shapes the shim does not support.",
+  "stale snapshot blocks polling" => "treat the stale snapshot as a blocker for repeated polling",
+  "exact watcher identity" => "scoped to an exact run ID or head SHA",
+  "bounded watcher backoff" => "Use its 30/60/120-second backoff or repository-native default.",
+  "no bespoke gh loops" => "Never write bespoke 30–60-second `gh` loops or poll raw GraphQL",
+  "single failure log fetch" => "After terminal failure, fetch logs once and reuse them for diagnosis",
 }
 
 missing = requirements.reject { |_label, text| skill.include?(text) }
@@ -36,6 +51,12 @@ forbidden_fan_out = [
   "Workers may review, implement, test, and monitor concurrently",
 ]
 abort "Task-thread fan-out remains" if forbidden_fan_out.any? { |text| skill.include?(text) }
+forbidden_polling_policy = [
+  "Maintain a target of 30 concurrent eligible",
+  "Prefer an in-turn 30–60 second sleep/poll cycle",
+  "Suppress routine unchanged-poll chatter, but keep polling",
+]
+abort "Quota-amplifying polling policy remains" if forbidden_polling_policy.any? { |text| skill.include?(text) }
 abort "Stale maintainer-orchestrator default prompt" unless metadata.include?("one Codex app thread per project") && metadata.include?("skill maintenance in the root session") && metadata.include?("collaboration subagents read-only and support-only")
 
-puts "Validated maintainer-orchestrator worker boundary."
+puts "Validated maintainer-orchestrator worker and polling boundaries."

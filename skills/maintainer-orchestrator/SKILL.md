@@ -22,7 +22,7 @@ Coordinate repository work through completion. This is a control-plane skill: in
 ## Activation Watch
 
 - On every activation, inspect the existing heartbeat first. Create one active five-minute heartbeat automation attached to the current root orchestrator thread only when none exists; update it only when its configuration or portfolio instructions materially changed. Name it `Maintainer Orchestrator Watch`; never create duplicates or emit repeated no-op update cards.
-- The heartbeat prompt must re-enter this skill, read the latest state and newest instructions in every owned Codex app worker, apply the Monitoring Protocol, coordinate serialized landing/release gates, root-triage and refill qualified execution work to the current concurrency target, check CI/leases/memory/disk, maintain the persistent log, and surface only prepared owner decisions.
+- The heartbeat prompt must re-enter this skill, read the latest state and newest instructions in every owned Codex app worker, rely on harness task-completion notifications, apply the Monitoring Protocol, coordinate serialized landing/release gates, root-triage and refill qualified execution work to the current concurrency target, check leases/memory/disk, maintain the persistent log, and surface only prepared owner decisions. It must never poll GitHub or CI for a repository whose worker has an active coherent wait.
 - Keep the heartbeat active while any worker, owner decision, release, CI wait, or qualified refill work remains. Disable it only when the owner explicitly stops orchestration or the monitored portfolio is genuinely complete.
 - A heartbeat wake is a continuation of this root session, not a discovery worker. Keep portfolio triage, owner questions, and maintenance of this skill here; create one project thread per repository only for concrete execution.
 
@@ -88,14 +88,14 @@ Repeat synchronization after every landing and before any release gate.
    - `Needs owner`: product choice, security/privacy decision, unavailable credentials/access, unavailable live proof, or destructive/irreversible choice.
    - `Ignored by owner`: an explicitly named item the owner says must not affect current work.
 3. Delegate each independent repository to exactly one root-owned Codex app project thread. Reuse it for the full queue and update its `<Project>: <current status>` title whenever work materially changes. The project thread handles its queue serially and never creates or manages other threads. Omit model selection and inherit the platform default.
-4. Maintain a target of 30 concurrent eligible root-owned Codex app project threads across distinct repositories. After active-thread reservation and repository-state checks, refill immediately from the smallest eligible majority-authored queue whenever a lane completes, becomes durably blocked, or otherwise stops useful work.
+4. Use a quota-aware concurrency target, defaulting to a maximum of 8 eligible root-owned Codex app project threads across distinct repositories. This is an admission ceiling, not a fill quota: create workers only for qualified work, reduce admissions while Octopool/backend or GitHub quota alerts are active, and never create a worker solely to reach a number. Refill from the smallest eligible majority-authored queue only when capacity and quota health permit.
 5. Public gate — forward-looking, never preemptive:
    - Use the gate only before admitting a new push, PR mutation, workflow approval/rerun, final synchronization, merge, release, or publication action. Local work and passive CI/review polling do not consume it.
    - A project already executing an owner- or root-authorized public sequence keeps running to its natural safe boundary. Never inject a hold, cancel work, or interrupt a coherent active worker merely because another project later entered the gate.
    - If multiple public sequences are already in flight, do not choose a winner retroactively. Let them finish coherently, admit no additional public action until the overlap clears, and preserve every worker's current state.
    - Private investigation, implementation, testing, proof, and review continue independently. Asking the owner what to land next reserves only the next admission; it never pauses active work. `Frozen`, `parked`, or `held` means public-mutation-frozen only when that restriction existed before the worker crossed the public boundary.
 6. Keep this coordinator thread lightweight. Do not perform extensive repository work here. Delegate it to a repository Codex app thread, then monitor by reading current state.
-7. Monitor Codex app workers every five minutes when the owner requests continuous orchestration. Let active workers execute without steering; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
+7. On each five-minute heartbeat, read Codex app worker state and harness completion notifications. Let active workers execute without steering or duplicate external-state polling; intervene only for a confirmed blocker, exhausted work, or gross course deviation.
 8. Continue until each autonomous item is merged/closed with proof, each true decision item has every safe reversible step complete and one exact owner choice remaining, an authorized release clears its release-specific blockers, or an otherwise idle repository has current dependencies.
 
 Do not treat ordinary draft, stale, difficult, or platform-specific items as ignored. Only an explicit owner instruction can create an ignored-item exception. Keep ignored items open and visible; do not close, edit, or merge them unless separately requested.
@@ -170,6 +170,8 @@ After every meaningful issue or PR decision, decide whether the rationale is a d
 
 Assume another person or agent may have steered every worker since the last poll.
 
+Assign exactly one polling owner per external state. The repository worker owns one exact-run watcher; root reads worker state and relies on harness task-completion notifications. Root performs at most one targeted external read only when worker state is stale, terminal, or ambiguous, or when the worker reports a blocker. While that worker has an active coherent wait, root never polls GitHub or CI for the repository.
+
 Before sending any worker message:
 
 1. Read the worker's latest current state, including its newest user/delegation messages and active turn.
@@ -195,8 +197,9 @@ Never interrupt, archive, rename, duplicate, or replace a worker without first r
 ### Active Waits
 
 - Keep the project turn active until its work reaches a terminal state. Do not emit a final answer or stop merely because CI, a runner, review, mergeability, deployment, an auth prompt, or a long command is pending.
-- Prefer an in-turn 30–60 second sleep/poll cycle over a per-project automation. After each interval, refresh the exact external state, repair or rerun when needed, and continue through landing and closeout.
-- Suppress routine unchanged-poll chatter, but keep polling. The root heartbeat coordinates the portfolio; it does not replace a worker watching its own pending work.
+- Before GitHub reads, verify `command -v gh` resolves to Octopool; every worker prompt must require this check. Name real-gh explicitly only for writes or read shapes the shim does not support. If an active shell snapshot resolves bare `gh` to real Homebrew gh, treat the stale snapshot as a blocker for repeated polling and refresh the worker environment; never bypass Octopool to keep polling.
+- For CI, review, or deployment waits, start exactly one repository-native watcher scoped to an exact run ID or head SHA. Use its 30/60/120-second backoff or repository-native default. Never write bespoke 30–60-second `gh` loops or poll raw GraphQL when a repository-native watcher or top-level cacheable `gh` command exists.
+- Keep that watcher active and rely on its harness completion notification. After terminal failure, fetch logs once and reuse them for diagnosis; do not refetch unchanged logs.
 - End the turn only after successful terminal closeout, one exact owner decision/access/waiver blocker after every safe step, or a platform failure that makes continued polling impossible.
 
 ## Thread Naming
@@ -283,7 +286,7 @@ Every delegated implementation Codex app thread, under standing authority and an
 - run `autoreview` until no accepted/actionable findings remain;
 - commit and push the final candidate, then open or update its PR;
 - rerun required checks and repair failures until exact-head CI is green;
-- remain active through CI/review/deployment waits using bounded sleep/poll cycles; never stop at a nonterminal waiting status;
+- remain active through CI/review/deployment waits using one repository-native exact-run watcher and its harness completion notification; never stop at a nonterminal waiting status;
 - merge or close the queue item with exact proof when evidence supports it;
 - after landing, return to updated, clean `main`;
 - update the changelog for user-visible changes; within the active unreleased/release section, order entries from most to least interesting to users and keep the repository's established format;
