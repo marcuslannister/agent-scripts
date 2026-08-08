@@ -22,7 +22,7 @@
 - npm release verify: `npm view <pkg>@<version>` proves version, dist-tag, tarball, integrity, publish time. GitHub tag + Release exist. Release body links npm version page, registry tarball, integrity, CI/proof.
 - Changelog: match house style; one-line bullet preferred. No prose-length hard-wrap.
 - Skills own tool workflows. This file: hard rules only.
-- Agent transcripts: omit by default and never ask, even if repo/skill guidance offers one; include only on Peter's explicit request.
+- Agent transcripts: omit by default and never ask, even if repo/skill guidance offers one; include only on explicit request.
 - Private agent chat + authenticated org-approved systems = internal. Use task-needed non-public names, links, systems, processes, people. Answering authorized user != public disclosure.
 - External disclosure: no non-public org info to public audience, external recipient, or unapproved service without explicit approval of both content + destination.
 - Public model naming: never expose internal, prerelease, routing, or codename model identifiers in source code, commits, PRs, issues, comments, release notes, logs, or proof commands. Use the stable public model ID (for example `gpt-5.6-sol`) when known; otherwise say only `Codex` or omit the model. Sanitize `--model` flags and copied transcripts before posting.
