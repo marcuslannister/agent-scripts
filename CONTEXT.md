@@ -55,12 +55,8 @@ Failure handling that preserves native plugins as the desired distribution mecha
 _Avoid_: automatic fallback, temporary copy
 
 **Native-state repair**:
-A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007; adapters reach that state only through `codex` commands.
+A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007 as tooling policy; the operator may do it by hand, but adapters reach that state only through `codex` commands.
 _Avoid_: snapshot repair, in-place fetch fallback, marketplace fix-up
-
-**Adapter-owned marketplace clone**:
-A shallow git clone under `~/.cache/agent-scripts/marketplaces/<sourceId>`, owned and incrementally refreshed by one private adapter and registered with Codex as a local marketplace source. Used only where a CLI cannot complete its own marketplace fetch; opt-in per registry entry.
-_Avoid_: vendored marketplace, marketplace mirror, local copy
 
 **Plugin-Claude-only repo**:
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is a tracked staged copy distributed like any source-only skill.
