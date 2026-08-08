@@ -22,6 +22,7 @@ Maintain Peter's Macs while protecting ambiguous local work. Package updates are
 - Require the shared global Git ignore on every fleet Mac. Audit it with `scripts/global-gitignore-audit.sh`; `--repair` creates `~/.config/git/ignore`, preserves unrelated entries, adds the inventory's macOS metadata patterns, and points `core.excludesFile` at it. An already-configured alternate excludes file requires manual review so existing rules are never discarded.
 - Require Claude Code and Claude Desktop coding sessions to omit AI attribution. Audit `~/.claude/settings.json` with `scripts/claude-attribution-audit.sh`; `--repair` preserves unrelated settings while disabling commit trailers, pull-request footers, and remote-session links.
 - Require the official Codex and Claude Code CLIs on both profiles. Package ownership comes from the profile's `codex` and `claude-code` Homebrew casks; the separate `claude` cask is Claude Desktop and does not satisfy the CLI requirement. Audit versions and non-interactive authentication with `scripts/agent-cli-audit.sh`; use `--live` for bounded, tool-free, non-persistent model turns. Never copy normal Claude OAuth credentials between Macs: refresh each host independently through `$anthropic` and leave locked-Keychain, account-selection, or offline cases pending.
+- Require Octopool as the GitHub cache on both profiles with `requirements.github_cache: "octopool"`. Package presence alone is insufficient: `scripts/octopool-audit.sh` must prove that non-interactive and login zsh resolve `gh` through the Octopool shim, the client login has complete identity metadata, and every configured pool identity is healthy. Use `--repair` to log in through the existing authenticated stable-path GitHub CLI, install the zsh shim, and repair macOS login PATH ordering when needed; it never installs packages or prints credentials.
 
 Use the deterministic profile tool:
 
@@ -40,6 +41,7 @@ skills/fleet-maintenance/scripts/agent-skill-links-audit.sh
 skills/fleet-maintenance/scripts/global-gitignore-audit.sh --host mac-studio-sf
 skills/fleet-maintenance/scripts/claude-attribution-audit.sh
 skills/fleet-maintenance/scripts/agent-cli-audit.sh
+skills/fleet-maintenance/scripts/octopool-audit.sh
 skills/fleet-maintenance/scripts/op-profile-audit.sh
 ```
 
@@ -213,4 +215,4 @@ Useful optional maintenance: stale package caches/logs, abandoned containers/VMs
 
 ## Finish
 
-Return a host matrix with: reachability, agent CLI install/auth/live-test state, agent skill-link state, global Git-ignore state, active/deferred reason, disk before/after, Trash reclaimed, Brew/npm changes, repos pulled/current/skipped/escalated, Xcode stable/prerelease build and selected track, backup/update/service warnings, and remaining user decisions.
+Return a host matrix with: reachability, agent CLI install/auth/live-test state, Octopool shim/login/pool-health state, agent skill-link state, global Git-ignore state, active/deferred reason, disk before/after, Trash reclaimed, Brew/npm changes, repos pulled/current/skipped/escalated, Xcode stable/prerelease build and selected track, backup/update/service warnings, and remaining user decisions.

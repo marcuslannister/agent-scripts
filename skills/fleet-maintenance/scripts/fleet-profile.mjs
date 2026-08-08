@@ -432,6 +432,10 @@ function validateInventory(inventory) {
     if (agentCliPolicy !== "authenticated") {
       errors.push(`${profileName}: agent_clis must be authenticated`);
     }
+    const githubCachePolicy = inventory.profiles?.[profileName]?.requirements?.github_cache;
+    if (githubCachePolicy !== "octopool") {
+      errors.push(`${profileName}: github_cache must be octopool`);
+    }
     const windowTitleIconsPolicy = inventory.profiles?.[profileName]?.requirements?.window_title_icons;
     if (windowTitleIconsPolicy !== true) {
       errors.push(`${profileName}: window_title_icons must be true`);
