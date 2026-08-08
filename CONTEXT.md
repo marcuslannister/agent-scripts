@@ -51,8 +51,16 @@ The per-skill condition requiring both native plugins to be installed, enabled, 
 _Avoid_: plugin installed, bundle verified
 
 **Plugin-managed recovery**:
-Failure handling that preserves native plugins as the desired distribution mechanism. Allowed actions are upstream repair, native rollback, or a new explicit manifest decision; reconciliation never creates or recreates a fallback copy.
+Failure handling that preserves native plugins as the desired distribution mechanism. Allowed actions are upstream repair, native rollback, or a new explicit manifest decision; reconciliation never creates or recreates a fallback surface copy. The rule governs surface copies, not the source a native plugin installs from.
 _Avoid_: automatic fallback, temporary copy
+
+**Native-state repair**:
+A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007; adapters reach that state only through `codex` commands.
+_Avoid_: snapshot repair, in-place fetch fallback, marketplace fix-up
+
+**Adapter-owned marketplace clone**:
+A shallow git clone under `~/.cache/agent-scripts/marketplaces/<sourceId>`, owned and incrementally refreshed by one private adapter and registered with Codex as a local marketplace source. Used only where a CLI cannot complete its own marketplace fetch; opt-in per registry entry.
+_Avoid_: vendored marketplace, marketplace mirror, local copy
 
 **Plugin-Claude-only repo**:
 A repo shipping a Claude Code plugin but no Codex plugin; the Codex side is a tracked staged copy distributed like any source-only skill.
