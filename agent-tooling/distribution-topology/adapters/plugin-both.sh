@@ -431,12 +431,29 @@ set_codex_plugin_enabled() {
   mv "$temp_file" "$config_file"
 }
 
+# Codex re-clones the whole repo under a hardcoded fetch timeout, so an oversized
+# marketplace fails identically on every attempt; retrying only triples the noise.
+# Match Codex's own timeout wording, not a bare `early EOF` or network timeout:
+# those can be flaky-transport failures that a retry really does clear.
+codex_upgrade_failure_is_permanent() { # native-output
+  case "$1" in
+    *'marketplace source timed out'*|*'timed out after'*) return 0 ;;
+  esac
+  return 1
+}
+
 upgrade_codex_marketplace() {
   local marketplace="$1"
   local attempt
   for attempt in 1 2 3; do
     run_native "Codex marketplace upgrade failed for $marketplace" \
       codex plugin marketplace upgrade "$marketplace" && return 0
+    if codex_upgrade_failure_is_permanent "$NATIVE_OUTPUT"; then
+      printf 'Codex marketplace %s cannot refresh: its full clone exceeds the Codex fetch window.\n' \
+        "$marketplace" >&2
+      printf 'Retrying will not help; see docs/adr/0007-oversized-codex-marketplaces.md.\n' >&2
+      return 1
+    fi
     [ "$attempt" -lt 3 ] || return 1
     sleep "${PLUGIN_RETRY_DELAY_SECONDS:-2}"
   done
