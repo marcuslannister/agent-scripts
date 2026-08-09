@@ -101,6 +101,12 @@ The values for all of these live in Molty (table above), so a repo can be
 repaired non-interactively: read the field, `gh secret set <NAME> --repo <r>
 --body -`, never printing the value.
 
+Read those fields via the JSON + exact-label method in "Exact field reads"
+below — NOT `--fields label=<f>`. Measured 2026-08-09 on the Foundation p12
+item: `--fields label=p12_base64` returned 65 characters while the correct
+value is 4432. Items with several concealed fields silently resolve the wrong
+one, which would push a truncated secret into CI.
+
 Outside Molty by design (desktop path, consent first): `OpenClaw Developer ID Release Keychain` (`OpenClaw-Core` vault), npm interactive login+OTP (`Private/Npmjs`), personal SSH/signing keys. Twilio has no API credential stored anywhere — only a console login (Private); minting one needs the console.
 
 ## Remote routing - desktop path only
