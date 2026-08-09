@@ -59,8 +59,47 @@ Exact titles; go straight to the service-account read. No enumeration needed.
 | Anthropic (Peekaboo) | `Anthropic API Key - Peekaboo Live Test` | `credential` |
 | ClickClack deploy | `Cloudflare ClickClack deploy token`, `Cloudflare ClickClack R2 uploads` | `credential` |
 | Barnacle | `GitHub Token Barnacle` | `credential` |
+| macOS Developer ID signing (OpenClaw Foundation) | `Release - macOS Developer ID p12 - OpenClaw Foundation` | `p12_base64`, `p12_password` |
+| macOS Developer ID signing (personal) | `Release - macOS Developer ID p12 - Peter Steinberger` | attached `DeveloperID-p12` file, `certificate_password` |
+| Release-tag SSH signing key | `Release - Git tag SSH signing key - all repos` | `private_key`, `public_key` (fp `SHA256:WmI9lVtd…`) |
+| Homebrew tap dispatch token | `Release - Homebrew tap dispatch token - openclaw/homebrew-tap` | `token` |
+| Apple notarization (Apple ID fallback) | `Release - Apple ID app-specific password - notarization` | `apple_id`, `team_id`, `app_specific_password` |
 
 ClickClack/Barnacle Molty items are agent copies; canonical items live in the shared `OpenClaw` vault — on rotation update both.
+
+## Release credentials: one tag finds them all
+
+Every signing/notarization/tap credential is tagged `release-credential` and
+named `Release - <what> - <scope>` (unified 2026-08-09). Do not hunt by guessing
+titles — list them:
+
+```bash
+op item list --vault Molty --tags release-credential
+```
+
+Start with `Release - 00 INDEX (read me first)`: its note maps each GitHub
+Actions secret name to the exact item and field, and records the repair recipe.
+Keep that index current when adding or rotating a release credential.
+
+## Release credentials: GitHub secrets are PER-REPO, not org-level
+
+Verified 2026-08-09: the `openclaw` org has 21 org-level secrets and **none** of
+them are the release/signing ones. `MACOS_SIGNING_P12`,
+`MACOS_SIGNING_P12_PASSWORD`, `ASC_KEY_ID`, `ASC_ISSUER_ID`,
+`ASC_PRIVATE_KEY_P8`, and `HOMEBREW_TAP_TOKEN` are set **per repository**. A
+release failing at signing or the Homebrew handoff is therefore usually a
+missing/misnamed secret on that one repo, not a broken org secret.
+
+Known trap: `openclaw/gogcli` carried legacy names
+(`MACOS_SIGNING_CERT_BASE64`, `MACOS_SIGNING_CERT_PASSWORD`,
+`MACOS_CODESIGN_IDENTITY`) while the shared `openclaw/release-workflows`
+reusable workflow reads the `MACOS_SIGNING_P12*` / `ASC_*` names, so the signer
+import silently received empty values. Compare a broken repo's secret names
+against a known-good one (`openclaw/wacrawl`) before debugging anything else.
+
+The values for all of these live in Molty (table above), so a repo can be
+repaired non-interactively: read the field, `gh secret set <NAME> --repo <r>
+--body -`, never printing the value.
 
 Outside Molty by design (desktop path, consent first): `OpenClaw Developer ID Release Keychain` (`OpenClaw-Core` vault), npm interactive login+OTP (`Private/Npmjs`), personal SSH/signing keys. Twilio has no API credential stored anywhere — only a console login (Private); minting one needs the console.
 
