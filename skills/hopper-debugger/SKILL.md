@@ -5,129 +5,113 @@ description: "Hopper debugging: macOS/iOS binaries, ObjC/Swift symbols, dyld, LL
 
 # Hopper Debugger
 
-Goal: use Hopper through `mcporter` as a queryable disassembler, then combine the result with local source, LLDB, logs, and focused repros.
+Use Hopper through `mcporter` as a queryable disassembler, then combine the result with local source, LLDB, logs, and focused repros.
 
-## Quick Start
+## Setup (one time)
 
-Validate the MCP server:
-
-```bash
-MCPORTER_LIST_TIMEOUT=15000 timeout 20 mcporter list hopper --brief
-```
-
-List open Hopper documents:
+Hopper 6.0+ **ships its own MCP server**. Do not install a third-party one.
 
 ```bash
-MCPORTER_CALL_TIMEOUT=20000 timeout 30 mcporter call hopper.list_documents --output json
+mcporter config add hopper --scope home \
+  --command "/Applications/Hopper Disassembler.app/Contents/MacOS/HopperMCPServer" \
+  --description "Hopper Disassembler built-in MCP server (stdio)"
 ```
 
-If no document is open, open the binary/framework in Hopper first:
+`--scope home` is required. The default scope is **project**, which writes `config/mcporter.json` into whatever repo you are standing in (untracked repo dirt, lost with the worktree).
+
+Verify:
+
+```bash
+MCPORTER_LIST_TIMEOUT=25000 timeout 40 mcporter list hopper --brief
+```
+
+## Call convention — the one that bites
+
+**Always pass arguments with `--args`. Never `--params`.** `mcporter` accepts an unknown `--params` flag *silently*, drops the payload, and the call arrives with no arguments. Hopper then answers `Document not found.`, which reads like a licensing or state problem and is not.
+
+```bash
+# WRONG — arguments silently dropped, fails with "Document not found."
+mcporter call hopper.list_segments --params '{"document":"AppKit"}'
+
+# RIGHT
+mcporter call hopper.list_segments --args '{"document":"AppKit"}'
+```
+
+Related: the server does **not** fall back to the current document. A call with no `document` argument fails even when `current_document` returns a valid name. Pass `document` on every document-scoped call.
+
+Document names come from `list_documents` and carry **no `.hop` extension** (window title `AppKit.hop` → document name `AppKit`).
+
+If a call still fails, drive the server directly over stdio to see the raw JSON-RPC — this bypasses mcporter entirely and isolates who is at fault:
+
+```bash
+"/Applications/Hopper Disassembler.app/Contents/MacOS/HopperMCPServer" <<'EOF'
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"p","version":"1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_documents","arguments":{}}}
+EOF
+```
+
+## Licensing — do not misdiagnose
+
+Hopper 6.x still uses the bundle id and preferences domain **`com.cryptic-apps.hopper-web-4`**. The absence of a `hopper-web-6` domain does **not** mean the app is unlicensed. Check the real state in the About panel (`Hopper Disassembler > About Hopper Disassembler`); it prints the licensee, order id, and update-plan expiry. There is no Register/License menu item in Hopper 6.
+
+Peter's license: order `HOP140213-7833-95831`, updates through 2027-05-17. The `.hopperLicense` file is in 1Password (Molty vault, document item "Hopper Disassembler License (HOP140213-7833-95831)"); load `$one-password` to retrieve it. Opening a `.hopperLicense` file with Hopper does **not** register it — Hopper disassembles it as a document.
+
+## Opening documents
 
 ```bash
 open -a "Hopper Disassembler" /path/to/Binary
 ```
 
-Hopper may show a first-open/import dialog. Let the user click the confirmation button, then retry the MCP call. Avoid parallel Hopper MCP calls; the server can close the transport or crash Hopper while import is still settling.
-
-## Apple Frameworks
-
-Prefer already extracted dyld-cache framework binaries when present:
+Small binaries import with no dialog. Large frameworks take minutes; poll instead of sleeping:
 
 ```bash
-/tmp/dsc-appkit/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit
-/tmp/dsc-appkit/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI
+until mcporter call hopper.list_documents --output json 2>/dev/null | grep -qi "appkit"; do sleep 10; done
 ```
 
-Open one at a time when debugging SwiftUI/AppKit boundary issues:
+Dismiss any first-open dialog with an Accessibility press, never a synthetic click — clicking moves Peter's physical pointer:
 
 ```bash
-open -a "Hopper Disassembler" /tmp/dsc-appkit/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit
-mcporter call hopper.list_documents --output json
-
-open -a "Hopper Disassembler" /tmp/dsc-appkit/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI
-mcporter call hopper.list_documents --output json
+osascript -e 'tell application "System Events" to tell process "Hopper Disassembler" to perform action "AXPress" of (button 1 of window 1)'
 ```
 
-Verify access:
+## Apple frameworks
 
-```bash
-mcporter call hopper.list_documents --output json
-mcporter call hopper.current_document --output json
-mcporter call hopper.search_strings pattern=SwiftUI --output json
-mcporter call hopper.search_strings pattern=NSStatusItem --output json
-```
+Apple frameworks live in the dyld shared cache, not on disk. Two routes:
 
-Document names can start as `Untitled`; retry after Hopper finishes importing. Use `current_document`, symbol/string searches, and window title changes to identify AppKit vs SwiftUI.
+1. **Prefer Peter's pre-made exports** at `~/Library/CloudStorage/Dropbox/Hopper/` — `.hop` documents plus `.m` pseudo-code dumps for AppKit, AccessibilityKit, and others. Grepping the `.m` is often faster than any MCP round-trip (`AppKit.m` is 244 MB).
+   **Check provenance before trusting them for version work.** These are snapshots; as of 2026-08 they predate macOS 26.6 and 27.0, and their class/method inventory differs from both live runtimes. Good for structure, unreliable for OS-version diffing.
+2. Extract fresh with `/usr/lib/dsc_extractor.bundle` (present on macOS; extracts all dylibs, multi-GB, slow).
 
-## Query Workflow
+## Query workflow
 
 1. Start from the local source path or runtime symbol you are trying to explain.
-2. Search names/procedures/strings:
+2. Find the symbol, then inspect one small target at a time:
 
 ```bash
-mcporter call hopper.search_procedures pattern='NSStatusBar' --output json
-mcporter call hopper.search_name pattern='NSStatusBarButtonCell' --output json
-mcporter call hopper.search_strings pattern='NSStatusItem' --output json
+mcporter call hopper.search_procedures --args '{"document":"AppKit","pattern":"addCursorRect"}' --output json
+mcporter call hopper.procedure_pseudo_code --args '{"document":"AppKit","procedure":"0x185475b2c"}' --output json
 ```
 
-3. Inspect one small target at a time:
+`procedure` accepts a symbol name or a hex address. Other useful tools: `list_documents`, `current_document`, `set_current_document`, `list_segments`, `list_procedures`, `list_strings`, `search_strings`, `procedure_info`, `procedure_address`, `current_procedure`.
+
+3. Summarize the relevant control flow; do not paste large decompilations.
+4. Validate the hypothesis with LLDB/logging/repro before editing app code.
+
+## Pairing with runtime evidence
+
+Disassembly tells you which store a value lands in; only the runtime tells you whether it got there. Read the pseudo-code first to learn *which* ivar/collection the API actually writes to, then read that exact store at runtime with `class_copyIvarList` + `object_getIvar` + `perform`. Instrumenting the wrong (legacy) path is the classic time sink: on modern AppKit, `-[NSWindow _addCursorRect:cursor:forView:]` is dead code, and cursor rects are stored in `_NSTrackingAreaAKViewHelper`'s `cursorAreas` set.
+
+Always run the same probe on a second machine at a different OS version before concluding "regression". Several no-op probes look identical on a known-good OS and a known-broken one; a control run is what tells you the probe is measuring nothing. See `$remote-mac` for the fleet and `codexbar-ui-verification-quirks` memory for the cursor-measurement harness.
+
+## Failure handling
+
+- Wrap Hopper calls with `timeout`; a modal or import can leave the transport stuck.
+- Do not send concurrent Hopper MCP requests during import.
+- `Connection closed` usually means Hopper is not running or is showing a modal. Check windows via System Events, then retry.
+- `Document not found.` almost always means missing arguments (see `--args` above), not a broken document.
+- If mcporter is wedged, prefer restarting its daemon over broad process kills:
 
 ```bash
-mcporter call hopper.procedure_info procedure='<symbol>' --output json
-mcporter call hopper.procedure_assembly procedure='<symbol>' --output json
-mcporter call hopper.procedure_pseudo_code procedure='<symbol>' --output json
-mcporter call hopper.procedure_callers procedure='<symbol>' --output json
-mcporter call hopper.procedure_callees procedure='<symbol>' --output json
-mcporter call hopper.xrefs address=0x12345678 --output json
-```
-
-4. Summarize the relevant control flow; do not paste large decompilations.
-5. Validate the hypothesis with LLDB/logging/repro before editing app code.
-
-## Status Item / Menu Click Bugs
-
-Useful AppKit/SwiftUI searches:
-
-```bash
-mcporter call hopper.search_strings pattern='NSStatusItem_Private_ForSwiftUI' --output json
-mcporter call hopper.search_procedures pattern='popUpStatusBarMenu' --output json
-mcporter call hopper.search_procedures pattern='trackMouse' --output json
-mcporter call hopper.search_name pattern='NSStatusBarButtonCell' --output json
-mcporter call hopper.search_name pattern='NSStatusItem' --output json
-```
-
-Symbols worth inspecting when menu bar clicks do nothing:
-
-- `-[NSStatusBarButtonCell trackMouse:inRect:ofView:untilMouseUp:]`
-- `-[NSStatusBarButtonCell _sendActionFrom:]`
-- `-[NSStatusItem popUpStatusBarMenu:]`
-- `-[NSApplication sendAction:to:from:]`
-- SwiftUI status/menu symbols that reference `NSStatusItem_Private_ForSwiftUI`
-
-Compare disassembly against runtime state:
-
-```bash
-pgrep -af "App.app/Contents/MacOS/App"
-lldb /path/to/debug/Binary
-```
-
-For hardened signed apps, attach may fail without `get-task-allow`; launch the raw debug binary under LLDB when needed.
-
-## Failure Handling
-
-- Wrap Hopper calls with `timeout`; a modal/import or closed document can leave the transport stuck.
-- Do not send concurrent Hopper MCP requests during import. If a query is expensive, wait for it to finish before starting another.
-- If calls report `Connection closed`, check for a Hopper modal, then retry after confirmation.
-- If Hopper crashes, reopen a single document, wait for import/analysis, and re-run `list_documents` before deeper searches.
-- If mcporter is wedged, inspect processes before killing anything:
-
-```bash
-pgrep -af 'mcporter|HopperMCPServer|Hopper Disassembler'
-```
-
-- Prefer restarting the mcporter daemon over broad process kills:
-
-```bash
-mcporter daemon stop
-mcporter daemon start
+mcporter daemon stop && mcporter daemon start
 ```
