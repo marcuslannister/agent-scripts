@@ -125,6 +125,53 @@ status code, or account/organization label.
 
 If automation is unavailable, report the verification gap instead of silently switching to prohibited or isolated tooling.
 
+## Argument and Output Mechanics
+
+`--args` accepts inline JSON only. It does not read `@file`. Flag-style named
+arguments do:
+
+```bash
+mcporter call chrome-devtools.navigate_page url=@/tmp/target-url.txt --output text
+mcporter call chrome-devtools.evaluate_script function=@/tmp/probe.js --output json
+```
+
+Treat this as a safety primitive, not just ergonomics. A sign-in URL, magic
+link, or callback URL is credential-equivalent: write it to a mode-0600 file and
+pass it by file reference so it never reaches shell history, process arguments,
+or captured tool output. The same form carries a multi-line JavaScript function
+without quoting or control-character errors.
+
+Other call mechanics worth knowing before a login flow:
+
+- The default call timeout is short (about five seconds). Real navigation,
+  snapshots, and consent pages routinely exceed it, and the failure looks
+  identical to a hung page. Pass `--timeout 30000` for anything interactive.
+- `take_screenshot` with `filePath` is confined to the server's configured
+  workspace roots and refuses arbitrary paths. Omit `filePath`, read the
+  base64 image from `--output json`, and decode it locally.
+- `new_page` can fail with a restricted/unavailable tab when the target is not
+  shared. Navigate an already-shared tab instead of creating one.
+- `mcporter list <server> --schema` prints the real function signatures. Use it
+  rather than guessing parameter names.
+
+## Clicks That Do Not Click
+
+A `click` by `uid` can return success and still do nothing: some pages bind
+their handlers so that a synthetic click is ignored. Silence is not proof of
+action, so verify state after every activation rather than assuming it worked.
+
+When a click no-ops, drive the control from the keyboard with `press_key`
+(`Tab`, `Shift+Tab`, `Enter`) and confirm focus with a screenshot before
+committing. Focus rings are the only reliable evidence of which control is
+about to receive `Enter`, and consent screens routinely put the safe-looking
+prominent button next to a low-emphasis link that is the one you actually want.
+Blind `Enter` on such a page picks the wrong control.
+
+Snapshot `uid` values are invalidated by any navigation or re-render. Re-run
+`take_snapshot` and re-resolve the `uid` after every step; a stale `uid`
+reports that the element no longer exists, which is a cue to re-snapshot rather
+than to retry the same call.
+
 ## Legacy Fallback: Full-Profile Direct Attachment
 
 Use this only after the callable plugin and authenticated local extension relay
