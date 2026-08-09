@@ -64,6 +64,7 @@
 - PR: prefer fix/rewrite PR then merge, not close + duplicate direct commit.
 - PR quality: assume generated code may come from weaker AI. Review/improve before land; full rewrite okay when cleaner.
 - UI change PR: include before/after pictures. Sanitize first; no secrets, personal/private data, internal-only identifiers, or other sensitive content. Unsafe capture: state blocker; never upload.
+- PR/issue image upload: never computer use/browser. `curl -s "https://uploads.github.com/user-attachments/assets?name=<file>&content_type=<mime>&repository_id=$(gh api repos/<owner>/<repo> --jq .id)" -X POST -H "Authorization: Bearer $(gh auth token)" -H "Accept: application/json" --data-binary @<file>` → response `.url` embeds as `![alt](url)`; same CDN as drag-drop, inherits repo visibility. Undocumented endpoint: on failure fall back to prerelease asset (`gh release create pr-<n>-images --prerelease`) or repo-approved artifact store.
 - Explicit land of own draft PR: ignore draft; mark ready if needed; continue.
 - `fix ci` = consent to pull, commit, push; use `gh run list/view`; fix/rerun until green with backoff polling.
 - GitHub quota: bare `gh` only (Octopool cache). Watch commands (`gh run watch`, `gh pr checks --watch`) shim-native since octopool 0.4.7; still poll one exact id, not loops.
