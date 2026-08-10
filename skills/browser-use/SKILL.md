@@ -172,6 +172,26 @@ Snapshot `uid` values are invalidated by any navigation or re-render. Re-run
 reports that the element no longer exists, which is a cue to re-snapshot rather
 than to retry the same call.
 
+## When the Relay Goes Empty Mid-Task
+
+The relay can stop exposing tabs partway through a task — the shared tab was
+closed, navigated somewhere the group no longer covers, or the extension
+dropped its connection. The failure is quiet: `list_pages` returns an empty
+result rather than an error, and every later call times out against nothing.
+
+Treat an empty page list as "the relay lost its tabs", not "the browser is
+gone". Confirm the browser process is actually running before doing anything
+drastic. Restarting the mcporter daemon does not re-share tabs, because sharing
+is the user's group membership, not daemon state — so a restart loop cannot fix
+this and only costs time. Re-establishing access needs the user to put a tab
+back in the shared group.
+
+Do not escalate to a full-profile attachment or an isolated browser to route
+around it. When the task is a sign-in the user is present for, the faster and
+more honest move is to hand the URL to the browser the user is already sitting
+at, and if the flow's callback listens on another host, forward that port to
+the user's machine first. Otherwise report the access gap.
+
 ## Legacy Fallback: Full-Profile Direct Attachment
 
 Use this only after the callable plugin and authenticated local extension relay
