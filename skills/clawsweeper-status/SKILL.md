@@ -31,6 +31,11 @@ Useful options:
 Report these sections concisely:
 
 - `Workers`: workflow state, Codex jobs against configured capacity, exact-review queue and target occupancy, and active workflow groups.
+- `Queue health`: lead with this whenever it is not `healthy`. Pending depth on its own is not a verdict — read the split the script prints underneath it:
+  - `ready`/`admissible` near zero while pending is deep means the lane is deliberately holding items back, not stalled.
+  - `Queue backoff: throttle_retry N` means GitHub is rate-limiting; the lane recovers on its own once quota returns.
+  - `Queue parked (needs operator): review_retry_exhausted N` does **not** self-heal. Parked items retry at 5/10/20 minutes and then wait for a human. Always call these out explicitly.
+  - `Shed since reset` climbing into the thousands means sustained overload, not a blip.
 - `Recently merged`: merged PR URLs plus one-line titles.
 - `Recently reviewed`: ClawSweeper/Codex review comment URLs plus one-line comment summary.
 - `Recently commented`: other recent ClawSweeper comment URLs plus one-line comment summary.
