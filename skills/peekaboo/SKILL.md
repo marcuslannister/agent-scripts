@@ -1,105 +1,158 @@
 ---
 name: peekaboo
-description: "macOS screenshots, UI inspect, clicks, typing, app/window automation."
+description: "macOS screen capture, accessibility inspection, and background-first app/window/UI automation with Peekaboo v4."
 ---
 
 # Peekaboo
 
-Use for macOS screen capture, UI inspection, and GUI automation.
+Use Peekaboo for native macOS capture, UI inspection, and automation. Prefer its
+native app, window, Accessibility, and input commands over AppleScript or
+`osascript` whenever Peekaboo exposes the operation.
 
 ## Binary
 
-- Prefer `~/bin/peekaboo` when present; it is Peter's local release copy.
-- Else use `peekaboo`.
-- Check first: `~/bin/peekaboo --version || peekaboo --version`.
-
-## Mac app host
-
-- Launch `Peekaboo.app` before live capture/automation; the CLI does not auto-launch it.
-- The app owns TCC grants and serves `~/Library/Application Support/Peekaboo/bridge.sock`.
-- Installed app: `open -a Peekaboo`. Repo build: build the `Apps/Mac/Peekaboo.xcodeproj` `Peekaboo` scheme, then open the resulting `Peekaboo.app`.
-- `peekaboo daemon start` is not an app launch; the daemon has separate permissions and `daemon.sock`.
-- Verify `peekaboo bridge status --verbose --json` selects `hostKind: gui`; use `--bridge-socket "$HOME/Library/Application Support/Peekaboo/bridge.sock"` when deterministic app routing matters.
-
-## Safety
-
-- Check permissions before capture/automation: `peekaboo permissions status --json`.
-- Screenshot needs Screen Recording; clicks/typing/window control need Accessibility.
-- On remote Macs, Screenshot may be blocked by missing Screen Recording while
-  clicks/typing still work through Accessibility; continue with clicks or DOM
-  automation when the target is otherwise knowable.
-- Prefer `--json` for machine parsing and `--no-remote` when testing local TCC.
-- Do not click/type/destructively automate unless user asked or target is a controlled test.
-
-## Common Commands
+- Prefer `~/bin/peekaboo` when present; it is Peter's signed local release copy.
+- Otherwise use `peekaboo` from `PATH`.
+- Check the selected binary before relying on syntax or installed state.
 
 ```bash
 PB="${PEEKABOO_BIN:-$HOME/bin/peekaboo}"
 [ -x "$PB" ] || PB="$(command -v peekaboo)"
-
-"$PB" permissions status --json
-open -a Peekaboo
-"$PB" bridge status --verbose --json
-"$PB" list screens --json
-"$PB" list apps --json
-"$PB" list windows --app Safari --json
-"$PB" image --mode screen --screen-index 0 --path /tmp/screen.png --json --no-remote
-"$PB" see --app frontmost --path /tmp/frontmost.png --json --annotate
-"$PB" tools --json
-"$PB" learn
-"$PB" click --coords 100,100 --json
-"$PB" type "text" --json
-"$PB" paste --json
-"$PB" hotkey cmd,w --json
+"$PB" --version
 ```
 
-## Clicking Reliably
+## Runtime host and permissions
 
-Screenshot pixels are **not** click coordinates. `click --coords` takes screen
-points; a screenshot of a Retina display is typically twice that, and whatever
-scaled rendering you are looking at is a third number. Get the point-space bounds
-from `list screens --json` and scale before clicking. A 4848x2952 screenshot of a
-2424x1476 screen is a factor of 0.5; against a 2000px-wide rendering of that same
-screenshot it is 1.212. Getting this wrong lands every click in roughly the right
-region, which is worse than missing outright because it looks like a flaky app.
+- Launch `Peekaboo.app` without taking focus when a GUI Bridge host is needed:
+  `open -gj -a Peekaboo`.
+- The app owns its TCC grants and serves
+  `~/Library/Application Support/Peekaboo/bridge.sock`. The reusable daemon has
+  separate permissions and serves `daemon.sock`; `daemon start` is not an app
+  launch.
+- Normal runtime selection prefers a healthy reusable daemon, then the GUI
+  host, before starting a daemon. Use `bridge status --verbose --json` to see
+  the actual selection. When app-held TCC is required, pass
+  `--bridge-socket "$HOME/Library/Application Support/Peekaboo/bridge.sock"`
+  and verify `hostKind: gui` instead of assuming the app was selected.
+- Check `permissions status --all-sources --json`. Grant Screen Recording,
+  Accessibility, and Event Synthesizing to the process reported as the selected
+  source, not merely to the invoking terminal.
+- Prefer Bridge capture from SSH, LaunchAgent, Codex, and other background
+  sessions. `--no-remote --capture-engine cg` is a local-debug override and can
+  return wallpaper-only pixels outside the active Aqua session.
+- Never run an unsigned or ad-hoc build against saved TCC or Keychain state.
 
-A click without `--app`, `--pid`, `--window-id`, or a snapshot fails outright:
-add `--foreground`.
+## Background-first safety
 
-**The first click into an app that is not frontmost is consumed by focus** and
-the control underneath never fires. Issue the same click twice when the target
-app may be in the background. Silent no-ops from this cause look exactly like a
-wrong coordinate, and cost far more time to diagnose than the extra click costs.
+- Keep the user's foreground app, keyboard focus, and physical cursor untouched
+  by default. Supply an exact `--app`, `--pid`, `--window-id`, or fresh snapshot
+  target and use Peekaboo's background delivery.
+- Never add `--foreground` merely to make a command work speculatively. Add it
+  only when the user authorized foreground interaction or the target demonstrably
+  rejects background delivery.
+- Shared-cursor and targetless global input must use explicit foreground mode.
+  This includes `move`, `drag`, targetless/smooth scroll, and targetless keyboard
+  input; `click --long-press` is foreground-only. Foreground mode can interrupt
+  the user.
+- Background typing, key chords, and paste need a resolvable app/PID and Event
+  Synthesizing permission. Window selectors require foreground mode for these
+  process-targeted keyboard operations.
+- Do not click, type, paste, quit, or otherwise mutate UI unless the user asked
+  or the target is a controlled test. Re-observe after mutations; never replay
+  an indeterminate input blindly.
 
-Prefer `paste` over `type` for anything sensitive: `type` puts the value in argv
-where it reaches shell history, process listings, and logs, while `paste` moves
-it through the clipboard. Clear the clipboard before and after so a stray copy is
-detectable.
+## v4 command names
 
-Element targeting via `see --annotate` is the robust option **when it works**,
-but it is not universal. On some machines it returns zero elements for Chrome,
-and `list windows --app "Google Chrome"` returns only helper strips rather than
-the browser window, leaving no geometry to derive fractions from either. Check
-that `see` actually returns elements for your target app before designing around
-it, and fall back to scaled coordinates plus a screenshot after each step.
+- Inventory: `app list`, `window list`, and `screen list`; there is no top-level
+  `list` command.
+- Screenshots and UI inspection: `see --no-elements` for pixels, or
+  `see --tree --no-screenshot` for AX-only text; do not use the removed `image`
+  or `inspect-ui` CLI commands.
+- Keyboard chords: `press`; do not use the removed `hotkey` command.
+- Named Accessibility actions: `action`; do not use `perform-action`.
+- Coordinate clicks: `click --at x,y`; do not use `--coords`.
 
-## When a CLI hangs with no output
+## Common commands
 
-On macOS, suspect a modal before suspecting the program. A pending Gatekeeper
-prompt ("... is an app downloaded from the Internet") silently blocks helper
-binaries, and if it opened behind another window there is nothing on screen to
-suggest it. Take a screenshot before debugging the CLI. Approving a Gatekeeper
-prompt is the user's decision, not yours: surface it rather than clicking Open.
+```bash
+"$PB" permissions status --all-sources --json
+open -gj -a Peekaboo
+"$PB" bridge status --verbose --json
+
+"$PB" screen list --json
+"$PB" app list --include-hidden --include-background --json
+"$PB" window list --app Safari --json
+
+# Screenshot only; observation does not activate the target app.
+"$PB" see --no-elements --mode screen --path /tmp/screen.png --json
+
+# Interactive map plus a directly accessible image artifact.
+"$PB" see --app Safari --annotate --path /tmp/safari-see.png --json
+
+# AX-only inspection, with no pixel capture or screenshot artifact.
+"$PB" see --app Safari --tree --no-screenshot --json
+
+# Use IDs and the snapshot returned by a fresh `see`.
+"$PB" click --on "$ELEMENT_ID" --snapshot "$SNAPSHOT_ID" --json
+"$PB" action AXPress --on "$ELEMENT_ID" --snapshot "$SNAPSHOT_ID" --json
+
+# Process-targeted background keyboard delivery.
+"$PB" type "text" --app TextEdit --json
+"$PB" press cmd+shift+t --app Safari --json
+"$PB" paste "text" --app TextEdit --json
+
+"$PB" tools --json
+"$PB" tools describe click --json
+```
+
+## Click coordinates safely
+
+Screenshot pixels are not automatically click coordinates. `click --at` uses
+logical points. With target flags, coordinates are relative to the resolved
+window; without them they are global screen coordinates. Add `--global` to make
+targeted coordinates use the global logical space. Use `screen list --json` for
+display bounds and scale factors when converting Retina pixels.
+
+A background coordinate click requires an explicit snapshot from a fresh
+exact-window observation. First resolve the canonical window ID, then observe
+that exact window and use both its window ID and returned snapshot ID:
+
+```bash
+"$PB" window list --app Safari --json
+"$PB" see --app Safari --window-id 12345 --path /tmp/safari.png --json
+"$PB" click --window-id 12345 --at 20,40 --snapshot "$SNAPSHOT_ID" --json
+```
+
+Peekaboo revalidates the captured PID, process generation, window ID, and bounds
+before dispatch. If the exact receipt cannot be established, background input
+must fail instead of guessing. Use `--foreground` only when visible shared-pointer
+interaction is intentional. Background right/double click can be dispatched to
+an exact route but remains effect-unverifiable; run a fresh `see` before retrying.
+
+For element work, prefer IDs from a fresh `see` and pass the snapshot explicitly.
+Queries and the implicit latest snapshot are convenient but less deterministic.
+After an action changes UI, capture a new snapshot rather than reusing stale IDs.
 
 ## Workflow
 
-1. Resolve `PB` as above and confirm version when install state matters.
-2. For live UI work, launch `Peekaboo.app`; verify the GUI bridge and its permissions.
-3. Run `permissions status --json`; if missing TCC, report exact missing grant.
-4. For screenshots, use `image`; include `--path`, `--json`, and usually `--no-remote` only when deliberately testing caller-local TCC.
-5. For element targeting, run `see --json --annotate`, then click by element id/snapshot.
-6. For long-running/change-aware screen capture, use `capture live`; for video frame sampling, use `capture video`.
-7. Use `tools --json` for command/tool discovery and `learn` when the full agent guide is useful.
-8. Verify output files with `sips -g pixelWidth -g pixelHeight <path>` or view the image.
+1. Resolve `PB`, confirm its version, and launch the signed GUI host in the
+   background when app-held TCC is needed.
+2. Verify the selected Bridge host and compare permissions across sources.
+3. Resolve the target with `app list` or `window list`; prefer PID/window ID over
+   a broad name or title when cleanup or mutation must be exact.
+4. Observe without focus theft: use `see --no-elements` for a screenshot,
+   ordinary `see` for element IDs, or `see --tree --no-screenshot` for AX-only
+   inspection. Pass `--path` when the caller needs the image file.
+5. Interact in the background with an exact target and fresh snapshot. Prefer
+   `action` or an element click over coordinate input.
+6. Verify every mutation with a new `see` or a purpose-built read-only command.
+7. Escalate to explicit `--foreground` only for authorized shared cursor/global
+   input or a confirmed application limitation; never silently promote modes.
+8. Use `capture live` for change-aware capture, `capture video` for video frame
+   sampling, `tools describe <name>` for MCP schemas, and `<command> --help` for
+   current CLI syntax.
+9. Verify image artifacts with `sips -g pixelWidth -g pixelHeight <path>` or view
+   them locally.
 
-Docs: `~/Projects/Peekaboo/docs/commands/`.
+Source of truth: `~/Projects/peekaboo/docs/commands/` and the selected binary's
+`--help` output.
