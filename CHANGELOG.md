@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Taught the `clawsweeper-status` snapshot to report queue handoff health, the ready/admissible split, backoff and parked reasons, and shed-since-reset, so exact-review items parked on retry exhaustion are no longer invisible behind a `healthy` verdict.
 - Added the `project-structure` skill: a TypeScript symbol-map generator that compresses a repository into one context-loadable file with dense/skeleton/exports tiers, plugin-boundary listings, and measured token budgets.
 - Removed the obsolete scoped-commit helper and returned commit recipes to standard Git now that agent work uses isolated worktrees.
 - Made the million-token Codex provider and context settings an explicit atomic invariant, with a fatal preflight diagnostic for the unrecoverable `openai` plus 922K/700K split configuration.
