@@ -249,6 +249,14 @@ from origin/main per PR.
 - run focused tests yourself or demand proof output; Codex claims are advisory
 - iterate via resume; after 2 failed rounds, take over and do it directly
 - normal closeout still applies: `$autoreview` before ship
+- **check for a live worker in the repo before you edit or commit**:
+  `pgrep -fl "codex exec"`. A run whose deliverable is already in the tree can
+  keep looping for hours and overwrite your fixes mid-review. Stop it once you
+  have verified its output rather than racing it.
+- a genuinely independent review pass earns its keep: reviewing the working tree
+  after a Codex build found a currency value being fed to a percentage helper
+  that clamped at 100, which typechecked, passed every test, and was invisible in
+  the worker's own report.
 
 ## Economics
 
