@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Reconciled `steipete/agent-scripts` through `067178d`: refreshed shared skills, added `codexbar`, `telecrawl`, and `project-structure`, updated fleet and release checks, corrected GitHub secret stdin guidance, and removed the obsolete scoped commit helper.
+
 - Stopped acquire retrying a Codex marketplace refresh that can never succeed: `codex plugin marketplace upgrade` re-clones the whole upstream repo under a hardcoded 30s timeout, so `thedotmack/claude-mem` (~330MB, ~44s) fails identically on all three attempts and reported the same error three times. The adapter now recognises the clone-timeout signature, stops after the first attempt, and names ADR-0007 and the manual repair; failures that could be transient keep the full retry budget.
 
 - Fixed `agent-tooling/update-local.sh` never updating native plugins, which froze them at whatever version a secondary machine first installed (observed: `mattpocock-skills` stuck at 1.2.0 against upstream 1.2.3, plus claude-mem and Waza). Plugin reconciliation lived only in the acquire phase, which `update-local.sh` skips because acquire also mirrors tracked staging — but plugins are per-machine CLI state that git never carries, so distribute reported success while the plugins stayed stale. Acquire gains `--plugins-only`, which narrows every source loop to registry entries owning a native plugin and writes no staging, and `update-local.sh` now runs it between the CLI and distribute steps.

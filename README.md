@@ -93,11 +93,6 @@ Topology authoring:
 - For an external skill-bearing source, add exactly one `agent-tooling/skill-topology.json` source and one private adapter registration with its matrix source identity. Stage source-only and npx-only inventories under the matching `other-skills/<owner>/`; never write them directly into `skills/`. Record source defaults and plugin policy in the manifest; never add another public updater.
 - Preview upstream/staging drift with `agent-tooling/update-skill-topology.sh --check`; run it to acquire. Regenerate `agent-tooling/skills-matrix.md` to append new skills without changing selections, then preview surfaces offline with `agent-tooling/sync-skill-surfaces.sh --check`. Run `agent-tooling/verify.sh` before commit.
 
-`scripts/committer`
-- Stages exactly the listed files.
-- Enforces a non-empty commit message.
-- Runs skill validation before committing.
-
 `agent-tooling/setup-agent-instructions.sh`
 - Explicit one-machine setup for the three shared `AGENTS.MD`/`CLAUDE.md` pointers; not part of topology reconciliation or routine updates.
 - Idempotent; preserves real user files and foreign symlinks.

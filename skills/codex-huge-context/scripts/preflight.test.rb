@@ -91,6 +91,20 @@ end
 Dir.mktmpdir("codex-huge-context-test") do |root|
   config = write_fixture(
     root,
+    helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+    config_overrides: { "model_provider" => '"openai"' },
+  )
+  stdout, stderr, process_status = run_preflight(config)
+  assert(!process_status.success?, "unsafe provider/context split unexpectedly passed")
+  assert(stderr.include?("unsafe split configuration"), "provider/context split failure is unclear")
+  assert(stderr.include?("restart every Codex app server"), "provider/context split omits restart recovery")
+  assert(stderr.include?("fresh thread"), "provider/context split omits thread recovery")
+  assert(!"#{stdout}\n#{stderr}".include?(OUTPUT_SENTINEL), "credential leaked on split-config failure")
+end
+
+Dir.mktmpdir("codex-huge-context-test") do |root|
+  config = write_fixture(
+    root,
     helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'; printf '%s\n' '#{OUTPUT_SENTINEL}' >&2; exit 44",
   )
   stdout, stderr, process_status = run_preflight(config)

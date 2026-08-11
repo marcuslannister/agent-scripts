@@ -34,8 +34,8 @@ Follow the official CLI get-started steps for anything else. Don't guess install
 **2. Desktop app — explicit consent only.** For items genuinely outside Molty (personal `Private` vault, `OpenClaw-Core`). No automatic fallback.
 
 - STOP and ask in chat first: item name + why needed. Wait for yes.
-- On a VM/headless host, first try routing this flow to Peter's MacBook — see "Remote routing — desktop path only".
-- After consent: one task window in the shared `op-work` session (see below), `op signin --account my.1password.com` once, then batch every interactive read of the whole task into that same window and one `op run`/`op inject` invocation when practical. TTY reuse limits 1Password's Authorize prompts; it does not make the separate macOS App Data grant persist across new `op` PIDs.
+- On a non-primary, VM, or headless host, route this flow to the active physical workstation in the matching personal or work-managed environment; see "Remote routing - desktop path only".
+- After consent: one task window in the shared `op-work` session (see below). Inside that window, first `unset OP_SERVICE_ACCOUNT_TOKEN MOLTY_OP_SERVICE_ACCOUNT_TOKEN`; an exported service token overrides `--account my.1password.com` and silently confines reads to Molty. Then run `op signin --account my.1password.com` once, and batch every interactive read of the whole task into that same window and one `op run`/`op inject` invocation when practical. TTY reuse limits 1Password's Authorize prompts; it does not make the separate macOS App Data grant persist across new `op` PIDs.
 - No nameplate/sag pre-alerts. Audible page (`sag`) only if Peter approved the unlock in chat and the 1Password prompt then sits unanswered.
 
 ## Known Molty items (skip discovery)
@@ -54,26 +54,72 @@ Exact titles; go straight to the service-account read. No enumeration needed.
 | Cloudflare (OpenClaw services) | `OpenClaw Services Cloudflare API Token` | `credential` |
 | Sparkle signing | `Nameplate Sparkle EdDSA` | `private key` |
 | Octopool | `Octopool Proxy Secret`, `Octopool Admin Token (OpenClaw account)` | `credential` |
-| GitHub PAT | `GitHub Personal Access Token`, `GitHub Personal Access Token Xcode 26` | `credential` |
 | Crabyard deploy | `Cloudflare OpenClaw Crabyard Deploy Token` | `credential` |
 | Hetzner (crabyard) | `API Key - Hetzner Cloud - OpenClaw - crabyard-ssh-gateway` | `credential` |
 | Anthropic (Peekaboo) | `Anthropic API Key - Peekaboo Live Test` | `credential` |
 | ClickClack deploy | `Cloudflare ClickClack deploy token`, `Cloudflare ClickClack R2 uploads` | `credential` |
 | Barnacle | `GitHub Token Barnacle` | `credential` |
+| macOS Developer ID signing (OpenClaw Foundation) | `Release - macOS Developer ID p12 - OpenClaw Foundation` | `p12_base64`, `p12_password` |
+| macOS Developer ID signing (personal) | `Release - macOS Developer ID p12 - Peter Steinberger` | attached `DeveloperID-p12` file, `certificate_password` |
+| Release-tag SSH signing key | `Release - Git tag SSH signing key - all repos` | `private_key`, `public_key` (fp `SHA256:WmI9lVtd…`) |
+| Homebrew tap dispatch token | `Release - Homebrew tap dispatch token - openclaw/homebrew-tap` | `token` |
+| Apple notarization (Apple ID fallback) | `Release - Apple ID app-specific password - notarization` | `apple_id`, `team_id`, `app_specific_password` |
 
 ClickClack/Barnacle Molty items are agent copies; canonical items live in the shared `OpenClaw` vault — on rotation update both.
 
+## Release credentials: one tag finds them all
+
+Every signing/notarization/tap credential is tagged `release-credential` and
+named `Release - <what> - <scope>` (unified 2026-08-09). Do not hunt by guessing
+titles — list them:
+
+```bash
+op item list --vault Molty --tags release-credential
+```
+
+Start with `Release - 00 INDEX (read me first)`: its note maps each GitHub
+Actions secret name to the exact item and field, and records the repair recipe.
+Keep that index current when adding or rotating a release credential.
+
+## Release credentials: GitHub secrets are PER-REPO, not org-level
+
+Verified 2026-08-09: the `openclaw` org has 21 org-level secrets and **none** of
+them are the release/signing ones. `MACOS_SIGNING_P12`,
+`MACOS_SIGNING_P12_PASSWORD`, `ASC_KEY_ID`, `ASC_ISSUER_ID`,
+`ASC_PRIVATE_KEY_P8`, and `HOMEBREW_TAP_TOKEN` are set **per repository**. A
+release failing at signing or the Homebrew handoff is therefore usually a
+missing/misnamed secret on that one repo, not a broken org secret.
+
+Known trap: `openclaw/gogcli` carried legacy names
+(`MACOS_SIGNING_CERT_BASE64`, `MACOS_SIGNING_CERT_PASSWORD`,
+`MACOS_CODESIGN_IDENTITY`) while the shared `openclaw/release-workflows`
+reusable workflow reads the `MACOS_SIGNING_P12*` / `ASC_*` names, so the signer
+import silently received empty values. Compare a broken repo's secret names
+against a known-good one (`openclaw/wacrawl`) before debugging anything else.
+
+The values for all of these live in Molty (table above), so a repo can be
+repaired non-interactively: read the field without printing it, then pipe it
+with `printf '%s' "$value" | gh secret set <NAME> --repo <r>`. Omit `--body`
+entirely: the GitHub CLI reads stdin only when that flag is absent.
+
+Read those fields via the JSON + exact-label method in "Exact field reads"
+below — NOT `--fields label=<f>`. Measured 2026-08-09 on the Foundation p12
+item: `--fields label=p12_base64` returned 65 characters while the correct
+value is 4432. Items with several concealed fields silently resolve the wrong
+one, which would push a truncated secret into CI.
+
 Outside Molty by design (desktop path, consent first): `OpenClaw Developer ID Release Keychain` (`OpenClaw-Core` vault), npm interactive login+OTP (`Private/Npmjs`), personal SSH/signing keys. Twilio has no API credential stored anywhere — only a console login (Private); minting one needs the console.
 
-## Remote routing — desktop path only
+## Remote routing - desktop path only
 
 Applies to path 2 (interactive/desktop) flows only; path 1 service-account reads always run locally, no routing.
 
-- Before any desktop-app flow on a VM/headless/non-primary host: load `$remote-mac`, check if Peter's MacBook (`steipete-mbp`, Tailscale `peters-macbook-pro-1`) is online via `tailscale status --json`.
-- Online → route the whole interactive flow there: `ssh -o ConnectTimeout=5 -o RequestTTY=no -o RemoteCommand=none steipete@steipete-mbp ...` running inside the MacBook's OWN shared `op-work` tmux session (same socket/session/window rules as local, executed remotely). 1Password prompts + Touch ID then fire where Peter is; he sees and approves them.
+- Identify the current host first (`hostname; id -un`), then load the remote-Mac skill matching that environment. Keep personal and work-managed Mac topologies separate; never infer identity from a stale IP or a generic "Mac Studio" name.
+- If the current host is Peter's active physical workstation with a usable 1Password GUI session, keep the entire consented desktop flow local. In the personal environment, the default active workstation is `steipete-studio-sf`; use `steipete-mbp` only when Peter says he is using it or live context confirms it is the active approval surface. In the work-managed environment, default to its verified Studio; use its matching MacBook only when Peter identifies it as the active approval surface or live context confirms it.
+- On a VM, headless host, or other non-active workstation, check the matching topology skill's documented Tailscale command and select only an active Studio or MacBook from that same environment. Verify the configured SSH alias with `ssh -o ConnectTimeout=5 -o RequestTTY=no -o RemoteCommand=none <workstation-alias> 'hostname; id -un'` before routing the whole interactive flow into that workstation's OWN shared `op-work` tmux session.
 - Consent rule unchanged: still ask in chat first (item + why). Routing changes WHERE the prompt appears, not whether to ask.
 - Only the needed field values cross the SSH channel; same no-print, shape-check-only rules apply on both ends. Kill the remote task window at task end.
-- MacBook offline/SSH timeout → on a VM/headless host, report what was tried and STOP; no local desktop flow there — the prompt would be invisible. Local desktop fallback only on a host with a usable GUI session + 1Password app.
+- If the selected workstation is offline or SSH times out, use another same-environment physical workstation only when Peter or live context confirms it is the active approval surface. Local fallback requires a usable GUI session and explicit verification that the current same-environment host is Peter's active workstation; otherwise, including on any VM/headless host, report what was tried and STOP.
 
 ## Workflow
 
@@ -83,7 +129,7 @@ Applies to path 2 (interactive/desktop) flows only; path 1 service-account reads
 4. Known/expected Molty item → service-account read directly (path 1). Verify with `OP_LOAD_DESKTOP_APP_SETTINGS=false OP_BIOMETRIC_UNLOCK_ENABLED=false OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op whoami </dev/null >/dev/null 2>&1; echo op_rc:$?` if unsure the token works.
 5. Item unknown → check the table above → vault-scoped metadata search in Molty (service account, safe) → only then the desktop consent ask (path 2).
 6. If a command fails, reuse the same window with `tmux send-keys`; do not open a second window or session just to retry.
-7. If multiple personal accounts in an interactive flow: `--account my.1password.com` default; never `my.1password.eu` / Titan unless explicitly asked.
+7. Before a personal interactive flow, unset `OP_SERVICE_ACCOUNT_TOKEN` and `MOLTY_OP_SERVICE_ACCOUNT_TOKEN` inside the task window. Then use `--account my.1password.com` by default; never `my.1password.eu` / Titan unless explicitly asked.
 
 ## Shared Op Tmux Session — one session, one window per task
 

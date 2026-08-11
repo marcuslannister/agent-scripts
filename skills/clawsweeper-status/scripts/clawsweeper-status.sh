@@ -393,6 +393,41 @@ if [ "$exact_queue_available" = true ]; then
   fi
   printf -- "- Exact-review queue: %s active, %s pending (target %s: %s active, %s pending)\n" \
     "$exact_active_display" "$exact_pending" "$target_repo" "$target_exact_active_display" "$target_exact_pending"
+
+  # Depth alone hides the failure modes that actually stall the lane: items can be
+  # ready, in throttle backoff, or parked after retry exhaustion, and only the last
+  # needs an operator. Surface that split plus handoff health.
+  queue_health="$(jq -r '
+    def reasons: to_entries | map("\(.key) \(.value)") | join(", ");
+    [
+      (.handoff_health.status // "unknown"),
+      (.handoff_health.reason // ""),
+      (.ready_pending // 0 | tostring),
+      (.admissible_pending // 0 | tostring),
+      ((.oldest_pending_key // "") | tostring),
+      ((.oldest_pending_age_seconds // 0) / 60 | floor | tostring),
+      ((.lanes.review.backoff_reasons // {}) | reasons),
+      ((.lanes.review.parked_reasons // {}) | reasons),
+      (.shed_since_reset // 0 | tostring)
+    ] | @tsv' "$exact_queue_json" 2>/dev/null)"
+  if [ -n "$queue_health" ]; then
+    IFS=$'\t' read -r qh_status qh_reason qh_ready qh_admissible qh_oldest_key qh_oldest_min \
+      qh_backoff qh_parked qh_shed <<<"$queue_health"
+    health_line="- Queue health: ${qh_status}"
+    [ -n "$qh_reason" ] && health_line="${health_line} (${qh_reason})"
+    health_line="${health_line} — ready ${qh_ready}, admissible ${qh_admissible}"
+    if [ -n "$qh_oldest_key" ]; then
+      health_line="${health_line}, oldest pending ${qh_oldest_key} ${qh_oldest_min}m"
+    fi
+    printf -- "%s\n" "$health_line"
+    [ -n "$qh_backoff" ] && printf -- "- Queue backoff: %s\n" "$qh_backoff"
+    if [ -n "$qh_parked" ]; then
+      printf -- "- Queue parked (needs operator): %s\n" "$qh_parked"
+    fi
+    if [ "${qh_shed:-0}" != "0" ]; then
+      printf -- "- Shed since reset: %s\n" "$qh_shed"
+    fi
+  fi
 else
   printf -- "- Exact-review queue: unavailable\n"
 fi

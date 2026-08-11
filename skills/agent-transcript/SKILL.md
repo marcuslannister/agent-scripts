@@ -1,19 +1,18 @@
 ---
 name: agent-transcript
-description: "GitHub PR/issue agent transcripts: redact, preview, and insert safely."
+description: "Requested GitHub PR/issue agent transcripts: redact, preview, and insert safely."
 ---
 
 # Agent Transcript
 
-Best-effort local-only provenance for OpenClaw PR/issue bodies. Use during agent-created GitHub PR or issue workflows before creating/updating the body.
+Best-effort local-only provenance for OpenClaw PR/issue bodies. Use only when the user explicitly requests a transcript or preview.
 
 ## Contract
 
 - Never use network. Session discovery reads local agent logs only.
 - Never upload raw logs. Render sanitized Markdown first.
-- Always ask the user before adding transcript logs to a GitHub PR/issue body.
-- Tell the user sanitized session logs help reviewers and can make PRs easier to prioritize.
-- Offer a local HTML preview before insertion. If the user wants preview, open it and wait for confirmation before adding the section.
+- Omit transcripts by default; do not offer or ask about them.
+- If explicitly requested, offer a local HTML preview before insertion and wait for confirmation before adding the section.
 - Fail closed on unresolved secrets, private keys, browser/session/cookie details, or auth URLs.
 - Drop system/developer prompts, raw tool outputs, reasoning, env, cookies, tokens, and broad local paths.
 - Keep user prompts, assistant visible decisions, terse tool summaries, and test/proof outcomes.
@@ -71,15 +70,15 @@ skills/agent-transcript/scripts/agent-transcript append-body \
 
 ## PR/Issue Workflow
 
+Run this workflow only after the user explicitly requests a transcript or preview.
+
 1. Draft the normal PR/issue body first.
 2. Run `find` with title, branch, PR URL/number if known, and cwd.
-3. If a high-confidence session is found, ask:
-   `Include a redacted agent transcript? It helps reviewers and can make the PR easier to prioritize. I can open a local preview first.`
-4. If the user wants preview, run `preview`, open the HTML with `open`, and wait for confirmation.
-5. Render or append to a temp body, then automatically trim the `## Agent Transcript` section before showing it to the user or inserting it publicly. Keep only turns that explain this PR/issue's goal, implementation choices, files, tests, proof, blockers, and final outcome.
-6. Inspect the trimmed transcript text. If it still includes unrelated earlier/later work, trim again before proceeding.
-7. If the user approves, use the enriched trimmed body file for creation/update.
-8. If no safe session is found, say nothing and continue without transcript. If the user declines, continue without transcript and do not add any transcript placeholder section.
+3. If preview was requested, run `preview`, open the HTML, and wait for confirmation.
+4. Render or append to a temp body, then automatically trim the `## Agent Transcript` section before showing it to the user or inserting it publicly. Keep only turns that explain this PR/issue's goal, implementation choices, files, tests, proof, blockers, and final outcome.
+5. Inspect the trimmed transcript text. If it still includes unrelated earlier/later work, trim again before proceeding.
+6. Use the enriched trimmed body file only after the user approves it.
+7. If no safe session is found or the user declines, continue without a transcript or placeholder section.
 
 ## Review Artifacts
 

@@ -9,7 +9,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - review-claudemd
 - validate-skills
 
-## steipete (53)
+## steipete (56)
 
 - agent-transcript
 - beeper
@@ -20,6 +20,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - codex-debugging
 - codex-first
 - codex-huge-context
+- codexbar
 - create-cli
 - discord-clawd
 - domain-dns-ops
@@ -44,6 +45,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - openclaw-relay
 - oracle
 - peekaboo
+- project-structure
 - release-mac-app
 - release-tweets
 - reminders
@@ -56,6 +58,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - swiftui-liquid-glass
 - swiftui-performance-audit
 - swiftui-view-refactor
+- telecrawl
 - things-todo
 - twilio-sms
 - video-transcript-downloader

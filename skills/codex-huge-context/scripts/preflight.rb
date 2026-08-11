@@ -88,6 +88,15 @@ def validate_config(sections)
 
   raise PreflightError, "model must be one of the 1M catalogue models" unless MODELS.include?(root["model"])
 
+  if root["model_provider"] != "openai_api_direct" &&
+      root["model_context_window"] == CONTEXT_WINDOW &&
+      root["model_auto_compact_token_limit"] == AUTO_COMPACT_TOKEN_LIMIT
+    raise PreflightError,
+          "unsafe split configuration: model_provider is #{root["model_provider"].inspect} while the " \
+          "922000/700000 direct-API limits are active; set model_provider to \"openai_api_direct\", " \
+          "restart every Codex app server, and start or fork a fresh thread"
+  end
+
   require_value(root["model_provider"], "openai_api_direct", "model_provider")
   require_value(root["model_context_window"], CONTEXT_WINDOW, "model_context_window")
   require_value(

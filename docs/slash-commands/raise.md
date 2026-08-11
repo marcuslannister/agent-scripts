@@ -23,7 +23,7 @@ Goal: If `CHANGELOG.md` top release is dated (not `Unreleased`), create a new to
 - Do not touch any other release sections.
 
 3) Commit + push
-- `committer "docs(changelog): start X.Y.(Z+1) cycle" CHANGELOG.md`
+- `git add CHANGELOG.md && git commit -m "docs(changelog): start X.Y.(Z+1) cycle"`
 - `git push`
 
 4) Verify CI
