@@ -32,12 +32,45 @@ rescue StandardError => e
   [nil, "YAML: #{e.message}"]
 end
 
+GH_SECRET_BODY_DASH = /
+  \bgh[ \t]+secret[ \t]+set\b
+  [^;\r\n|&]{0,500}?
+  --body[ \t]+-
+  (?=$|[\s`'";|&)\\])
+/x
+
+def gh_secret_body_dash_line(text)
+  lines = text.lines.map { |line| line.sub(/\r?\n\z/, "") }
+
+  lines.each_with_index do |line, index|
+    return index + 1 if GH_SECRET_BODY_DASH.match?(line)
+  end
+
+  lines.each_cons(2).with_index do |(first, second), index|
+    boundary = first.length
+    match = GH_SECRET_BODY_DASH.match("#{first} #{second}")
+    next unless match && match.begin(0) < boundary && match.end(0) > boundary
+
+    return index + 1
+  end
+
+  nil
+end
+
 skill_files = Dir.glob("skills/*/SKILL.md").sort
 errors = []
 names = {}
 
 skill_files.each do |path|
   text = File.read(path, encoding: "UTF-8")
+  bad_secret_line = gh_secret_body_dash_line(text)
+  if bad_secret_line
+    errors << [
+      path,
+      "line #{bad_secret_line}: `gh secret set` must read stdin by omitting `--body`; never use `--body -`",
+    ]
+  end
+
   data, error = load_front_matter(path, text)
 
   if error

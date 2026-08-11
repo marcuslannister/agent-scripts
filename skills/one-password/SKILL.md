@@ -98,8 +98,9 @@ import silently received empty values. Compare a broken repo's secret names
 against a known-good one (`openclaw/wacrawl`) before debugging anything else.
 
 The values for all of these live in Molty (table above), so a repo can be
-repaired non-interactively: read the field, `gh secret set <NAME> --repo <r>
---body -`, never printing the value.
+repaired non-interactively: read the field without printing it, then pipe it
+with `printf '%s' "$value" | gh secret set <NAME> --repo <r>`. Omit `--body`
+entirely: the GitHub CLI reads stdin only when that flag is absent.
 
 Read those fields via the JSON + exact-label method in "Exact field reads"
 below — NOT `--fields label=<f>`. Measured 2026-08-09 on the Foundation p12
