@@ -85,8 +85,15 @@ relay success.
 - A previous native-host miss is cached for the Chrome process. If the extension
   attempted native messaging before installation, restart Chrome once after
   installing; repeated retries in the same process cannot repair that cache.
-- Restart the mcporter daemon after pairing or changing the relay route, then
-  re-run relay-only readiness proof from scratch.
+- After pairing or changing the relay route, stop the mcporter daemon before
+  re-running relay-only proof. A Gateway restart can leave the Chrome DevTools
+  child alive with a dead upstream socket; `mcporter daemon restart` may reuse
+  that child, while `mcporter daemon stop` forces a clean process on next call.
+- MCPorter discovers the actual relay through
+  `openclaw browser extension cdp --json`. Packaged OpenClaw is fast enough for
+  the five-second default. A source-checkout launcher may perform a freshness
+  build first; set `MCPORTER_CHROME_DEVTOOLS_RELAY_TIMEOUT_MS=15000` for that
+  development setup rather than pinning a relay port.
 - Direct remote Gateway pairing remains an Advanced manual flow. It serves the
   Gateway browser path and does not create a local relay for local mcporter.
 
