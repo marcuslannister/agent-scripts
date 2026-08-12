@@ -14,11 +14,17 @@ Control the user's existing real Chrome profile, especially for login-dependent 
 2. Otherwise prefer the OpenClaw extension-backed mcporter route.
 3. Use legacy direct DevTools attachment only as the explicit last fallback.
 
-For mcporter, use only the normal interface:
+For mcporter, the MCP call remains the agent-facing control interface. The
+OpenClaw extension is the transport underneath it, not a separate tool. Force
+relay-only routing so a missing relay cannot silently become direct DevTools:
 
 ```bash
-mcporter call chrome-devtools.<tool>
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.<tool>
 ```
+
+Seeing an agent request the `chrome-devtools` MCP tool is therefore expected.
+A Chrome **Allow remote debugging?** prompt or a relay-policy error indicates
+that the extension transport was not used.
 
 Never use isolated Chrome, the Codex in-app browser, Playwright, Puppeteer,
 AppleScript, `osascript`, generic GUI scripting, or macOS `open` as a browser-control
@@ -33,20 +39,23 @@ evidence, not substitutes for live UI proof.
 
 ## Extension Relay Model
 
-OpenClaw creates a random per-host relay secret in its mode-`0600`
-`credentials/` directory. Pairing gives the Chrome extension a relay URL plus
-that secret. The extension stores both in `chrome.storage.local` and
-authenticates its WebSocket through WebSocket subprotocols; the secret is not
-placed in the request URL.
+OpenClaw creates a random per-host relay key in its mode-`0600` credentials
+directory. The extension and same-host clients use nonce-bound mutual HMAC
+proofs. The reusable key is never sent to an unverified loopback listener,
+placed in a URL, or passed to the child MCP process. Keep credentials out of
+configuration, command output, chat, logs, and screenshots.
 
-On a same-host relay, mcporter reads the local secret, probes `/json/version`
-with Bearer authentication, then connects `chrome-devtools-mcp` to the
-authenticated `/cdp` endpoint. Keep credentials out of configuration, command
-output, chat, logs, and screenshots.
+On a same-host relay, mcporter authenticates `/json/version` and upgrades the
+same retained socket to `/cdp`, then gives `chrome-devtools-mcp` a protected
+one-use local handoff. Agents still call the standard MCP tools; successful
+relay routing is what removes direct DevTools attachment and Chrome's approval
+prompt.
 
-The relay exposes only tabs in the Chrome tab group titled **OpenClaw**. Group
-membership is the user-visible consent and authorization boundary: putting a
-tab in shares it; removing the tab revokes access. Group color is irrelevant.
+New pairings default to **All tabs**: every ordinary eligible tab is exposed
+except tabs explicitly paused in the popup. Existing pairings keep their stored
+mode. In **Selected tabs** mode, membership in the Chrome tab group titled
+**OpenClaw** is the sharing boundary. Restricted/internal pages, incognito,
+other profiles, and tabs without an eligible URL remain excluded in both modes.
 
 ### Topology Boundary
 
@@ -62,19 +71,24 @@ relay success.
 
 ## Setup and Repair
 
-- Resolve the unpacked extension with `openclaw browser extension path`, then
-  verify `<path>/manifest.json` before loading or presenting it. The source
-  fallback is `~/Projects/openclaw/extensions/browser/chrome-extension`; verify
-  its manifest too.
-- Pair through the extension popup without printing the pairing string in chat
-  or captured tool output, and never put it in shell history, logs, or screenshots.
-  Paste it only into the confirmed popup and clear any temporary clipboard value.
-- Confirm the popup reports **Connected · N tabs shared** and that the intended
-  tab is in the **OpenClaw** group.
+- Run `openclaw browser extension install` before **Load unpacked**. It copies
+  the extension to the stable OpenClaw-owned path, pre-registers that path's
+  deterministic Chrome ID, and prints the path to load. The first native call
+  then pairs automatically for local or browser-node topology.
+- Use `openclaw browser extension status --json` to verify the installed copy,
+  exact origins, and native-host registrations. Status must report no issues and
+  `manualSetupRequired: false`.
+- Confirm Settings reports automatic setup ready and the popup reports
+  **Connected**. New installs should show **All tabs** unless the user changes
+  the access mode; no copied pairing string or popup setup is part of the normal
+  local flow.
+- A previous native-host miss is cached for the Chrome process. If the extension
+  attempted native messaging before installation, restart Chrome once after
+  installing; repeated retries in the same process cannot repair that cache.
 - Restart the mcporter daemon after pairing or changing the relay route, then
-  re-run readiness proof from scratch.
-- Remote pairing with `--gateway-url` serves the Gateway browser path; it does
-  not make the relay available to local mcporter.
+  re-run relay-only readiness proof from scratch.
+- Direct remote Gateway pairing remains an Advanced manual flow. It serves the
+  Gateway browser path and does not create a local relay for local mcporter.
 
 Do not use `openclaw browser extension cdp --json` or inspect process arguments
 as routine diagnostics: both can expose relay credentials. If credential
@@ -84,24 +98,24 @@ exposure is suspected, rotate the per-host secret and pair again.
 
 Require every condition below before calling the extension route ready:
 
-1. The popup says **Connected · N tabs shared**.
-2. The intended disposable tab is shared and belongs to the **OpenClaw** group.
+1. Extension status reports the stable copy and exact native registrations with
+   no issues; Settings says automatic setup ready.
+2. The popup says **Connected** and the intended ordinary tab is not paused.
+   In Selected tabs mode, it must also belong to the **OpenClaw** group.
 3. mcporter has been restarted after pairing or relay-route changes.
-4. `list_pages` matches the shared tab set exactly. If unrelated, unshared tabs
-   appear, mcporter used full-profile legacy attachment; do not count that as
-   extension success.
-5. Navigation and evaluation both succeed in the disposable shared tab.
+4. A call with `MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require` succeeds. This
+   policy forbids direct DevTools fallback, so success is positive relay proof.
+5. Selection and evaluation both succeed in a known eligible disposable tab.
 
 ```bash
-mcporter call chrome-devtools.list_pages --args '{}' --output text
-mcporter call chrome-devtools.select_page --args '{"pageId":9}' --output text
-mcporter call chrome-devtools.navigate_page --args '{"url":"https://example.com/?openclaw-relay-proof=1"}' --output text
-mcporter call chrome-devtools.evaluate_script --args '{"function":"() => ({title: document.title, href: location.href})"}' --output json
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.list_pages --args '{}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.select_page --args '{"pageId":9}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.evaluate_script --args '{"function":"() => ({title: document.title, href: location.href})"}' --output json
 ```
 
-A blocking **Allow remote debugging?** prompt proves legacy attachment was
-attempted. Its absence alone does not prove the relay path; the popup, group,
-exact page set, and read/write checks provide that proof.
+A relay-policy error means the extension transport is unavailable; report or
+repair it instead of retrying without `require`. A blocking **Allow remote
+debugging?** prompt proves legacy attachment was attempted.
 
 ## Typical Flow
 
@@ -109,12 +123,12 @@ List pages, select only a shared target, snapshot before acting, and use fresh
 snapshot UIDs. Prefer DOM snapshots over screenshots unless layout matters.
 
 ```bash
-mcporter call chrome-devtools.list_pages --args '{}' --output text
-mcporter call chrome-devtools.select_page --args '{"pageId":9}' --output text
-mcporter call chrome-devtools.take_snapshot --args '{}' --output text
-mcporter call chrome-devtools.click --args '{"uid":"1_38","includeSnapshot":true}' --output text
-mcporter call chrome-devtools.fill --args '{"uid":"1_13","value":"text","includeSnapshot":true}' --output text
-mcporter call chrome-devtools.evaluate_script --args '{"function":"() => document.title"}' --output json
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.list_pages --args '{}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.select_page --args '{"pageId":9}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.take_snapshot --args '{}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.click --args '{"uid":"1_38","includeSnapshot":true}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.fill --args '{"uid":"1_13","value":"text","includeSnapshot":true}' --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.evaluate_script --args '{"function":"() => document.title"}' --output json
 ```
 
 For live UI proof, capture the current page state before the action, perform
@@ -131,8 +145,8 @@ If automation is unavailable, report the verification gap instead of silently sw
 arguments do:
 
 ```bash
-mcporter call chrome-devtools.navigate_page url=@/tmp/target-url.txt --output text
-mcporter call chrome-devtools.evaluate_script function=@/tmp/probe.js --output json
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.navigate_page url=@/tmp/target-url.txt --output text
+MCPORTER_CHROME_DEVTOOLS_RELAY_POLICY=require mcporter call chrome-devtools.evaluate_script function=@/tmp/probe.js --output json
 ```
 
 Treat this as a safety primitive, not just ergonomics. A sign-in URL, magic
@@ -174,17 +188,16 @@ than to retry the same call.
 
 ## When the Relay Goes Empty Mid-Task
 
-The relay can stop exposing tabs partway through a task — the shared tab was
-closed, navigated somewhere the group no longer covers, or the extension
-dropped its connection. The failure is quiet: `list_pages` returns an empty
-result rather than an error, and every later call times out against nothing.
+The relay can stop exposing tabs partway through a task because eligible tabs
+were closed, the current tab became restricted or paused, Selected tabs mode
+lost its group members, or the extension disconnected. The failure can be
+quiet: `list_pages` may return an empty result and later calls time out.
 
-Treat an empty page list as "the relay lost its tabs", not "the browser is
-gone". Confirm the browser process is actually running before doing anything
-drastic. Restarting the mcporter daemon does not re-share tabs, because sharing
-is the user's group membership, not daemon state — so a restart loop cannot fix
-this and only costs time. Re-establishing access needs the user to put a tab
-back in the shared group.
+Treat an empty page list as "the relay has no eligible tabs", not "the browser
+is gone". Confirm Chrome is running, check the popup connection and current-tab
+Pause/Allow state, then check the access mode. Only Selected tabs mode requires
+restoring the **OpenClaw** group. Restarting mcporter cannot repair extension
+disconnection, tab eligibility, or access policy.
 
 Do not escalate to a full-profile attachment or an isolated browser to route
 around it. When the task is a sign-in the user is present for, the faster and
