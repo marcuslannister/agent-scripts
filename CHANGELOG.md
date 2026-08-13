@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Updated `agent-tooling/update-agents.sh` to install Pi with its native installer when missing and run `pi update` when present.
+
 - Added `refresh-mac` for Claude and Codex: keep project pulls and Trash cleanup, apply the Nix Darwin configuration, and leave Nix-managed Homebrew unchanged.
 
 - Reconciled `steipete/agent-scripts` through `067178d`: refreshed shared skills, added `codexbar`, `telecrawl`, and `project-structure`, updated fleet and release checks, corrected GitHub secret stdin guidance, and removed the obsolete scoped commit helper.

@@ -11,6 +11,8 @@ run_case() {
   local bin="$case_root/bin"
   local npm_prefix="$case_root/npm-prefix"
   local npm_log="$case_root/npm.log"
+  local pi_log="$case_root/pi.log"
+  local curl_log="$case_root/curl.log"
   local codex_package codex_bin_dir npm_windows_prefix=""
 
   case "$layout" in
@@ -32,6 +34,23 @@ case "${1:-}" in
   --version) echo '2.1.223 (Claude Code)' ;;
   update) exit 0 ;;
 esac
+EOF
+
+  cat > "$bin/pi" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$PI_LOG"
+[ "$*" = "update" ]
+EOF
+
+  cp "$bin/pi" "$case_root/pi-install-source"
+
+  cat > "$bin/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CURL_LOG"
+[ "$*" = "-fsSL https://pi.dev/install.sh" ] || exit 98
+printf '%s\n' '#!/bin/sh' \
+  'cp "$PI_INSTALL_SOURCE" "$PI_BIN"' \
+  'chmod +x "$PI_BIN"'
 EOF
 
   cat > "$bin/npm" <<'EOF'
@@ -64,7 +83,7 @@ EOF
 echo 'codex-cli 0.146.1'
 EOF
 
-  chmod +x "$bin/claude" "$bin/npm" "$codex_package"
+  chmod +x "$bin/claude" "$bin/npm" "$bin/pi" "$bin/curl" "$codex_package"
   if [ "$layout" = "unix" ]; then
     rmdir "$codex_bin_dir"
   else
@@ -76,6 +95,8 @@ EOF
     NPM_PREFIX="$npm_prefix" \
     NPM_WINDOWS_PREFIX="$npm_windows_prefix" \
     NPM_LOG="$npm_log" \
+    PI_LOG="$pi_log" \
+    CURL_LOG="$curl_log" \
     bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/output"
 
   test -x "$codex_bin_dir/codex"
@@ -86,6 +107,8 @@ EOF
   fi
   rg -F 'codex package present but bin link missing; relinking' "$case_root/output" >/dev/null
   rg -F 'codex already up to date; skipping npm install' "$case_root/output" >/dev/null
+  rg -F 'pi update complete' "$case_root/output" >/dev/null
+  test "$(rg -c '^update$' "$pi_log")" -eq 1
 
   if [ "$layout" = "unix" ]; then
     test -L "$codex_bin_dir/codex"
@@ -114,12 +137,32 @@ EOF
     NPM_PREFIX="$npm_prefix" \
     NPM_WINDOWS_PREFIX="$npm_windows_prefix" \
     NPM_LOG="$npm_log" \
+    PI_LOG="$pi_log" \
+    CURL_LOG="$curl_log" \
     bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/restricted-output" || true
+
+  test "$(rg -c '^update$' "$pi_log")" -eq 2
 
   rg -F '# preserved launcher' "$codex_bin_dir/codex" >/dev/null
   if [ "$layout" = "windows" ]; then
     rg -F '@REM preserved launcher' "$codex_bin_dir/codex.cmd" >/dev/null
   fi
+
+  rm "$bin/pi"
+  PATH="$bin:$codex_bin_dir:/usr/bin:/bin" \
+    NPM_PREFIX="$npm_prefix" \
+    NPM_WINDOWS_PREFIX="$npm_windows_prefix" \
+    NPM_LOG="$npm_log" \
+    PI_LOG="$pi_log" \
+    CURL_LOG="$curl_log" \
+    PI_INSTALL_SOURCE="$case_root/pi-install-source" \
+    PI_BIN="$bin/pi" \
+    bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/pi-install-output"
+
+  test -x "$bin/pi"
+  test "$(rg -c '^update$' "$pi_log")" -eq 2
+  rg -F -- '-fsSL https://pi.dev/install.sh' "$curl_log" >/dev/null
+  rg -F 'pi installed' "$case_root/pi-install-output" >/dev/null
 
   if [ "$layout" = "unix" ]; then
     rm "$codex_bin_dir/codex"
@@ -129,6 +172,8 @@ EOF
       NPM_PREFIX="$npm_prefix" \
       NPM_WINDOWS_PREFIX="$npm_windows_prefix" \
       NPM_LOG="$npm_log" \
+      PI_LOG="$pi_log" \
+      CURL_LOG="$curl_log" \
       bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/write-failure-output" 2>&1; then
       echo "unexpected success with unwritable npm prefix" >&2
       return 1
@@ -141,6 +186,7 @@ EOF
       return 1
     fi
     rg -F 'Agent CLIs done' "$case_root/write-failure-output" >/dev/null
+    test "$(rg -c '^update$' "$pi_log")" -eq 3
   fi
 }
 

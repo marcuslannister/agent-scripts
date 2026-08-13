@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Update the coding-agent CLIs: Claude Code (native) + Codex (npm).
-# Tries both even if one fails; exits non-zero if any update failed.
+# Update the coding-agent CLIs: Claude Code (native), Codex (npm), and Pi.
+# Tries all installed CLIs even if one fails; exits non-zero if any update failed.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;33m>>> %s\033[0m\n' "$*"; }
@@ -146,6 +146,23 @@ else
     warn "codex update failed"
     fail=1
   fi
+fi
+
+section "Pi CLI"
+if ! command -v pi >/dev/null 2>&1; then
+  info "pi not found; installing"
+  if curl -fsSL https://pi.dev/install.sh | sh \
+    && command -v pi >/dev/null 2>&1; then
+    info "pi installed"
+  else
+    warn "pi install failed"
+    fail=1
+  fi
+elif pi update; then
+  info "pi update complete"
+else
+  warn "pi update failed"
+  fail=1
 fi
 
 section "Agent CLIs done"
