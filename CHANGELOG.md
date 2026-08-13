@@ -6,7 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
-- Added a Marcus `mac-maintenance` variant that keeps project pulls and Trash cleanup but leaves Nix-managed Homebrew unchanged.
+- Added a Marcus `mac-maintenance` variant that keeps project pulls and Trash cleanup, applies the Nix Darwin configuration, and leaves Nix-managed Homebrew unchanged.
 
 - Reconciled `steipete/agent-scripts` through `067178d`: refreshed shared skills, added `codexbar`, `telecrawl`, and `project-structure`, updated fleet and release checks, corrected GitHub secret stdin guidance, and removed the obsolete scoped commit helper.
 

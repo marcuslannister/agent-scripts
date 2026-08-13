@@ -1,6 +1,6 @@
 ---
 name: mac-maintenance
-description: "Mac upkeep: pull clean repos under ~/Projects and empty Trash."
+description: "Mac upkeep: pull clean repos under ~/Projects, empty Trash, and apply the Nix Darwin configuration."
 ---
 
 # Mac Maintenance
@@ -29,7 +29,14 @@ Skip dirty repos unless Peter explicitly asked to handle them. Report skipped pa
 osascript -e 'tell application "Finder" to empty trash'
 ```
 
-3. Finish with terse counts:
+3. Apply the Nix Darwin configuration from the flake directory:
+
+```bash
+sudo darwin-rebuild switch --flake . --impure
+```
+
+4. Finish with terse counts:
 
 - repos: pulled / skipped / failed
 - trash: emptied / failed
+- Nix Darwin: applied / failed
