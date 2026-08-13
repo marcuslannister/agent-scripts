@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added a Marcus `mac-maintenance` variant that keeps project pulls and Trash cleanup but leaves Nix-managed Homebrew unchanged.
+
 - Reconciled `steipete/agent-scripts` through `067178d`: refreshed shared skills, added `codexbar`, `telecrawl`, and `project-structure`, updated fleet and release checks, corrected GitHub secret stdin guidance, and removed the obsolete scoped commit helper.
 
 - Stopped acquire retrying a Codex marketplace refresh that can never succeed: `codex plugin marketplace upgrade` re-clones the whole upstream repo under a hardcoded 30s timeout, so `thedotmack/claude-mem` (~330MB, ~44s) fails identically on all three attempts and reported the same error three times. The adapter now recognises the clone-timeout signature, stops after the first attempt, and names ADR-0007 and the manual repair; failures that could be transient keep the full retry budget.
