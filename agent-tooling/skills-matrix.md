@@ -79,8 +79,9 @@
 | `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2947 |
 | `leader` | KKKKhazix/khazix-skills | skill | N | N | ~723 |
 | `loop-me` | mattpocock/skills | skill | N | Y | ~634 |
-| `mac-maintenance` | steipete/agent-scripts | skill | Y | Y | ~184 |
+| `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~184 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~11236 |
+| `refresh-mac` | marcus | skill | Y | Y | ~238 |
 | `markdown-converter` | steipete/agent-scripts | skill | Y | Y | ~434 |
 | `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | N | N | ~2846 |
 | `mattpocock-skills:batch-grill-me` | mattpocock/skills | plugin | N | N | ~408 |
@@ -214,7 +215,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~841 |
 
-<!-- total=205 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
+<!-- total=206 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
 
 ## Enable-state
 

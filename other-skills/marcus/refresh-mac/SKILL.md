@@ -1,9 +1,9 @@
 ---
-name: mac-maintenance
-description: "Mac upkeep: pull clean repos under ~/Projects, empty Trash, and apply the Nix Darwin configuration."
+name: refresh-mac
+description: "Mac upkeep for Marcus: pull clean repos under ~/Projects, empty Trash, and apply the Nix Darwin configuration. Use when asked for Mac cleanup, maintenance, or repo refresh."
 ---
 
-# Mac Maintenance
+# Refresh Mac
 
 Use when Peter asks for Mac cleanup, maintenance, or repo refresh.
 
