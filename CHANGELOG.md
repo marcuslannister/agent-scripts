@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added headless Sparkle signing through scoped 1Password references, with public-key validation, mode-0600 temporary files, and cleanup on success or failure.
+
 - Added explicit Ship mode to `update-all.sh`: require a clean worktree, pull first, run and validate the update, record the changelog, commit, push, pull with fast-forward only, and verify the final state.
 
 - Refreshed staged Anthropic, HumanLayer, Khazix, Matt Pocock, and visual-explainer skills, generalized the `refresh-mac` trigger, and regenerated the selection-preserving skills matrix.

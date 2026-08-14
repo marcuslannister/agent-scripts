@@ -15,8 +15,10 @@ current_otp() {
 
 # Run registry operations away from caller-local npm config. The token stays in
 # the temporary npmrc instead of entering argv or the lifecycle environment.
+# Registry rides in NPM_CONFIG_REGISTRY, not a leading --registry flag: npm 11's
+# newer subcommands (npm trust) mis-parse positionals after a pre-command flag.
 npm_authenticated() {
-  (cd "$WORK" && NPM_CONFIG_USERCONFIG="$NPMRC" npm --registry "$REGISTRY" "$@")
+  (cd "$WORK" && NPM_CONFIG_USERCONFIG="$NPMRC" NPM_CONFIG_REGISTRY="$REGISTRY" npm "$@")
 }
 
 npm_auth_whoami() {
