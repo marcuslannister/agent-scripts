@@ -91,4 +91,8 @@ _Avoid_: reusing it as an identity or cache key — it only answers "did content
 An implementation under `agent-tooling/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
 
 **Routine updater**:
-`update-all.sh`. Four ordered steps: agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute.
+`update-all.sh`. Four ordered steps: agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute. It is review-first unless explicit Ship mode is selected.
+
+**Ship mode**:
+An explicit routine updater mode that validates and records refreshed tracked skill state, then commits and synchronizes it with the remote. It requires a clean starting state and never ships failed updates.
+_Avoid_: automatic push, default shipping

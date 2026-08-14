@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added explicit Ship mode to `update-all.sh`: require a clean worktree, pull first, run and validate the update, record the changelog, commit, push, pull with fast-forward only, and verify the final state.
+
 - Refreshed staged Anthropic, HumanLayer, Khazix, Matt Pocock, and visual-explainer skills, generalized the `refresh-mac` trigger, and regenerated the selection-preserving skills matrix.
 
 - Updated `agent-tooling/update-agents.sh` to install Pi with its native installer when missing and run `pi update` when present.

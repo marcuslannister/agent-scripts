@@ -60,6 +60,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 `agent-tooling/update-all.sh`
 - Top-level updater: four ordered steps — `update-agents.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
+- Review-first by default. `--ship` requires a clean worktree, pulls first, runs and validates the update, adds an Unreleased changelog entry, commits the refresh, pushes, pulls with fast-forward only, and verifies the final worktree state.
 
 `agent-tooling/update-local.sh`
 - Secondary-machine updater: three ordered steps — `update-agents.sh`, `update-skill-topology.sh --plugins-only`, then `sync-skill-surfaces.sh` (distribute). No staging acquire and no matrix refresh; this machine pulls already-committed staging via git.
@@ -80,8 +81,8 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Exit `3` from acquire means no native-plugin or staging mutation occurred. Inspect `--check --json` decisions, make an explicit manifest or installed-state decision, then rerun; do not guess a fallback or delete unowned entries.
 
 `agent-tooling/update-agents.sh`
-- Updates the agent CLIs: `claude update` (native) and `npm install -g @openai/codex`.
-- Tries both even if one fails; prints version before/after each.
+- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update`; installs a missing Pi with its native installer.
+- Tries all installed CLIs even if one fails.
 
 Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. Their mechanics now live only in `agent-tooling/distribution-topology/adapters/`.
 
