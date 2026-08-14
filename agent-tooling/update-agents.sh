@@ -158,11 +158,19 @@ if ! command -v pi >/dev/null 2>&1; then
     warn "pi install failed"
     fail=1
   fi
-elif pi update; then
-  info "pi update complete"
 else
-  warn "pi update failed"
-  fail=1
+  if pi update; then
+    info "pi update complete"
+  else
+    warn "pi update failed"
+    fail=1
+  fi
+  if pi update --extensions; then
+    info "pi extensions update complete"
+  else
+    warn "pi extensions update failed"
+    fail=1
+  fi
 fi
 
 section "Agent CLIs done"

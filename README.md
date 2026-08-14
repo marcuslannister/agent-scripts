@@ -86,7 +86,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Exit `3` from acquire means no native-plugin or staging mutation occurred. Inspect `--check --json` decisions, make an explicit manifest or installed-state decision, then rerun; do not guess a fallback or delete unowned entries.
 
 `agent-tooling/update-agents.sh`
-- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update`; installs a missing Pi with its native installer.
+- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update` plus `pi update --extensions`; installs a missing Pi with its native installer.
 - Tries all installed CLIs even if one fails.
 
 Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. Their mechanics now live only in `agent-tooling/distribution-topology/adapters/`.

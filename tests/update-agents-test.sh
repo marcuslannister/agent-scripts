@@ -39,7 +39,10 @@ EOF
   cat > "$bin/pi" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$PI_LOG"
-[ "$*" = "update" ]
+case "$*" in
+  'update'|'update --extensions') exit 0 ;;
+  *) exit 1 ;;
+esac
 EOF
 
   cp "$bin/pi" "$case_root/pi-install-source"
@@ -108,7 +111,9 @@ EOF
   rg -F 'codex package present but bin link missing; relinking' "$case_root/output" >/dev/null
   rg -F 'codex already up to date; skipping npm install' "$case_root/output" >/dev/null
   rg -F 'pi update complete' "$case_root/output" >/dev/null
+  rg -F 'pi extensions update complete' "$case_root/output" >/dev/null
   test "$(rg -c '^update$' "$pi_log")" -eq 1
+  test "$(rg -c '^update --extensions$' "$pi_log")" -eq 1
 
   if [ "$layout" = "unix" ]; then
     test -L "$codex_bin_dir/codex"
@@ -142,6 +147,7 @@ EOF
     bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/restricted-output" || true
 
   test "$(rg -c '^update$' "$pi_log")" -eq 2
+  test "$(rg -c '^update --extensions$' "$pi_log")" -eq 2
 
   rg -F '# preserved launcher' "$codex_bin_dir/codex" >/dev/null
   if [ "$layout" = "windows" ]; then
@@ -161,6 +167,7 @@ EOF
 
   test -x "$bin/pi"
   test "$(rg -c '^update$' "$pi_log")" -eq 2
+  test "$(rg -c '^update --extensions$' "$pi_log")" -eq 2
   rg -F -- '-fsSL https://pi.dev/install.sh' "$curl_log" >/dev/null
   rg -F 'pi installed' "$case_root/pi-install-output" >/dev/null
 
@@ -187,6 +194,7 @@ EOF
     fi
     rg -F 'Agent CLIs done' "$case_root/write-failure-output" >/dev/null
     test "$(rg -c '^update$' "$pi_log")" -eq 3
+    test "$(rg -c '^update --extensions$' "$pi_log")" -eq 3
   fi
 }
 

@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `agent-tooling/update-agents.sh` now runs `pi update --extensions` after `pi update`, so installed Pi packages stay current with the CLI.
+
 - Added an upstream-complete root overlay: preserve every recorded `steipete/agent-scripts:main` path while keeping local additions and modifications, with a clean-worktree sync command and offline verification.
 
 - Added headless Sparkle signing through scoped 1Password references, with public-key validation, mode-0600 temporary files, and cleanup on success or failure.
