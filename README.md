@@ -5,6 +5,7 @@ Shared agent instructions, skills, and small portable helpers for Peter's local 
 This repo is the canonical place for:
 - `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
 - `agent-tooling/`: code-agent and skill update machinery — matrix generator, distribution-topology reconciler, verify/validate gates, `skill-authors.json`, `skill-topology.json` (versioned desired distribution for registered skill sources), `skills-matrix.md`
+- repository root: upstream-complete overlay of `steipete/agent-scripts:main`; every recorded upstream path remains present while local additions and modifications coexist
 - `skills/`: exact tracked mirror of `steipete/agent-scripts:main`
 - `other-skills/`: owner-grouped tracked holding area for foreign skills; each source dir carries `.source.json` provenance
 - `codex-skills/`: repo-owned Codex-only authoring source
@@ -57,6 +58,10 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 
 ## Helpers
 
+`agent-tooling/sync-upstream-overlay.sh`
+- Public upstream sync command. Requires a clean worktree, fetches and merges `steipete/agent-scripts:main`, restores upstream paths deleted by local history, and records the verified source commit without overwriting local additions or committed modifications.
+- `--check` is offline. It verifies that the recorded commit is merged into `HEAD` and that every path in that commit remains present.
+
 `agent-tooling/update-all.sh`
 - Top-level updater: four ordered steps — `update-agents.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
@@ -68,7 +73,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
 
 `agent-tooling/verify.sh`
-- Single local/CI verifier: skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
+- Single local/CI verifier: upstream-overlay completeness, skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `agent-tooling/update-skill-topology.sh` / `agent-tooling/sync-skill-surfaces.sh`
@@ -87,6 +92,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. Their mechanics now live only in `agent-tooling/distribution-topology/adapters/`.
 
 Topology authoring:
+- Run `agent-tooling/sync-upstream-overlay.sh` to merge the latest upstream root and restore every upstream path before local topology updates.
 - Refresh tracked `skills/` from the upstream `steipete/agent-scripts:main` mirror; do not add fork-only content there. Mirrored skills default to Claude.
 - Put repo-owned Codex-only skills under `codex-skills/`; they default to Codex.
 - Select Claude/Codex destinations by editing `Y`/`N` on `Type: skill` rows in `agent-tooling/skills-matrix.md`; the topology manifest has no distribution overrides.

@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added an upstream-complete root overlay: preserve every recorded `steipete/agent-scripts:main` path while keeping local additions and modifications, with a clean-worktree sync command and offline verification.
+
 - Added headless Sparkle signing through scoped 1Password references, with public-key validation, mode-0600 temporary files, and cleanup on success or failure.
 
 - Added explicit Ship mode to `update-all.sh`: require a clean worktree, pull first, run and validate the update, record the changelog, commit, push, pull with fast-forward only, and verify the final state.

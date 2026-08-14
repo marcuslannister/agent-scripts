@@ -15,6 +15,7 @@ cp "$REPO_ROOT/agent-tooling/update-agents.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/update-skill-topology.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/generate-skills-matrix.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" "$FIXTURE/agent-tooling/"
+cp "$REPO_ROOT/agent-tooling/sync-upstream-overlay.sh" "$FIXTURE/agent-tooling/"
 cp "$REPO_ROOT/agent-tooling/skill-topology.json" "$FIXTURE/agent-tooling/"
 cp -R "$REPO_ROOT/agent-tooling/distribution-topology" "$FIXTURE/agent-tooling/"
 

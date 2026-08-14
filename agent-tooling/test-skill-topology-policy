@@ -13,7 +13,7 @@ fail() {
 }
 
 for required in update-agents.sh update-all.sh update-local.sh update-skill-topology.sh \
-  generate-skills-matrix.sh sync-skill-surfaces.sh; do
+  generate-skills-matrix.sh sync-skill-surfaces.sh sync-upstream-overlay.sh; do
   [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public command: $required"
 done
 

@@ -50,6 +50,9 @@ section() {
 
 cd "$REPO_ROOT"
 
+section "Upstream overlay"
+agent-tooling/sync-upstream-overlay.sh --check
+
 section "Bash syntax"
 while IFS= read -r -d '' candidate; do
   [ -f "$candidate" ] || continue

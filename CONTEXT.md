@@ -20,6 +20,10 @@ _Avoid_: automatic mirror, default copy
 
 ### Source classification
 
+**Upstream-complete overlay**:
+The repository root contains every path from the recorded `steipete/agent-scripts:main` commit. Local paths and local modifications can coexist, but an upstream path cannot be absent.
+_Avoid_: full mirror, exact mirror, vendored upstream
+
 **Repo-owned source**:
 Skills tracked in this repo. The tracked `skills/` tree mirrors `steipete/agent-scripts:main` and defaults to Claude; `codex-skills/` entries default to Codex.
 
