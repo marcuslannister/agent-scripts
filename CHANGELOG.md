@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged Anthropic, HumanLayer, Khazix, Matt Pocock, and visual-explainer skills, generalized the `refresh-mac` trigger, and regenerated the selection-preserving skills matrix.
+
 - Updated `agent-tooling/update-agents.sh` to install Pi with its native installer when missing and run `pi update` when present.
 
 - Added `refresh-mac` for Claude and Codex: keep project pulls and Trash cleanup, apply the Nix Darwin configuration, and leave Nix-managed Homebrew unchanged.

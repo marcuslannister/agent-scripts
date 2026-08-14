@@ -5,7 +5,7 @@ description: "Mac upkeep for Marcus: pull clean repos under ~/Projects, empty Tr
 
 # Refresh Mac
 
-Use when Peter asks for Mac cleanup, maintenance, or repo refresh.
+Use when user asks for Mac cleanup, maintenance, or repo refresh.
 
 Do not update or upgrade Homebrew. Nix manages Homebrew.
 
