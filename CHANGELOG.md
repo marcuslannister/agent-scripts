@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added `agent-tooling/repair-codex-registry.sh`: report the Codex marketplaces and plugins this repo expects, and re-register with `--fix` the ones Codex has lost. Operator-run through `codex` commands only, never wired into the updaters (ADR-0007).
+
 - Cached plugin-source clones under `~/.cache/agent-scripts/source-clones/`, so acquire refreshes one shallow clone per source instead of cloning every marketplace repository again on each run; check mode stays hermetic.
 
 - `agent-tooling/update-agents.sh` now runs `pi update --extensions` after `pi update`, so installed Pi packages stay current with the CLI.

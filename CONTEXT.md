@@ -94,6 +94,10 @@ _Avoid_: reusing it as an identity or cache key — it only answers "did content
 **Private adapter**:
 An implementation under `agent-tooling/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
 
+**Codex registry desync**:
+The state where Codex's marketplace and installed-plugin records disagree with its own on-disk snapshots: `plugin marketplace list` reports an entry as absent while `plugin marketplace add` refuses it as already added from a different source. Acquire trusts `list`, so it retries a doomed add on every run. Repaired by the operator with `repair-codex-registry.sh --fix`, which re-registers through `codex` commands only.
+_Avoid_: missing marketplace, broken plugin, native-state repair
+
 **Source clone cache**:
 `~/.cache/agent-scripts/source-clones/<sourceId>`, one shallow clone of a read-only upstream repository per source. Reconcile refreshes it in place and discards it whenever the remote or the checkout is unusable. It is per-machine state that git never carries and that holds no local edits. Check mode never writes it — a preview clones into its own discovery root instead.
 _Avoid_: staging, snapshot, local marketplace
