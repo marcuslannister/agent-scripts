@@ -77,6 +77,19 @@ test "$pull_fail_code" -eq 1
 cmp "$TMP_ROOT/expected.log" "$UPDATE_LOG"
 rg -F 'could not fast-forward' "$TMP_ROOT/pull-fail.out" >/dev/null
 
+# A failed plugin refresh is reported but never fails the run (ADR-0009).
+write_steps 0
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
+  'exit 9' \
+  > "$SCRIPTS/update-plugins.sh"
+chmod +x "$SCRIPTS/update-plugins.sh"
+: > "$UPDATE_LOG"
+run_local > "$TMP_ROOT/plugin-fail.out" 2>&1
+cmp "$TMP_ROOT/expected.log" "$UPDATE_LOG"
+rg '✗.*native plugins' "$TMP_ROOT/plugin-fail.out" >/dev/null
+
 # A failed step does not stop the others, and the run exits non-zero.
 write_steps 17
 : > "$UPDATE_LOG"

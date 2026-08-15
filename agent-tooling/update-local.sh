@@ -41,6 +41,7 @@ distribute_status=0
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
 
+# Best-effort by contract (ADR-0009): reported, never fatal.
 section "Refreshing native plugins"
 "$SCRIPT_DIR/update-plugins.sh" || plugins_status=$?
 
@@ -53,5 +54,5 @@ status_line "agent CLIs" "$agents_status"
 status_line "native plugins" "$plugins_status"
 status_line "skill distribute" "$distribute_status"
 
-(( pull_status != 0 || agents_status != 0 || plugins_status != 0 || distribute_status != 0 )) && exit 1
+(( pull_status != 0 || agents_status != 0 || distribute_status != 0 )) && exit 1
 exit 0

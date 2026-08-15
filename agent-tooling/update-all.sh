@@ -31,7 +31,6 @@ usage() {
     '' \
     'Options:' \
     '  --no-ship  Run the update steps only; review tracked changes yourself.' \
-    '  --ship     Accepted for compatibility; shipping is the default.' \
     '  -h, --help Show this help and exit.'
 }
 
@@ -46,7 +45,6 @@ for arg in "$@"; do
 done
 for arg in "$@"; do
   case "$arg" in
-    --ship) ship=1 ;;
     --no-ship) ship=0 ;;
     *)
       warn "unknown option: $arg"
@@ -184,6 +182,8 @@ distribute_status=0
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
 
+# Best-effort by contract (ADR-0009): a plugin refresh failure is reported but
+# never blocks the skill work or the ship.
 section "Refreshing native plugins"
 "$SCRIPT_DIR/update-plugins.sh" || plugins_status=$?
 
@@ -205,6 +205,6 @@ status_line "skill acquire" "$acquire_status"
 status_line "skills matrix" "$matrix_status"
 status_line "skill distribute" "$distribute_status"
 
-(( agents_status != 0 || plugins_status != 0 || acquire_status != 0 || matrix_status != 0 || distribute_status != 0 )) && exit 1
+(( agents_status != 0 || acquire_status != 0 || matrix_status != 0 || distribute_status != 0 )) && exit 1
 [ "$ship" -eq 0 ] || ship_changes || exit 1
 exit 0

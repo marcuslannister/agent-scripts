@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Black-box contract (ADR-0009): the main-machine updater has five ordered
-# steps, attempts all of them, summarizes all, aggregates failure, and ships by
-# default. --no-ship runs the updates only.
+# steps, attempts all of them, summarizes all, aggregates failure except the
+# best-effort plugin refresh, and ships by default. --no-ship updates only.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
@@ -48,6 +48,19 @@ cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
 for label in 'agent CLIs' 'native plugins' 'skill acquire' 'skills matrix' 'skill distribute'; do
   grep -F "$label" "$TMPDIR/out" >/dev/null
 done
+
+# A failed plugin refresh is reported but never fails the run (ADR-0009).
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
+  'exit 9' \
+  > "$SCRIPTS/update-plugins.sh"
+chmod +x "$SCRIPTS/update-plugins.sh"
+: > "$UPDATE_LOG"
+UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/plugin-fail.out" 2>&1
+cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
+rg '✗.*native plugins' "$TMPDIR/plugin-fail.out" >/dev/null
+write_updaters
 
 # A failed step still lets the others run, and the run exits non-zero.
 printf '%s\n' \

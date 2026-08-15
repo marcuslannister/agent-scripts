@@ -93,7 +93,7 @@ _Avoid_: missing marketplace, broken plugin, native-state repair
 _Avoid_: staging, snapshot, local marketplace
 
 **Routine updater**:
-`update-all.sh`. Five ordered steps: fast-forward pull, agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute. It ships by default; `--no-ship` selects a review-only run.
+`update-all.sh`. Six ordered steps: fast-forward pull, agent CLI updates, plugin refresh, acquire, selection-preserving matrix regeneration, then distribute. It ships by default; `--no-ship` selects a review-only run. Only the plugin refresh is non-fatal.
 
 **Ship mode**:
 The routine updater's default closeout: validate and record refreshed tracked skill state, then commit and synchronize it with the remote. It requires a clean starting state and never ships failed updates; `--no-ship` opts out.
