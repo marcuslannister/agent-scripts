@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; retained-manifest and acquire-adapter clauses superseded by ADR-0009
 ---
 
 # Matrix-owned surface reconciliation

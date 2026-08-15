@@ -39,27 +39,19 @@ The repo `other-skills/<owner>/` holding area, not an agent surface. Fully track
 _Avoid_: Claude surface, Codex surface, automatic install, gitignored copy
 
 **Acquire phase**:
-`update-skill-topology.sh`. Network phase: refreshes upstream sources, mirrors complete inventories into tracked staging, reconciles native plugins, and applies verified dual-plugin duplicate cleanup owned by native-plugin policy. Selection-blind — never reads the skills matrix. The operator reviews, commits, and pushes staging changes.
-_Avoid_: update step, fetch script
+`update-skill-topology.sh`. Network phase: refreshes cached upstream source clones and mirrors complete inventories into tracked staging. Selection-blind — never reads the skills matrix — and performs no native plugin operations (ADR-0009). The operator reviews, commits, and pushes staging changes.
+_Avoid_: update step, fetch script, plugin reconcile step
 
 **Distribute phase**:
-`agent-tooling/sync-skill-surfaces.sh`. Offline phase: reads the skills matrix directly, resolves selected names from tracked repo content, and reconciles both surfaces with one marker owner. It reads neither the topology manifest nor adapter registry. Unresolvable rows are reported after all resolvable work is applied.
+`agent-tooling/sync-skill-surfaces.sh`. Offline phase: reads the skills matrix directly, resolves selected names from tracked repo content, and reconciles both surfaces with one marker owner. It reads only the matrix and tracked repository content. Unresolvable rows are reported after all resolvable work is applied.
 _Avoid_: install script, deploy step
 
-**Dual-plugin skill**:
-A skill maintained by its authoritative upstream and exposed through both Claude Code's and Codex's native plugin systems. Classification and duplicate cleanup are scoped to the expected skill identity, not the repository; native install and reconcile happen per plugin bundle. Existing copies remain until one gate verifies both native paths, then every duplicate of only that skill is removed regardless of copy provenance.
-_Avoid_: plugin-both, plugin-both repo, source-wide dual classification
-
-**Native verification gate**:
-The per-skill condition requiring both native plugins to be installed, enabled, current, and to expose the expected runtime skill. Duplicate copies stay present while the gate is pending or blocked; both are removed only after verification.
-_Avoid_: plugin installed, bundle verified
-
-**Plugin-managed recovery**:
-Failure handling that preserves native plugins as the desired distribution mechanism. Allowed actions are upstream repair, native rollback, or a new explicit manifest decision; reconciliation never creates or recreates a fallback surface copy. The rule governs surface copies, not the source a native plugin installs from.
-_Avoid_: automatic fallback, temporary copy
+**Plugin source**:
+A sources-list entry describing a native plugin (name, repo, marketplaces). Read only by the plugin refresh helper, `repair-codex-registry.sh`, and matrix reporting; the plugins themselves are per-machine CLI state the operator installs and repairs through native commands. Tooling never creates a surface copy to substitute for a broken plugin.
+_Avoid_: dual-plugin skill, managed plugin, plugin reconciliation
 
 **Native-state repair**:
-A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007 as tooling policy; the operator may do it by hand, but adapters reach that state only through `codex` commands.
+A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007 as tooling policy; the operator may do it by hand, but tooling reaches that state only through `codex` commands.
 _Avoid_: snapshot repair, in-place fetch fallback, marketplace fix-up
 
 **Plugin-Claude-only repo**:
@@ -88,14 +80,12 @@ _Avoid_: adapter owner, source prefix, gitignore block
 Line 3 of the marker — a deterministic SHA-256 over the copy's non-hidden files, stamped by `install_skill_copy` at sync time (best-effort; omitted when no sha256 tool exists). Topology checks compare it to the current upstream source (→ upstream advanced) and to the on-disk copy (→ hand-edited locally), so drift in gitignored copies is detectable without a full re-sync. Surfaced by `sync-skill-surfaces.sh --check`.
 _Avoid_: reusing it as an identity or cache key — it only answers "did content change since last sync".
 
-**Topology manifest**:
-`agent-tooling/skill-topology.json`, one entry per acquire-owned source. It records source ids, classifications, and default native/staging destinations. Distribution never reads it.
-
-**Private adapter**:
-An implementation under `agent-tooling/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
+**Sources list**:
+`agent-tooling/sources.json`, the one tracked list of skill-bearing sources: id, classification, destinations, and an optional plugin block. A plugin marketplace that cannot refresh natively carries a manual-upgrade marker citing ADR-0007. Distribution never reads it.
+_Avoid_: topology manifest, adapter registry
 
 **Codex registry desync**:
-The state where Codex's marketplace and installed-plugin records disagree with its own on-disk snapshots: `plugin marketplace list` reports an entry as absent while `plugin marketplace add` refuses it as already added from a different source. Acquire trusts `list`, so it retries a doomed add on every run. Repaired by the operator with `repair-codex-registry.sh --fix`, which re-registers through `codex` commands only.
+The state where Codex's marketplace and installed-plugin records disagree with its own on-disk snapshots: `plugin marketplace list` reports an entry as absent while `plugin marketplace add` refuses it as already added from a different source. Repaired by the operator with `repair-codex-registry.sh --fix`, which re-registers through `codex` commands only.
 _Avoid_: missing marketplace, broken plugin, native-state repair
 
 **Source clone cache**:
@@ -103,8 +93,12 @@ _Avoid_: missing marketplace, broken plugin, native-state repair
 _Avoid_: staging, snapshot, local marketplace
 
 **Routine updater**:
-`update-all.sh`. Four ordered steps: agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute. It is review-first unless explicit Ship mode is selected.
+`update-all.sh`. Five ordered steps: fast-forward pull, agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute. It ships by default; `--no-ship` selects a review-only run.
 
 **Ship mode**:
-An explicit routine updater mode that validates and records refreshed tracked skill state, then commits and synchronizes it with the remote. It requires a clean starting state and never ships failed updates.
-_Avoid_: automatic push, default shipping
+The routine updater's default closeout: validate and record refreshed tracked skill state, then commit and synchronize it with the remote. It requires a clean starting state and never ships failed updates; `--no-ship` opts out.
+_Avoid_: separate release step, manual-only push
+
+**Plugin refresh helper**:
+`update-plugins.sh`. Best-effort native plugin updates on every machine: runs the native update commands, honors manual-upgrade markers (ADR-0007), reports each failure in one line, and never fails the run.
+_Avoid_: plugin reconcile, verification gate

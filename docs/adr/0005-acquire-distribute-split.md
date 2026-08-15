@@ -1,5 +1,5 @@
 ---
-status: accepted; matrix/distribute ownership superseded by ADR-0006
+status: accepted; matrix/distribute ownership superseded by ADR-0006; native plugin reconciliation and --plugins-only superseded by ADR-0009
 ---
 
 # Acquire/distribute split with tracked staging

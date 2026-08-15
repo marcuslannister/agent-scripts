@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; routine automation no longer attempts marketplace operations (ADR-0009); the manual repair remains the recovery path
 ---
 
 # Oversized Codex marketplaces stay on manual repair
