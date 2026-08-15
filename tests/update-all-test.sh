@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Black-box contract: routine updates have four ordered steps and still
-# attempt all, summarize all, and aggregate failure.
+# Black-box contract (ADR-0009): the main-machine updater has five ordered
+# steps, attempts all of them, summarizes all, aggregates failure, and ships by
+# default. --no-ship runs the updates only.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
@@ -13,43 +14,42 @@ UPDATE_LOG="$TMPDIR/update.log"
 mkdir -p "$SCRIPTS"
 cp "$REPO_ROOT/agent-tooling/update-all.sh" "$SCRIPTS/"
 
-UPDATERS=(update-agents.sh update-skill-topology.sh generate-skills-matrix.sh sync-skill-surfaces.sh)
+UPDATERS=(update-agents.sh update-plugins.sh update-skill-topology.sh \
+  generate-skills-matrix.sh sync-skill-surfaces.sh)
 
-for updater in "${UPDATERS[@]}"; do
-  printf '%s\n' \
-    '#!/usr/bin/env bash' \
-    'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
-    > "$SCRIPTS/$updater"
-  chmod +x "$SCRIPTS/$updater"
-done
+write_updaters() {
+  local updater
+  for updater in "${UPDATERS[@]}"; do
+    printf '%s\n' \
+      '#!/usr/bin/env bash' \
+      'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
+      > "$SCRIPTS/$updater"
+    chmod +x "$SCRIPTS/$updater"
+  done
+}
+write_updaters
+printf '%s\n' "${UPDATERS[@]}" > "$TMPDIR/expected.log"
 
 UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --help > "$TMPDIR/help.out"
-rg -F 'Usage: update-all.sh [--ship]' "$TMPDIR/help.out" >/dev/null
-test ! -e "$UPDATE_LOG"
-UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --unknown --help \
-  > "$TMPDIR/help-with-invalid.out"
-rg -F 'Usage: update-all.sh [--ship]' "$TMPDIR/help-with-invalid.out" >/dev/null
+rg -F 'Usage: update-all.sh [--no-ship]' "$TMPDIR/help.out" >/dev/null
 test ! -e "$UPDATE_LOG"
 
 set +e
-UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --unknown \
-  > "$TMPDIR/invalid.out" 2>&1
+UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --unknown > "$TMPDIR/invalid.out" 2>&1
 invalid_code=$?
 set -e
 test "$invalid_code" -eq 2
 rg -F 'unknown option: --unknown' "$TMPDIR/invalid.out" >/dev/null
 test ! -e "$UPDATE_LOG"
 
-UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" > "$TMPDIR/out" 2>&1
-
-printf '%s\n' "${UPDATERS[@]}" > "$TMPDIR/expected.log"
+# --no-ship: every step runs, nothing is committed.
+UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/out" 2>&1
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
+for label in 'agent CLIs' 'native plugins' 'skill acquire' 'skills matrix' 'skill distribute'; do
+  grep -F "$label" "$TMPDIR/out" >/dev/null
+done
 
-grep -F 'agent CLIs' "$TMPDIR/out" >/dev/null
-grep -F 'skill acquire' "$TMPDIR/out" >/dev/null
-grep -F 'skills matrix' "$TMPDIR/out" >/dev/null
-grep -F 'skill distribute' "$TMPDIR/out" >/dev/null
-
+# A failed step still lets the others run, and the run exits non-zero.
 printf '%s\n' \
   '#!/usr/bin/env bash' \
   'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
@@ -57,16 +57,11 @@ printf '%s\n' \
   > "$SCRIPTS/update-agents.sh"
 chmod +x "$SCRIPTS/update-agents.sh"
 : > "$UPDATE_LOG"
-
-if UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" > "$TMPDIR/failure.out" 2>&1; then
+if UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/failure.out" 2>&1; then
   echo "FAIL: routine updater ignored a failed step" >&2
   exit 1
 fi
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
-grep -F 'agent CLIs' "$TMPDIR/failure.out" >/dev/null
-grep -F 'skill acquire' "$TMPDIR/failure.out" >/dev/null
-grep -F 'skills matrix' "$TMPDIR/failure.out" >/dev/null
-grep -F 'skill distribute' "$TMPDIR/failure.out" >/dev/null
 
 GIT_BIN="$TMPDIR/git-bin"
 GIT_LOG="$TMPDIR/git.log"
@@ -150,6 +145,8 @@ printf '%s\n' \
   '}' \
   > "$TMPDIR/other-skills/test/.source.json"
 
+# A dirty worktree stops the default ship before any update runs.
+write_updaters
 : > "$UPDATE_LOG"
 set +e
 PATH="$GIT_BIN:$PATH" \
@@ -159,21 +156,14 @@ PATH="$GIT_BIN:$PATH" \
   GIT_ADD_MARKER="$GIT_ADD_MARKER" \
   GIT_COMMIT_MARKER="$GIT_COMMIT_MARKER" \
   UPDATE_LOG="$UPDATE_LOG" \
-  "$SCRIPTS/update-all.sh" --ship > "$TMPDIR/dirty-ship.out" 2>&1
+  "$SCRIPTS/update-all.sh" > "$TMPDIR/dirty-ship.out" 2>&1
 dirty_ship_code=$?
 set -e
 test "$dirty_ship_code" -eq 1
 test ! -s "$UPDATE_LOG"
-rg -F -- '--ship requires a clean worktree' "$TMPDIR/dirty-ship.out" >/dev/null
+rg -F 'ship requires a clean worktree' "$TMPDIR/dirty-ship.out" >/dev/null
 
-for updater in "${UPDATERS[@]}"; do
-  printf '%s\n' \
-    '#!/usr/bin/env bash' \
-    'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
-    > "$SCRIPTS/$updater"
-  chmod +x "$SCRIPTS/$updater"
-done
-
+# Default run ships: pull, update, verify, changelog, commit, push.
 : > "$UPDATE_LOG"
 : > "$GIT_LOG"
 rm -f "$GIT_PULL_MARKER" "$GIT_ADD_MARKER" "$GIT_COMMIT_MARKER"
@@ -184,7 +174,7 @@ PATH="$GIT_BIN:$PATH" \
   GIT_COMMIT_MARKER="$GIT_COMMIT_MARKER" \
   SHIP_LOG="$SHIP_LOG" \
   UPDATE_LOG="$UPDATE_LOG" \
-  "$SCRIPTS/update-all.sh" --ship > "$TMPDIR/ship.out" 2>&1
+  "$SCRIPTS/update-all.sh" > "$TMPDIR/ship.out" 2>&1
 
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
 rg -Fx 'verify' "$SHIP_LOG" >/dev/null
@@ -193,5 +183,18 @@ rg -Fx 'commit -m chore: refresh staged skills' "$GIT_LOG" >/dev/null
 rg -Fx 'push' "$GIT_LOG" >/dev/null
 rg -F 'test abcdef1' "$TMPDIR/CHANGELOG.md" >/dev/null
 rg -F '## main...origin/main' "$TMPDIR/ship.out" >/dev/null
+
+# --no-ship leaves git alone entirely.
+: > "$UPDATE_LOG"
+: > "$GIT_LOG"
+PATH="$GIT_BIN:$PATH" \
+  GIT_LOG="$GIT_LOG" \
+  GIT_PULL_MARKER="$GIT_PULL_MARKER" \
+  GIT_ADD_MARKER="$GIT_ADD_MARKER" \
+  GIT_COMMIT_MARKER="$GIT_COMMIT_MARKER" \
+  UPDATE_LOG="$UPDATE_LOG" \
+  "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/noship.out" 2>&1
+cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
+test ! -s "$GIT_LOG"
 
 echo "update-all tests passed"

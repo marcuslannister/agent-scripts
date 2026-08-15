@@ -8,6 +8,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Adopted ADR-0009: tooling manages tracked skill content only, native plugins become user-managed per-machine state with a best-effort refresh helper, and the topology engine's replacement by a staging-only acquire is decided; glossary updated accordingly.
 
+- Replaced the topology engine and its private-adapter protocol with a staging-only `update-skill-topology.sh` (~3,550 lines deleted), merged `skill-topology.json` and `registry.json` into one `agent-tooling/sources.json`, and added `agent-tooling/update-plugins.sh` for best-effort native plugin refresh that skips permanently failing marketplaces (ADR-0007).
+
+- One command per machine: `update-all.sh` now ships by default (`--no-ship` for a review run) and `update-local.sh` fast-forward pulls before updating, so secondary machines — including Windows under Git Bash — need a single command. Retired `scripts/sync-skills` to a refusing stub.
+
 - Added `agent-tooling/repair-codex-registry.sh`: report the Codex marketplaces and plugins this repo expects, and re-register with `--fix` the ones Codex has lost. Operator-run through `codex` commands only, never wired into the updaters (ADR-0007).
 
 - Cached plugin-source clones under `~/.cache/agent-scripts/source-clones/`, so acquire refreshes one shallow clone per source instead of cloning every marketplace repository again on each run; check mode stays hermetic.

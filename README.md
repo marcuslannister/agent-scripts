@@ -4,7 +4,7 @@ Shared agent instructions, skills, and small portable helpers for Peter's local 
 
 This repo is the canonical place for:
 - `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
-- `agent-tooling/`: code-agent and skill update machinery — matrix generator, distribution-topology reconciler, verify/validate gates, `skill-authors.json`, `skill-topology.json` (versioned desired distribution for registered skill sources), `skills-matrix.md`
+- `agent-tooling/`: code-agent and skill update machinery — matrix generator, staging acquire, surface distribute, verify/validate gates, `skill-authors.json`, `sources.json` (the one tracked list of skill-bearing sources), `skills-matrix.md`
 - repository root: upstream-complete overlay of `steipete/agent-scripts:main`; every recorded upstream path remains present while local additions and modifications coexist
 - `skills/`: exact tracked mirror of `steipete/agent-scripts:main`
 - `other-skills/`: owner-grouped tracked holding area for foreign skills; each source dir carries `.source.json` provenance
@@ -31,7 +31,7 @@ Rules:
 - Quote `description` in front matter.
 
 Global discovery — one skills root per CLI:
-- Claude Code: `~/.claude/skills` only; `agent-tooling/update-skill-topology.sh` acquires upstream inventories into tracked staging and reconciles native plugins; `agent-tooling/sync-skill-surfaces.sh` distributes matrix-selected, marker-owned copies offline.
+- Claude Code: `~/.claude/skills` only; `agent-tooling/update-skill-topology.sh` acquires upstream inventories into tracked staging; `agent-tooling/sync-skill-surfaces.sh` distributes matrix-selected, marker-owned copies offline. Native plugins are user-managed per-machine state refreshed best-effort by `agent-tooling/update-plugins.sh` (ADR-0009).
 - Codex: `~/.agents/skills` only; the same matrix selects every `Type: skill` row independently for Claude and Codex. `Type: plugin` rows remain report-only.
 - The old `~/.codex/skills` root is legacy. Distribute migrates every non-system entry into collision-safe timestamped backups and verifies that only Codex's `.system` entry may remain.
 - Evidence note: `C:\Users\<user>\.codex\skills-migrated-20260707-091501` was the local backup that shaped the migration tests (legacy skill dirs plus plain pointer files). It is documentation evidence only; scripts and tests must synthesize their own fixtures instead of depending on that path.
@@ -62,42 +62,46 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Public upstream sync command. Requires a clean worktree, fetches and merges `steipete/agent-scripts:main`, restores upstream paths deleted by local history, and records the verified source commit without overwriting local additions or committed modifications.
 - `--check` is offline. It verifies that the recorded commit is merged into `HEAD` and that every path in that commit remains present.
 
-`agent-tooling/update-all.sh`
-- Top-level updater: four ordered steps — `update-agents.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).
+`agent-tooling/update-all.sh` — the one command on the main machine
+- Five ordered steps: `update-agents.sh`, `update-plugins.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
-- Review-first by default. `--ship` requires a clean worktree, pulls first, runs and validates the update, adds an Unreleased changelog entry, commits the refresh, pushes, pulls with fast-forward only, and verifies the final worktree state.
+- Ships by default: requires a clean worktree, pulls first, validates the update, adds an Unreleased changelog entry, commits the refresh, pushes, pulls with fast-forward only, and verifies the final worktree state. `--no-ship` runs the update steps only.
 
-`agent-tooling/update-local.sh`
-- Secondary-machine updater: three ordered steps — `update-agents.sh`, `update-skill-topology.sh --plugins-only`, then `sync-skill-surfaces.sh` (distribute). No staging acquire and no matrix refresh; this machine pulls already-committed staging via git.
-- Native plugins are per-machine CLI state that git never carries, so they are reconciled here rather than left frozen at whatever version the machine first installed.
+`agent-tooling/update-local.sh` — the one command on every other machine
+- Fast-forward pulls the repo, then three ordered steps: `update-agents.sh`, `update-plugins.sh`, then `sync-skill-surfaces.sh` (distribute). No staging acquire and no matrix refresh; this machine distributes already-committed staging.
+- Runs on macOS and on Windows under Git Bash. Windows needs `jq` and `rg` on PATH once.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
+
+`agent-tooling/update-plugins.sh`
+- Best-effort native plugin refresh on every machine: runs the native `claude`/`codex` update commands for each plugin source in `sources.json`, skips marketplaces marked `"codexUpgrade": "manual"` (ADR-0007), reports each failure in one line, and never fails the run.
+- It never installs a plugin and never repairs a registry. First-time installs are native commands you run once; a desynced Codex registry is `agent-tooling/repair-codex-registry.sh`.
 
 `agent-tooling/verify.sh`
 - Single local/CI verifier: upstream-overlay completeness, skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `agent-tooling/update-skill-topology.sh` / `agent-tooling/sync-skill-surfaces.sh`
-- Public commands and private topology core are Bash; topology reconciliation neither invokes nor requires Node. Browser-helper verification keeps its unrelated Node requirement.
-- Acquire (`update-skill-topology.sh`) refreshes upstreams, mirrors complete foreign inventories into tracked `other-skills/` staging with `.source.json` provenance, and reconciles native plugins (including verified dual-plugin duplicate cleanup). It never reads or writes the matrix and never manages ordinary agent surfaces. `--check` previews only upstream/staging and native-plugin drift without writes. `--plugins-only` narrows every source loop to registry entries owning a native plugin, so plugins reconcile while tracked staging is never written — the mode `update-local.sh` uses.
-- Distribute (`sync-skill-surfaces.sh`) is fully offline and matrix-owned. It resolves selected names from tracked repo and staging content, reconciles both surfaces under one marker owner, adopts known pre-cutover agent-scripts owners, removes owned unselected copies, preserves and reports foreign entries, and reads neither the topology manifest nor adapter registry.
-- Acquire human mode streams discovery, planning, adapter, and verification progress before its result table; distribute prints its surface result and add/refresh/remove actions. Both keep diagnostics on standard error and support `--check` for a non-mutating preview or `--json` for one JSON document. Acquire exit codes are `0` reconciled/check-clean, `1` drift/adapter/verification failure, `2` invalid usage or manifest, `3` user decision required, and `130` interrupted. Distribute uses `0` for reconciled/check-clean, `1` for drift or reconciliation failure, `2` for invalid usage or matrix, and `130` for interruption.
-- OpenAI Codex is Claude-only; Waza and claude-mem are dual-plugin skills with manifest-scoped native Claude/Codex adapters and explicit expected skill identities. Check mode compares installed versions with each configured marketplace snapshot, confirms every declared skill through each native plugin install, and reports pending/blocked/verified migration gates plus retained and eventual duplicate-copy removals without mutation. Reconciliation removes tracked, untracked, managed, or edited copies of only the verified skill after both native paths pass; partial native success retains both copies, and cleanup failure remains visible without fallback delivery. Human and JSON output separate native reconciliation, runtime verification, retained copies, gated removals, and blocking failures; repeated healthy reconciliation reports clean/idempotent state. Recovery stays plugin-managed and is limited to upstream repair, native rollback, or an explicit manifest decision. Unknown installed third-party plugins return decision-required before mutation; Claude official and Codex system plugins are ignored. Report-only plugin rows disappear on regeneration when their local cache is removed, and their destination cells remain informational. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
+- Both commands are Bash and neither invokes nor requires Node. Browser-helper verification keeps its unrelated Node requirement.
+- Acquire (`update-skill-topology.sh`) refreshes one cached shallow clone per source under `~/.cache/agent-scripts/source-clones/`, mirrors complete foreign inventories into tracked `other-skills/` staging with `.source.json` provenance, and removes staged skills that left upstream. It is selection-blind, never manages agent surfaces, and runs no native plugin commands (ADR-0009). `--check` previews staging drift and writes nothing at all, including under `HOME`.
+- Distribute (`sync-skill-surfaces.sh`) is fully offline and matrix-owned. It resolves selected names from tracked repo and staging content, reconciles both surfaces under one marker owner, adopts known pre-cutover agent-scripts owners, removes owned unselected copies, preserves and reports foreign entries, and reads only the matrix and tracked content.
+- Both print their result plus per-skill actions, keep diagnostics on standard error, and support `--check` for a non-mutating preview or `--json` for one JSON document. Acquire exit codes are `0` reconciled/check-clean, `1` drift or staging failure, `2` invalid usage or sources list, `3` decision required (unexpected skills-lock entries), and `130` interrupted. Distribute uses `0` for reconciled/check-clean, `1` for drift or reconciliation failure, `2` for invalid usage or matrix, and `130` for interruption.
+- Plugin sources (OpenAI Codex, Waza, claude-mem, mattpocock-skills, visual-explainer) carry only a `plugin` block in `sources.json`, read by `update-plugins.sh`, `repair-codex-registry.sh`, and matrix reporting. `Type: plugin` matrix rows stay report-only. Tooling never substitutes a surface copy for a broken plugin. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
 - The matrix currently selects most Matt skills for both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; known legacy npx lock entries also require an explicit decision and remain byte-identical.
-- Exit `3` from acquire means no native-plugin or staging mutation occurred. Inspect `--check --json` decisions, make an explicit manifest or installed-state decision, then rerun; do not guess a fallback or delete unowned entries.
+- Exit `3` from acquire means a skills-lock entry needs an explicit decision; the lock is never mutated. Inspect `--json` decisions, act deliberately, then rerun.
 
 `agent-tooling/update-agents.sh`
 - Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update` plus `pi update --extensions`; installs a missing Pi with its native installer.
 - Tries all installed CLIs even if one fails.
 
-Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. Their mechanics now live only in `agent-tooling/distribution-topology/adapters/`.
+Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. `scripts/sync-skills` is a retired stub kept only for upstream-path completeness (ADR-0008/0009).
 
 Topology authoring:
 - Run `agent-tooling/sync-upstream-overlay.sh` to merge the latest upstream root and restore every upstream path before local topology updates.
 - Refresh tracked `skills/` from the upstream `steipete/agent-scripts:main` mirror; do not add fork-only content there. Mirrored skills default to Claude.
 - Put repo-owned Codex-only skills under `codex-skills/`; they default to Codex.
-- Select Claude/Codex destinations by editing `Y`/`N` on `Type: skill` rows in `agent-tooling/skills-matrix.md`; the topology manifest has no distribution overrides.
+- Select Claude/Codex destinations by editing `Y`/`N` on `Type: skill` rows in `agent-tooling/skills-matrix.md`; the sources list has no distribution overrides.
 - Review newly appended skill rows and change `N/N` only when the skill should reach a surface. Selected rows that no longer resolve fail loudly; unselected rows do not block reconciliation. Plugin rows and their destination cells are report-only.
-- For an external skill-bearing source, add exactly one `agent-tooling/skill-topology.json` source and one private adapter registration with its matrix source identity. Stage source-only and npx-only inventories under the matching `other-skills/<owner>/`; never write them directly into `skills/`. Record source defaults and plugin policy in the manifest; never add another public updater.
+- For an external skill-bearing source, add exactly one `agent-tooling/sources.json` entry: `id`, `classification`, `repo`, plus `subroot`/`staging`/`discovery` for staged sources or a `plugin` block for plugin sources. Stage source-only and npx-only inventories under the matching `other-skills/<owner>/`; never write them directly into `skills/`. Never add another public updater.
 - Preview upstream/staging drift with `agent-tooling/update-skill-topology.sh --check`; run it to acquire. Regenerate `agent-tooling/skills-matrix.md` to append new skills without changing selections, then preview surfaces offline with `agent-tooling/sync-skill-surfaces.sh --check`. Run `agent-tooling/verify.sh` before commit.
 
 `agent-tooling/setup-agent-instructions.sh`

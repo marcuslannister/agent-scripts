@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Executable policy for the ADR-0009 tooling shape: one public command per
+# machine, staging-only acquire, one sources list, and no revival of the
+# retired topology engine or its private-adapter protocol.
+
 REPO_ROOT="${1:-$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)}"
-MANIFEST="$REPO_ROOT/agent-tooling/skill-topology.json"
-REGISTRY="$REPO_ROOT/agent-tooling/distribution-topology/registry.json"
-TOPOLOGY_DIR="$REPO_ROOT/agent-tooling/distribution-topology"
+TOOLING="$REPO_ROOT/agent-tooling"
+SOURCES="$TOOLING/sources.json"
+TOPOLOGY_DIR="$TOOLING/distribution-topology"
 failed=0
 
 fail() {
@@ -12,83 +16,114 @@ fail() {
   failed=1
 }
 
-for required in update-agents.sh update-all.sh update-local.sh update-skill-topology.sh \
-  generate-skills-matrix.sh sync-skill-surfaces.sh sync-upstream-overlay.sh; do
-  [ -f "$REPO_ROOT/agent-tooling/$required" ] || fail "missing public command: $required"
+for required in update-agents.sh update-all.sh update-local.sh update-plugins.sh \
+  update-skill-topology.sh generate-skills-matrix.sh sync-skill-surfaces.sh \
+  sync-upstream-overlay.sh lib-copies.sh lib-staging.sh; do
+  [ -f "$TOOLING/$required" ] || fail "missing public command: $required"
 done
 
-for candidate in "$REPO_ROOT"/agent-tooling/update-*.sh; do
+for candidate in "$TOOLING"/update-*.sh; do
   [ -e "$candidate" ] || continue
   name="${candidate##*/}"
   case "$name" in
-    update-agents.sh|update-all.sh|update-local.sh|update-skill-topology.sh) ;;
+    update-agents.sh|update-all.sh|update-local.sh|update-plugins.sh|update-skill-topology.sh) ;;
     *) fail "unexpected public updater: $name" ;;
   esac
 done
 
-while IFS= read -r candidate; do
-  [ -n "$candidate" ] || continue
-  [ "${candidate##*/}" = update-skill-topology.sh ] \
-    || fail "unexpected public acquire command: ${candidate##*/}"
-done < <(rg -l 'distribution-topology/topology\.sh|TOPOLOGY_PHASE=' \
-  "$REPO_ROOT"/agent-tooling/*.sh || true)
-
-[ -x "$TOPOLOGY_DIR/topology.sh" ] \
-  || fail "private Bash acquire core missing or not executable"
-[ -x "$TOPOLOGY_DIR/distribute.sh" ] \
-  || fail "private Bash distribute core missing or not executable"
-if ! rg -q 'TOPOLOGY_PHASE=acquire' "$REPO_ROOT/agent-tooling/update-skill-topology.sh"; then
-  fail "update-skill-topology.sh must retain the acquire phase entry point"
-fi
-if rg -q 'TOPOLOGY_PHASE=' "$TOPOLOGY_DIR/topology.sh"; then
-  fail "acquire topology core must not contain phase gating"
-fi
-if rg -q 'skill-topology\.json|registry\.json|distribution-topology/topology\.sh|TOPOLOGY_PHASE=' \
-  "$REPO_ROOT/agent-tooling/sync-skill-surfaces.sh" "$TOPOLOGY_DIR/distribute.sh"; then
-  fail "distribute must read neither the topology manifest nor adapter registry"
-fi
-for retired in matrix.sh claude-root.sh adapters/repo-owned.sh; do
+# The retired engine and its protocol must not come back.
+for retired in topology.sh schema.sh report.sh state.sh errors.sh \
+  repo-owned-paths.sh codex-root-hygiene.sh registry.json matrix.sh claude-root.sh; do
   [ ! -e "$TOPOLOGY_DIR/$retired" ] || fail "retired topology module remains: $retired"
 done
+[ ! -e "$TOPOLOGY_DIR/adapters" ] || fail "retired private-adapter directory remains"
+[ ! -e "$TOOLING/skill-topology.json" ] || fail "retired topology manifest remains"
 if compgen -G "$TOPOLOGY_DIR/*.mjs" >/dev/null; then
   fail "retired Node topology implementation remains"
 fi
+[ -x "$TOPOLOGY_DIR/distribute.sh" ] || fail "private Bash distribute core missing or not executable"
+[ -x "$TOOLING/update-skill-topology.sh" ] || fail "acquire command missing or not executable"
 
-invocations="$(
+# Acquire stages only: no native plugin commands, no matrix reads.
+if rg -q 'claude plugin|codex plugin' "$TOOLING/update-skill-topology.sh"; then
+  fail "acquire must not run native plugin commands (ADR-0009)"
+fi
+if rg -q 'skills-matrix' "$TOOLING/update-skill-topology.sh"; then
+  fail "acquire must stay selection-blind"
+fi
+if rg -q 'plugins-only' "$TOOLING/update-skill-topology.sh" "$TOOLING/update-local.sh"; then
+  fail "retired --plugins-only mode remains"
+fi
+if rg -q 'sources\.json|distribution-topology/topology\.sh' \
+  "$TOOLING/sync-skill-surfaces.sh" "$TOPOLOGY_DIR/distribute.sh"; then
+  fail "distribute must read neither the sources list nor a topology engine"
+fi
+
+# Native plugin work lives in the helper only.
+for guarded in update-all.sh update-local.sh update-skill-topology.sh; do
+  if rg -q 'claude plugin marketplace|codex plugin marketplace' "$TOOLING/$guarded"; then
+    fail "native plugin commands belong in update-plugins.sh, not $guarded"
+  fi
+done
+if ! rg -q 'codexUpgrade' "$TOOLING/update-plugins.sh"; then
+  fail "update-plugins.sh must honor manual-upgrade markers (ADR-0007)"
+fi
+
+# One command per machine, in order.
+main_steps="$(
   rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|generate-skills-matrix\.sh|sync-skill-surfaces\.sh)' \
-    "$REPO_ROOT/agent-tooling/update-all.sh" | sed 's#\$SCRIPT_DIR/##'
+    "$TOOLING/update-all.sh" | sed 's#\$SCRIPT_DIR/##'
 )"
-expected_invocations='update-agents.sh
+expected_main='update-agents.sh
+update-plugins.sh
 update-skill-topology.sh
 generate-skills-matrix.sh
 sync-skill-surfaces.sh'
-[ "$invocations" = "$expected_invocations" ] \
-  || fail "update-all.sh must invoke agent updates, acquire, matrix refresh, then distribute"
+[ "$main_steps" = "$expected_main" ] \
+  || fail "update-all.sh must run agent updates, plugins, acquire, matrix refresh, then distribute"
 
+local_steps="$(
+  rg -N -o '\$SCRIPT_DIR/(update-[a-z-]+\.sh|sync-skill-surfaces\.sh)' \
+    "$TOOLING/update-local.sh" | sed 's#\$SCRIPT_DIR/##' | rg -v '^update-local\.sh$'
+)"
+expected_local='update-agents.sh
+update-plugins.sh
+sync-skill-surfaces.sh'
+[ "$local_steps" = "$expected_local" ] \
+  || fail "update-local.sh must run agent updates, plugins, then distribute"
+rg -q 'pull --ff-only' "$TOOLING/update-local.sh" \
+  || fail "update-local.sh must fast-forward pull before updating"
+if rg -q '\$SCRIPT_DIR/update-skill-topology' "$TOOLING/update-local.sh"; then
+  fail "secondary machines must not acquire staging"
+fi
+
+# One sources list, self-consistent.
 if ! jq -e '
-    .version == 1 and
+    .version == 2 and
     (.sources | type == "array" and length > 0) and
     ([.sources[].id] | length) == ([.sources[].id] | unique | length) and
     all(.sources[];
-      (keys | sort) == ["classification","defaultDestinations","id"])
-  ' "$MANIFEST" >/dev/null; then
-  fail "topology manifest must contain acquire source policy only"
+      (.id | test("^[a-z0-9]+(-[a-z0-9]+)*$")) and
+      (.repo | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) and
+      (has("staging") or has("plugin")) and
+      ((has("staging") | not) or (has("subroot") and has("discovery"))))
+  ' "$SOURCES" >/dev/null; then
+  fail "sources list policy failed"
 fi
+while IFS= read -r staging_dir; do
+  [ -n "$staging_dir" ] || continue
+  [ -d "$REPO_ROOT/other-skills/$staging_dir" ] \
+    || fail "sources list names an absent staging directory: other-skills/$staging_dir"
+done < <(jq -r '.sources[] | select(has("staging")) | .staging' "$SOURCES")
 
-if ! jq -e --slurpfile manifest "$MANIFEST" '
-    ([.[].sourceId] | length) == ([.[].sourceId] | unique | length) and
-    all(.[];
-      (.command | startswith("adapters/")) and
-      (.command | contains("..") | not) and
-      (.sourceId as $id | any($manifest[0].sources[];
-        .id == $id and .classification != "repo-owned")))
-  ' "$REGISTRY" >/dev/null; then
-  fail "acquire adapter registry policy failed"
+# The retired symlink updater must stay a refusing stub, not a working mirror
+# (ADR-0009) and must not be deleted (ADR-0008 upstream completeness).
+LEGACY="$REPO_ROOT/scripts/sync-skills"
+if [ ! -f "$LEGACY" ]; then
+  fail "upstream path scripts/sync-skills must not be deleted (ADR-0008)"
+elif rg -q 'ln -sfn|^CLAUDE_ROOT=' "$LEGACY"; then
+  fail "scripts/sync-skills must be a retired stub, not a symlink mirror"
 fi
-
-while IFS= read -r command; do
-  [ -f "$TOPOLOGY_DIR/$command" ] || fail "registered adapter missing: $command"
-done < <(jq -r '.[].command' "$REGISTRY")
 
 [ "$failed" -eq 0 ] || exit 1
 printf 'skill topology policy passed\n'

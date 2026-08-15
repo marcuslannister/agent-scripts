@@ -1,0 +1,99 @@
+{
+  "version": 2,
+  "sources": [
+    {
+      "id": "anthropic-skills",
+      "classification": "source-only",
+      "repo": "anthropics/skills",
+      "subroot": "skills",
+      "staging": "anthropics",
+      "discovery": "flat"
+    },
+    {
+      "id": "khazix-skills",
+      "classification": "source-only",
+      "repo": "KKKKhazix/khazix-skills",
+      "subroot": "",
+      "staging": "khazix",
+      "discovery": "flat"
+    },
+    {
+      "id": "matt-skills",
+      "classification": "npx-only",
+      "repo": "mattpocock/skills",
+      "subroot": "skills",
+      "staging": "matt",
+      "discovery": "recursive",
+      "retiredRepos": ["vercel-labs/skills"]
+    },
+    {
+      "id": "humanlayer-skills",
+      "classification": "npx-only",
+      "repo": "humanlayer/skills",
+      "subroot": "plugins/improve-claude-md/skills",
+      "staging": "humanlayer",
+      "discovery": "recursive"
+    },
+    {
+      "id": "visual-explainer",
+      "classification": "plugin-claude-only",
+      "repo": "nicobailon/visual-explainer",
+      "subroot": "plugins",
+      "staging": "nicobailon",
+      "discovery": "flat",
+      "plugin": {
+        "name": "visual-explainer",
+        "marketplaces": {
+          "claude": "visual-explainer-marketplace"
+        }
+      }
+    },
+    {
+      "id": "matt-plugin",
+      "classification": "plugin-claude-only",
+      "repo": "mattpocock/skills",
+      "plugin": {
+        "name": "mattpocock-skills",
+        "marketplaces": {
+          "claude": "mattpocock"
+        }
+      }
+    },
+    {
+      "id": "openai-codex",
+      "classification": "plugin-claude-only",
+      "repo": "openai/codex-plugin-cc",
+      "plugin": {
+        "name": "codex",
+        "marketplaces": {
+          "claude": "openai-codex"
+        }
+      }
+    },
+    {
+      "id": "waza",
+      "classification": "dual-plugin",
+      "repo": "tw93/Waza",
+      "plugin": {
+        "name": "waza",
+        "marketplaces": {
+          "claude": "waza",
+          "codex": "waza"
+        }
+      }
+    },
+    {
+      "id": "claude-mem",
+      "classification": "dual-plugin",
+      "repo": "thedotmack/claude-mem",
+      "plugin": {
+        "name": "claude-mem",
+        "marketplaces": {
+          "claude": "thedotmack",
+          "codex": "claude-mem-local"
+        },
+        "codexUpgrade": "manual"
+      }
+    }
+  ]
+}

@@ -4,10 +4,10 @@ set -uo pipefail
 # Operator-run repair for a desynced Codex plugin registry.
 #
 # Codex can lose its marketplace and installed-plugin records while the snapshots
-# stay on disk. `plugin marketplace list` then reports nothing, `plugin
-# marketplace add` refuses with "already added from a different source", and
-# acquire retries a doomed add on every run — for claude-mem that is a full
-# 330MB clone that cannot finish. Observed after a Codex CLI reinstall.
+# stay on disk. `plugin marketplace list` then reports nothing while `plugin
+# marketplace add` refuses with "already added from a different source" — for
+# claude-mem re-adding means a full 330MB clone that cannot finish. Observed
+# after a Codex CLI reinstall.
 #
 # Reports by default. --fix re-registers each expected marketplace and plugin
 # through `codex` commands only, never by writing Codex internal state
@@ -15,7 +15,7 @@ set -uo pipefail
 # native-state repair stays an explicit operator action.
 
 SCRIPT_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
-REGISTRY="$SCRIPT_DIR/distribution-topology/registry.json"
+SOURCES="$SCRIPT_DIR/sources.json"
 
 info() { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[0;31m!!!\033[0m %s\n' "$*" >&2; }
@@ -51,19 +51,19 @@ for tool in codex jq; do
   warn "required tool not found: $tool"
   exit 2
 done
-[ -f "$REGISTRY" ] || { warn "missing adapter registry: $REGISTRY"; exit 2; }
+[ -f "$SOURCES" ] || { warn "missing sources list: $SOURCES"; exit 2; }
 
 # Every source that expects a native Codex plugin, as one TSV row per source.
 expected_rows() {
   jq -r '
-    .[]
+    .sources[]
     | select(.plugin.marketplaces.codex != null)
-    | [ .sourceId,
-        .plugin.repo,
+    | [ .id,
+        .repo,
         .plugin.marketplaces.codex,
-        ((.plugin.identifiers.codex // .plugin.name) + "@" + .plugin.marketplaces.codex)
+        (.plugin.name + "@" + .plugin.marketplaces.codex)
       ] | @tsv
-  ' "$REGISTRY"
+  ' "$SOURCES"
 }
 
 marketplace_present() { # marketplace

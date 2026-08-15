@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Cached upstream clones: discovery must refresh one machine-local clone per
-# source instead of paying a cold clone on every run. Regression for
-# "Discovering sources" stalling a --plugins-only run behind four full clones.
+# Cached upstream clones: acquire must refresh one machine-local clone per
+# source instead of paying a cold clone on every run. Regression for source
+# discovery stalling a run behind four full clones.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
@@ -26,7 +26,8 @@ seed_repo() { # path marker
 seed_repo "$UPSTREAM" first
 seed_repo "$OTHER" other
 
-source "$REPO_ROOT/agent-tooling/distribution-topology/adapters/source-cache.sh"
+source "$REPO_ROOT/agent-tooling/lib-copies.sh"
+source "$REPO_ROOT/agent-tooling/lib-staging.sh"
 
 CACHE="$(source_cache_dir "$HOME_DIR" waza)"
 [ "$CACHE" = "$HOME_DIR/.cache/agent-scripts/source-clones/waza" ] \

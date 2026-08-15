@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Top-level updater: agent CLIs, acquire, matrix refresh, then offline distribute.
-# Runs every update step (no fail-fast), prints a summary, and can explicitly
-# validate, commit, push, and pull the resulting tracked changes with --ship.
+# Top-level updater (main machine): agent CLIs, best-effort plugin refresh,
+# staging acquire, matrix refresh, then offline distribute. Runs every step
+# (no fail-fast), prints a summary, and by default validates, commits, pushes,
+# and pulls the resulting tracked changes (ADR-0009). --no-ship reviews only.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -21,18 +22,20 @@ status_line() { # name code
 
 usage() {
   printf '%s\n' \
-    'Usage: update-all.sh [--ship]' \
+    'Usage: update-all.sh [--no-ship]' \
     '' \
-    'Update agent CLIs, acquire staged skills, refresh the skills matrix,' \
-    'and distribute selected skills.' \
+    'Update agent CLIs, refresh native plugins best-effort, acquire staged' \
+    'skills, refresh the skills matrix, and distribute selected skills.' \
+    'Ships by default: requires a clean worktree, then validates, commits,' \
+    'pushes, and pulls the current branch.' \
     '' \
     'Options:' \
-    '  --ship     Require a clean worktree, validate and commit tracked changes,' \
-    '             then push and pull the current branch.' \
+    '  --no-ship  Run the update steps only; review tracked changes yourself.' \
+    '  --ship     Accepted for compatibility; shipping is the default.' \
     '  -h, --help Show this help and exit.'
 }
 
-ship=0
+ship=1
 for arg in "$@"; do
   case "$arg" in
     -h|--help)
@@ -44,6 +47,7 @@ done
 for arg in "$@"; do
   case "$arg" in
     --ship) ship=1 ;;
+    --no-ship) ship=0 ;;
     *)
       warn "unknown option: $arg"
       printf 'Run update-all.sh --help for usage.\n' >&2
@@ -59,7 +63,7 @@ require_clean_worktree() {
     return 1
   fi
   if [ -n "$changes" ]; then
-    warn "--ship requires a clean worktree before updates run"
+    warn "ship requires a clean worktree before updates run (use --no-ship for a review run)"
     printf '%s\n' "$changes" >&2
     return 1
   fi
@@ -69,7 +73,7 @@ prepare_ship() {
   section "Preparing ship"
   if ! command -v git >/dev/null 2>&1 \
     || ! git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    warn "--ship requires this script to run from a Git repository"
+    warn "ship requires this script to run from a Git repository (use --no-ship elsewhere)"
     return 1
   fi
   require_clean_worktree || return 1
@@ -172,12 +176,16 @@ if [ "$ship" -eq 1 ]; then
 fi
 
 agents_status=0
+plugins_status=0
 acquire_status=0
 matrix_status=0
 distribute_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
+
+section "Refreshing native plugins"
+"$SCRIPT_DIR/update-plugins.sh" || plugins_status=$?
 
 section "Acquiring skill topology"
 "$SCRIPT_DIR/update-skill-topology.sh" || acquire_status=$?
@@ -192,10 +200,11 @@ section "Distributing skill surfaces"
 
 section "Summary"
 status_line "agent CLIs" "$agents_status"
+status_line "native plugins" "$plugins_status"
 status_line "skill acquire" "$acquire_status"
 status_line "skills matrix" "$matrix_status"
 status_line "skill distribute" "$distribute_status"
 
-(( agents_status != 0 || acquire_status != 0 || matrix_status != 0 || distribute_status != 0 )) && exit 1
+(( agents_status != 0 || plugins_status != 0 || acquire_status != 0 || matrix_status != 0 || distribute_status != 0 )) && exit 1
 [ "$ship" -eq 0 ] || ship_changes || exit 1
 exit 0
