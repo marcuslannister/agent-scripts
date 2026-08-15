@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Cached plugin-source clones under `~/.cache/agent-scripts/source-clones/`, so acquire refreshes one shallow clone per source instead of cloning every marketplace repository again on each run; check mode stays hermetic.
+
 - `agent-tooling/update-agents.sh` now runs `pi update --extensions` after `pi update`, so installed Pi packages stay current with the CLI.
 
 - Added an upstream-complete root overlay: preserve every recorded `steipete/agent-scripts:main` path while keeping local additions and modifications, with a clean-worktree sync command and offline verification.

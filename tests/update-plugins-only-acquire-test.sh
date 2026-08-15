@@ -187,6 +187,9 @@ if ! jq -e '
 fi
 # The plugin really was reconciled — this is the frozen-plugin regression.
 grep -Fq 'plugin install waza@waza' "$FIXTURE/home/claude-mutations.log"
+# Reconcile keeps the marketplace clone in the machine-local cache, so later runs
+# refresh one clone instead of paying a cold clone per source.
+test -d "$FIXTURE/home/.cache/agent-scripts/source-clones/waza"
 jq -e 'any(.[]; .id == "waza@waza")' "$FIXTURE/home/claude-plugins.json" >/dev/null
 # Staging stayed git-owned: no mirror, no .source.json rewrite.
 for skill in "${ANTHROPIC_SKILLS[@]}"; do

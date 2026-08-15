@@ -94,6 +94,10 @@ _Avoid_: reusing it as an identity or cache key — it only answers "did content
 **Private adapter**:
 An implementation under `agent-tooling/distribution-topology/adapters/`, registered exactly once and callable only by the topology module. It discovers and reconciles one manifest source without owning policy.
 
+**Source clone cache**:
+`~/.cache/agent-scripts/source-clones/<sourceId>`, one shallow clone of a read-only upstream repository per source. Reconcile refreshes it in place and discards it whenever the remote or the checkout is unusable. It is per-machine state that git never carries and that holds no local edits. Check mode never writes it — a preview clones into its own discovery root instead.
+_Avoid_: staging, snapshot, local marketplace
+
 **Routine updater**:
 `update-all.sh`. Four ordered steps: agent CLI updates, acquire, selection-preserving matrix regeneration, then distribute. It is review-first unless explicit Ship mode is selected.
 

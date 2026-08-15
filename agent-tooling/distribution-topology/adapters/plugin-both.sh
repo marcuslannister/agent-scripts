@@ -13,7 +13,15 @@ registry="$repo_root/agent-tooling/distribution-topology/registry.json"
 classification="$(jq -er --arg source_id "$source_id" \
   '.[] | select(.sourceId == $source_id) | .classification' "$registry")"
 plugin_repo="$(jq -er --arg source_id "$source_id" '.[] | select(.sourceId == $source_id) | .plugin.repo' "$registry")"
-remote_root="$discovery_root/$source_id/repo"
+source "${BASH_SOURCE[0]%/*}/source-cache.sh"
+# Reconcile caches the marketplace clone outside the discovery root, so every run
+# after the first refreshes it instead of cloning it again. Check stays hermetic:
+# a preview writes nothing under HOME.
+if [ "$mode" = check ]; then
+  remote_root="$discovery_root/$source_id/repo"
+else
+  remote_root="$(source_cache_dir "$home" "$source_id")"
+fi
 
 plugin_bundle_name_for() {
   jq -er --arg source_id "$source_id" \
@@ -26,8 +34,7 @@ plugin_name_for() {
 }
 
 discover_remote_marketplace() {
-  mkdir -p "$(dirname "$remote_root")"
-  git clone --depth 1 --quiet "https://github.com/$plugin_repo.git" "$remote_root"
+  refresh_cached_clone "$remote_root" "https://github.com/$plugin_repo.git"
 }
 
 marketplace_for() {
