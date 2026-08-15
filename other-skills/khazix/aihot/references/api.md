@@ -110,7 +110,8 @@ GET /api/v1/dailies/2026-07-24
 - 最新或指定日报响应为 `{schemaVersion, report}`。
 - 保留 report 的 `lead`、`sections` 与 `flashes` 结构，不把日报重排成普通 items。
 - 日报索引项和 report 顶层的 `links.aihot` 必有。sections／flashes 中 `links.aihot` 可能为 `null`；此时使用必有的 `links.original`，不要再寻找旧字段 `permalink` 或 `sourceUrl`。
-- 最新日报或指定日期返回 404 时，索引只查一次有界的 `/api/v1/dailies?limit=7`。索引有结果时，从中选择实际返回的最近日期，再请求一次对应的 `/api/v1/dailies/{date}` 取得完整日报并如实说明日期；索引为空就报告当前没有可用日报。绝不猜“昨天”或自行拼接日期。
+- Agent 获取最新或今天的日报时，先请求 `/api/v1/dailies?limit=1`，再使用索引实际返回的日期请求 `/api/v1/dailies/{date}`；索引为空就报告当前没有可用日报。不要把稳定 URL `/api/v1/dailies/latest` 作为 Agent 默认入口，因为部分第三方工具可能在 HTTP 缓存之外长期复用同一 URL 的旧结果；该端点仍保留给普通 REST 客户端兼容使用。绝不猜“今天”“昨天”或自行拼接日期。
+- 指定日期端点返回 404 时如实报告该日期没有可用日报；不要换成另一天冒充用户指定的日期。
 
 ### 正文与周期报告边界
 
