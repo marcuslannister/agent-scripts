@@ -76,18 +76,22 @@ plugin_installed() { # plugin_id
     | jq -e --arg id "$1" 'any((.installed // [])[]; .pluginId == $id and .installed == true)' >/dev/null
 }
 
-repair_source() { # source_id repo marketplace plugin_id
-  local source_id="$1" repo="$2" marketplace="$3" plugin_id="$4"
-  # Remove first: a lost registry entry leaves a stale root behind that makes a
-  # plain add refuse. Removing an entry Codex no longer lists is not an error.
-  codex plugin marketplace remove "$marketplace" >/dev/null 2>&1
-  if ! codex plugin marketplace add "$repo"; then
-    warn "$source_id: could not add marketplace $marketplace from $repo"
-    return 1
-  fi
-  if ! marketplace_present "$marketplace"; then
-    warn "$source_id: marketplace $marketplace is still missing after add"
-    return 1
+repair_source() { # source_id repo marketplace plugin_id market_state
+  local source_id="$1" repo="$2" marketplace="$3" plugin_id="$4" market_state="$5"
+  # A registered marketplace is left alone: re-adding it throws away a snapshot
+  # that Codex rebuilds with a full clone, which for claude-mem is half an hour.
+  if [ "$market_state" != present ]; then
+    # Remove first: a lost registry entry leaves a stale root behind that makes a
+    # plain add refuse. Removing an entry Codex no longer lists is not an error.
+    codex plugin marketplace remove "$marketplace" >/dev/null 2>&1
+    if ! codex plugin marketplace add "$repo"; then
+      warn "$source_id: could not add marketplace $marketplace from $repo"
+      return 1
+    fi
+    if ! marketplace_present "$marketplace"; then
+      warn "$source_id: marketplace $marketplace is still missing after add"
+      return 1
+    fi
   fi
   if ! codex plugin add "$plugin_id"; then
     warn "$source_id: could not install plugin $plugin_id"
@@ -116,7 +120,8 @@ while IFS=$'\t' read -r source_id repo marketplace plugin_id; do
     "$source_id" "$marketplace" "$market_state" "$plugin_id" "$plugin_state"
   [ "$fix" -eq 1 ] || continue
   info "repairing $source_id"
-  repair_source "$source_id" "$repo" "$marketplace" "$plugin_id" || failed=$((failed + 1))
+  repair_source "$source_id" "$repo" "$marketplace" "$plugin_id" "$market_state" \
+    || failed=$((failed + 1))
 done < <(expected_rows)
 
 if [ "$desynced" -eq 0 ]; then

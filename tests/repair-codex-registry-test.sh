@@ -119,6 +119,18 @@ grep -Fxq 'plugin marketplace remove waza' "$STATE/calls.log" \
 run > "$TMP_ROOT/second.out"
 grep -q 'matches every expected marketplace and plugin' "$TMP_ROOT/second.out"
 
+# A registered marketplace with a missing plugin installs the plugin only. Re-adding
+# it would discard a snapshot that costs a full clone — 25 minutes for claude-mem.
+printf '%s\n' waza claude-mem-local > "$STATE/marketplaces"
+cp "$STATE/marketplaces" "$STATE/roots"
+printf '%s\n' waza@waza > "$STATE/plugins"
+: > "$STATE/calls.log"
+run --fix > "$TMP_ROOT/plugin-only.out"
+grep -Fxq claude-mem@claude-mem-local "$STATE/plugins"
+grep -Fxq 'plugin add claude-mem@claude-mem-local' "$STATE/calls.log"
+grep -Eq 'plugin marketplace (add|remove)' "$STATE/calls.log" \
+  && { echo "--fix re-added a registered marketplace" >&2; exit 1; }
+
 # A failing add is reported, not swallowed.
 printf '%s\n' waza > "$STATE/marketplaces"
 printf '%s\n' waza claude-mem-local > "$STATE/roots"
