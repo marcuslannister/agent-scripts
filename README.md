@@ -76,6 +76,9 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Best-effort native plugin refresh on every machine: runs the native `claude`/`codex` update commands for each plugin source in `sources.json`, skips marketplaces marked `"codexUpgrade": "manual"` (ADR-0007), reports each failure in one line, and never fails the run.
 - It never installs a plugin and never repairs a registry. First-time installs are native commands you run once; a desynced Codex registry is `agent-tooling/repair-codex-registry.sh`.
 
+`agent-tooling/repair-claude-mem-marker.sh`
+- Explicit per-machine repair for Codex claude-mem installs that lack the runtime `.install-version` marker. It repairs by default; `--check` reports drift without writing. It changes only that marker to the version in each installed package and is not part of routine updates (ADR-0007).
+
 `agent-tooling/verify.sh`
 - Single local/CI verifier: upstream-overlay completeness, skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
