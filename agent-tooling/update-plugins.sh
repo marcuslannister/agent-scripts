@@ -39,9 +39,23 @@ codex_plugin_installed() { # plugin_id
   [ -n "$CODEX_INSTALLED" ] && printf '%s\n' "$CODEX_INSTALLED" | rg -Fxq -- "$1"
 }
 
+# An unreadable inventory is reported, never treated as "nothing installed":
+# that would silently skip every plugin update behind a "not installed" line.
+claude_inventory_ok=0
 if command -v claude >/dev/null 2>&1; then
-  CLAUDE_INSTALLED="$(claude plugin list --json 2>/dev/null \
-    | jq -r 'if type == "array" then .[].id else empty end' 2>/dev/null || true)"
+  if ! claude_inventory="$(claude plugin list --json 2>&1)"; then
+    warn "Claude plugin inventory failed; skipping Claude plugin refresh: ${claude_inventory//$'\n'/ }"
+  elif ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$claude_inventory"; then
+    warn "Claude plugin inventory returned invalid JSON; skipping Claude plugin refresh"
+  else
+    claude_inventory_ok=1
+    CLAUDE_INSTALLED="$(jq -r '.[].id' <<< "$claude_inventory")"
+  fi
+else
+  info "claude CLI not found; skipping Claude plugin refresh"
+fi
+
+if [ "$claude_inventory_ok" -eq 1 ]; then
   while IFS=$'\t' read -r source_id plugin_name marketplace; do
     [ -n "$source_id" ] || continue
     plugin_id="$plugin_name@$marketplace"
@@ -56,13 +70,23 @@ if command -v claude >/dev/null 2>&1; then
     fi
   done < <(jq -r '.sources[] | select(.plugin.marketplaces.claude != null) |
     [.id, .plugin.name, .plugin.marketplaces.claude] | @tsv' "$SOURCES_PATH")
-else
-  info "claude CLI not found; skipping Claude plugin refresh"
 fi
 
+codex_inventory_ok=0
 if command -v codex >/dev/null 2>&1; then
-  CODEX_INSTALLED="$(codex plugin list --json 2>/dev/null \
-    | jq -r '(.installed // [])[] | select(.installed == true) | .pluginId' 2>/dev/null || true)"
+  if ! codex_inventory="$(codex plugin list --json 2>&1)"; then
+    warn "Codex plugin inventory failed; skipping Codex plugin refresh: ${codex_inventory//$'\n'/ }"
+  elif ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$codex_inventory"; then
+    warn "Codex plugin inventory returned invalid JSON; skipping Codex plugin refresh"
+  else
+    codex_inventory_ok=1
+    CODEX_INSTALLED="$(jq -r '(.installed // [])[] | select(.installed == true) | .pluginId' <<< "$codex_inventory")"
+  fi
+else
+  info "codex CLI not found; skipping Codex plugin refresh"
+fi
+
+if [ "$codex_inventory_ok" -eq 1 ]; then
   while IFS=$'\t' read -r source_id plugin_name marketplace codex_upgrade; do
     [ -n "$source_id" ] || continue
     plugin_id="$plugin_name@$marketplace"
@@ -81,8 +105,6 @@ if command -v codex >/dev/null 2>&1; then
     fi
   done < <(jq -r '.sources[] | select(.plugin.marketplaces.codex != null) |
     [.id, .plugin.name, .plugin.marketplaces.codex, (.plugin.codexUpgrade // "auto")] | @tsv' "$SOURCES_PATH")
-else
-  info "codex CLI not found; skipping Codex plugin refresh"
 fi
 
 exit 0

@@ -104,6 +104,37 @@ rg -F 'claude-mem: Claude marketplace update failed' "$STATE/err" >/dev/null
 rg -q 'claude plugin update claude-mem@thedotmack' "$PLUGIN_LOG" \
   && { echo "FAIL: plugin update ran after its marketplace update failed" >&2; exit 1; }
 
+# An unreadable inventory is reported, and no plugin is called "not installed".
+cat > "$BIN/claude" <<'BASH'
+#!/usr/bin/env bash
+printf '%s\n' "claude $*" >> "$PLUGIN_LOG"
+case "$*" in
+  'plugin list --json')
+    printf 'error: could not read plugin state\n' >&2
+    exit 1
+    ;;
+  *) exit 0 ;;
+esac
+BASH
+cat > "$BIN/codex" <<'BASH'
+#!/usr/bin/env bash
+printf '%s\n' "codex $*" >> "$PLUGIN_LOG"
+case "$*" in
+  'plugin list --json') printf 'not json at all\n' ;;
+  *) exit 0 ;;
+esac
+BASH
+chmod +x "$BIN/claude" "$BIN/codex"
+: > "$PLUGIN_LOG"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="$BIN:$PATH" "$FIXTURE/update-plugins.sh" \
+  > "$STATE/broken.out" 2> "$STATE/broken.err"
+rg -F 'Claude plugin inventory failed' "$STATE/broken.err" >/dev/null
+rg -F 'Codex plugin inventory returned invalid JSON' "$STATE/broken.err" >/dev/null
+rg -q 'not installed' "$STATE/broken.out" \
+  && { echo "FAIL: unreadable inventory reported plugins as not installed" >&2; exit 1; }
+rg -q 'plugin update|plugin add' "$PLUGIN_LOG" \
+  && { echo "FAIL: plugin refresh ran without a readable inventory" >&2; exit 1; }
+
 # Missing CLIs are skipped, not fatal.
 : > "$PLUGIN_LOG"
 PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \

@@ -202,7 +202,7 @@ acquire_source() { # source_id
   local repo subroot staging discovery classification repo_url clone_dir source_root
   local inventory="$WORK_ROOT/$source_id.inventory.tsv"
   local skill_file skill relative state detail count=0 source_failed=0
-  local staging_root action
+  local staging_root action planned
 
   classification="$(source_field "$source_id" '.classification')"
   repo="$(source_field "$source_id" '.repo')"
@@ -277,10 +277,16 @@ acquire_source() { # source_id
     case "$state" in
       present) ;;
       absent|drift)
+        # A missing skill is an install; one whose content moved is an update.
+        # Check and reconcile must name the same operation.
         action=updated
-        [ "$state" = absent ] && action=installed
+        planned=update
+        if [ "$state" = absent ]; then
+          action=installed
+          planned=install
+        fi
         if [ "$MODE" = check ]; then
-          printf '%s\t%s\t%s\tinstall\n' "$source_id" "$skill" "$detail" >> "$DRIFT_TSV"
+          printf '%s\t%s\t%s\t%s\n' "$source_id" "$skill" "$detail" "$planned" >> "$DRIFT_TSV"
         elif install_stage_tree "$relative" "$staging_root/$skill" >/dev/null; then
           printf '%s\t%s\t%s\n' "$source_id" "$skill" "$action" >> "$CHANGES_TSV"
         else

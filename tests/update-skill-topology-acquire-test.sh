@@ -137,6 +137,11 @@ mkdir -p "$FIXTURE/skills/plain-skill"
 printf '%s\n' '---' 'name: plain-skill' 'description: "repo owned"' '---' \
   > "$FIXTURE/skills/plain-skill/SKILL.md"
 
+# A staged skill whose content moved must be reported as an update, not an install.
+mkdir -p "$FIXTURE/other-skills/anthropics/pptx"
+printf '%s\n' '---' 'name: pptx' 'description: "stale staged copy"' '---' \
+  > "$FIXTURE/other-skills/anthropics/pptx/SKILL.md"
+
 # An orphan staged skill no longer upstream must be removed.
 mkdir -p "$FIXTURE/other-skills/anthropics/ghost"
 printf '%s\n' '---' 'name: ghost' 'description: "retired upstream"' '---' \
@@ -167,7 +172,10 @@ set -e
 test "$check_code" -eq 1
 jq -e '.mode == "check" and .status == "drift" and (.errors | length) == 0' \
   "$FIXTURE/check.json" >/dev/null
-jq -e 'any(.drift[]; .skill == "docx" and .action == "install")' "$FIXTURE/check.json" >/dev/null
+jq -e 'any(.drift[]; .skill == "docx" and .action == "install" and .reason == "missing")' \
+  "$FIXTURE/check.json" >/dev/null
+jq -e 'any(.drift[]; .skill == "pptx" and .action == "update" and .reason == "content-mismatch")' \
+  "$FIXTURE/check.json" >/dev/null
 jq -e 'any(.drift[]; .skill == "ghost" and .action == "remove")' "$FIXTURE/check.json" >/dev/null
 [ ! -e "$FIXTURE/other-skills/anthropics/docx" ]
 [ ! -e "$FIXTURE/home/.cache" ]
@@ -181,7 +189,7 @@ jq -e '
   .mode == "reconcile" and .status == "reconciled" and (.errors | length) == 0 and
   any(.changes[]; .skill == "docx" and .action == "installed") and
   any(.changes[]; .skill == "pdf" and .action == "installed") and
-  any(.changes[]; .skill == "pptx" and .action == "installed") and
+  any(.changes[]; .skill == "pptx" and .action == "updated") and
   any(.changes[]; .skill == "deep-skill" and .action == "installed") and
   any(.changes[]; .skill == "ghost" and .action == "removed")
 ' "$FIXTURE/first.json" >/dev/null
