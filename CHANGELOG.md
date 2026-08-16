@@ -8,6 +8,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Refreshed staged third-party skills (anthropics f6656c1, humanlayer 3c26291, khazix 299e201, matt 068b6e0, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.
 
+- Refreshed staged third-party skills (anthropics f6656c1, humanlayer 3c26291, khazix 299e201, matt 068b6e0, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.
+
 - Adopted ADR-0009: tooling manages tracked skill content only, native plugins become user-managed per-machine state with a best-effort refresh helper, and the topology engine's replacement by a staging-only acquire is decided; glossary updated accordingly.
 
 - Replaced the topology engine and its private-adapter protocol with a staging-only `update-skill-topology.sh` (~3,550 lines deleted) whose check mode distinguishes install, update, and remove, and merged `skill-topology.json` and `registry.json` into one `agent-tooling/sources.json`; a routine acquire now reconciles in about ten seconds instead of twenty-two minutes.
