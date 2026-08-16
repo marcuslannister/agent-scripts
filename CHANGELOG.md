@@ -8,7 +8,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Adopted ADR-0009: tooling manages tracked skill content only, native plugins become user-managed per-machine state with a best-effort refresh helper, and the topology engine's replacement by a staging-only acquire is decided; glossary updated accordingly.
 
-- Replaced the topology engine and its private-adapter protocol with a staging-only `update-skill-topology.sh` (~3,550 lines deleted), merged `skill-topology.json` and `registry.json` into one `agent-tooling/sources.json`, and added `agent-tooling/update-plugins.sh` for best-effort native plugin refresh that skips permanently failing marketplaces (ADR-0007).
+- Replaced the topology engine and its private-adapter protocol with a staging-only `update-skill-topology.sh` (~3,550 lines deleted) whose check mode distinguishes install, update, and remove, and merged `skill-topology.json` and `registry.json` into one `agent-tooling/sources.json`; a routine acquire now reconciles in about ten seconds instead of twenty-two minutes.
+
+- Added `agent-tooling/update-plugins.sh`: best-effort native plugin refresh on every machine that skips permanently failing marketplaces (ADR-0007), reports an unreadable plugin inventory instead of silently skipping every update, and never fails the run.
 
 - One command per machine: `update-all.sh` now ships by default (`--no-ship` for a review run) and `update-local.sh` fast-forward pulls before updating, so secondary machines — including Windows under Git Bash — need a single command. Retired `scripts/sync-skills` to a refusing stub.
 
