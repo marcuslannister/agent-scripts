@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Restored the `anvil-advanced-ops` compression and Layer-2 disclosure sections after enabling Anvil's `state`, `shell-filter`, `context`, and `disclosure` optional modules, which register all nine previously missing tools; the skill now records the required module list so a missing tool points at the config rather than looking like a bug.
+
 - Rewrote the `anvil-advanced-ops` skill against the tools Anvil actually registers here: dropped the `anvil-org-*` and `shell-run`/`context-compress` sections whose tools do not exist, pointed heavy Emacs work at `emacs-eval-async` polling instead of the unregistered `anvil-worker-call`, and replaced the dead compression advice with file-disclosure layers and server-side HTTP extraction.
 
 - Installed the `ponytail` plugin (DietrichGebert/ponytail 4.9.0) on Claude Code, Codex, and Pi, and registered it in `sources.json` as a dual-plugin source so `update-plugins.sh` refreshes both native marketplaces; Pi is already covered by `pi update --extensions`.
