@@ -11,7 +11,7 @@
 | `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~1045 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1400 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4934 |
-| `anvil-advanced-ops` | marcus | skill | Y | Y | ~740 |
+| `anvil-advanced-ops` | marcus | skill | Y | Y | ~1053 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2846 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~559 |

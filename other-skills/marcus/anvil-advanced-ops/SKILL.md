@@ -1,35 +1,49 @@
 ---
 name: anvil-advanced-ops
-description: "Advanced Anvil MCP workflows: org-mode section moves/refile, dispatching heavy Emacs ops (tangles, byte-compile, multi-MB scans) to the worker pool, anvil-cron scheduled tasks, and compressing long shell/context output. Use when doing org-mode editing, long-running Emacs operations, recurring anvil-cron tasks, or when command/tool output is long enough to need compression."
+description: "Advanced Anvil MCP workflows: dispatching heavy Emacs ops (tangles, byte-compile, multi-MB scans) off the main daemon via async eval, anvil-cron scheduled tasks, and cutting tokens with progressive file disclosure and server-side HTTP extraction. Use for long-running Emacs operations, recurring anvil-cron tasks, reading large files cheaply, or fetching large web/JSON payloads."
 ---
 
-## org-mode
+## org-mode — do not use Anvil org tools
 
-For section moves, refile, splits, or reading a single heading
-from a large org file, use `anvil-org-*` tools instead of
-Read+Write. They are 10–20× cheaper in tokens.
+Anvil's `org` module is disabled on this machine (see
+`~/.emacs.d/lisp/init-local-ai.el`). It raced with interactive
+Emacs buffers and caused Syncthing sync-conflict storms on org
+files. No `anvil-org-*` tool is registered.
 
-- `anvil-org-read-headline` — read a single subtree
-- `anvil-org-read-outline` — outline view without bodies
-- `anvil-org-edit-body` / `anvil-org-rename-headline` /
-  `anvil-org-update-todo-state` — targeted org edits
+Edit org files directly with Read/Edit or the built-in org
+tools. Do not reach for `anvil-org-edit-body`,
+`anvil-org-rename-headline`, or `anvil-org-update-todo-state` —
+they are not available.
 
-## Heavy operations — worker dispatch
+For structure only, one cheap read still works:
+`anvil-file-outline` accepts `format=org` and returns headlines
+with line numbers and no bodies. Use it to orient in a large org
+file, then Read the range you need.
+
+## Heavy operations — keep them off the main daemon
 
 Long-running Emacs ops (large tangles, byte-compile, multi-MB
-org scans, full-tree searches) must not run on the main daemon —
-they block every other tool call. Dispatch them through the
-worker pool instead.
+org scans, full-tree searches) must not run synchronously — they
+block every other tool call.
 
-- Elisp called from inside Anvil: prefer `anvil-worker-call` over
-  raw `eval` for anything that may exceed ~1s.
-- If the worker is registered as its own MCP server (see README
-  "Optional: register the worker pool too"), heavy `eval` calls
-  should target `mcp__anvil-worker__eval` directly so the main
-  session stays responsive.
+The worker pool is running (`anvil-worker-probe` reports the
+lanes; `anvil-worker-reset-pool` recovers a stuck pool). But it
+is not registered as its own MCP server here, so
+`anvil-worker-call` and `mcp__anvil-worker__eval` cannot be
+called.
 
-Symptom that you should have used the worker: the main MCP
-session stops accepting tool calls for several seconds.
+Use async eval instead, for anything that may exceed ~1s:
+
+1. `mcp__anvil-eval__emacs-eval-async` — returns a job ID at
+   once and leaves Emacs responsive.
+2. `mcp__anvil-eval__emacs-eval-result` — poll with that job ID
+   until status is `done` or `error`. It also reports queue wait
+   and runtime.
+3. `mcp__anvil-eval__emacs-eval-jobs` — list every job when you
+   need to find a stuck one.
+
+Symptom that you should have gone async: the main MCP session
+stops accepting tool calls for several seconds.
 
 ## Scheduled tasks (cron)
 
@@ -42,24 +56,45 @@ and trigger them through the cron MCP tools:
 - `anvil-cron-run` — fire a registered task on demand
 
 Before writing a new ad-hoc script, check `anvil-cron-list` —
-the job may already be defined.
+the job may already be defined. No tasks are registered on this
+machine yet, so today that check returns an empty list.
 
-## Context and output compression
+## Cutting tokens on reads and fetches
 
-When command output or retrieved context is long, compress it before
-feeding it back into the main reasoning loop.
+There is no compression layer here: `shell-run`,
+`context-compress`, `context-retrieve`, `context-stats`, and
+`shell-gain` are not registered. Do not plan around them.
 
-- Use `shell-run` for shell commands whose stdout can be filtered
-  automatically. It returns compressed stdout plus a `tee-id`; recover
-  the raw output with `shell-tee-get` only when the compressed view is
-  insufficient.
-- Use `context-compress` for non-shell text: API JSON, RAG snippets,
-  web/article extracts, logs from another tool, diffs, or code
-  excerpts. Set `store=true` when the raw text may be needed later;
-  recover it with `context-retrieve` and the returned `ccr-id`.
-- Use `context-stats` / `shell-gain` to inspect savings instead of
-  guessing whether the compression layer is helping.
+What does work is extracting less at the source.
 
-Do not use compressed views as the only source of truth for legal,
-financial, safety-critical, or exact numeric work. Retrieve the raw
-context before making claims that depend on exact wording or values.
+Anvil documents three file-disclosure layers, but only two are
+registered here — escalate straight from Layer 1 to Layer 3:
+
+- `anvil-file-outline` (Layer 1) — structural outline of an
+  `.el` / `.org` / `.md` file, no bodies. Start here on a large
+  file.
+- `anvil-file-read` (Layer 3) — full read, or `offset`/`limit`
+  for one section. It accepts the `file://PATH#L10-40` citation
+  URI that Layer 1 emits, which becomes the default range.
+
+Layer 2 (`file-read-snippet`) appears in Anvil's own tool
+descriptions but is not registered on this machine. Do not call
+it.
+
+HTTP extracts server-side, before the body reaches context:
+
+- `selector` on `anvil-http-fetch` takes a CSS subset (tag,
+  `.class`, `#id`) against HTML, typically 20–50× cheaper than
+  the full page.
+- `json_path` walks a dotted path through JSON, with `[N]` index
+  and `[*]` wildcard.
+- `body_mode=auto` (default) spills bodies over 200KB to a temp
+  file and returns a head slice plus `body_overflow_path`.
+- A no-match still returns the full body with
+  `extract_miss: true` — check that flag before you trust an
+  empty-looking result.
+
+Do not treat an outline or a selector hit as the only source of
+truth for legal, financial, safety-critical, or exact numeric
+work. Read the full range before making claims that depend on
+exact wording or values.
