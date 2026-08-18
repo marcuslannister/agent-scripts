@@ -17,6 +17,7 @@
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~559 |
 | `browser-use` | steipete/agent-scripts | skill | N | N | ~3137 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
+| `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~18421 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~324 |
@@ -53,6 +54,7 @@
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
 | `create-cli` | steipete/agent-scripts | skill | Y | Y | ~834 |
 | `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2137 |
+| `discernment-nudge` | anthropics/skills | skill | N | N | ~2623 |
 | `discord-clawd` | steipete/agent-scripts | skill | N | N | ~272 |
 | `doc-coauthoring` | anthropics/skills | skill | N | N | ~3954 |
 | `docx` | anthropics/skills | skill | N | N | ~1717 |
@@ -233,7 +235,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~841 |
 
-<!-- total=224 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
+<!-- total=226 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
 
 ## Enable-state
 
