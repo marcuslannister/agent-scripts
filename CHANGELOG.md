@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Tightened the `anvil-advanced-ops` pointer and body against the writing-for-agents levers: the description now carries one trigger per branch and covers the previously untriggered org-mode and HTTP sections, the stale `anvil-optional-modules` copy and the self-cancelling cron note are gone, and the forbidden worker tool names no longer sit in context.
+
 - Restored the `anvil-advanced-ops` compression and Layer-2 disclosure sections after enabling Anvil's `state`, `shell-filter`, `context`, and `disclosure` optional modules, which register all nine previously missing tools; the skill now records the required module list so a missing tool points at the config rather than looking like a bug.
 
 - Rewrote the `anvil-advanced-ops` skill against the tools Anvil actually registers here: dropped the `anvil-org-*` and `shell-run`/`context-compress` sections whose tools do not exist, pointed heavy Emacs work at `emacs-eval-async` polling instead of the unregistered `anvil-worker-call`, and replaced the dead compression advice with file-disclosure layers and server-side HTTP extraction.
