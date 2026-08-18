@@ -11,9 +11,40 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 BIN="$TMP_ROOT/bin"
 STATE="$TMP_ROOT/state"
-mkdir -p "$BIN" "$STATE"
+FIXTURE="$TMP_ROOT/repo"
+mkdir -p "$BIN" "$STATE" "$FIXTURE/agent-tooling"
 
-COMMAND="$REPO_ROOT/agent-tooling/repair-codex-registry.sh"
+# The script reads the sources.json beside it, so it runs from a fixture copy
+# with a fixed source list: otherwise adding any Codex plugin source to the real
+# sources.json fails this test for a registry that is in fact healthy.
+cp "$REPO_ROOT/agent-tooling/repair-codex-registry.sh" "$FIXTURE/agent-tooling/"
+cat > "$FIXTURE/agent-tooling/sources.json" <<'JSON'
+{
+  "version": 2,
+  "sources": [
+    {
+      "id": "waza",
+      "classification": "dual-plugin",
+      "repo": "tw93/Waza",
+      "plugin": {
+        "name": "waza",
+        "marketplaces": { "claude": "waza", "codex": "waza" }
+      }
+    },
+    {
+      "id": "claude-mem",
+      "classification": "dual-plugin",
+      "repo": "thedotmack/claude-mem",
+      "plugin": {
+        "name": "claude-mem",
+        "marketplaces": { "claude": "thedotmack", "codex": "claude-mem-local" }
+      }
+    }
+  ]
+}
+JSON
+
+COMMAND="$FIXTURE/agent-tooling/repair-codex-registry.sh"
 
 # Fake Codex: marketplaces and installed plugins are one name per line, and the
 # stale-root defect is modelled as an add that refuses until a remove clears it.

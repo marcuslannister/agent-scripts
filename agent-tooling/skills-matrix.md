@@ -149,6 +149,12 @@
 | `oracle` | steipete/agent-scripts | skill | N | N | ~2080 |
 | `pdf` | anthropics/skills | skill | N | N | ~2009 |
 | `peekaboo` | steipete/agent-scripts | skill | Y | Y | ~1836 |
+| `ponytail:ponytail` | DietrichGebert/ponytail | plugin | N | N | ~1654 |
+| `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~413 |
+| `ponytail:ponytail-debt` | DietrichGebert/ponytail | plugin | N | N | ~426 |
+| `ponytail:ponytail-gain` | DietrichGebert/ponytail | plugin | N | N | ~456 |
+| `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~697 |
+| `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~593 |
 | `pptx` | anthropics/skills | skill | N | N | ~5162 |
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1876 |
 | `prototype` | mattpocock/skills | skill | N | Y | ~732 |
@@ -227,7 +233,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2136 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~841 |
 
-<!-- total=218 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
+<!-- total=224 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
 
 ## Enable-state
 
@@ -244,6 +250,7 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | Repo | URL |
 |---|---|
+| `DietrichGebert/ponytail` | https://github.com/DietrichGebert/ponytail |
 | `KKKKhazix/khazix-skills` | https://github.com/KKKKhazix/khazix-skills |
 | `anthropics/claude-plugins-official` | https://github.com/anthropics/claude-plugins-official |
 | `anthropics/skills` | https://github.com/anthropics/skills |

@@ -6,6 +6,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Installed the `ponytail` plugin (DietrichGebert/ponytail 4.9.0) on Claude Code, Codex, and Pi, and registered it in `sources.json` as a dual-plugin source so `update-plugins.sh` refreshes both native marketplaces; Pi is already covered by `pi update --extensions`.
+
+- `tests/repair-codex-registry-test.sh` runs the repair script from a fixture copy with its own `sources.json`, so adding a Codex plugin source no longer fails the test for a healthy registry.
+
 - `agent-tooling/update-agents.sh` no longer installs or updates the Grok CLI; the x.ai installer step is removed.
 
 - Added `agent-tooling/repair-claude-mem-marker.sh`: an explicit, marker-only Codex claude-mem repair that defaults to restoring missing or stale runtime markers from each installed package version; ADR-0007 records this narrow cache-write exception.

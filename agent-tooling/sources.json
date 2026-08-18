@@ -94,6 +94,18 @@
         },
         "codexUpgrade": "manual"
       }
+    },
+    {
+      "id": "ponytail",
+      "classification": "dual-plugin",
+      "repo": "DietrichGebert/ponytail",
+      "plugin": {
+        "name": "ponytail",
+        "marketplaces": {
+          "claude": "ponytail",
+          "codex": "ponytail"
+        }
+      }
     }
   ]
 }
