@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `agent-tooling/update-agents.sh` now updates the Grok CLI too, and installs it with the x.ai installer when missing.
+
 - Added `agent-tooling/repair-claude-mem-marker.sh`: an explicit, marker-only Codex claude-mem repair that defaults to restoring missing or stale runtime markers from each installed package version; ADR-0007 records this narrow cache-write exception.
 
 - Refreshed staged third-party skills (anthropics f6656c1, humanlayer 3c26291, khazix 299e201, matt 068b6e0, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.

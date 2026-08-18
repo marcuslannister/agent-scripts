@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Update the coding-agent CLIs: Claude Code (native), Codex (npm), and Pi.
+# Update the coding-agent CLIs: Claude Code (native), Codex (npm), Pi, and Grok.
 # Tries all installed CLIs even if one fails; exits non-zero if any update failed.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
@@ -169,6 +169,26 @@ else
     info "pi extensions update complete"
   else
     warn "pi extensions update failed"
+    fail=1
+  fi
+fi
+
+section "Grok CLI"
+if ! command -v grok >/dev/null 2>&1; then
+  info "grok not found; installing"
+  if curl -fsSL https://x.ai/cli/install.sh | bash \
+    && command -v grok >/dev/null 2>&1; then
+    info "installed: $(grok --version 2>/dev/null || echo unknown)"
+  else
+    warn "grok install failed"
+    fail=1
+  fi
+else
+  info "current: $(grok --version 2>/dev/null || echo unknown)"
+  if curl -fsSL https://x.ai/cli/install.sh | bash; then
+    info "now:     $(grok --version 2>/dev/null || echo unknown)"
+  else
+    warn "grok update failed"
     fail=1
   fi
 fi
