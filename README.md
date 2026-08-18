@@ -93,7 +93,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Exit `3` from acquire means a skills-lock entry needs an explicit decision; the lock is never mutated. Inspect `--json` decisions, act deliberately, then rerun.
 
 `agent-tooling/update-agents.sh`
-- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, `pi update` plus `pi update --extensions`, and Grok through its native installer; installs a missing Pi or Grok with the same native installer.
+- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update` plus `pi update --extensions`; installs a missing Pi with its native installer.
 - Tries all installed CLIs even if one fails.
 
 Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. `scripts/sync-skills` is a retired stub kept only for upstream-path completeness (ADR-0008/0009).

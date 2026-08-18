@@ -6,7 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
-- `agent-tooling/update-agents.sh` now updates the Grok CLI too, and installs it with the x.ai installer when missing.
+- `agent-tooling/update-agents.sh` no longer installs or updates the Grok CLI; the x.ai installer step is removed.
 
 - Added `agent-tooling/repair-claude-mem-marker.sh`: an explicit, marker-only Codex claude-mem repair that defaults to restoring missing or stale runtime markers from each installed package version; ADR-0007 records this narrow cache-write exception.
 

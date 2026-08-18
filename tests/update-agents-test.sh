@@ -12,7 +12,6 @@ run_case() {
   local npm_prefix="$case_root/npm-prefix"
   local npm_log="$case_root/npm.log"
   local pi_log="$case_root/pi.log"
-  local grok_log="$case_root/grok.log"
   local curl_log="$case_root/curl.log"
   local codex_package codex_bin_dir npm_windows_prefix=""
 
@@ -48,17 +47,6 @@ EOF
 
   cp "$bin/pi" "$case_root/pi-install-source"
 
-  cat > "$bin/grok" <<'EOF'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$GROK_LOG"
-case "$*" in
-  '--version') echo 'grok 1.2.3' ;;
-  *) exit 1 ;;
-esac
-EOF
-
-  cp "$bin/grok" "$case_root/grok-install-source"
-
   cat > "$bin/curl" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$CURL_LOG"
@@ -67,11 +55,6 @@ case "$*" in
     printf '%s\n' '#!/bin/sh' \
       'cp "$PI_INSTALL_SOURCE" "$PI_BIN"' \
       'chmod +x "$PI_BIN"'
-    ;;
-  '-fsSL https://x.ai/cli/install.sh')
-    printf '%s\n' '#!/bin/sh' \
-      'cp "$GROK_INSTALL_SOURCE" "$GROK_BIN"' \
-      'chmod +x "$GROK_BIN"'
     ;;
   *) exit 98 ;;
 esac
@@ -107,7 +90,7 @@ EOF
 echo 'codex-cli 0.146.1'
 EOF
 
-  chmod +x "$bin/claude" "$bin/npm" "$bin/pi" "$bin/grok" "$bin/curl" "$codex_package"
+  chmod +x "$bin/claude" "$bin/npm" "$bin/pi" "$bin/curl" "$codex_package"
   if [ "$layout" = "unix" ]; then
     rmdir "$codex_bin_dir"
   else
@@ -121,9 +104,6 @@ EOF
     NPM_LOG="$npm_log" \
     PI_LOG="$pi_log" \
     CURL_LOG="$curl_log" \
-    GROK_LOG="$grok_log" \
-    GROK_INSTALL_SOURCE="$case_root/grok-install-source" \
-    GROK_BIN="$bin/grok" \
     bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/output"
 
   test -x "$codex_bin_dir/codex"
@@ -138,8 +118,6 @@ EOF
   rg -F 'pi extensions update complete' "$case_root/output" >/dev/null
   test "$(rg -c '^update$' "$pi_log")" -eq 1
   test "$(rg -c '^update --extensions$' "$pi_log")" -eq 1
-  rg -F -- '-fsSL https://x.ai/cli/install.sh' "$curl_log" >/dev/null
-  rg -F 'now:     grok 1.2.3' "$case_root/output" >/dev/null
 
   if [ "$layout" = "unix" ]; then
     test -L "$codex_bin_dir/codex"
@@ -170,9 +148,6 @@ EOF
     NPM_LOG="$npm_log" \
     PI_LOG="$pi_log" \
     CURL_LOG="$curl_log" \
-    GROK_LOG="$grok_log" \
-    GROK_INSTALL_SOURCE="$case_root/grok-install-source" \
-    GROK_BIN="$bin/grok" \
     bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/restricted-output" || true
 
   test "$(rg -c '^update$' "$pi_log")" -eq 2
@@ -183,28 +158,22 @@ EOF
     rg -F '@REM preserved launcher' "$codex_bin_dir/codex.cmd" >/dev/null
   fi
 
-  rm "$bin/pi" "$bin/grok"
+  rm "$bin/pi"
   PATH="$bin:$codex_bin_dir:/usr/bin:/bin" \
     NPM_PREFIX="$npm_prefix" \
     NPM_WINDOWS_PREFIX="$npm_windows_prefix" \
     NPM_LOG="$npm_log" \
     PI_LOG="$pi_log" \
     CURL_LOG="$curl_log" \
-    GROK_LOG="$grok_log" \
-    GROK_INSTALL_SOURCE="$case_root/grok-install-source" \
-    GROK_BIN="$bin/grok" \
     PI_INSTALL_SOURCE="$case_root/pi-install-source" \
     PI_BIN="$bin/pi" \
     bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/install-output"
 
   test -x "$bin/pi"
-  test -x "$bin/grok"
   test "$(rg -c '^update$' "$pi_log")" -eq 2
   test "$(rg -c '^update --extensions$' "$pi_log")" -eq 2
   rg -F -- '-fsSL https://pi.dev/install.sh' "$curl_log" >/dev/null
   rg -F 'pi installed' "$case_root/install-output" >/dev/null
-  rg -F 'grok not found; installing' "$case_root/install-output" >/dev/null
-  rg -F 'installed: grok 1.2.3' "$case_root/install-output" >/dev/null
 
   if [ "$layout" = "unix" ]; then
     rm "$codex_bin_dir/codex"
@@ -216,9 +185,6 @@ EOF
       NPM_LOG="$npm_log" \
       PI_LOG="$pi_log" \
       CURL_LOG="$curl_log" \
-      GROK_LOG="$grok_log" \
-      GROK_INSTALL_SOURCE="$case_root/grok-install-source" \
-      GROK_BIN="$bin/grok" \
       bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$case_root/write-failure-output" 2>&1; then
       echo "unexpected success with unwritable npm prefix" >&2
       return 1
