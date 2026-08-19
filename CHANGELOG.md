@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 0a64e39, humanlayer 3c26291, khazix 7a5c493, matt 9c9f36c, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.
+
 - Cut 794 lines of dead and speculative code from `agent-tooling/`: removed the four `lib-copies.sh` helpers no updater calls (`sync_skill_copies`, `cleanup_marked_skill_copies`, `regen_gitignore_block`, `check_skill_copy_updates`), the maintainer-orchestrator prose-freeze policy and its test, and the `gh secret set --body -` linter; `repair-claude-mem-marker.sh` now reads versions with `jq` instead of two embedded Node programs and `sync-skill-surfaces.sh` no longer re-execs through Ruby, so neither path needs an interpreter beyond Bash.
 
 - Refreshed staged third-party skills (anthropics f379e5a, humanlayer 3c26291, khazix 7a5c493, matt 9c9f36c, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.
