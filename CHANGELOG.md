@@ -6,7 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
-- Cut 794 lines of dead and speculative code from `agent-tooling/`: removed the four `lib-copies.sh` helpers no updater calls (`sync_skill_copies`, `cleanup_marked_skill_copies`, `regen_gitignore_block`, `check_skill_copy_updates`), the maintainer-orchestrator prose-freeze policy and its test, the `scan_skills_lock` decision path and exit code `3` for a lock file that never existed, and the `gh secret set --body -` linter; `repair-claude-mem-marker.sh` now reads versions with `jq` instead of two embedded Node programs and `sync-skill-surfaces.sh` no longer re-execs through Ruby, so neither path needs an interpreter beyond Bash.
+- Cut 794 lines of dead and speculative code from `agent-tooling/`: removed the four `lib-copies.sh` helpers no updater calls (`sync_skill_copies`, `cleanup_marked_skill_copies`, `regen_gitignore_block`, `check_skill_copy_updates`), the maintainer-orchestrator prose-freeze policy and its test, and the `gh secret set --body -` linter; `repair-claude-mem-marker.sh` now reads versions with `jq` instead of two embedded Node programs and `sync-skill-surfaces.sh` no longer re-execs through Ruby, so neither path needs an interpreter beyond Bash.
 
 - Refreshed staged third-party skills (anthropics f379e5a, humanlayer 3c26291, khazix 7a5c493, matt 9c9f36c, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.
 
