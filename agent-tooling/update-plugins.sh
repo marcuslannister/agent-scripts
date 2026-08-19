@@ -31,12 +31,8 @@ run_native() { # label command...
 CLAUDE_INSTALLED=
 CODEX_INSTALLED=
 
-claude_plugin_installed() { # plugin_id
-  [ -n "$CLAUDE_INSTALLED" ] && printf '%s\n' "$CLAUDE_INSTALLED" | rg -Fxq -- "$1"
-}
-
-codex_plugin_installed() { # plugin_id
-  [ -n "$CODEX_INSTALLED" ] && printf '%s\n' "$CODEX_INSTALLED" | rg -Fxq -- "$1"
+plugin_installed() { # installed_list plugin_id
+  [ -n "$1" ] && printf '%s\n' "$1" | rg -Fxq -- "$2"
 }
 
 # An unreadable inventory is reported, never treated as "nothing installed":
@@ -61,7 +57,7 @@ if [ "$claude_inventory_ok" -eq 1 ]; then
     plugin_id="$plugin_name@$marketplace"
     run_native "$source_id: Claude marketplace update failed" \
       claude plugin marketplace update "$marketplace" || continue
-    if claude_plugin_installed "$plugin_id"; then
+    if plugin_installed "$CLAUDE_INSTALLED" "$plugin_id"; then
       run_native "$source_id: Claude plugin update failed" \
         claude plugin update "$plugin_id" \
         && info "$source_id: Claude plugin $plugin_id refreshed"
@@ -96,7 +92,7 @@ if [ "$codex_inventory_ok" -eq 1 ]; then
     fi
     run_native "$source_id: Codex marketplace upgrade failed" \
       codex plugin marketplace upgrade "$marketplace" || continue
-    if codex_plugin_installed "$plugin_id"; then
+    if plugin_installed "$CODEX_INSTALLED" "$plugin_id"; then
       run_native "$source_id: Codex plugin refresh failed" \
         codex plugin add "$plugin_id" \
         && info "$source_id: Codex plugin $plugin_id refreshed"

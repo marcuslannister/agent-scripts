@@ -350,8 +350,7 @@ inspect_surface() { # destination root desired_tsv selected_names
           ;;
         *)
           reason=missing
-          [ -e "$target" ] || [ -L "$target" ] || reason=missing
-          [ ! -e "$target" ] && [ ! -L "$target" ] || reason=changed
+          { [ -e "$target" ] || [ -L "$target" ]; } && reason=changed
           printf '%s\t%s\t%s\t%s\tinstall\n' "$source_id" "$skill" "$destination" "$reason" >> "$DRIFT_TSV"
           ;;
       esac

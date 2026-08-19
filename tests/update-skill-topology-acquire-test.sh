@@ -232,22 +232,4 @@ run_acquire --json > "$FIXTURE/third.json"
 jq -e 'any(.changes[]; .skill == "docx" and .action == "updated")' "$FIXTURE/third.json" >/dev/null
 grep -F 'upstream moved' "$FIXTURE/other-skills/anthropics/docx/SKILL.md" >/dev/null
 
-# An unexpected skills-lock entry is reported as a decision, never mutated.
-mkdir -p "$FIXTURE/home/.agents"
-cat > "$FIXTURE/home/.agents/.skill-lock.json" <<'JSON'
-{"skills":{"stray":"someone/else","ask-matt":"mattpocock/skills"}}
-JSON
-cp "$FIXTURE/home/.agents/.skill-lock.json" "$TMP_ROOT/lock-before.json"
-set +e
-run_acquire --json > "$FIXTURE/lock.json"
-lock_code=$?
-set -e
-test "$lock_code" -eq 3
-jq -e '
-  .status == "decision-required" and
-  any(.decisions[]; .code == "unknown-npx-lock-source" and .skill == "stray") and
-  any(.decisions[]; .code == "legacy-npx-lock-entry" and .skill == "ask-matt")
-' "$FIXTURE/lock.json" >/dev/null
-cmp "$TMP_ROOT/lock-before.json" "$FIXTURE/home/.agents/.skill-lock.json"
-
 echo "update-skill-topology acquire tests passed"

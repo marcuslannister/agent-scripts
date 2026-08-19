@@ -39,48 +39,21 @@ for argument in "$@"; do
   esac
 done
 
-if ! command -v node >/dev/null 2>&1; then
-  warn 'required tool not found: node'
+if ! command -v jq >/dev/null 2>&1; then
+  warn 'required tool not found: jq'
   exit 2
 fi
 
+# Only a semver string is accepted, so a malformed package.json can never be
+# stamped into a marker the claude-mem hook then trusts.
+SEMVER='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+
 package_version() { # package_json
-  node -e '
-    const fs = require("fs");
-    const versionPattern = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-    try {
-      const version = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version;
-      if (typeof version !== "string" || !versionPattern.test(version)) process.exit(1);
-      process.stdout.write(version);
-    } catch {
-      process.exit(1);
-    }
-  ' "$1"
+  jq -er --arg pattern "$SEMVER" '.version | strings | select(test($pattern))' "$1"
 }
 
 marker_version() { # marker
-  node -e '
-    const fs = require("fs");
-    const versionPattern = /^v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-    try {
-      const content = fs.readFileSync(process.argv[1], "utf8");
-      try {
-        const marker = JSON.parse(content);
-        if (marker && typeof marker.version === "string") {
-          process.stdout.write(marker.version);
-          process.exit(0);
-        }
-      } catch {}
-      const legacyVersion = content.trim();
-      if (versionPattern.test(legacyVersion)) {
-        process.stdout.write(legacyVersion.replace(/^v/i, ""));
-        process.exit(0);
-      }
-      process.exit(1);
-    } catch {
-      process.exit(1);
-    }
-  ' "$1"
+  jq -er '.version | strings' "$1"
 }
 
 write_marker() { # plugin_root package_version

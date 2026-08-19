@@ -20,15 +20,6 @@ topology_pending_lock_is_stale() { # lock_path
   [ $((now - modified)) -ge 5 ]
 }
 
-topology_cleanup_stale_discovery() {
-  local candidate
-  shopt -s nullglob
-  for candidate in "${TMPDIR:-/tmp}"/agent-scripts-topology-discovery-*; do
-    rm -rf -- "$candidate"
-  done
-  shopt -u nullglob
-}
-
 topology_acquire_lock() {
   local lock_root pid recovered
   lock_root="${TMPDIR:-/tmp}/agent-scripts-skill-topology-$(id -u 2>/dev/null || printf user).lock"
@@ -69,7 +60,6 @@ topology_acquire_lock() {
       TOPOLOGY_RECOVERED_PENDING=1
     fi
     rm -rf -- "$recovered"
-    topology_cleanup_stale_discovery
   done
   shopt -u nullglob
 

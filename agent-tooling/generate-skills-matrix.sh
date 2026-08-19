@@ -64,7 +64,7 @@ github_repo() {
 
 token_count() {
   local path="$1"
-  local characters quotient remainder
+  local characters quotient
 
   if ! characters="$(LC_ALL='' LC_CTYPE="$TEXT_LOCALE" wc -m < "$path" 2>/dev/null)"; then
     printf '1\n'
@@ -77,11 +77,6 @@ token_count() {
   fi
 
   quotient=$((characters / 4))
-  remainder=$((characters % 4))
-  if [ "$remainder" -gt 2 ] \
-    || { [ "$remainder" -eq 2 ] && [ $((quotient % 2)) -eq 1 ]; }; then
-    quotient=$((quotient + 1))
-  fi
   [ "$quotient" -ge 1 ] || quotient=1
   printf '%s\n' "$quotient"
 }

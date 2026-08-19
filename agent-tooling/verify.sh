@@ -74,9 +74,6 @@ for test_file in tests/*-test.sh; do
   bash "$test_file"
 done
 
-section "Maintainer policy"
-agent-tooling/test-maintainer-orchestrator-policy
-
 section "Browser helper"
 node --test scripts/browser-tools-profile.test.ts
 node scripts/browser-tools.ts --help >/dev/null

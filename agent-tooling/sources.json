@@ -23,8 +23,7 @@
       "repo": "mattpocock/skills",
       "subroot": "skills",
       "staging": "matt",
-      "discovery": "recursive",
-      "retiredRepos": ["vercel-labs/skills"]
+      "discovery": "recursive"
     },
     {
       "id": "humanlayer-skills",

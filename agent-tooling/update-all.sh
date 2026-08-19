@@ -41,10 +41,6 @@ for arg in "$@"; do
       usage
       exit 0
       ;;
-  esac
-done
-for arg in "$@"; do
-  case "$arg" in
     --no-ship) ship=0 ;;
     *)
       warn "unknown option: $arg"

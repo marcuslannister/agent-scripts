@@ -46,7 +46,6 @@ Exit codes:
   0   reconciled or check clean
   1   drift or acquire failure
   2   invalid usage or sources list
-  3   decision required (unexpected skills-lock entries)
   130 interrupted
 EOF
 }
@@ -67,13 +66,11 @@ trap 'topology_release_lock; rm -rf -- "$WORK_ROOT"; exit 130' INT TERM
 SOURCES_TSV="$WORK_ROOT/sources.tsv"
 DRIFT_TSV="$WORK_ROOT/drift.tsv"
 CHANGES_TSV="$WORK_ROOT/changes.tsv"
-DECISIONS_TSV="$WORK_ROOT/decisions.tsv"
 ERRORS="$WORK_ROOT/errors.txt"
 WARNINGS="$WORK_ROOT/warnings.txt"
 : > "$SOURCES_TSV"
 : > "$DRIFT_TSV"
 : > "$CHANGES_TSV"
-: > "$DECISIONS_TSV"
 : > "$ERRORS"
 : > "$WARNINGS"
 
@@ -88,7 +85,6 @@ emit_document() {
     --rawfile sources "$SOURCES_TSV" \
     --rawfile drift "$DRIFT_TSV" \
     --rawfile changes "$CHANGES_TSV" \
-    --rawfile decisions "$DECISIONS_TSV" \
     --rawfile errors "$ERRORS" \
     --rawfile warnings "$WARNINGS" '
       def lines($value): $value | split("\n") | map(select(length > 0));
@@ -102,8 +98,6 @@ emit_document() {
           {sourceId:.[0],skill:.[1],reason:.[2],action:.[3]})),
         changes: (lines($changes) | map(split("\t") |
           {sourceId:.[0],skill:.[1],action:.[2]})),
-        decisions: (lines($decisions) | map(split("\t") |
-          {code:.[0],skill:.[1],lockSource:.[2],message:.[3]})),
         errors: lines($errors),
         warnings: (lines($warnings) | map({message:.}))
       }
@@ -120,7 +114,6 @@ write_result() {
   printf 'Skill acquire %s: %s\n' "$MODE" "$status"
   jq -r '.drift[] | "- \(.action) \(.skill) in staging (\(.reason))"' "$document"
   jq -r '.changes[] | "- \(.action) \(.skill) in \(.sourceId) staging"' "$document"
-  jq -r '.decisions[] | "decision: \(.message)"' "$document"
   jq -r '.warnings[] | "warning: \(.message)"' "$document" >&2
   jq -r '.errors[] | "error: \(.)"' "$document" >&2
 }
@@ -170,30 +163,6 @@ valid_skill_name() {
 
 source_field() { # source_id jq_suffix
   jq -r --arg id "$1" ".sources[] | select(.id == \$id) | $2" "$SOURCES_PATH"
-}
-
-# --- Skills-lock scan: legacy npx entries are reported, never mutated -------
-scan_skills_lock() {
-  local lock="$HOME/.agents/.skill-lock.json" known_repos skill lock_source
-  [ -f "$lock" ] || return 0
-  if ! jq -e 'type == "object" and ((.skills // {}) | type) == "object"' "$lock" >/dev/null 2>&1; then
-    append_error "invalid skills lock: $lock"
-    return 0
-  fi
-  known_repos="$(jq -r '[.sources[] | select(.classification == "npx-only") |
-    (.repo, (.retiredRepos // [])[])] | @tsv' "$SOURCES_PATH")"
-  while IFS=$'\t' read -r skill lock_source; do
-    [ -n "$skill" ] || continue
-    if printf '%s\n' "$known_repos" | tr '\t' '\n' | rg -Fxq -- "$lock_source"; then
-      printf 'legacy-npx-lock-entry\t%s\t%s\tskills lock entry %s still belongs to known npx source %s; remove it deliberately\n' \
-        "$skill" "$lock_source" "$skill" "$lock_source" >> "$DECISIONS_TSV"
-    else
-      printf 'unknown-npx-lock-source\t%s\t%s\tskills lock entry %s belongs to unknown npx source %s\n' \
-        "$skill" "$lock_source" "$skill" "$lock_source" >> "$DECISIONS_TSV"
-    fi
-  done < <(jq -r '(.skills // {}) | to_entries[] |
-    [.key, (if (.value | type) == "string" then .value else (.value.source // "") end)] | @tsv' \
-    "$lock" 2>/dev/null)
 }
 
 # --- Per-source staging reconciliation --------------------------------------
@@ -318,10 +287,6 @@ acquire_source() { # source_id
   fi
 
   if [ "$MODE" != check ]; then
-    for skill_file in "$staging_root"/*/.agent-scripts-copy "$staging_root"/*/.agent-scripts-copy-source; do
-      [ -e "$skill_file" ] || continue
-      rm -f "$skill_file"
-    done
     clear_staging_gitignore "$REPO_ROOT" "$source_id" || source_failed=1
     clear_staging_gitignore "$REPO_ROOT" "$staging" || source_failed=1
     if ! write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"; then
@@ -351,14 +316,9 @@ while IFS= read -r source_id; do
 done < <(jq -r '.sources[] | select(has("staging")) | .id' "$SOURCES_PATH" | LC_ALL=C sort)
 shopt -u nullglob
 
-scan_skills_lock
-
 if [ -s "$ERRORS" ]; then
   result_status=failed
   result_code=1
-elif [ -s "$DECISIONS_TSV" ]; then
-  result_status=decision-required
-  result_code=3
 elif [ "$MODE" = check ] && [ -s "$DRIFT_TSV" ]; then
   result_status=drift
   result_code=1
