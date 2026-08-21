@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 35 | 70 |
-| Shared | 34 | 34 |
+| Total | 17 | 52 |
+| Shared | 16 | 16 |
 | Agent-only | 1 | 36 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -22,25 +22,6 @@
 | `claude-api` | anthropics/skills | skill | N | N | ~18421 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~324 |
-| `claude-mem:babysit` | thedotmack/claude-mem | plugin | Y | Y | ~1088 |
-| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | Y | Y | ~1172 |
-| `claude-mem:design-is` | thedotmack/claude-mem | plugin | Y | Y | ~4648 |
-| `claude-mem:do` | thedotmack/claude-mem | plugin | Y | Y | ~507 |
-| `claude-mem:how-it-works` | thedotmack/claude-mem | plugin | Y | Y | ~307 |
-| `claude-mem:knowledge-agent` | thedotmack/claude-mem | plugin | Y | Y | ~616 |
-| `claude-mem:learn-codebase` | thedotmack/claude-mem | plugin | Y | Y | ~225 |
-| `claude-mem:make-plan` | thedotmack/claude-mem | plugin | Y | Y | ~787 |
-| `claude-mem:mem-search` | thedotmack/claude-mem | plugin | Y | Y | ~1018 |
-| `claude-mem:mode-creator` | thedotmack/claude-mem | plugin | N | N | ~2361 |
-| `claude-mem:oh-my-issues` | thedotmack/claude-mem | plugin | Y | Y | ~2903 |
-| `claude-mem:pathfinder` | thedotmack/claude-mem | plugin | Y | Y | ~1538 |
-| `claude-mem:smart-explore` | thedotmack/claude-mem | plugin | Y | Y | ~2304 |
-| `claude-mem:standup` | thedotmack/claude-mem | plugin | Y | Y | ~1659 |
-| `claude-mem:timeline-report` | thedotmack/claude-mem | plugin | Y | Y | ~3172 |
-| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | Y | Y | ~1151 |
-| `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | Y | Y | ~3532 |
-| `claude-mem:what-the` | thedotmack/claude-mem | plugin | Y | Y | ~61 |
-| `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | Y | Y | ~2208 |
 | `clawsweeper-status` | steipete/agent-scripts | skill | N | N | ~763 |
 | `clickclack` | steipete/agent-scripts | skill | N | N | ~710 |
 | `cloudflare-registrar` | steipete/agent-scripts | skill | N | N | ~372 |
@@ -236,7 +217,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=227 both=34 claude_only=1 codex_only=36 total_claude=35 total_codex=70 -->
+<!-- total=208 both=16 claude_only=1 codex_only=36 total_claude=17 total_codex=52 -->
 
 ## Enable-state
 
@@ -244,10 +225,10 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 18 | 0 |
-| Disabled | 9 | 26 |
+| Enabled | 0 | 0 |
+| Disabled | 9 | 8 |
 | Always-on | 8 | 44 |
-| Total | 35 | 70 |
+| Total | 17 | 52 |
 
 ## Repos
 
@@ -263,6 +244,5 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |
 | `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
 | `steipete/agent-scripts` | https://github.com/steipete/agent-scripts |
-| `thedotmack/claude-mem` | https://github.com/thedotmack/claude-mem |
 | `tw93/Waza` | https://github.com/tw93/Waza |
 | `ykdojo` | ? |

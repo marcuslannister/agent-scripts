@@ -51,7 +51,7 @@ A sources-list entry describing a native plugin (name, repo, marketplaces). Read
 _Avoid_: dual-plugin skill, managed plugin, plugin reconciliation
 
 **Native-state repair**:
-A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007 as tooling policy. The sole exception is the explicit `repair-claude-mem-marker.sh`, which writes only the claude-mem runtime marker from its installed package version; all other repair reaches state only through `codex` commands.
+A direct write into another CLI's internal storage — Codex's marketplace snapshot under `~/.codex/.tmp`, its install metadata, or its `config.toml` marketplace fields. Rejected by ADR-0007 as tooling policy; all repair reaches state only through `codex` commands.
 _Avoid_: snapshot repair, in-place fetch fallback, marketplace fix-up
 
 **Plugin-Claude-only repo**:

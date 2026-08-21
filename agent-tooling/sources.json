@@ -83,19 +83,6 @@
       }
     },
     {
-      "id": "claude-mem",
-      "classification": "dual-plugin",
-      "repo": "thedotmack/claude-mem",
-      "plugin": {
-        "name": "claude-mem",
-        "marketplaces": {
-          "claude": "thedotmack",
-          "codex": "claude-mem-local"
-        },
-        "codexUpgrade": "manual"
-      }
-    },
-    {
       "id": "ponytail",
       "classification": "dual-plugin",
       "repo": "DietrichGebert/ponytail",

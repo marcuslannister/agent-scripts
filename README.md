@@ -76,9 +76,6 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Best-effort native plugin refresh on every machine: runs the native `claude`/`codex` update commands for each plugin source in `sources.json`, skips marketplaces marked `"codexUpgrade": "manual"` (ADR-0007), reports each failure in one line, and never fails the run.
 - It never installs a plugin and never repairs a registry. First-time installs are native commands you run once; a desynced Codex registry is `agent-tooling/repair-codex-registry.sh`.
 
-`agent-tooling/repair-claude-mem-marker.sh`
-- Explicit per-machine repair for Codex claude-mem installs that lack the runtime `.install-version` marker. It repairs by default; `--check` reports drift without writing. It changes only that marker to the version in each installed package and is not part of routine updates (ADR-0007).
-
 `agent-tooling/verify.sh`
 - Single local/CI verifier: upstream-overlay completeness, skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
@@ -88,7 +85,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Acquire (`update-skill-topology.sh`) refreshes one cached shallow clone per source under `~/.cache/agent-scripts/source-clones/`, mirrors complete foreign inventories into tracked `other-skills/` staging with `.source.json` provenance, and removes staged skills that left upstream. It is selection-blind, never manages agent surfaces, and runs no native plugin commands (ADR-0009). `--check` previews staging drift and writes nothing at all, including under `HOME`.
 - Distribute (`sync-skill-surfaces.sh`) is fully offline and matrix-owned. It resolves selected names from tracked repo and staging content, reconciles both surfaces under one marker owner, adopts known pre-cutover agent-scripts owners, removes owned unselected copies, preserves and reports foreign entries, and reads only the matrix and tracked content.
 - Both print their result plus per-skill actions, keep diagnostics on standard error, and support `--check` for a non-mutating preview or `--json` for one JSON document. Acquire exit codes are `0` reconciled/check-clean, `1` drift or staging failure, `2` invalid usage or sources list, `3` decision required (unexpected skills-lock entries), and `130` interrupted. Distribute uses `0` for reconciled/check-clean, `1` for drift or reconciliation failure, `2` for invalid usage or matrix, and `130` for interruption.
-- Plugin sources (OpenAI Codex, Waza, claude-mem, mattpocock-skills, visual-explainer) carry only a `plugin` block in `sources.json`, read by `update-plugins.sh`, `repair-codex-registry.sh`, and matrix reporting. `Type: plugin` matrix rows stay report-only. Tooling never substitutes a surface copy for a broken plugin. Claude-mem still requires runnable Bun, uv, and uvx and preserves the shared `~/.claude-mem` worker/database contract.
+- Plugin sources (OpenAI Codex, Waza, mattpocock-skills, visual-explainer) carry only a `plugin` block in `sources.json`, read by `update-plugins.sh`, `repair-codex-registry.sh`, and matrix reporting. `Type: plugin` matrix rows stay report-only. Tooling never substitutes a surface copy for a broken plugin.
 - The matrix currently selects most Matt skills for both surfaces, with `code-review` Codex-only because Claude supplies that built-in. Unknown npx lock sources return decision-required; known legacy npx lock entries also require an explicit decision and remain byte-identical.
 - Exit `3` from acquire means a skills-lock entry needs an explicit decision; the lock is never mutated. Inspect `--json` decisions, act deliberately, then rerun.
 
@@ -96,7 +93,7 @@ Repo-specific rules go below that pointer. Do not copy the shared blocks into do
 - Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update` plus `pi update --extensions`; installs a missing Pi with its native installer.
 - Tries all installed CLIs even if one fails.
 
-Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, and `update-anthropic-skills.sh`. No aliases or shims. `scripts/sync-skills` is a retired stub kept only for upstream-path completeness (ADR-0008/0009).
+Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, and `repair-claude-mem-marker.sh`. No aliases or shims. `scripts/sync-skills` is a retired stub kept only for upstream-path completeness (ADR-0008/0009).
 
 Topology authoring:
 - Run `agent-tooling/sync-upstream-overlay.sh` to merge the latest upstream root and restore every upstream path before local topology updates.

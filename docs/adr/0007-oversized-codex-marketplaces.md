@@ -1,5 +1,5 @@
 ---
-status: accepted; routine automation no longer attempts marketplace operations (ADR-0009); an explicit marker-only repair is the sole cache-write exception
+status: accepted; routine automation no longer attempts marketplace operations (ADR-0009); the marker-only repair exception (`repair-claude-mem-marker.sh`) was removed with claude-mem's source entry
 ---
 
 # Oversized Codex marketplaces stay on manual repair
