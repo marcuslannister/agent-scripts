@@ -171,6 +171,16 @@ else
     warn "pi extensions update failed"
     fail=1
   fi
+  # `--extensions` only refreshes git-sourced packages; npm-sourced ones (like
+  # nowledge-mem-pi) need an explicit --extension update.
+  if pi list 2>/dev/null | grep -qF 'npm:nowledge-mem-pi'; then
+    if pi update --extension npm:nowledge-mem-pi; then
+      info "pi nowledge-mem-pi extension update complete"
+    else
+      warn "pi nowledge-mem-pi extension update failed"
+      fail=1
+    fi
+  fi
 fi
 
 section "Agent CLIs done"

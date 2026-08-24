@@ -93,6 +93,18 @@
           "codex": "ponytail"
         }
       }
+    },
+    {
+      "id": "nowledge-mem",
+      "classification": "dual-plugin",
+      "repo": "nowledge-co/community",
+      "plugin": {
+        "name": "nowledge-mem",
+        "marketplaces": {
+          "claude": "nowledge-community",
+          "codex": "nowledge-community"
+        }
+      }
     }
   ]
 }
