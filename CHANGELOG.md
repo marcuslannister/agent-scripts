@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 3b3fad9, humanlayer 3c26291, khazix 7a5c493, matt 5b15a47, nicobailon df35d97) and regenerated the selection-preserving skills matrix.
+
 - Removed claude-mem from `sources.json`: the dual-plugin source entry, `agent-tooling/repair-claude-mem-marker.sh` and its test, and the ADR-0007/README/CONTEXT.md references to the marker-repair exception are gone; Claude Code and Codex claude-mem installs are managed separately from this repo.
 
 - Refreshed staged third-party skills (anthropics 0a64e39, humanlayer 3c26291, khazix 7a5c493, matt 9c9f36c, nicobailon ff8cd15) and regenerated the selection-preserving skills matrix.
