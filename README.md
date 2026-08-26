@@ -47,11 +47,11 @@ Topic detail lives in `rules/`. `AGENTS.MD` links to it as `~/.claude/rules/<nam
 
 Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale. Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
 
-Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. Claude Code reads `CLAUDE.md`, so setup creates, all relative to this repository's checkout:
+Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. A pointer that already resolves to the right place counts as correct, so a relative symlink you made yourself is left alone without a warning. Claude Code reads `CLAUDE.md`, so setup creates, all relative to this repository's checkout:
 - `~/.claude/CLAUDE.md -> AGENTS.MD`
 - `~/.claude/AGENTS.md -> AGENTS.MD`
 - `~/.codex/AGENTS.md -> AGENTS.codex.md`
-- `~/.claude/rules/<name>.md -> rules/<name>.md`, per file, so unrelated user rules already in that directory survive
+- `~/.claude/rules -> rules`, one directory symlink, so the `~/.claude/rules/*.md` links resolve from any cwd
 
 Downstream repos should use a pointer-style `AGENTS.MD`:
 

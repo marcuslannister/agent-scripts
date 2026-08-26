@@ -27,7 +27,9 @@ ensure_pointer() { # path target
   # -L before -e: a dangling symlink fails -e but is still user state.
   if [ -L "$pointer" ]; then
     target="$(readlink "$pointer")"
-    if [ "$target" = "$want" ]; then
+    # Compare resolved paths: a relative symlink to the same place is ours, not
+    # foreign. A dangling one never resolves to $want, so it stays preserved.
+    if [ "$target" = "$want" ] || [ "$(readlink -f "$pointer")" = "$(readlink -f "$want")" ]; then
       return 0
     fi
     printf 'warning: preserving foreign symlink: %s -> %s\n' "$pointer" "$target" >&2
@@ -46,13 +48,7 @@ ensure_pointer() { # path target
 ensure_pointer "$HOME/.claude/CLAUDE.md" "$AGENTS_MD"
 ensure_pointer "$HOME/.claude/AGENTS.md" "$AGENTS_MD"
 ensure_pointer "$HOME/.codex/AGENTS.md" "$CODEX_MD"
-
-# Per file, not a directory symlink: ~/.claude/rules may already hold unrelated
-# user rules. This lets the relative rules/ links in AGENTS.MD resolve from the
-# pointer's own directory, without a machine-specific path in the file.
-for rule in "$RULES_DIR"/*.md; do
-  [ -f "$rule" ] || continue
-  ensure_pointer "$HOME/.claude/rules/$(basename "$rule")" "$rule"
-done
+# Makes the ~/.claude/rules/*.md links in AGENTS.MD resolve from any cwd.
+ensure_pointer "$HOME/.claude/rules" "$RULES_DIR"
 
 [ "$changed" -ne 0 ] || printf 'instruction pointers up to date\n'

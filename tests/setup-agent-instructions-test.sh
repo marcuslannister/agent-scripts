@@ -44,7 +44,7 @@ for pointer in "$HOME_DIR/.claude/CLAUDE.md" "$HOME_DIR/.claude/AGENTS.md"; do
   test -L "$pointer"
   test "$(readlink "$pointer")" = "$FIXTURE/AGENTS.MD"
 done
-test "$(readlink "$HOME_DIR/.claude/rules/topic.md")" = "$FIXTURE/rules/topic.md"
+test "$(readlink "$HOME_DIR/.claude/rules")" = "$FIXTURE/rules"
 test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
 grep -F "linked $HOME_DIR/.claude/CLAUDE.md -> $FIXTURE/AGENTS.MD" "$TMP_ROOT/first.out" >/dev/null
 
@@ -74,10 +74,18 @@ grep -F "preserving real file: $HOME_DIR/.claude/CLAUDE.md" "$TMP_ROOT/preserve.
 grep -F "preserving foreign symlink: $HOME_DIR/.claude/AGENTS.md" "$TMP_ROOT/preserve.err" >/dev/null
 grep -F "preserving foreign symlink: $HOME_DIR/.codex/AGENTS.md" "$TMP_ROOT/preserve.err" >/dev/null
 
-# An unrelated user rule already in ~/.claude/rules survives.
-printf 'user note\n' > "$HOME_DIR/.claude/rules/personal.md"
-setup > /dev/null 2>&1
-test "$(cat "$HOME_DIR/.claude/rules/personal.md")" = "user note"
+# A relative symlink to the same place is ours, not foreign: no warning, no churn.
+rm "$HOME_DIR/.claude/rules"
+ln -s "../../repo/rules" "$HOME_DIR/.claude/rules"
+setup > "$TMP_ROOT/relative.out" 2> "$TMP_ROOT/relative.err"
+# Other pointers are foreign by now and warn legitimately, so assert only that
+# the rules pointer is not among them.
+if grep -F "preserving foreign symlink: $HOME_DIR/.claude/rules" "$TMP_ROOT/relative.err"; then
+  echo "an equivalent relative symlink was treated as foreign" >&2
+  exit 1
+fi
+test "$(readlink "$HOME_DIR/.claude/rules")" = "../../repo/rules"
+grep -Fx 'topic rules v3' "$HOME_DIR/.claude/rules/topic.md" >/dev/null
 
 # A dangling foreign symlink fails -e but is still user state.
 rm "$HOME_DIR/.codex/AGENTS.md"
