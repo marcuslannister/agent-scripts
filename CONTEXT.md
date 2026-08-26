@@ -18,6 +18,24 @@ _Avoid_: agents dir, Codex-only surface
 An explicit, recorded decision to place a named skill or source on the Codex surface. Unknown sources require user decision; routine updates reuse recorded decisions.
 _Avoid_: automatic mirror, default copy
 
+### Instruction pointers
+
+**Instruction pointer**:
+A path each agent CLI reads its global rules from, created by `setup-agent-instructions.sh` only when explicitly invoked. Setup state, not distribution policy (ADR-0002): the routine updater never creates or refreshes one. Claude Code reads `~/.claude/CLAUDE.md` plus `~/.claude/rules`; Codex reads `~/.codex/AGENTS.md`.
+_Avoid_: instruction symlink, global config, agent surface
+
+**Topic rules**:
+The repo `rules/` directory, one file per subject, linked from `AGENTS.MD` as `~/.claude/rules/<name>.md`. The single editable source for everything outside the root hard rules. A repo-relative link resolves against the agent's cwd and breaks outside this checkout, so links stay home-relative.
+_Avoid_: docs, rule modules, split instructions
+
+**Generated Codex instructions**:
+Tracked `AGENTS.codex.md`: `AGENTS.MD` with every topic rule inlined, built by `build-codex-instructions.sh`. Codex has no import syntax and does not open a file it is only linked to, so it needs one flat file. Tracking it means a pull refreshes it and no install lifecycle can go stale; `--check` fails on drift. Build stages into a temp file and swaps on success, so a failed build cannot truncate the artifact into a false-green check.
+_Avoid_: flattened copy, snapshot, generated pointer
+
+**Pointer migration**:
+Replacing an installer-owned predecessor at an instruction pointer. Only a symlink whose resolved target proves setup wrote it is replaced. A regular file is reported and left alone, because nothing distinguishes it from operator-authored rules. Foreign symlinks, including dangling ones, are always preserved.
+_Avoid_: repair, overwrite, reinstall
+
 ### Source classification
 
 **Upstream-complete overlay**:
