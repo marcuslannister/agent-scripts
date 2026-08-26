@@ -39,7 +39,10 @@ check_link() {
   expected=$1
   link_path=$2
   actual=$(readlink "$link_path" 2>/dev/null || true)
-  if [ "$actual" = "$expected" ] && [ -e "$link_path" ]; then
+  # Compare resolved paths too: a relative symlink to the same place is correct.
+  if [ -n "$actual" ] && [ -e "$link_path" ] &&
+     { [ "$actual" = "$expected" ] ||
+       [ "$(readlink -f "$link_path")" = "$(readlink -f "$expected")" ]; }; then
     return 0
   fi
   printf 'skill-links-drift\tpath=%s\texpected=%s\tactual=%s\n' "$link_path" "$expected" "${actual:-missing-or-not-symlink}"
