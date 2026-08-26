@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Split the global `AGENTS.MD` for progressive disclosure: root keeps hard rules only (communication, secrets, push authority, destructive ops, external sends, compatibility) and links to new `rules/git.md`, `rules/github.md`, and `rules/tooling.md`; resolved the "no separate CLAUDE.md" note rule, the CodeGraph/Anvil/rg search precedence, and the `gh pr view` vs `--json` conflicts.
+
 - Registered `nowledge-mem` (nowledge-co/community) in `sources.json` as a dual-plugin source so `update-plugins.sh` refreshes both native marketplaces; `update-agents.sh` now also runs an explicit `pi update --extension npm:nowledge-mem-pi`, since `pi update --extensions` only refreshes git-sourced packages and silently skips npm ones.
 
 - Refreshed staged third-party skills (anthropics 3b3fad9, humanlayer 3c26291, khazix 7a5c493, matt 5b15a47, nicobailon df35d97) and regenerated the selection-preserving skills matrix.
