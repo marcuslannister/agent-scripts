@@ -38,6 +38,25 @@ fi
 build >/dev/null
 grep -Fx 'topic rules v2' "$FIXTURE/AGENTS.codex.md" >/dev/null
 
+# A failed build never touches the tracked artifact, and --check never goes
+# green on partial output. Root ignores the permission bit, so skip there.
+if [ "$(id -u)" -ne 0 ]; then
+  cp "$FIXTURE/AGENTS.codex.md" "$TMP_ROOT/good.codex.md"
+  chmod 000 "$FIXTURE/rules/topic.md"
+  if build > /dev/null 2> "$TMP_ROOT/failbuild.err"; then
+    echo "expected build to fail on an unreadable rule file" >&2
+    exit 1
+  fi
+  grep -F 'left unchanged' "$TMP_ROOT/failbuild.err" >/dev/null
+  cmp -s "$FIXTURE/AGENTS.codex.md" "$TMP_ROOT/good.codex.md"
+  if build --check >/dev/null 2>&1; then
+    echo "expected --check to fail when the build fails" >&2
+    exit 1
+  fi
+  chmod 644 "$FIXTURE/rules/topic.md"
+  build --check >/dev/null
+fi
+
 setup > "$TMP_ROOT/first.out" 2> "$TMP_ROOT/first.err"
 test ! -s "$TMP_ROOT/first.err"
 for pointer in "$HOME_DIR/.claude/CLAUDE.md" "$HOME_DIR/.claude/AGENTS.md"; do
