@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 AGENTS_MD="$REPO_ROOT/AGENTS.MD"
 CODEX_MD="$REPO_ROOT/AGENTS.codex.md"
 RULES_DIR="$REPO_ROOT/rules"
+CODEX_POINTER="$HOME/.codex/AGENTS.md"
 changed=0
 
 if [ ! -f "$AGENTS_MD" ]; then
@@ -13,8 +14,7 @@ if [ ! -f "$AGENTS_MD" ]; then
   exit 1
 fi
 if [ ! -f "$CODEX_MD" ]; then
-  printf 'error: generated Codex file missing: %s\n' "$CODEX_MD" >&2
-  printf 'hint: run agent-tooling/build-codex-instructions.sh\n' >&2
+  printf 'error: generated Codex file missing: %s\nhint: run agent-tooling/build-codex-instructions.sh\n' "$CODEX_MD" >&2
   exit 1
 fi
 
@@ -27,9 +27,9 @@ ensure_pointer() { # path target
   # -L before -e: a dangling symlink fails -e but is still user state.
   if [ -L "$pointer" ]; then
     target="$(readlink "$pointer")"
-    # Compare resolved paths: a relative symlink to the same place is ours, not
-    # foreign. A dangling one never resolves to $want, so it stays preserved.
-    if [ "$target" = "$want" ] || [ "$(readlink -f "$pointer")" = "$(readlink -f "$want")" ]; then
+    # Resolve both: a relative symlink to the same place is ours, not foreign.
+    # A dangling one never resolves to $want, so it stays preserved.
+    if [ "$(readlink -f "$pointer")" = "$(readlink -f "$want")" ]; then
       return 0
     fi
     printf 'warning: preserving foreign symlink: %s -> %s\n' "$pointer" "$target" >&2
@@ -45,36 +45,21 @@ ensure_pointer() { # path target
   changed=$((changed + 1))
 }
 
-# An earlier setup symlinked ~/.codex/AGENTS.md to AGENTS.MD. That is
-# installer-owned, and resolving the target proves it, so replace it. Since the
-# split, AGENTS.MD is only a link list and Codex cannot follow links, so leaving
-# it costs Codex nearly every rule.
-#
-# A regular file is never touched: the short-lived generated one carried no
-# marker, so nothing distinguishes it from a file you wrote. Report and let the
-# operator decide.
-migrate_codex_pointer() {
-  local pointer="$HOME/.codex/AGENTS.md"
-
-  if [ -L "$pointer" ]; then
-    if [ "$(readlink -f "$pointer")" = "$(readlink -f "$AGENTS_MD")" ]; then
-      rm "$pointer"
-      printf 'migrated legacy Codex symlink to the generated file\n'
-      changed=$((changed + 1))
-    fi
-    return 0
-  fi
-  [ -f "$pointer" ] || return 0
-
-  printf 'warning: %s is a regular file; Codex may be reading stale rules\n' "$pointer" >&2
-  printf 'hint: remove it and rerun to point Codex at %s\n' "$CODEX_MD" >&2
-}
-
-migrate_codex_pointer
+# An earlier setup symlinked the Codex pointer to AGENTS.MD; resolving the
+# target proves that one is ours, and since the split it leaves Codex with only
+# a link list it cannot follow. A regular file is never ours to judge, so it is
+# reported and left alone.
+if [ -L "$CODEX_POINTER" ] && [ "$(readlink -f "$CODEX_POINTER")" = "$(readlink -f "$AGENTS_MD")" ]; then
+  rm "$CODEX_POINTER"
+  printf 'migrated legacy Codex symlink to the generated file\n'
+  changed=$((changed + 1))
+elif [ -f "$CODEX_POINTER" ] && [ ! -L "$CODEX_POINTER" ]; then
+  printf 'warning: %s is a regular file; Codex may be reading stale rules\nhint: remove it and rerun to point Codex at %s\n' "$CODEX_POINTER" "$CODEX_MD" >&2
+fi
 
 ensure_pointer "$HOME/.claude/CLAUDE.md" "$AGENTS_MD"
 ensure_pointer "$HOME/.claude/AGENTS.md" "$AGENTS_MD"
-ensure_pointer "$HOME/.codex/AGENTS.md" "$CODEX_MD"
+ensure_pointer "$CODEX_POINTER" "$CODEX_MD"
 # Makes the ~/.claude/rules/*.md links in AGENTS.MD resolve from any cwd.
 ensure_pointer "$HOME/.claude/rules" "$RULES_DIR"
 

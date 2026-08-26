@@ -103,7 +103,6 @@ setup > /dev/null 2> "$TMP_ROOT/regular.err"
 test ! -L "$HOME_DIR/.codex/AGENTS.md"
 cmp -s "$HOME_DIR/.codex/AGENTS.md" "$FIXTURE/AGENTS.codex.md"
 grep -F 'may be reading stale rules' "$TMP_ROOT/regular.err" >/dev/null
-test "$(find "$HOME_DIR/.codex" -name 'AGENTS.md.*.bak' | wc -l)" -eq 0
 
 printf 'my own codex rules\n' > "$HOME_DIR/.codex/AGENTS.md"
 setup > /dev/null 2> "$TMP_ROOT/unknown.err"

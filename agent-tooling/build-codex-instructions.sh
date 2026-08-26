@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Codex has no import syntax and does not reliably open a file it is only
-# linked to, so it needs every rule inlined. The result is tracked, so a plain
-# `git pull` refreshes it and no separate install lifecycle exists to go stale.
-# Claude Code follows the links, so it points at AGENTS.MD directly.
+# Why Codex needs everything inlined, and why the result is tracked: README.md.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 AGENTS_MD="$REPO_ROOT/AGENTS.MD"
 BUILT="$REPO_ROOT/AGENTS.codex.md"
-
-check_only=0
-[ "${1:-}" = "--check" ] && check_only=1
 
 if [ ! -f "$AGENTS_MD" ]; then
   printf 'error: shared instruction file missing: %s\n' "$AGENTS_MD" >&2
@@ -30,19 +24,15 @@ build() {
   done
 }
 
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
-build >"$tmp"
-
-if [ -f "$BUILT" ] && cmp -s "$tmp" "$BUILT"; then
+if cmp -s <(build) "$BUILT" 2>/dev/null; then
   printf 'AGENTS.codex.md up to date\n'
   exit 0
 fi
 
-if [ "$check_only" -eq 1 ]; then
+if [ "${1:-}" = "--check" ]; then
   printf 'error: AGENTS.codex.md is stale; run agent-tooling/build-codex-instructions.sh\n' >&2
   exit 1
 fi
 
-cp "$tmp" "$BUILT"
-printf 'built %s (%s bytes)\n' "$BUILT" "$(wc -c <"$BUILT" | tr -d ' ')"
+build > "$BUILT"
+printf 'built %s\n' "$BUILT"
