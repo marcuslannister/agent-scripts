@@ -28,7 +28,7 @@ Read this for any pull request, CI failure, issue, release, or changelog work.
 
 ## Shipping and releasing
 
-- `ship` = changelog, grouped commits, push, pull. "Shipped" means pushed to GitHub.
+- `ship` = changelog, grouped commits, push, pull. "Shipped" means pushed to GitHub. Only the user can start it, by asking for it in the current task. Never ship because a task looks finished.
 - Publishing a version or artifact needs an explicit `release` or `publish` ask. A tag or a push alone is not a release.
 - Release verification: the docs and notes must contain the current changelog. If it is missing or stale, fix it before closeout.
 - Changelog style: match the house style, one-line bullet preferred, no prose-length hard wrap. Thank `@login` for user-visible work.

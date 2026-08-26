@@ -6,7 +6,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
-- `setup-agent-instructions.sh` now builds `~/.codex/AGENTS.md` as a flattened copy with `rules/` inlined instead of symlinking it, since Codex has no import syntax and will not open a file it is only linked to; Claude Code keeps the symlink and follows the links. Hand-edited Codex copies are backed up before the rebuild, and the Waza English-coaching block moved into `rules/english.md` so it survives every build.
+- Global rules now forbid automatic shipping, personal identifiers, and machine-specific paths: push needs a per-task ask with no repository exempt, finishing a task authorizes nothing, published history is never rewritten unasked, and no tracked or generated file may carry a local account name or an absolute path.
+
+- Codex reads tracked `AGENTS.codex.md` (`AGENTS.MD` plus every `rules/` file inlined), built by `agent-tooling/build-codex-instructions.sh` and reached by symlink, since Codex has no import syntax and will not open a file it is only linked to. Tracking the artifact means `git pull` refreshes it, so no install lifecycle can go stale; `--check` and the test suite fail on drift. `setup-agent-instructions.sh` preserves foreign symlinks on every pointer including dangling ones, links `rules/` per file into `~/.claude/rules/` so unrelated user rules there survive, and `AGENTS.MD` links `rules/` relatively. The Waza English-coaching block moved into `rules/english.md`.
 
 - Split the global `AGENTS.MD` for progressive disclosure: root keeps hard rules only (communication, secrets, push authority, destructive ops, external sends, compatibility) and links to new `rules/git.md`, `rules/github.md`, and `rules/tooling.md`; resolved the "no separate CLAUDE.md" note rule, the CodeGraph/Anvil/rg search precedence, and the `gh pr view` vs `--json` conflicts.
 
