@@ -45,6 +45,41 @@ ensure_pointer() { # path target
   changed=$((changed + 1))
 }
 
+# Earlier setups owned ~/.codex/AGENTS.md in two other shapes: a symlink to
+# AGENTS.MD, and a generated regular file. Both are ours, so ensure_pointer
+# would wrongly preserve them as user state and leave Codex on stale or
+# link-only rules. Clear the ones we can prove we wrote; back up before any
+# delete, and leave anything unrecognized alone.
+migrate_codex_pointer() {
+  local pointer="$HOME/.codex/AGENTS.md"
+
+  if [ -L "$pointer" ]; then
+    if [ "$(readlink -f "$pointer")" = "$(readlink -f "$AGENTS_MD")" ]; then
+      rm "$pointer"
+      printf 'migrated legacy Codex symlink to the generated file\n'
+      changed=$((changed + 1))
+    fi
+    return 0
+  fi
+  [ -f "$pointer" ] || return 0
+
+  case "$(head -n 1 "$pointer")" in
+    *'build-codex-instructions.sh'* | 'Global agent rules'*) ;;
+    *)
+      printf 'warning: %s is not a recognized generated file; Codex may be reading stale rules\n' "$pointer" >&2
+      printf 'hint: remove it and rerun to point Codex at %s\n' "$CODEX_MD" >&2
+      return 0
+      ;;
+  esac
+
+  cp "$pointer" "$pointer.$(date +%Y%m%d%H%M%S).bak"
+  rm "$pointer"
+  printf 'migrated generated Codex file (backup kept)\n'
+  changed=$((changed + 1))
+}
+
+migrate_codex_pointer
+
 ensure_pointer "$HOME/.claude/CLAUDE.md" "$AGENTS_MD"
 ensure_pointer "$HOME/.claude/AGENTS.md" "$AGENTS_MD"
 ensure_pointer "$HOME/.codex/AGENTS.md" "$CODEX_MD"

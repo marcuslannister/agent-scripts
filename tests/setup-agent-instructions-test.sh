@@ -87,6 +87,32 @@ fi
 test "$(readlink "$HOME_DIR/.claude/rules")" = "../../repo/rules"
 grep -Fx 'topic rules v3' "$HOME_DIR/.claude/rules/topic.md" >/dev/null
 
+# Predecessor 1: an existing machine has the Codex pointer symlinked to
+# AGENTS.MD. That is installer-owned, so it migrates to the generated file.
+rm -f "$HOME_DIR/.codex/AGENTS.md"
+ln -s "$FIXTURE/AGENTS.MD" "$HOME_DIR/.codex/AGENTS.md"
+setup > "$TMP_ROOT/legacy.out" 2>/dev/null
+test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
+grep -F 'migrated legacy Codex symlink' "$TMP_ROOT/legacy.out" >/dev/null
+
+# Predecessor 2: the short-lived generated regular file. Also ours; backed up.
+rm -f "$HOME_DIR/.codex/AGENTS.md"
+cp "$FIXTURE/AGENTS.codex.md" "$HOME_DIR/.codex/AGENTS.md"
+setup > "$TMP_ROOT/legacyfile.out" 2>/dev/null
+test -L "$HOME_DIR/.codex/AGENTS.md"
+test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
+grep -F 'migrated generated Codex file' "$TMP_ROOT/legacyfile.out" >/dev/null
+test -n "$(echo "$HOME_DIR"/.codex/AGENTS.md.*.bak)"
+
+# An unrecognized regular file is never deleted, only reported.
+rm -f "$HOME_DIR/.codex/AGENTS.md" "$HOME_DIR"/.codex/AGENTS.md.*.bak
+printf 'my own codex rules\n' > "$HOME_DIR/.codex/AGENTS.md"
+setup > /dev/null 2> "$TMP_ROOT/unknown.err"
+test "$(cat "$HOME_DIR/.codex/AGENTS.md")" = "my own codex rules"
+grep -F 'may be reading stale rules' "$TMP_ROOT/unknown.err" >/dev/null
+rm -f "$HOME_DIR/.codex/AGENTS.md"
+setup >/dev/null 2>&1
+
 # A dangling foreign symlink fails -e but is still user state.
 rm "$HOME_DIR/.codex/AGENTS.md"
 ln -s "$HOME_DIR/gone.md" "$HOME_DIR/.codex/AGENTS.md"
