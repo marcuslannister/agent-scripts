@@ -32,9 +32,12 @@ Hard rules only. Everything below applies to every task. Topic detail lives in t
 
 ## Topic rules
 
+Open the file that matches the task before you start it. Codex reads these inlined below instead, because it has no import syntax.
+
 - [Git](rules/git.md) — where to work, branches, commits, shared trees.
 - [GitHub, CI, and shipping](rules/github.md) — `gh` mechanics, pull requests, issues, `fix ci`, `ship`, releases, changelog.
 - [Tools and task routing](rules/tooling.md) — find code, Anvil edit tools, `$codex-first`, background tasks, shell footguns.
+- [English coaching](rules/english.md) — when and how to correct the user's English.
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph

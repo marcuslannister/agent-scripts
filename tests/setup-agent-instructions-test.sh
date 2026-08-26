@@ -12,17 +12,23 @@ HOME_DIR="$TMP_ROOT/home"
 mkdir -p "$FIXTURE/scripts" "$HOME_DIR"
 cp "$REPO_ROOT/agent-tooling/setup-agent-instructions.sh" "$FIXTURE/scripts/"
 printf 'shared rules\n' > "$FIXTURE/AGENTS.MD"
+mkdir -p "$FIXTURE/rules"
+printf 'topic rules\n' > "$FIXTURE/rules/topic.md"
 
 HOME="$HOME_DIR" "$FIXTURE/scripts/setup-agent-instructions.sh" > "$TMP_ROOT/first.out" 2> "$TMP_ROOT/first.err"
 test ! -s "$TMP_ROOT/first.err"
 for pointer in \
   "$HOME_DIR/.claude/CLAUDE.md" \
-  "$HOME_DIR/.claude/AGENTS.md" \
-  "$HOME_DIR/.codex/AGENTS.md"; do
+  "$HOME_DIR/.claude/AGENTS.md"; do
   test -L "$pointer"
   test "$(readlink "$pointer")" = "$FIXTURE/AGENTS.MD"
 done
 grep -F "linked $HOME_DIR/.claude/CLAUDE.md -> $FIXTURE/AGENTS.MD" "$TMP_ROOT/first.out" >/dev/null
+
+# Codex has no import syntax, so its copy is flattened, not linked.
+test ! -L "$HOME_DIR/.codex/AGENTS.md"
+grep -Fx 'shared rules' "$HOME_DIR/.codex/AGENTS.md" >/dev/null
+grep -Fx 'topic rules' "$HOME_DIR/.codex/AGENTS.md" >/dev/null
 
 HOME="$HOME_DIR" "$FIXTURE/scripts/setup-agent-instructions.sh" > "$TMP_ROOT/second.out" 2> "$TMP_ROOT/second.err"
 test ! -s "$TMP_ROOT/second.err"
@@ -36,8 +42,14 @@ ln -s "$HOME_DIR/custom-agents.md" "$HOME_DIR/.claude/AGENTS.md"
 HOME="$HOME_DIR" "$FIXTURE/scripts/setup-agent-instructions.sh" > "$TMP_ROOT/preserve.out" 2> "$TMP_ROOT/preserve.err"
 test "$(cat "$HOME_DIR/.claude/CLAUDE.md")" = "user rules"
 test "$(readlink "$HOME_DIR/.claude/AGENTS.md")" = "$HOME_DIR/custom-agents.md"
-test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.MD"
+grep -Fx 'topic rules' "$HOME_DIR/.codex/AGENTS.md" >/dev/null
 grep -F "preserving real file: $HOME_DIR/.claude/CLAUDE.md" "$TMP_ROOT/preserve.err" >/dev/null
 grep -F "preserving foreign symlink: $HOME_DIR/.claude/AGENTS.md" "$TMP_ROOT/preserve.err" >/dev/null
+
+# A hand-edited Codex copy is backed up, never silently discarded.
+printf 'hand edit\n' > "$HOME_DIR/.codex/AGENTS.md"
+HOME="$HOME_DIR" "$FIXTURE/scripts/setup-agent-instructions.sh" > "$TMP_ROOT/backup.out" 2>&1
+grep -Fx 'shared rules' "$HOME_DIR/.codex/AGENTS.md" >/dev/null
+test "$(cat "$HOME_DIR"/.codex/AGENTS.md.*.bak)" = "hand edit"
 
 echo "agent instruction setup tests passed"

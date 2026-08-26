@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `setup-agent-instructions.sh` now builds `~/.codex/AGENTS.md` as a flattened copy with `rules/` inlined instead of symlinking it, since Codex has no import syntax and will not open a file it is only linked to; Claude Code keeps the symlink and follows the links. Hand-edited Codex copies are backed up before the rebuild, and the Waza English-coaching block moved into `rules/english.md` so it survives every build.
+
 - Split the global `AGENTS.MD` for progressive disclosure: root keeps hard rules only (communication, secrets, push authority, destructive ops, external sends, compatibility) and links to new `rules/git.md`, `rules/github.md`, and `rules/tooling.md`; resolved the "no separate CLAUDE.md" note rule, the CodeGraph/Anvil/rg search precedence, and the `gh pr view` vs `--json` conflicts.
 
 - Registered `nowledge-mem` (nowledge-co/community) in `sources.json` as a dual-plugin source so `update-plugins.sh` refreshes both native marketplaces; `update-agents.sh` now also runs an explicit `pi update --extension npm:nowledge-mem-pi`, since `pi update --extensions` only refreshes git-sourced packages and silently skips npm ones.
