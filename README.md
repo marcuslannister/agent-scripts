@@ -43,10 +43,15 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 Shared hard rules live in `AGENTS.MD`.
 
-Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing shared pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. Claude Code reads `CLAUDE.md`, so setup creates:
-- `~/.codex/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
-- `~/.claude/CLAUDE.md -> ~/Projects/agent-scripts/AGENTS.MD`
-- `~/.claude/AGENTS.md -> ~/Projects/agent-scripts/AGENTS.MD`
+Topic detail lives in `rules/`. `AGENTS.MD` links to it with relative paths, so no machine-specific path appears in a tracked file.
+
+Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale. Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
+
+Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. Claude Code reads `CLAUDE.md`, so setup creates, all relative to this repository's checkout:
+- `~/.claude/CLAUDE.md -> AGENTS.MD`
+- `~/.claude/AGENTS.md -> AGENTS.MD`
+- `~/.codex/AGENTS.md -> AGENTS.codex.md`
+- `~/.claude/rules/<name>.md -> rules/<name>.md`, per file, so unrelated user rules already in that directory survive
 
 Downstream repos should use a pointer-style `AGENTS.MD`:
 
@@ -105,8 +110,13 @@ Topology authoring:
 - Preview upstream/staging drift with `agent-tooling/update-skill-topology.sh --check`; run it to acquire. Regenerate `agent-tooling/skills-matrix.md` to append new skills without changing selections, then preview surfaces offline with `agent-tooling/sync-skill-surfaces.sh --check`. Run `agent-tooling/verify.sh` before commit.
 
 `agent-tooling/setup-agent-instructions.sh`
-- Explicit one-machine setup for the three shared `AGENTS.MD`/`CLAUDE.md` pointers; not part of topology reconciliation or routine updates.
-- Idempotent; preserves real user files and foreign symlinks.
+- Explicit one-machine setup for the shared `AGENTS.MD`/`CLAUDE.md`/`rules` pointers; not part of topology reconciliation or routine updates.
+- Idempotent; preserves real user files and foreign symlinks, including dangling ones.
+- Refuses to run until `AGENTS.codex.md` exists.
+
+`agent-tooling/build-codex-instructions.sh`
+- Regenerates the tracked `AGENTS.codex.md` from `AGENTS.MD` plus `rules/`.
+- `--check` exits non-zero when the artifact is stale; wired into the test suite.
 
 `agent-tooling/validate-skills`
 - Checks every repo-owned `skills/*/SKILL.md` and `codex-skills/*/SKILL.md`.

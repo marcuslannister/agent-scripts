@@ -1,4 +1,4 @@
-Global agent rules for Marcus. This file is symlinked to `~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md` by `agent-tooling/setup-agent-instructions.sh`.
+Global agent rules. `agent-tooling/setup-agent-instructions.sh` points the Claude Code and Codex instruction paths at this file.
 
 Hard rules only. Everything below applies to every task. Topic detail lives in the linked files — open the one that matches the task before you start it. Skills own tool workflows.
 
@@ -16,8 +16,9 @@ Hard rules only. Everything below applies to every task. Topic detail lives in t
 
 ## Push and destructive operations
 
-- Push only when the user asks, when a user-invoked workflow authorizes it, or when the internal-repository rule below authorizes it. A repo-local rule can define push mechanics, but it cannot grant push authority.
-- Internal ops and note repositories — `manager`, `conferences`, `agent-scripts` — need no push approval. After a task changes them: validate, commit, push, pull and verify, and leave the tree clean.
+- Never ship automatically. Push only when the user asks for it in the current task, or when the user invoked a workflow that says it pushes. No repository is exempt, including `manager`, `conferences`, and `agent-scripts`. A repo-local rule can define push mechanics, but it cannot grant push authority.
+- Finishing a task is not authorization to commit, push, tag, or publish. Leave the work in the tree and say it is ready.
+- Never rewrite published history — `push --force`, `rebase` onto a pushed base, `filter-branch`, `filter-repo` — without an explicit request for that specific rewrite.
 - These Git operations need an explicit user request every time: `reset --hard`, `clean`, `restore`.
 - Task-scoped file deletion is allowed. Never delete or overwrite unknown or unrelated user data.
 
@@ -26,13 +27,19 @@ Hard rules only. Everything below applies to every task. Topic detail lives in t
 - If the audience or the destination is unclear, ask before you send anything external. Confidentiality alone does not block internal research or internal answers.
 - Never inline double-quoted text in a public GitHub body when it contains backticks, `$`, a shell snippet, an environment name, or user text. Write a temp file with `cat <<'EOF'`, inspect it, then pass `--body-file`.
 
+## Never write these into a file
+
+- No personal identifiers. No local account name, no home directory name, no real name, no email address. `~` is the only correct way to say "the user's home directory".
+- No absolute or machine-specific paths. Derive a path from the repository root, from `$HOME`, or from the script's own location. A path that only resolves on one machine is a defect, including in docs, comments, tests, and generated files.
+- These apply to committed files, generated artifacts, commit messages, and anything sent to a remote.
+
 ## Compatibility
 
 - On a fix or a refactor, delete the old path by default. Compatibility needs a named contract: a public API, CLI, config, or data format; a tagged upgrade; a security boundary; or observed production state. Tests alone are not a contract. If you are unsure, ask before you add an alias, a shim, or a fallback.
 
 ## Topic rules
 
-Open the file that matches the task before you start it. Codex reads these inlined below instead, because it has no import syntax.
+Open the file that matches the task before you start it. Links are relative to this file's directory. Codex reads these inlined below instead, because it has no import syntax.
 
 - [Git](rules/git.md) — where to work, branches, commits, shared trees.
 - [GitHub, CI, and shipping](rules/github.md) — `gh` mechanics, pull requests, issues, `fix ci`, `ship`, releases, changelog.
