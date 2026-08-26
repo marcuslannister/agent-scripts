@@ -21,15 +21,25 @@ fi
 ensure_pointer() { # path target
   local pointer="$1"
   local want="$2"
-  local target
+  local target link_dir want_rel
 
   mkdir -p "$(dirname "$pointer")"
+  # Relative targets, computed from the physically resolved link directory,
+  # because ~/.claude and ~/.pi are themselves symlinks into other checkouts.
+  # Fall back to the absolute path where realpath cannot compute a relative one.
+  link_dir="$(cd "$(dirname "$pointer")" && pwd -P)"
+  want_rel="$(realpath --relative-to="$link_dir" "$want" 2>/dev/null || printf '%s' "$want")"
+
   # -L before -e: a dangling symlink fails -e but is still user state.
   if [ -L "$pointer" ]; then
     target="$(readlink "$pointer")"
-    # Resolve both: a relative symlink to the same place is ours, not foreign.
+    # Resolve both: a symlink to the same place is ours whatever its spelling.
     # A dangling one never resolves to $want, so it stays preserved.
     if [ "$(readlink -f "$pointer")" = "$(readlink -f "$want")" ]; then
+      [ "$target" = "$want_rel" ] && return 0
+      ln -snf "$want_rel" "$pointer"
+      printf 'normalized %s -> %s\n' "$pointer" "$want_rel"
+      changed=$((changed + 1))
       return 0
     fi
     printf 'warning: preserving foreign symlink: %s -> %s\n' "$pointer" "$target" >&2
@@ -40,8 +50,8 @@ ensure_pointer() { # path target
     return 0
   fi
 
-  ln -s "$want" "$pointer"
-  printf 'linked %s -> %s\n' "$pointer" "$want"
+  ln -s "$want_rel" "$pointer"
+  printf 'linked %s -> %s\n' "$pointer" "$want_rel"
   changed=$((changed + 1))
 }
 

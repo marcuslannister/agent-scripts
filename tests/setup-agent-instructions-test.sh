@@ -60,13 +60,13 @@ fi
 setup > "$TMP_ROOT/first.out" 2> "$TMP_ROOT/first.err"
 test ! -s "$TMP_ROOT/first.err"
 test -L "$HOME_DIR/.claude/CLAUDE.md"
-test "$(readlink "$HOME_DIR/.claude/CLAUDE.md")" = "$FIXTURE/AGENTS.MD"
+test "$(readlink "$HOME_DIR/.claude/CLAUDE.md")" = "../../repo/AGENTS.MD"
 # Setup does not own ~/.claude/AGENTS.md; Claude Code reads CLAUDE.md.
 test ! -e "$HOME_DIR/.claude/AGENTS.md"
-test "$(readlink "$HOME_DIR/.claude/rules")" = "$FIXTURE/rules"
-test "$(readlink "$HOME_DIR/.pi/agent/AGENTS.md")" = "$FIXTURE/AGENTS.MD"
-test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
-grep -F "linked $HOME_DIR/.claude/CLAUDE.md -> $FIXTURE/AGENTS.MD" "$TMP_ROOT/first.out" >/dev/null
+test "$(readlink "$HOME_DIR/.claude/rules")" = "../../repo/rules"
+test "$(readlink "$HOME_DIR/.pi/agent/AGENTS.md")" = "../../../repo/AGENTS.MD"
+test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "../../repo/AGENTS.codex.md"
+grep -F "linked $HOME_DIR/.claude/CLAUDE.md -> ../../repo/AGENTS.MD" "$TMP_ROOT/first.out" >/dev/null
 
 # The Codex pointer is a symlink, so a repository update refreshes it with no
 # separate install step. This is the staleness guard.
@@ -109,7 +109,7 @@ grep -Fx 'topic rules v3' "$HOME_DIR/.claude/rules/topic.md" >/dev/null
 rm -f "$HOME_DIR/.codex/AGENTS.md"
 ln -s "$FIXTURE/AGENTS.MD" "$HOME_DIR/.codex/AGENTS.md"
 setup > "$TMP_ROOT/legacy.out" 2>/dev/null
-test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
+test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "../../repo/AGENTS.codex.md"
 grep -F 'migrated legacy Codex symlink' "$TMP_ROOT/legacy.out" >/dev/null
 
 # A regular file is never deleted, whatever it holds. Even a byte-identical

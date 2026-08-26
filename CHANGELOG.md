@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Instruction pointers are relative symlinks, computed from each pointer's physically resolved directory since `~/.claude`, `~/.codex`, and `~/.pi` are themselves symlinks into other checkouts; an existing pointer that resolves correctly but is spelled absolutely is normalized in place, and the absolute form remains the fallback where `realpath --relative-to` is unavailable.
+
 - Setup points Pi at `AGENTS.MD` through `~/.pi/agent/AGENTS.md`. Pi 0.84.2 resolves and opens the `~/.claude/rules` links, verified against a live run, so it gets the split root rather than the inlined Codex build; `agent/*` is already ignored in `pi-settings`, so the pointer needs no change there.
 
 - Adopted ADR-0010: Codex reads a tracked, inlined instruction artifact because it has no import syntax, extending ADR-0002's explicit-invocation rule for instruction pointers with one installer-owned predecessor migration; `CONTEXT.md` gains the instruction pointer vocabulary.
