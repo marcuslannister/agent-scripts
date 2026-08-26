@@ -43,7 +43,7 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 Shared hard rules live in `AGENTS.MD`.
 
-Topic detail lives in `rules/`. `AGENTS.MD` links to it with relative paths, so no machine-specific path appears in a tracked file.
+Topic detail lives in `rules/`. `AGENTS.MD` links to it as `~/.claude/rules/<name>.md`: home-relative, so no machine-specific path appears in a tracked file and the links still resolve when the agent runs in some other project. A repo-relative link would resolve against the agent's cwd and break everywhere except this checkout; the test suite rejects one.
 
 Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale. Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
 

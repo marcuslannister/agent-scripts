@@ -89,6 +89,28 @@ grep -F "preserving foreign symlink: $HOME_DIR/.codex/AGENTS.md" "$TMP_ROOT/dang
 # The tracked artifact in this repository must match its sources.
 "$REPO_ROOT/agent-tooling/build-codex-instructions.sh" --check >/dev/null
 
+# Every topic link must be home-relative. A repo-relative link resolves against
+# the agent's cwd, so it silently breaks in every project except this one.
+links="$(rg -o --replace '$1' '^- \[[^]]+\]\(([^)]+)\)' "$REPO_ROOT/AGENTS.MD")"
+test -n "$links"
+while read -r link; do
+  # shellcheck disable=SC2088  # matching the literal ~ in the link, not expanding it
+  case "$link" in
+    '~/.claude/rules/'*) ;;
+    *) echo "topic link is not home-relative: $link" >&2; exit 1 ;;
+  esac
+done <<< "$links"
+
+# The links must resolve from a cwd outside this repository, which is where an
+# agent almost always runs. Resolve them against the fixture HOME.
+mkdir -p "$TMP_ROOT/elsewhere"
+(
+  cd "$TMP_ROOT/elsewhere"
+  test ! -e rules/topic.md
+  test -r "$HOME_DIR/.claude/rules/topic.md"
+  grep -Fx 'topic rules v3' "$HOME_DIR/.claude/rules/topic.md" >/dev/null
+)
+
 # No committed instruction file may carry a personal identifier or a
 # machine-specific path. Plain `!` would skip errexit and never fail (SC2251).
 if rg -n '/Users/|/home/[a-z]' "$REPO_ROOT/AGENTS.MD" "$REPO_ROOT/AGENTS.codex.md" "$REPO_ROOT"/rules/*.md; then
