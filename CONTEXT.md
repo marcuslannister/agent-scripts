@@ -21,7 +21,7 @@ _Avoid_: automatic mirror, default copy
 ### Instruction pointers
 
 **Instruction pointer**:
-A path each agent CLI reads its global rules from, created by `setup-agent-instructions.sh` only when explicitly invoked. Setup state, not distribution policy (ADR-0002/0010): the routine updater never creates or refreshes one. Claude Code reads `~/.claude/CLAUDE.md` plus `~/.claude/rules`; Codex reads `~/.codex/AGENTS.md`.
+A path each agent CLI reads its global rules from, created by `setup-agent-instructions.sh` only when explicitly invoked. Setup state, not distribution policy (ADR-0002/0010): the routine updater never creates or refreshes one. Claude Code reads `~/.claude/CLAUDE.md` plus `~/.claude/rules`; Pi reads `~/.pi/agent/AGENTS.md`; Codex reads `~/.codex/AGENTS.md`.
 _Avoid_: instruction symlink, global config, agent surface
 
 **Topic rules**:

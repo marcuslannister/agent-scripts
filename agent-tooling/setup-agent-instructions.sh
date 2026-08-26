@@ -59,6 +59,9 @@ fi
 
 ensure_pointer "$HOME/.claude/CLAUDE.md" "$AGENTS_MD"
 ensure_pointer "$CODEX_POINTER" "$CODEX_MD"
+# Pi resolves and opens the ~/.claude/rules links, verified against pi 0.84.2,
+# so it reads the root file like Claude Code rather than the inlined build.
+ensure_pointer "$HOME/.pi/agent/AGENTS.md" "$AGENTS_MD"
 # Makes the ~/.claude/rules/*.md links in AGENTS.MD resolve from any cwd.
 ensure_pointer "$HOME/.claude/rules" "$RULES_DIR"
 

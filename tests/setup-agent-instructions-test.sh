@@ -64,6 +64,7 @@ test "$(readlink "$HOME_DIR/.claude/CLAUDE.md")" = "$FIXTURE/AGENTS.MD"
 # Setup does not own ~/.claude/AGENTS.md; Claude Code reads CLAUDE.md.
 test ! -e "$HOME_DIR/.claude/AGENTS.md"
 test "$(readlink "$HOME_DIR/.claude/rules")" = "$FIXTURE/rules"
+test "$(readlink "$HOME_DIR/.pi/agent/AGENTS.md")" = "$FIXTURE/AGENTS.MD"
 test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
 grep -F "linked $HOME_DIR/.claude/CLAUDE.md -> $FIXTURE/AGENTS.MD" "$TMP_ROOT/first.out" >/dev/null
 

@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Setup points Pi at `AGENTS.MD` through `~/.pi/agent/AGENTS.md`. Pi 0.84.2 resolves and opens the `~/.claude/rules` links, verified against a live run, so it gets the split root rather than the inlined Codex build; `agent/*` is already ignored in `pi-settings`, so the pointer needs no change there.
+
 - Adopted ADR-0010: Codex reads a tracked, inlined instruction artifact because it has no import syntax, extending ADR-0002's explicit-invocation rule for instruction pointers with one installer-owned predecessor migration; `CONTEXT.md` gains the instruction pointer vocabulary.
 
 - Setup no longer creates `~/.claude/AGENTS.md`. It duplicated `~/.claude/CLAUDE.md`, which is the file Claude Code actually reads, and nothing recorded a reason for it; the fleet audit and schema drop it too, and the Codex pointer there now expects the generated `AGENTS.codex.md` rather than `AGENTS.MD`.
