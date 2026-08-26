@@ -45,11 +45,14 @@ ensure_pointer() { # path target
   changed=$((changed + 1))
 }
 
-# Earlier setups owned ~/.codex/AGENTS.md in two other shapes: a symlink to
-# AGENTS.MD, and a generated regular file. Both are ours, so ensure_pointer
-# would wrongly preserve them as user state and leave Codex on stale or
-# link-only rules. Clear the ones we can prove we wrote; back up before any
-# delete, and leave anything unrecognized alone.
+# An earlier setup symlinked ~/.codex/AGENTS.md to AGENTS.MD. That is
+# installer-owned, and resolving the target proves it, so replace it. Since the
+# split, AGENTS.MD is only a link list and Codex cannot follow links, so leaving
+# it costs Codex nearly every rule.
+#
+# A regular file is never touched: the short-lived generated one carried no
+# marker, so nothing distinguishes it from a file you wrote. Report and let the
+# operator decide.
 migrate_codex_pointer() {
   local pointer="$HOME/.codex/AGENTS.md"
 
@@ -63,19 +66,8 @@ migrate_codex_pointer() {
   fi
   [ -f "$pointer" ] || return 0
 
-  case "$(head -n 1 "$pointer")" in
-    *'build-codex-instructions.sh'* | 'Global agent rules'*) ;;
-    *)
-      printf 'warning: %s is not a recognized generated file; Codex may be reading stale rules\n' "$pointer" >&2
-      printf 'hint: remove it and rerun to point Codex at %s\n' "$CODEX_MD" >&2
-      return 0
-      ;;
-  esac
-
-  cp "$pointer" "$pointer.$(date +%Y%m%d%H%M%S).bak"
-  rm "$pointer"
-  printf 'migrated generated Codex file (backup kept)\n'
-  changed=$((changed + 1))
+  printf 'warning: %s is a regular file; Codex may be reading stale rules\n' "$pointer" >&2
+  printf 'hint: remove it and rerun to point Codex at %s\n' "$CODEX_MD" >&2
 }
 
 migrate_codex_pointer

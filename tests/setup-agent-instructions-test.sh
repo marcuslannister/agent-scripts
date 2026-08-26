@@ -95,17 +95,16 @@ setup > "$TMP_ROOT/legacy.out" 2>/dev/null
 test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
 grep -F 'migrated legacy Codex symlink' "$TMP_ROOT/legacy.out" >/dev/null
 
-# Predecessor 2: the short-lived generated regular file. Also ours; backed up.
+# A regular file is never deleted, whatever it holds. Even a byte-identical
+# copy of the generated file stays put, because nothing proves we wrote it.
 rm -f "$HOME_DIR/.codex/AGENTS.md"
 cp "$FIXTURE/AGENTS.codex.md" "$HOME_DIR/.codex/AGENTS.md"
-setup > "$TMP_ROOT/legacyfile.out" 2>/dev/null
-test -L "$HOME_DIR/.codex/AGENTS.md"
-test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
-grep -F 'migrated generated Codex file' "$TMP_ROOT/legacyfile.out" >/dev/null
-test -n "$(echo "$HOME_DIR"/.codex/AGENTS.md.*.bak)"
+setup > /dev/null 2> "$TMP_ROOT/regular.err"
+test ! -L "$HOME_DIR/.codex/AGENTS.md"
+cmp -s "$HOME_DIR/.codex/AGENTS.md" "$FIXTURE/AGENTS.codex.md"
+grep -F 'may be reading stale rules' "$TMP_ROOT/regular.err" >/dev/null
+test "$(find "$HOME_DIR/.codex" -name 'AGENTS.md.*.bak' | wc -l)" -eq 0
 
-# An unrecognized regular file is never deleted, only reported.
-rm -f "$HOME_DIR/.codex/AGENTS.md" "$HOME_DIR"/.codex/AGENTS.md.*.bak
 printf 'my own codex rules\n' > "$HOME_DIR/.codex/AGENTS.md"
 setup > /dev/null 2> "$TMP_ROOT/unknown.err"
 test "$(cat "$HOME_DIR/.codex/AGENTS.md")" = "my own codex rules"
