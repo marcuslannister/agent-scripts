@@ -45,7 +45,7 @@ Shared hard rules live in `AGENTS.MD`.
 
 Topic detail lives in `rules/`. `AGENTS.MD` links to it as `~/.claude/rules/<name>.md`: home-relative, so no machine-specific path appears in a tracked file and the links still resolve when the agent runs in some other project. A repo-relative link would resolve against the agent's cwd and break everywhere except this checkout; the test suite rejects one.
 
-Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale. Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
+Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale (ADR-0010). Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
 
 Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. A pointer that already resolves to the right place counts as correct, so a relative symlink you made yourself is left alone without a warning. Claude Code reads `CLAUDE.md`, so setup creates, all relative to this repository's checkout:
 - `~/.claude/CLAUDE.md -> AGENTS.MD`

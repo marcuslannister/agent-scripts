@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Adopted ADR-0010: Codex reads a tracked, inlined instruction artifact because it has no import syntax, extending ADR-0002's explicit-invocation rule for instruction pointers with one installer-owned predecessor migration; `CONTEXT.md` gains the instruction pointer vocabulary.
+
 - Setup no longer creates `~/.claude/AGENTS.md`. It duplicated `~/.claude/CLAUDE.md`, which is the file Claude Code actually reads, and nothing recorded a reason for it; the fleet audit and schema drop it too, and the Codex pointer there now expects the generated `AGENTS.codex.md` rather than `AGENTS.MD`.
 
 - Global rules now forbid automatic shipping, personal identifiers, and machine-specific paths: push needs a per-task ask with no repository exempt, finishing a task authorizes nothing, published history is never rewritten unasked, and no tracked or generated file may carry a local account name or an absolute path.
