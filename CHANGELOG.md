@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Setup no longer creates `~/.claude/AGENTS.md`. It duplicated `~/.claude/CLAUDE.md`, which is the file Claude Code actually reads, and nothing recorded a reason for it; the fleet audit and schema drop it too, and the Codex pointer there now expects the generated `AGENTS.codex.md` rather than `AGENTS.MD`.
+
 - Global rules now forbid automatic shipping, personal identifiers, and machine-specific paths: push needs a per-task ask with no repository exempt, finishing a task authorizes nothing, published history is never rewritten unasked, and no tracked or generated file may carry a local account name or an absolute path.
 
 - `AGENTS.MD` links its topic rules as `~/.claude/rules/<name>.md`. The repo-relative form resolved against the agent's cwd, so the links were dead in every project that has no `rules/` directory of its own; the test suite now rejects a non-home-relative link and checks that the links resolve from a cwd outside this checkout. Setup links `~/.claude/rules` as one directory symlink rather than per file, and treats a pointer that already resolves to the right target as correct, so a relative symlink is no longer reported as foreign on every run. Setup also migrates the installer-owned predecessor of `~/.codex/AGENTS.md`, a symlink to `AGENTS.MD`, which it previously mistook for user state and which since the split leaves Codex with only a link list it cannot follow. A regular file at that path is never touched, only reported: nothing distinguishes the short-lived generated one from a file the operator wrote.

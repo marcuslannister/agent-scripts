@@ -59,10 +59,10 @@ fi
 
 setup > "$TMP_ROOT/first.out" 2> "$TMP_ROOT/first.err"
 test ! -s "$TMP_ROOT/first.err"
-for pointer in "$HOME_DIR/.claude/CLAUDE.md" "$HOME_DIR/.claude/AGENTS.md"; do
-  test -L "$pointer"
-  test "$(readlink "$pointer")" = "$FIXTURE/AGENTS.MD"
-done
+test -L "$HOME_DIR/.claude/CLAUDE.md"
+test "$(readlink "$HOME_DIR/.claude/CLAUDE.md")" = "$FIXTURE/AGENTS.MD"
+# Setup does not own ~/.claude/AGENTS.md; Claude Code reads CLAUDE.md.
+test ! -e "$HOME_DIR/.claude/AGENTS.md"
 test "$(readlink "$HOME_DIR/.claude/rules")" = "$FIXTURE/rules"
 test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$FIXTURE/AGENTS.codex.md"
 grep -F "linked $HOME_DIR/.claude/CLAUDE.md -> $FIXTURE/AGENTS.MD" "$TMP_ROOT/first.out" >/dev/null
@@ -80,17 +80,14 @@ grep -Fx 'instruction pointers up to date' "$TMP_ROOT/second.out" >/dev/null
 # Real files and foreign symlinks are user-owned. Preserve both, on every
 # pointer including the Codex one. A missing owned path stays independently
 # repairable.
-rm "$HOME_DIR/.claude/CLAUDE.md" "$HOME_DIR/.claude/AGENTS.md" "$HOME_DIR/.codex/AGENTS.md"
+rm "$HOME_DIR/.claude/CLAUDE.md" "$HOME_DIR/.codex/AGENTS.md"
 printf 'user rules\n' > "$HOME_DIR/.claude/CLAUDE.md"
-ln -s "$HOME_DIR/custom-agents.md" "$HOME_DIR/.claude/AGENTS.md"
 ln -s "$HOME_DIR/custom-codex.md" "$HOME_DIR/.codex/AGENTS.md"
 printf 'user codex rules\n' > "$HOME_DIR/custom-codex.md"
 setup > "$TMP_ROOT/preserve.out" 2> "$TMP_ROOT/preserve.err"
 test "$(cat "$HOME_DIR/.claude/CLAUDE.md")" = "user rules"
-test "$(readlink "$HOME_DIR/.claude/AGENTS.md")" = "$HOME_DIR/custom-agents.md"
 test "$(readlink "$HOME_DIR/.codex/AGENTS.md")" = "$HOME_DIR/custom-codex.md"
 grep -F "preserving real file: $HOME_DIR/.claude/CLAUDE.md" "$TMP_ROOT/preserve.err" >/dev/null
-grep -F "preserving foreign symlink: $HOME_DIR/.claude/AGENTS.md" "$TMP_ROOT/preserve.err" >/dev/null
 grep -F "preserving foreign symlink: $HOME_DIR/.codex/AGENTS.md" "$TMP_ROOT/preserve.err" >/dev/null
 
 # A relative symlink to the same place is ours, not foreign: no warning, no churn.

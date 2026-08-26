@@ -58,7 +58,6 @@ elif [ -f "$CODEX_POINTER" ] && [ ! -L "$CODEX_POINTER" ]; then
 fi
 
 ensure_pointer "$HOME/.claude/CLAUDE.md" "$AGENTS_MD"
-ensure_pointer "$HOME/.claude/AGENTS.md" "$AGENTS_MD"
 ensure_pointer "$CODEX_POINTER" "$CODEX_MD"
 # Makes the ~/.claude/rules/*.md links in AGENTS.MD resolve from any cwd.
 ensure_pointer "$HOME/.claude/rules" "$RULES_DIR"

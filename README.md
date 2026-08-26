@@ -49,7 +49,6 @@ Codex has no import syntax and does not reliably open a file it is only linked t
 
 Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. A pointer that already resolves to the right place counts as correct, so a relative symlink you made yourself is left alone without a warning. Claude Code reads `CLAUDE.md`, so setup creates, all relative to this repository's checkout:
 - `~/.claude/CLAUDE.md -> AGENTS.MD`
-- `~/.claude/AGENTS.md -> AGENTS.MD`
 - `~/.codex/AGENTS.md -> AGENTS.codex.md`
 - `~/.claude/rules -> rules`, one directory symlink, so the `~/.claude/rules/*.md` links resolve from any cwd
 

@@ -6,6 +6,7 @@ manager_skills="$HOME/Projects/manager/skills"
 codex_root="$HOME/.codex/skills"
 claude_root="$HOME/.claude/skills"
 agents_md="$HOME/Projects/agent-scripts/AGENTS.MD"
+codex_md="$HOME/Projects/agent-scripts/AGENTS.codex.md"
 repair=${1:-}
 failures=0
 
@@ -47,9 +48,8 @@ check_link() {
 
 check_link "$agent_skills" "$codex_root/agent-scripts"
 check_link "$manager_skills" "$codex_root/manager"
-check_link "$agents_md" "$HOME/.codex/AGENTS.md"
+check_link "$codex_md" "$HOME/.codex/AGENTS.md"
 check_link "$agents_md" "$HOME/.claude/CLAUDE.md"
-check_link "$agents_md" "$HOME/.claude/AGENTS.md"
 
 if [ -L "$claude_root" ] || [ ! -d "$claude_root" ]; then
   printf 'skill-links-drift\tpath=%s\texpected=real-directory\n' "$claude_root"

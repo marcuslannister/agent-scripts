@@ -40,7 +40,7 @@ Every fleet Mac must have:
 - `~/.codex/skills/agent-scripts -> ~/Projects/agent-scripts/skills`
 - `~/.codex/skills/manager -> ~/Projects/manager/skills`
 - a real `~/.claude/skills` directory containing flat per-skill links, with agent-scripts winning name collisions
-- `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, and `~/.claude/AGENTS.md` pointing to `~/Projects/agent-scripts/AGENTS.MD`
+- `~/.claude/CLAUDE.md` pointing to `~/Projects/agent-scripts/AGENTS.MD`, and `~/.codex/AGENTS.md` pointing to the generated `~/Projects/agent-scripts/AGENTS.codex.md`
 
 Run `scripts/agent-skill-links-audit.sh` read-only. Run it with `--repair` to invoke the canonical idempotent `~/Projects/agent-scripts/scripts/sync-skills`; never replace a conflicting real instruction file automatically.
 
