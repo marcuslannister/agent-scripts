@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 3b3fad9, khazix 7a5c493, matt 6654f6b picking up `retro`, nicobailon df35d97).
+
 - Instruction pointers are relative symlinks, computed from each pointer's physically resolved directory since `~/.claude`, `~/.codex`, and `~/.pi` are themselves symlinks into other checkouts; an existing pointer that resolves correctly but is spelled absolutely is normalized in place, and the absolute form remains the fallback where `realpath --relative-to` is unavailable.
 
 - Setup points Pi at `AGENTS.MD` through `~/.pi/agent/AGENTS.md`. Pi 0.84.2 resolves and opens the `~/.claude/rules` links, verified against a live run, so it gets the split root rather than the inlined Codex build; `agent/*` is already ignored in `pi-settings`, so the pointer needs no change there.
