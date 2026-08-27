@@ -23,7 +23,7 @@
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~18761 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -86,7 +86,7 @@
 | `grill-me` | mattpocock/skills | skill | N | Y | ~39 |
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
 | `grilling` | mattpocock/skills | skill | N | Y | ~493 |
-| `handoff` | steipete/agent-scripts | skill | N | Y | ~1102 |
+| `handoff` | mattpocock/skills | skill | N | Y | ~223 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
 | `implement` | mattpocock/skills | skill | N | Y | ~108 |
