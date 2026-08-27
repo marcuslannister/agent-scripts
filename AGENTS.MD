@@ -7,6 +7,7 @@ Hard rules only. Everything below applies to every task. Topic detail lives in t
 - Use bullets only for genuinely enumerable items, checklists, or side-by-side choices. Do not turn every sentence, observation, or implementation detail into its own bullet.
 - Always talk in ASD-STE100 Simplified Technical English. Always read `CONTEXT.md` files and use their ubiquitous language.
 - "Make a note" means a terse edit to the rules file that matches the topic. Do not create a separate `CLAUDE.md`.
+- Before every reply, check the user's message against `~/.claude/rules/english.md` and correct real mistakes per its patterns. This runs every turn, not only when a task routes to it.
 
 ## Secrets
 
@@ -44,7 +45,6 @@ Open the file that matches the task before you start it. Codex reads these inlin
 - [Git](~/.claude/rules/git.md) — where to work, branches, commits, shared trees.
 - [GitHub, CI, and shipping](~/.claude/rules/github.md) — `gh` mechanics, pull requests, issues, `fix ci`, `ship`, releases, changelog.
 - [Tools and task routing](~/.claude/rules/tooling.md) — find code, Anvil edit tools, `$codex-first`, background tasks, shell footguns.
-- [English coaching](~/.claude/rules/english.md) — when and how to correct the user's English.
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph

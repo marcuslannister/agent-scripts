@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- English coaching ran only when a task happened to route to `rules/english.md`, so it was easy to skip; the Communication section now inlines an always-on trigger to check every reply against it, and the redundant Topic rules link is dropped.
+
 - Fixed stale Anvil MCP tool names in `rules/tooling.md`: file-edit tools now use the actual `mcp__anvil-emacs-eval__*` names, and heavy elisp ops route through `mcp__anvil__emacs-eval-async` instead of the nonexistent `anvil-worker-call`.
 
 - Refreshed staged third-party skills (anthropics 3b3fad9, humanlayer 3c26291, khazix 7a5c493, matt 6654f6b, nicobailon df35d97) and regenerated the selection-preserving skills matrix.
