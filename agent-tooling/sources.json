@@ -30,7 +30,7 @@
       "id": "humanlayer-skills",
       "classification": "npx-only",
       "repo": "humanlayer/skills",
-      "subroot": "plugins/improve-claude-md/skills",
+      "subroot": "plugins",
       "staging": "humanlayer",
       "discovery": "recursive"
     },

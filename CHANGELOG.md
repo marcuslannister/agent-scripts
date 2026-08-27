@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Broadened the `humanlayer-skills` source's subroot from `plugins/improve-claude-md/skills` to `plugins`, so staging mirrors the repo's whole plugin tree instead of one plugin; picked up `build-iterated-agentic-loop`, `design-control-loop`, and `narrow-react-prop-types` alongside `improve-claude-md`, and selected `show-me` (`Y`/`Y`) so it installs on both Claude and Codex.
+
 - Refreshed staged third-party skills (anthropics 3b3fad9, khazix 7a5c493, matt 6654f6b picking up `retro`, nicobailon df35d97).
 
 - Instruction pointers are relative symlinks, computed from each pointer's physically resolved directory since `~/.claude`, `~/.codex`, and `~/.pi` are themselves symlinks into other checkouts; an existing pointer that resolves correctly but is spelled absolutely is normalized in place, and the absolute form remains the fallback where `realpath --relative-to` is unavailable.

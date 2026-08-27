@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 17 | 52 |
-| Shared | 16 | 16 |
+| Total | 18 | 53 |
+| Shared | 17 | 17 |
 | Agent-only | 1 | 36 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -14,13 +14,16 @@
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2850 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~8178 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
+| `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
 | `browser-use` | steipete/agent-scripts | skill | N | N | ~3137 |
+| `build-iterated-agentic-loop` | humanlayer/skills | skill | N | N | ~3388 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~18761 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -53,7 +56,9 @@
 | `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | N | N | ~432 |
 | `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | N | N | ~911 |
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
+| `crabbox` | steipete/agent-scripts | skill | N | N | ~2980 |
 | `create-cli` | steipete/agent-scripts | skill | Y | Y | ~834 |
+| `design-control-loop` | humanlayer/skills | skill | N | N | ~3850 |
 | `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2131 |
 | `discernment-nudge` | anthropics/skills | skill | N | N | ~2623 |
 | `discord-clawd` | steipete/agent-scripts | skill | N | N | ~271 |
@@ -81,7 +86,7 @@
 | `grill-me` | mattpocock/skills | skill | N | Y | ~39 |
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
 | `grilling` | mattpocock/skills | skill | N | Y | ~493 |
-| `handoff` | mattpocock/skills | skill | N | Y | ~223 |
+| `handoff` | steipete/agent-scripts | skill | N | Y | ~1102 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
 | `implement` | mattpocock/skills | skill | N | Y | ~108 |
@@ -142,11 +147,12 @@
 | `mcp-builder` | anthropics/skills | skill | N | N | ~2264 |
 | `migrate-to-shoehorn` | mattpocock/skills | skill | N | Y | ~697 |
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
+| `narrow-react-prop-types` | humanlayer/skills | skill | N | N | ~1941 |
 | `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
 | `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1903 |
 | `notcrawl` | steipete/agent-scripts | skill | N | N | ~271 |
 | `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~683 |
-| `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1010 |
+| `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |
 | `nowledge-mem:search-memory` | nowledge-community | plugin | N | N | ~789 |
 | `npm` | steipete/agent-scripts | skill | N | N | ~942 |
@@ -174,10 +180,13 @@
 | `remote-mac` | steipete/agent-scripts | skill | N | N | ~2807 |
 | `research` | mattpocock/skills | skill | N | Y | ~198 |
 | `resolving-merge-conflicts` | mattpocock/skills | skill | N | Y | ~229 |
+| `retro` | mattpocock/skills | skill | N | N | ~847 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
+| `session-viewer` | steipete/agent-scripts | skill | N | N | ~749 |
 | `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1710 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
+| `show-me` | humanlayer/skills | skill | Y | Y | ~808 |
 | `skill-cleaner` | steipete/agent-scripts | skill | N | N | ~1045 |
 | `skill-creator` | anthropics/claude-plugins-official | plugin | N | N | ~8246 |
 | `skill-creator` | anthropics/skills | skill | N | N | ~8246 |
@@ -186,20 +195,20 @@
 | `speaking` | steipete/agent-scripts | skill | N | N | ~1203 |
 | `ssh-doctor` | steipete/agent-scripts | skill | N | N | ~1221 |
 | `storage-analyzer` | KKKKhazix/khazix-skills | skill | N | N | ~1397 |
-| `superpowers:brainstorming` | anthropics/claude-plugins-official | plugin | N | N | ~2650 |
-| `superpowers:dispatching-parallel-agents` | anthropics/claude-plugins-official | plugin | N | N | ~1604 |
-| `superpowers:executing-plans` | anthropics/claude-plugins-official | plugin | N | N | ~617 |
-| `superpowers:finishing-a-development-branch` | anthropics/claude-plugins-official | plugin | N | N | ~1761 |
-| `superpowers:receiving-code-review` | anthropics/claude-plugins-official | plugin | N | N | ~1569 |
-| `superpowers:requesting-code-review` | anthropics/claude-plugins-official | plugin | N | N | ~702 |
-| `superpowers:subagent-driven-development` | anthropics/claude-plugins-official | plugin | N | N | ~3132 |
-| `superpowers:systematic-debugging` | anthropics/claude-plugins-official | plugin | N | N | ~2465 |
-| `superpowers:test-driven-development` | anthropics/claude-plugins-official | plugin | N | N | ~2464 |
-| `superpowers:using-git-worktrees` | anthropics/claude-plugins-official | plugin | N | N | ~1994 |
-| `superpowers:using-superpowers` | anthropics/claude-plugins-official | plugin | N | N | ~1351 |
-| `superpowers:verification-before-completion` | anthropics/claude-plugins-official | plugin | N | N | ~1037 |
-| `superpowers:writing-plans` | anthropics/claude-plugins-official | plugin | N | N | ~1522 |
-| `superpowers:writing-skills` | anthropics/claude-plugins-official | plugin | N | N | ~5634 |
+| `superpowers:brainstorming` | anthropics/claude-plugins-official | plugin | N | N | ~3840 |
+| `superpowers:dispatching-parallel-agents` | anthropics/claude-plugins-official | plugin | N | N | ~1513 |
+| `superpowers:executing-plans` | anthropics/claude-plugins-official | plugin | N | N | ~576 |
+| `superpowers:finishing-a-development-branch` | anthropics/claude-plugins-official | plugin | N | N | ~1932 |
+| `superpowers:receiving-code-review` | anthropics/claude-plugins-official | plugin | N | N | ~1541 |
+| `superpowers:requesting-code-review` | anthropics/claude-plugins-official | plugin | N | N | ~738 |
+| `superpowers:subagent-driven-development` | anthropics/claude-plugins-official | plugin | N | N | ~8030 |
+| `superpowers:systematic-debugging` | anthropics/claude-plugins-official | plugin | N | N | ~2360 |
+| `superpowers:test-driven-development` | anthropics/claude-plugins-official | plugin | N | N | ~2249 |
+| `superpowers:using-git-worktrees` | anthropics/claude-plugins-official | plugin | N | N | ~1700 |
+| `superpowers:using-superpowers` | anthropics/claude-plugins-official | plugin | N | N | ~774 |
+| `superpowers:verification-before-completion` | anthropics/claude-plugins-official | plugin | N | N | ~899 |
+| `superpowers:writing-plans` | anthropics/claude-plugins-official | plugin | N | N | ~1757 |
+| `superpowers:writing-skills` | anthropics/claude-plugins-official | plugin | N | N | ~6565 |
 | `swift-concurrency-expert` | steipete/agent-scripts | skill | N | N | ~419 |
 | `swiftui-liquid-glass` | steipete/agent-scripts | skill | N | N | ~913 |
 | `swiftui-performance-audit` | steipete/agent-scripts | skill | N | N | ~1317 |
@@ -241,7 +250,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=232 both=16 claude_only=1 codex_only=36 total_claude=17 total_codex=52 -->
+<!-- total=241 both=17 claude_only=1 codex_only=36 total_claude=18 total_codex=53 -->
 
 ## Enable-state
 
@@ -251,8 +260,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 0 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 8 | 44 |
-| Total | 17 | 52 |
+| Always-on | 9 | 45 |
+| Total | 18 | 53 |
 
 ## Repos
 
