@@ -14,12 +14,12 @@ Prefer modern CLI tools: `rg` > `grep`, `fd` > `find`, `sd` > `sed`, `eza` > `ls
 
 Anvil tools ship only the delta, batch edits in one round trip, and avoid full-file reads.
 
-- `anvil-file-batch` — 3 or more edits to the same file. Always use it. Never send three separate calls for one logical edit.
-- `anvil-file-replace-string` / `anvil-file-replace-regexp` — pinpoint replacement, no full-file read needed.
-- `anvil-file-insert-at-line` / `anvil-file-delete-lines` / `anvil-file-append` — line-level operations.
+- `mcp__anvil-emacs-eval__file-batch` — 3 or more edits to the same file. Always use it. Never send three separate calls for one logical edit.
+- `mcp__anvil-emacs-eval__file-replace-string` / `mcp__anvil-emacs-eval__file-replace-regexp` — pinpoint replacement, no full-file read needed.
+- `mcp__anvil-emacs-eval__file-insert-at-line` / `mcp__anvil-emacs-eval__file-delete-lines` / `mcp__anvil-emacs-eval__file-append` — line-level operations.
 - Built-in `Edit` — small one-off changes only.
 
-Course-correct mid-task if you notice repeated full-file reads of the same file, the same elisp pattern written twice, or a heavy elisp operation blocking the session. Route heavy operations through `anvil-worker-call` / `mcp__anvil-worker__eval`.
+Course-correct mid-task if you notice repeated full-file reads of the same file, the same elisp pattern written twice, or a heavy elisp operation blocking the session. Route heavy operations through `mcp__anvil__emacs-eval-async` (poll with `mcp__anvil__emacs-eval-jobs` / `mcp__anvil__emacs-eval-result`).
 
 Anvil's `org` module is disabled (see `~/.emacs.d/lisp/init-local-ai.el`). It raced with interactive Emacs buffers and caused Syncthing sync-conflict storms. Edit org files directly with Read/Edit or the built-in org tools, never with Anvil org MCP tools.
 
