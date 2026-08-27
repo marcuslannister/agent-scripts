@@ -2,42 +2,7 @@
 
 Global agent rules. `agent-tooling/setup-agent-instructions.sh` points the Claude Code and Codex instruction paths at this file.
 
-Hard rules only. Everything below applies to every task. Topic detail lives in the linked files — open the one that matches the task before you start it. Skills own tool workflows.
-
-## Communication
-
-- Use bullets only for genuinely enumerable items, checklists, or side-by-side choices. Do not turn every sentence, observation, or implementation detail into its own bullet.
-- Always talk in ASD-STE100 Simplified Technical English. Always read `CONTEXT.md` files and use their ubiquitous language.
-- "Make a note" means a terse edit to the rules file that matches the topic. Do not create a separate `CLAUDE.md`.
-
-## Secrets
-
-- Never reveal a secret value, not even an internal one. Use the approved secret tools and redact the output.
-- Never run `env`, `set`, `export -p`, or a broad secret regex dump in a normal shell. Query the exact name only.
-- After you handle a secret or an environment variable, unset the token environment before a public `gh` write: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
-
-## Push and destructive operations
-
-- Never ship automatically. Push only when the user asks for it in the current task, or when the user invoked a workflow that says it pushes. No repository is exempt, including `manager`, `conferences`, and `agent-scripts`. A repo-local rule can define push mechanics, but it cannot grant push authority.
-- Finishing a task is not authorization to commit, push, tag, or publish. Leave the work in the tree and say it is ready.
-- Never rewrite published history — `push --force`, `rebase` onto a pushed base, `filter-branch`, `filter-repo` — without an explicit request for that specific rewrite.
-- These Git operations need an explicit user request every time: `reset --hard`, `clean`, `restore`.
-- Task-scoped file deletion is allowed. Never delete or overwrite unknown or unrelated user data.
-
-## Sending things outward
-
-- If the audience or the destination is unclear, ask before you send anything external. Confidentiality alone does not block internal research or internal answers.
-- Never inline double-quoted text in a public GitHub body when it contains backticks, `$`, a shell snippet, an environment name, or user text. Write a temp file with `cat <<'EOF'`, inspect it, then pass `--body-file`.
-
-## Never write these into a file
-
-- No personal identifiers. No local account name, no home directory name, no real name, no email address. `~` is the only correct way to say "the user's home directory".
-- No absolute or machine-specific paths. Derive a path from the repository root, from `$HOME`, or from the script's own location. A path that only resolves on one machine is a defect, including in docs, comments, tests, and generated files.
-- These apply to committed files, generated artifacts, commit messages, and anything sent to a remote.
-
-## Compatibility
-
-- On a fix or a refactor, delete the old path by default. Compatibility needs a named contract: a public API, CLI, config, or data format; a tagged upgrade; a security boundary; or observed production state. Tests alone are not a contract. If you are unsure, ask before you add an alias, a shim, or a fallback.
+Hard rules only. Topic detail lives in the linked files. Skills own tool workflows.
 
 ## Topic rules
 
@@ -46,7 +11,50 @@ Open the file that matches the task before you start it. Codex reads these inlin
 - [Git](~/.claude/rules/git.md) — where to work, branches, commits, shared trees.
 - [GitHub, CI, and shipping](~/.claude/rules/github.md) — `gh` mechanics, pull requests, issues, `fix ci`, `ship`, releases, changelog.
 - [Tools and task routing](~/.claude/rules/tooling.md) — find code, Anvil edit tools, `$codex-first`, background tasks, shell footguns.
-- [English coaching](~/.claude/rules/english.md) — when and how to correct the user's English.
+
+## Communication
+
+Applies to every reply.
+
+- Talk in ASD-STE100 Simplified Technical English. Read `CONTEXT.md` files and use their ubiquitous language.
+- Check the user's message against `~/.claude/rules/english.md` and correct real mistakes per its patterns.
+- Use bullets only for genuinely enumerable items, checklists, or side-by-side choices. Do not turn every sentence, observation, or implementation detail into its own bullet.
+
+<important if="the user says 'make a note' or asks you to record a rule">
+Make a terse edit to the rules file that matches the topic. Do not create a separate `CLAUDE.md`.
+</important>
+
+<important if="you are about to commit, push, tag, publish, release, or run reset/clean/restore/force-push/rebase/filter-repo">
+
+- Never ship automatically. Push only when the user asks for it in the current task, or when the user invoked a workflow that says it pushes. No repository is exempt, including `manager`, `conferences`, and `agent-scripts`. A repo-local rule can define push mechanics, but it cannot grant push authority.
+- Finishing a task is not authorization to commit, push, tag, or publish. Leave the work in the tree and say it is ready.
+- Never rewrite published history — `push --force`, `rebase` onto a pushed base, `filter-branch`, `filter-repo` — without an explicit request for that specific rewrite.
+- `reset --hard`, `clean`, and `restore` need an explicit user request every time.
+- Task-scoped file deletion is allowed. Never delete or overwrite unknown or unrelated user data.
+</important>
+
+<important if="the task touches a secret, a token, an API key, or environment variables">
+
+- Never reveal a secret value, not even an internal one. Use the approved secret tools and redact the output.
+- Never run `env`, `set`, `export -p`, or a broad secret regex dump in a normal shell. Query the exact name only.
+- After you handle a secret or an environment variable, unset the token environment before a public `gh` write: `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN ...`.
+</important>
+
+<important if="you are sending anything outward — a GitHub comment or body, an email, an upload, or any external service call">
+
+- If the audience or the destination is unclear, ask first. Confidentiality alone does not block internal research or internal answers.
+- Never inline double-quoted text in a public GitHub body when it contains backticks, `$`, a shell snippet, an environment name, or user text. Write a temp file with `cat <<'EOF'`, inspect it, then pass `--body-file`.
+</important>
+
+<important if="you are writing or editing any file, commit message, or generated artifact">
+
+- No personal identifiers. No local account name, no home directory name, no real name, no email address. `~` is the only correct way to say "the user's home directory".
+- No absolute or machine-specific paths. Derive a path from the repository root, from `$HOME`, or from the script's own location. A path that only resolves on one machine is a defect, including in docs, comments, tests, and generated files.
+</important>
+
+<important if="you are fixing or refactoring and consider keeping an old path, alias, shim, or fallback">
+Delete the old path by default. Compatibility needs a named contract: a public API, CLI, config, or data format; a tagged upgrade; a security boundary; or observed production state. Tests alone are not a contract. If you are unsure, ask.
+</important>
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
@@ -167,12 +175,12 @@ Prefer modern CLI tools: `rg` > `grep`, `fd` > `find`, `sd` > `sed`, `eza` > `ls
 
 Anvil tools ship only the delta, batch edits in one round trip, and avoid full-file reads.
 
-- `anvil-file-batch` — 3 or more edits to the same file. Always use it. Never send three separate calls for one logical edit.
-- `anvil-file-replace-string` / `anvil-file-replace-regexp` — pinpoint replacement, no full-file read needed.
-- `anvil-file-insert-at-line` / `anvil-file-delete-lines` / `anvil-file-append` — line-level operations.
+- `mcp__anvil-emacs-eval__file-batch` — 3 or more edits to the same file. Always use it. Never send three separate calls for one logical edit.
+- `mcp__anvil-emacs-eval__file-replace-string` / `mcp__anvil-emacs-eval__file-replace-regexp` — pinpoint replacement, no full-file read needed.
+- `mcp__anvil-emacs-eval__file-insert-at-line` / `mcp__anvil-emacs-eval__file-delete-lines` / `mcp__anvil-emacs-eval__file-append` — line-level operations.
 - Built-in `Edit` — small one-off changes only.
 
-Course-correct mid-task if you notice repeated full-file reads of the same file, the same elisp pattern written twice, or a heavy elisp operation blocking the session. Route heavy operations through `anvil-worker-call` / `mcp__anvil-worker__eval`.
+Course-correct mid-task if you notice repeated full-file reads of the same file, the same elisp pattern written twice, or a heavy elisp operation blocking the session. Route heavy operations through `mcp__anvil__emacs-eval-async` (poll with `mcp__anvil__emacs-eval-jobs` / `mcp__anvil__emacs-eval-result`).
 
 Anvil's `org` module is disabled (see `~/.emacs.d/lisp/init-local-ai.el`). It raced with interactive Emacs buffers and caused Syncthing sync-conflict storms. Edit org files directly with Read/Edit or the built-in org tools, never with Anvil org MCP tools.
 

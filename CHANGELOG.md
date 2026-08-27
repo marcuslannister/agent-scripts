@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `AGENTS.MD` gates its conditional rules with `<important if>` blocks, so the harness note that global context "may or may not be relevant" no longer flattens the whole file: the identity line, the topic rules table, and Communication stay unconditional, while secrets, push authority and destructive ops, external sends, personal identifiers and machine-specific paths, compatibility, and the note rule each carry their own trigger. The topic rules table moves to the top because it decides which file to open next, the "everything below applies to every task" line is dropped as no longer true, and the CodeGraph and `claude-env` marker blocks stay verbatim since external tooling regenerates them.
+
 - English coaching ran only when a task happened to route to `rules/english.md`, so it was easy to skip; the Communication section now inlines an always-on trigger to check every reply against it, and the redundant Topic rules link is dropped.
 
 - Fixed stale Anvil MCP tool names in `rules/tooling.md`: file-edit tools now use the actual `mcp__anvil-emacs-eval__*` names, and heavy elisp ops route through `mcp__anvil__emacs-eval-async` instead of the nonexistent `anvil-worker-call`.
