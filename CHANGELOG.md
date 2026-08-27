@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 3b3fad9, humanlayer 3c26291, khazix 7a5c493, matt 6654f6b, nicobailon df35d97) and regenerated the selection-preserving skills matrix.
+
 - Refreshed staged third-party skills (anthropics 3b3fad9, humanlayer 3c26291, khazix 7a5c493, matt 6654f6b, nicobailon df35d97); `handoff` now sources from mattpocock/skills instead of steipete/agent-scripts.
 
 - Broadened the `humanlayer-skills` source's subroot from `plugins/improve-claude-md/skills` to `plugins`, so staging mirrors the repo's whole plugin tree instead of one plugin; picked up `build-iterated-agentic-loop`, `design-control-loop`, and `narrow-react-prop-types` alongside `improve-claude-md`, and selected `show-me` (`Y`/`Y`) so it installs on both Claude and Codex.
