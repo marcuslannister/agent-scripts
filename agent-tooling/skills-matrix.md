@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 18 | 53 |
-| Shared | 17 | 17 |
+| Total | 19 | 54 |
+| Shared | 18 | 18 |
 | Agent-only | 1 | 36 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -13,6 +13,7 @@
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1400 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
+| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~3816 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2850 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~8178 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
@@ -250,7 +251,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=241 both=17 claude_only=1 codex_only=36 total_claude=18 total_codex=53 -->
+<!-- total=242 both=18 claude_only=1 codex_only=36 total_claude=19 total_codex=54 -->
 
 ## Enable-state
 
@@ -260,8 +261,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 0 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 9 | 45 |
-| Total | 18 | 53 |
+| Always-on | 10 | 46 |
+| Total | 19 | 54 |
 
 ## Repos
 
@@ -271,6 +272,7 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `KKKKhazix/khazix-skills` | https://github.com/KKKKhazix/khazix-skills |
 | `anthropics/claude-plugins-official` | https://github.com/anthropics/claude-plugins-official |
 | `anthropics/skills` | https://github.com/anthropics/skills |
+| `danyuchn/asd-ste100-skill` | https://github.com/danyuchn/asd-ste100-skill |
 | `humanlayer/skills` | https://github.com/humanlayer/skills |
 | `marcus` | ? |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |

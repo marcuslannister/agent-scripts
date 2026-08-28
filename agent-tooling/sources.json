@@ -18,6 +18,14 @@
       "discovery": "flat"
     },
     {
+      "id": "asd-ste100-skill",
+      "classification": "source-only",
+      "repo": "danyuchn/asd-ste100-skill",
+      "subroot": "",
+      "staging": "danyuchn",
+      "discovery": "recursive"
+    },
+    {
       "id": "matt-skills",
       "classification": "npx-only",
       "repo": "mattpocock/skills",

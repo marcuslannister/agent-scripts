@@ -6,6 +6,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Registered `danyuchn/asd-ste100-skill` in `sources.json` as a `source-only` staging source and selected it (`Y`/`Y`) in the skills matrix, so the ASD-STE100 plain-language-rewrite skill installs on both Claude and Codex. The repo keeps `SKILL.md` at its root rather than under a per-skill subdirectory, so the source id doubles as the discovered skill name.
+
+- Fixed `install_stage_tree`/`copy_contents_match` in `agent-tooling/lib-staging.sh` to exclude `.git` when staging a source whose skill directory is the clone root itself; previously the nested `.git` got copied into tracked `other-skills/` staging and made `--check` report false content-mismatch drift.
+
 - `AGENTS.MD` gates its conditional rules with `<important if>` blocks, so the harness note that global context "may or may not be relevant" no longer flattens the whole file: the identity line, the topic rules table, and Communication stay unconditional, while secrets, push authority and destructive ops, external sends, personal identifiers and machine-specific paths, compatibility, and the note rule each carry their own trigger. The topic rules table moves to the top because it decides which file to open next, the "everything below applies to every task" line is dropped as no longer true, and the CodeGraph and `claude-env` marker blocks stay verbatim since external tooling regenerates them.
 
 - English coaching ran only when a task happened to route to `rules/english.md`, so it was easy to skip; the Communication section now inlines an always-on trigger to check every reply against it, and the redundant Topic rules link is dropped.
