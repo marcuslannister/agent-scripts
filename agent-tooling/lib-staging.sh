@@ -36,7 +36,7 @@ copy_contents_match() { # source destination
   local source="$1"
   local destination="$2"
   [ -d "$source" ] && [ -d "$destination" ] \
-    && diff -qr -x .agent-scripts-copy -x .agent-scripts-copy-source \
+    && diff -qr -x .agent-scripts-copy -x .agent-scripts-copy-source -x .git \
       "$source" "$destination" >/dev/null 2>&1
 }
 
@@ -56,12 +56,13 @@ install_stage_tree() { # source_dir dest_dir
   fi
   mkdir -p "$dst" || return 1
   if [ "${AGENT_SCRIPTS_DISABLE_RSYNC:-0}" != "1" ] && command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "${src}/" "${dst}/" || return 1
+    rsync -a --delete --delete-excluded --exclude='.git' "${src}/" "${dst}/" || return 1
   else
     # Git Bash on Windows ships no rsync; emulate --delete with a fresh copy.
     rm -rf "$dst" || return 1
     mkdir -p "$dst" || return 1
     cp -R "${src}/." "${dst}/" || return 1
+    rm -rf "${dst:?}/.git"
   fi
   rm -f "${dst}/.agent-scripts-copy" "${dst}/.agent-scripts-copy-source"
 }
