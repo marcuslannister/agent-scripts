@@ -13,7 +13,7 @@
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1400 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
-| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~3816 |
+| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~3818 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2850 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~8178 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
@@ -226,7 +226,7 @@
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
 | `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2481 |
-| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~3297 |
+| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~3663 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1554 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~98 |
 | `wayfinder` | mattpocock/skills | skill | N | Y | ~2977 |
