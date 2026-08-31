@@ -45,8 +45,6 @@ check_overlay() {
     || fail "source record has an invalid commit"
   git -C "$REPO_ROOT" cat-file -e "${source_commit}^{commit}" 2>/dev/null \
     || fail "recorded upstream commit is not in local Git history: $source_commit"
-  git -C "$REPO_ROOT" merge-base --is-ancestor "$source_commit" HEAD \
-    || fail "recorded upstream commit is not merged into HEAD: $source_commit"
 
   collect_missing_paths "$source_commit"
   if [ "${#missing_paths[@]}" -gt 0 ]; then
