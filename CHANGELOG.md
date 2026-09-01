@@ -6,6 +6,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Fixed `sync-upstream-overlay.sh`'s `--check` to stop requiring the recorded upstream commit to be a merge-ancestor of `HEAD`. This repo lands changes via squash, which discards that ancestor relationship even after a real sync, so `verify.sh` failed on every run regardless of overlay state; path completeness, which the check already verifies, is the actual invariant the overlay guarantees.
+
+- Refreshed staged third-party skills (`danyuchn/asd-ste100-skill` e4d64d1, `nicobailon/visual-explainer` 7163c3e) and regenerated the selection-preserving skills matrix.
+
 - Registered `danyuchn/asd-ste100-skill` in `sources.json` as a `source-only` staging source and selected it (`Y`/`Y`) in the skills matrix, so the ASD-STE100 plain-language-rewrite skill installs on both Claude and Codex. The repo keeps `SKILL.md` at its root rather than under a per-skill subdirectory, so the source id doubles as the discovered skill name.
 
 - Fixed `install_stage_tree`/`copy_contents_match` in `agent-tooling/lib-staging.sh` to exclude `.git` when staging a source whose skill directory is the clone root itself; previously the nested `.git` got copied into tracked `other-skills/` staging and made `--check` report false content-mismatch drift.
