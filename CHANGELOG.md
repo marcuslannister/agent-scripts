@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 41bbe19, danyuchn 6f7bb36, humanlayer 3c26291, khazix 7a5c493, matt 3cca18b, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
+
 - Fixed `sync-upstream-overlay.sh`'s `--check` to stop requiring the recorded upstream commit to be a merge-ancestor of `HEAD`. This repo lands changes via squash, which discards that ancestor relationship even after a real sync, so `verify.sh` failed on every run regardless of overlay state; path completeness, which the check already verifies, is the actual invariant the overlay guarantees.
 
 - Refreshed staged third-party skills (`danyuchn/asd-ste100-skill` e4d64d1, `nicobailon/visual-explainer` 7163c3e) and regenerated the selection-preserving skills matrix.
