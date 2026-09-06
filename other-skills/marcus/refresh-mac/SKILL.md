@@ -16,16 +16,26 @@ Do not update or upgrade Homebrew. Nix manages Homebrew.
 ```bash
 for repo in ~/Projects/*/.git; do
   dir=${repo:h}
-  echo "=== $dir ==="
-  git -C "$dir" pull --ff-only
+  name=${dir:t}
+  dirty=no
+  [ -n "$(git -C "$dir" status --porcelain)" ] && dirty=yes
+  out=$(git -C "$dir" pull --ff-only 2>&1)
+  if [ $? -ne 0 ]; then
+    result=failed
+  elif print -r -- "$out" | grep -q "Already up to date"; then
+    result=up-to-date
+  else
+    result=pulled
+  fi
+  echo "$name|$dirty|$result"
 done
 ```
 
 Attempt the pull on every repo, dirty or clean — `--ff-only` already refuses safely
-when a local change would be overwritten, so there is no need to pre-filter on
-`git status`. A dirty repo whose local changes don't touch the incoming diff pulls
-cleanly; one that conflicts fails on its own and gets reported as failed, with the
-git error kept for the report. Report failed paths.
+when a local change would be overwritten, so checking `git status` first is only for
+the report, not to gate the pull. A dirty repo whose local changes don't touch the
+incoming diff pulls cleanly; one that conflicts fails on its own and gets reported as
+failed, with the git error kept for the report.
 
 2. Empty Trash:
 
@@ -39,8 +49,13 @@ osascript -e 'tell application "Finder" to empty trash'
 sudo darwin-rebuild switch --flake . --impure
 ```
 
-4. Finish with terse counts:
+4. Finish with a status table (one row per repo) and terse counts:
 
-- repos: pulled / skipped / failed
+| Repo | Dirty | Result |
+|---|---|---|
+| agent-scripts | no | up-to-date |
+| nix-config | no | pulled |
+
+- repos: pulled / up-to-date / failed (dirty: N)
 - trash: emptied / failed
 - Nix Darwin: applied / failed

@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `refresh-mac` now records each repo's dirty status before pulling and reports a per-repo table (repo / dirty / result) plus a `dirty: N` count, instead of a single terse pulled/skipped/failed line.
+
 - Refreshed staged third-party skills (anthropics 41bbe19, danyuchn 6f7bb36, humanlayer 3c26291, khazix 7a5c493, matt 3cca18b, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
 
 - `refresh-mac` now attempts `git pull --ff-only` on every repo under `~/Projects` instead of pre-filtering dirty ones by `git status`; `--ff-only` already refuses safely on a conflicting local change, so a dirty repo whose changes don't touch the incoming diff pulls instead of being skipped. Also dropped a stray personal name from the skill text.
