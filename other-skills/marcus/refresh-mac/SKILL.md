@@ -1,6 +1,6 @@
 ---
 name: refresh-mac
-description: "Mac upkeep for Marcus: pull clean repos under ~/Projects, empty Trash, and apply the Nix Darwin configuration. Use when asked for Mac cleanup, maintenance, or repo refresh."
+description: "Mac upkeep: pull repos under ~/Projects, empty Trash, and apply the Nix Darwin configuration. Use when asked for Mac cleanup, maintenance, or repo refresh."
 ---
 
 # Refresh Mac
@@ -16,12 +16,16 @@ Do not update or upgrade Homebrew. Nix manages Homebrew.
 ```bash
 for repo in ~/Projects/*/.git; do
   dir=${repo:h}
-  git -C "$dir" status --short --branch
+  echo "=== $dir ==="
   git -C "$dir" pull --ff-only
 done
 ```
 
-Skip dirty repos unless Peter explicitly asked to handle them. Report skipped paths.
+Attempt the pull on every repo, dirty or clean — `--ff-only` already refuses safely
+when a local change would be overwritten, so there is no need to pre-filter on
+`git status`. A dirty repo whose local changes don't touch the incoming diff pulls
+cleanly; one that conflicts fails on its own and gets reported as failed, with the
+git error kept for the report. Report failed paths.
 
 2. Empty Trash:
 
