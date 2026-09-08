@@ -57,6 +57,20 @@
       }
     },
     {
+      "id": "eli5",
+      "classification": "plugin-claude-only",
+      "repo": "anthropics/claude-plugins-community",
+      "subroot": "",
+      "staging": "claude-community",
+      "discovery": "recursive",
+      "plugin": {
+        "name": "eli5",
+        "marketplaces": {
+          "claude": "claude-community"
+        }
+      }
+    },
+    {
       "id": "matt-plugin",
       "classification": "plugin-claude-only",
       "repo": "mattpocock/skills",

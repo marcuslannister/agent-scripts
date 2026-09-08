@@ -2,9 +2,9 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 19 | 54 |
+| Total | 20 | 55 |
 | Shared | 18 | 18 |
-| Agent-only | 1 | 36 |
+| Agent-only | 2 | 37 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
@@ -15,7 +15,7 @@
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4044 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2850 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~8178 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~3060 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
@@ -24,7 +24,7 @@
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~21419 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -57,7 +57,7 @@
 | `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | N | N | ~432 |
 | `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | N | N | ~911 |
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
-| `crabbox` | steipete/agent-scripts | skill | N | N | ~2980 |
+| `crabbox` | steipete/agent-scripts | skill | N | N | ~3316 |
 | `create-cli` | steipete/agent-scripts | skill | Y | Y | ~834 |
 | `design-control-loop` | humanlayer/skills | skill | N | N | ~3850 |
 | `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2131 |
@@ -76,6 +76,8 @@
 | `dx:reddit-fetch` | ykdojo | plugin | N | N | ~1369 |
 | `dx:review-claudemd` | ykdojo | plugin | N | N | ~676 |
 | `dx:version-check` | ykdojo | plugin | N | N | ~1836 |
+| `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
+| `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4713 |
 | `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
@@ -87,7 +89,7 @@
 | `grill-me` | mattpocock/skills | skill | N | Y | ~39 |
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
 | `grilling` | mattpocock/skills | skill | N | Y | ~493 |
-| `handoff` | mattpocock/skills | skill | N | Y | ~223 |
+| `handoff` | steipete/agent-scripts | skill | N | Y | ~1102 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
 | `implement` | mattpocock/skills | skill | N | Y | ~108 |
@@ -173,7 +175,8 @@
 | `pptx` | anthropics/skills | skill | N | N | ~5161 |
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
 | `prototype` | mattpocock/skills | skill | N | Y | ~730 |
-| `refresh-mac` | marcus | skill | Y | Y | ~302 |
+| `quickdesign` | anthropics/claude-plugins-community | skill | N | N | ~5040 |
+| `refresh-mac` | marcus | skill | Y | Y | ~409 |
 | `release-mac-app` | steipete/agent-scripts | skill | N | N | ~1969 |
 | `release-tweets` | steipete/agent-scripts | skill | N | N | ~989 |
 | `remember` | anthropics/claude-plugins-official | plugin | N | N | ~343 |
@@ -183,7 +186,7 @@
 | `resolving-merge-conflicts` | mattpocock/skills | skill | N | Y | ~229 |
 | `retro` | mattpocock/skills | skill | N | N | ~847 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
-| `session-viewer` | steipete/agent-scripts | skill | N | N | ~749 |
+| `session-viewer` | steipete/agent-scripts | skill | N | N | ~920 |
 | `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1710 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
@@ -217,11 +220,40 @@
 | `tdd` | mattpocock/skills | skill | N | Y | ~885 |
 | `teach` | mattpocock/skills | skill | N | Y | ~2376 |
 | `telecrawl` | steipete/agent-scripts | skill | N | N | ~416 |
+| `testdino-audit` | anthropics/claude-plugins-community | skill | N | N | ~542 |
+| `testdino-health` | anthropics/claude-plugins-community | skill | N | N | ~254 |
+| `testdino-manual-runs` | anthropics/claude-plugins-community | skill | N | N | ~423 |
+| `testdino-manual-tests` | anthropics/claude-plugins-community | skill | N | N | ~386 |
+| `testdino-releases` | anthropics/claude-plugins-community | skill | N | N | ~287 |
+| `testdino-runs` | anthropics/claude-plugins-community | skill | N | N | ~342 |
+| `testdino-sessions` | anthropics/claude-plugins-community | skill | N | N | ~324 |
 | `theme-factory` | anthropics/skills | skill | N | N | ~781 |
 | `things-todo` | steipete/agent-scripts | skill | N | N | ~709 |
 | `to-questionnaire` | mattpocock/skills | skill | N | Y | ~725 |
 | `to-spec` | mattpocock/skills | skill | N | Y | ~760 |
 | `to-tickets` | mattpocock/skills | skill | N | Y | ~1415 |
+| `tres-asc845-swap-reprice-skill` | anthropics/claude-plugins-community | skill | N | N | ~2233 |
+| `tres-asset-balance-validation` | anthropics/claude-plugins-community | skill | N | N | ~4498 |
+| `tres-cost-basis` | anthropics/claude-plugins-community | skill | N | N | ~6869 |
+| `tres-data-collection-commit` | anthropics/claude-plugins-community | skill | N | N | ~3319 |
+| `tres-erp-rule-suggestions` | anthropics/claude-plugins-community | skill | N | N | ~6105 |
+| `tres-explorer-tx-to-ledger` | anthropics/claude-plugins-community | skill | N | N | ~2998 |
+| `tres-export-3rd-party-contacts` | anthropics/claude-plugins-community | skill | N | N | ~2033 |
+| `tres-import-contacts` | anthropics/claude-plugins-community | skill | N | N | ~2380 |
+| `tres-invoice-bill-matching` | anthropics/claude-plugins-community | skill | N | N | ~4819 |
+| `tres-ledger-link` | anthropics/claude-plugins-community | skill | N | N | ~2124 |
+| `tres-onboarding` | anthropics/claude-plugins-community | skill | N | N | ~2239 |
+| `tres-recon-gaps` | anthropics/claude-plugins-community | skill | N | N | ~2538 |
+| `tres-report-advisor` | anthropics/claude-plugins-community | skill | N | N | ~2386 |
+| `tres-report-analyzer` | anthropics/claude-plugins-community | skill | N | N | ~1650 |
+| `tres-report-create` | anthropics/claude-plugins-community | skill | N | N | ~4892 |
+| `tres-request-skill-update` | anthropics/claude-plugins-community | skill | N | N | ~2746 |
+| `tres-rollup-review` | anthropics/claude-plugins-community | skill | N | N | ~2832 |
+| `tres-rollup-rules` | anthropics/claude-plugins-community | skill | N | N | ~6088 |
+| `tres-settings-management` | anthropics/claude-plugins-community | skill | N | N | ~3155 |
+| `tres-tx-story` | anthropics/claude-plugins-community | skill | N | N | ~2884 |
+| `tres-upload-tx-header-validation` | anthropics/claude-plugins-community | skill | N | N | ~604 |
+| `tres-wallets-upload` | anthropics/claude-plugins-community | skill | N | N | ~4157 |
 | `triage` | mattpocock/skills | skill | N | Y | ~1639 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
@@ -251,7 +283,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=242 both=18 claude_only=1 codex_only=36 total_claude=19 total_codex=54 -->
+<!-- total=274 both=18 claude_only=2 codex_only=37 total_claude=20 total_codex=55 -->
 
 ## Enable-state
 
@@ -259,10 +291,10 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 0 | 0 |
+| Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 10 | 46 |
-| Total | 19 | 54 |
+| Always-on | 10 | 47 |
+| Total | 20 | 55 |
 
 ## Repos
 
@@ -270,6 +302,7 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|
 | `DietrichGebert/ponytail` | https://github.com/DietrichGebert/ponytail |
 | `KKKKhazix/khazix-skills` | https://github.com/KKKKhazix/khazix-skills |
+| `anthropics/claude-plugins-community` | https://github.com/anthropics/claude-plugins-community |
 | `anthropics/claude-plugins-official` | https://github.com/anthropics/claude-plugins-official |
 | `anthropics/skills` | https://github.com/anthropics/skills |
 | `danyuchn/asd-ste100-skill` | https://github.com/danyuchn/asd-ste100-skill |
