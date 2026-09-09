@@ -10,10 +10,10 @@
 |---|---|---|---|---|---|
 | `academy-guide` | anthropics/skills | skill | N | N | ~1928 |
 | `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~1044 |
-| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1400 |
+| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1416 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
-| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4044 |
+| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4069 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~2850 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~3060 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
@@ -24,7 +24,7 @@
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~21419 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -89,7 +89,7 @@
 | `grill-me` | mattpocock/skills | skill | N | Y | ~39 |
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
 | `grilling` | mattpocock/skills | skill | N | Y | ~493 |
-| `handoff` | steipete/agent-scripts | skill | N | Y | ~1102 |
+| `handoff` | mattpocock/skills | skill | N | Y | ~223 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
 | `implement` | mattpocock/skills | skill | N | Y | ~108 |
@@ -291,8 +291,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 1 | 0 |
-| Disabled | 9 | 8 |
+| Enabled | 0 | 0 |
+| Disabled | 10 | 8 |
 | Always-on | 10 | 47 |
 | Total | 20 | 55 |
 

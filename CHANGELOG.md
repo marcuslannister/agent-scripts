@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 41bbe19, claude-community a727be1, danyuchn 7d4a135, humanlayer 3c26291, khazix 3fa8741, matt 3cca18b, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
+
 - Registered `eli5` (anthropics/claude-plugins-community) in `sources.json` as a `plugin-claude-only` source: installed natively as a Claude plugin (`eli5@claude-community`), and staged for Codex via `other-skills/claude-community/` with the skill row selected (`N`/`Y`) in the skills matrix. The rest of the repo's local plugins (`quickdesign`, `testdino-*`, `tres-*`) are staged but left unselected.
 
 - `refresh-mac` now records each repo's dirty status before pulling and reports a per-repo table (repo / dirty / result) plus a `dirty: N` count, instead of a single terse pulled/skipped/failed line.
