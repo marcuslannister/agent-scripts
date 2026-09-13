@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 34040c9, claude-community a727be1, danyuchn 7d4a135, humanlayer 3c26291, khazix 48e8ba5, matt 3cca18b, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
+
 - Simplified global instructions with ASD-STE100 wording and topic links. Moved secrets and artifact rules into separate files. Kept strict privacy, allowed non-overlapping work in dirty trees, and allowed worktrees outside repositories without asking. Rebuilt Codex instructions.
 
 - Dropped the `AGENTS.MD` identity line, the `make a note` rule, the outward-send guard, the delete-old-path compatibility contract, and the Claude-for-Chrome env marker; push authority, secrets, and the personal-identifier rules stay, and `AGENTS.codex.md` is rebuilt to match.

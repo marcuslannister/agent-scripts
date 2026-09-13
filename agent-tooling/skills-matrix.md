@@ -10,7 +10,7 @@
 |---|---|---|---|---|---|
 | `academy-guide` | anthropics/skills | skill | N | N | ~1928 |
 | `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~1044 |
-| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1416 |
+| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1465 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4069 |
@@ -23,7 +23,7 @@
 | `build-iterated-agentic-loop` | humanlayer/skills | skill | N | N | ~3388 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
-| `claude-api` | anthropics/skills | skill | N | N | ~21419 |
+| `claude-api` | anthropics/skills | skill | N | N | ~21543 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | Y | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
@@ -266,10 +266,10 @@
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~4950 |
 | `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4391 |
 | `waza:learn` | tw93/Waza | plugin | Y | Y | ~2190 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~1930 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~1926 |
 | `waza:think` | tw93/Waza | plugin | Y | Y | ~2925 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3873 |
-| `waza:write` | tw93/Waza | plugin | Y | Y | ~3780 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3901 |
+| `waza:write` | tw93/Waza | plugin | Y | Y | ~3865 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
 | `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
@@ -291,8 +291,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 
 | State | Claude | Codex |
 |---|---|---|
-| Enabled | 0 | 0 |
-| Disabled | 10 | 8 |
+| Enabled | 1 | 0 |
+| Disabled | 9 | 8 |
 | Always-on | 10 | 47 |
 | Total | 20 | 55 |
 
