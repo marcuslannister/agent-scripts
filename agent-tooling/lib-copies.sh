@@ -19,36 +19,73 @@ copy_warn() {
 
 # Deterministic SHA-256 over a skill dir's non-hidden files. Hidden entries
 # (including the .agent-scripts-copy marker itself) are excluded, so a copy's
-# digest is stable whether or not it carries a marker. Emits the digest on
-# stdout; returns non-zero (and nothing usable) when no sha256 tool exists, so
-# callers can degrade gracefully rather than abort.
-compute_copy_hash() { # dir
-  local dir="$1"
-  [ -d "$dir" ] || { copy_warn "hash: not a directory: $dir"; return 1; }
+# digest is stable whether or not it carries a marker. hash_copy_dirs prints
+# "path<TAB>digest" per dir in one Python process; compute_copy_hash wraps it
+# for a single dir. Returns non-zero when python3 is missing.
+hash_copy_dirs() { # dirs...
+  local out list
+  list="$(mktemp "${TMPDIR:-/tmp}/hash-copy-dirs.XXXXXX")" || return 1
+  printf '%s\n' "$@" > "$list"
+  # Paths go through a list file, not argv: MSYS Python rewrites /c/foo to C:/foo.
+  if command -v python3 >/dev/null 2>&1; then
+    if out="$(python3 - "$list" <<'PY'
+import hashlib, os, subprocess, sys
 
-  local hasher
-  if command -v sha256sum >/dev/null 2>&1; then
-    hasher="sha256sum"
-  elif command -v shasum >/dev/null 2>&1; then
-    hasher="shasum -a 256"
-  else
-    copy_warn "no sha256 tool (sha256sum/shasum) available"
-    return 1
+def hash_dir(root):
+    entries = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in filenames:
+            if name.startswith("."):
+                continue
+            full = os.path.join(dirpath, name)
+            if os.path.islink(full) or not os.path.isfile(full):
+                continue
+            rel = os.path.relpath(full, root).replace(os.sep, "/")
+            entries.append(("./" + rel, full))
+    entries.sort(key=lambda item: item[0].encode("utf-8"))
+    outer = hashlib.sha256()
+    for rel, full in entries:
+        digest = hashlib.sha256()
+        with open(full, "rb") as fh:
+            digest.update(fh.read())
+        outer.update(rel.encode("utf-8") + b"\0" + digest.hexdigest().encode("ascii") + b"\0")
+    return outer.hexdigest()
+
+list_path = sys.argv[1]
+with open(list_path, encoding="utf-8") as fh:
+    bash_paths = [line.rstrip("\n\r") for line in fh if line.rstrip("\n\r")]
+try:
+    converted = subprocess.check_output(["cygpath", "-w", "-f", list_path], text=True)
+    win_paths = [line.rstrip("\n") for line in converted.splitlines()]
+    if len(win_paths) != len(bash_paths):
+        win_paths = bash_paths
+except (FileNotFoundError, OSError, subprocess.CalledProcessError):
+    win_paths = bash_paths
+for bash, win in zip(bash_paths, win_paths):
+    root = win if os.path.isdir(win) else bash
+    if os.path.isdir(root):
+        sys.stdout.buffer.write((bash + "\t" + hash_dir(root) + "\n").encode())
+PY
+)" && { [ -n "$out" ] || [ "$#" -eq 0 ]; }; then
+      rm -f "$list"
+      [ -n "$out" ] && printf '%s\n' "$out"
+      return 0
+    fi
   fi
+  rm -f "$list"
+  copy_warn "no sha256 tool (python3) available"
+  return 1
+}
 
-  # Feed "relpath\0<per-file sha>\0" for every non-hidden file, path-sorted in
-  # the C locale, into one final hash. Byte-sorting keeps the digest identical
-  # across machines and rsync runs.
-  ( cd "$dir" || exit 1
-    find . -type f -not -path '*/.*' -print0 \
-      | LC_ALL=C sort -z \
-      | while IFS= read -r -d '' f; do
-          printf '%s\0' "$f"
-          $hasher "$f" | cut -d' ' -f1 | tr -d '\n'
-          printf '\0'
-        done \
-      | $hasher | cut -d' ' -f1
-  )
+compute_copy_hash() { # dir
+  local dir="$1" line digest
+  [ -d "$dir" ] || { copy_warn "hash: not a directory: $dir"; return 1; }
+  line="$(hash_copy_dirs "$dir")" || return 1
+  line="${line%$'\r'}"
+  digest="${line##*$'\t'}"
+  [ -n "$digest" ] || return 1
+  printf '%s\n' "$digest"
 }
 
 # Can an unmarked destination directory be taken over by a marked copy without

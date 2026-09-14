@@ -53,6 +53,7 @@ done
 
 WORK_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/agent-scripts-distribute-XXXXXX")"
 trap 'topology_release_lock; rm -rf -- "$WORK_ROOT"' EXIT INT TERM
+declare -A COPY_HASH
 PLAN_TSV="$WORK_ROOT/plan.tsv"
 DRIFT_TSV="$WORK_ROOT/drift.tsv"
 CHANGES_TSV="$WORK_ROOT/changes.tsv"
@@ -230,7 +231,8 @@ resolve_skill() { # skill
     [ -f "$candidate/SKILL.md" ] && valid+=("$candidate")
   done
   if [ "${#valid[@]}" -eq 1 ]; then
-    owner="$(basename "$(dirname "${valid[0]}")")"
+    owner="${valid[0]%/*}"
+    owner="${owner##*/}"
     printf '%s\t%s\n' "$owner" "${valid[0]}"
     return 0
   fi
@@ -285,19 +287,36 @@ is_managed_owner() { # owner
   esac
 }
 
+read_marker_owner() { # marker; sets marker_owner
+  marker_owner=
+  [ -f "$1" ] || return 0
+  {
+    IFS= read -r _ || true
+    IFS= read -r marker_owner || true
+  } < "$1"
+  marker_owner="${marker_owner%$'\r'}"
+}
+
 copy_needs_refresh() { # source destination
   local source="$1" destination="$2" marker
   local recorded_source marker_owner stored_hash source_hash copy_hash
   marker="$destination/.agent-scripts-copy"
   [ -d "$destination" ] || return 1
   [ -f "$marker" ] || return 2
-  recorded_source="$(sed -n '1p' "$marker" 2>/dev/null || true)"
-  marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
-  stored_hash="$(sed -n '3p' "$marker" 2>/dev/null || true)"
+  {
+    IFS= read -r recorded_source || true
+    IFS= read -r marker_owner || true
+    IFS= read -r stored_hash || true
+  } < "$marker"
+  recorded_source="${recorded_source%$'\r'}"
+  marker_owner="${marker_owner%$'\r'}"
+  stored_hash="${stored_hash%$'\r'}"
   is_managed_owner "$marker_owner" || return 3
   [ "$marker_owner" = "$OWNER" ] || return 1
-  source_hash="$(compute_copy_hash "$source" 2>/dev/null || true)"
-  copy_hash="$(compute_copy_hash "$destination" 2>/dev/null || true)"
+  source_hash="${COPY_HASH[$source]-}"
+  copy_hash="${COPY_HASH[$destination]-}"
+  [ -n "$source_hash" ] || source_hash="$(compute_copy_hash "$source" 2>/dev/null || true)"
+  [ -n "$copy_hash" ] || copy_hash="$(compute_copy_hash "$destination" 2>/dev/null || true)"
   [ "$recorded_source" = "$source" ] \
     && [ -n "$stored_hash" ] \
     && [ "$stored_hash" = "$source_hash" ] \
@@ -324,6 +343,18 @@ has_drift() { # skill destination
 inspect_surface() { # destination root desired_tsv selected_names
   local destination="$1" root="$2" desired="$3" selected="$4"
   local skill source_id source_path target marker marker_owner name skipped_reason
+  local dirs=() path hash
+  COPY_HASH=()
+  while IFS=$'\t' read -r skill source_id source_path; do
+    [ -n "$skill" ] || continue
+    dirs+=("$source_path")
+    [ -d "$root/$skill" ] && dirs+=("$root/$skill")
+  done < "$desired"
+  if [ "${#dirs[@]}" -gt 0 ]; then
+    while IFS=$'\t' read -r path hash; do
+      COPY_HASH["${path%$'\r'}"]="${hash%$'\r'}"
+    done < <(hash_copy_dirs "${dirs[@]}")
+  fi
   while IFS=$'\t' read -r skill source_id source_path; do
     [ -n "$skill" ] || continue
     target="$root/$skill"
@@ -361,17 +392,18 @@ inspect_surface() { # destination root desired_tsv selected_names
   shopt -s nullglob
   for marker in "$root"/*/.agent-scripts-copy; do
     [ -f "$marker" ] || continue
-    marker_owner="$(sed -n '2p' "$marker" 2>/dev/null || true)"
+    read_marker_owner "$marker"
     is_managed_owner "$marker_owner" || continue
-    name="$(basename "$(dirname "$marker")")"
-    if ! rg -Fxq -- "$name" "$selected"; then
+    name="${marker%/*}"
+    name="${name##*/}"
+    if ! grep -Fxq -- "$name" "$selected"; then
       printf 'matrix\t%s\t%s\tunselected\tremove\n' "$name" "$destination" >> "$DRIFT_TSV"
     fi
   done
   for target in "$root"/*; do
     [ -d "$target" ] || [ -L "$target" ] || continue
-    name="$(basename "$target")"
-    marker_owner="$(sed -n '2p' "$target/.agent-scripts-copy" 2>/dev/null || true)"
+    name="${target##*/}"
+    read_marker_owner "$target/.agent-scripts-copy"
     is_managed_owner "$marker_owner" && continue
     skipped_reason=unmarked-directory
     [ -n "$marker_owner" ] && skipped_reason=other-owner

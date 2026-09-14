@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Sped up skill-surface distribute on Git Bash by hashing copies in one Python process instead of per-file `sha256sum` spawns.
+
 - Added `agent-tooling/setup-agent-instructions.ps1`, the Windows PowerShell counterpart of the instruction-pointer setup: absolute native symlinks, global `core.symlinks true`, Git-for-Windows placeholder replacement, and `-Force` to replace a leftover regular file at a pointer path.
 
 - Refreshed staged third-party skills (anthropics 34040c9, claude-community a727be1, danyuchn 7d4a135, humanlayer 3c26291, khazix 48e8ba5, matt 3cca18b, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
