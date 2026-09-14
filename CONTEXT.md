@@ -21,7 +21,7 @@ _Avoid_: automatic mirror, default copy
 ### Instruction pointers
 
 **Instruction pointer**:
-A path each agent CLI reads its global rules from, created by `setup-agent-instructions.sh` only when explicitly invoked. Setup state, not distribution policy (ADR-0002/0010): the routine updater never creates or refreshes one. Claude Code reads `~/.claude/CLAUDE.md` plus `~/.claude/rules`; Pi reads `~/.pi/agent/AGENTS.md`; Codex reads `~/.codex/AGENTS.md`.
+A path each agent CLI reads its global rules from, created by `setup-agent-instructions.sh` or `setup-agent-instructions.ps1` only when explicitly invoked. Setup state, not distribution policy (ADR-0002/0010): the routine updater never creates or refreshes one. Claude Code reads `~/.claude/CLAUDE.md` plus `~/.claude/rules`; Pi reads `~/.pi/agent/AGENTS.md`; Codex reads `~/.codex/AGENTS.md`.
 _Avoid_: instruction symlink, global config, agent surface
 
 **Topic rules**:
@@ -33,7 +33,7 @@ Tracked `AGENTS.codex.md`: `AGENTS.MD` with every topic rule inlined, built by `
 _Avoid_: flattened copy, snapshot, generated pointer
 
 **Pointer migration**:
-Replacing an installer-owned predecessor at an instruction pointer. Only a symlink whose resolved target proves setup wrote it is replaced. A regular file is reported and left alone, because nothing distinguishes it from operator-authored rules. Foreign symlinks, including dangling ones, are always preserved.
+Replacing an installer-owned predecessor at an instruction pointer: a symlink only when its resolved target proves setup wrote it, a regular file only when the operator explicitly requests it. Foreign symlinks, including dangling ones, are always preserved.
 _Avoid_: repair, overwrite, reinstall
 
 ### Source classification

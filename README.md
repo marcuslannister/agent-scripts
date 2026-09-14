@@ -47,11 +47,15 @@ Topic detail lives in `rules/`. `AGENTS.MD` links to it as `~/.claude/rules/<nam
 
 Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale (ADR-0010). Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
 
-Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. It creates missing pointers, preserves real files and foreign symlinks, and is never called by routine skill updates. A pointer that already resolves to the right place counts as correct, so a relative symlink you made yourself is left alone without a warning. Claude Code reads `CLAUDE.md` and Pi reads `~/.pi/agent/AGENTS.md`, so setup creates the pointers below. Each is a relative symlink, computed from the pointer's physically resolved directory because `~/.claude`, `~/.codex`, and `~/.pi` are themselves symlinks into other checkouts; an existing pointer that already resolves correctly but is spelled absolutely is normalized in place. Targets are relative to this repository's checkout:
+Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. On Windows PowerShell, run `agent-tooling/setup-agent-instructions.ps1` instead. Both create missing pointers, preserve foreign symlinks, and are never called by routine skill updates. Claude Code reads `CLAUDE.md` and Pi reads `~/.pi/agent/AGENTS.md`, so setup creates the pointers below:
 - `~/.claude/CLAUDE.md -> AGENTS.MD`
 - `~/.codex/AGENTS.md -> AGENTS.codex.md`
 - `~/.pi/agent/AGENTS.md -> AGENTS.MD`, because Pi resolves and opens the topic links like Claude Code
 - `~/.claude/rules -> rules`, one directory symlink, so the `~/.claude/rules/*.md` links resolve from any cwd
+
+The `.sh` writes relative targets, computed from the pointer's physically resolved directory, because `~/.claude`, `~/.codex`, and `~/.pi` are themselves symlinks into other checkouts. A pointer that already resolves to the right place counts as correct: a relative symlink you made yourself is left alone, and an absolute spelling is normalized in place.
+
+The `.ps1` writes absolute native symlinks. Windows resolves a relative target against the path used to open it, so a relative target misses when `~/.claude` is itself a symlink. A correct absolute link is left alone. A correct relative link is rewritten as absolute. Git-for-Windows placeholder files are replaced. `-Force` replaces a regular file at a pointer path. The script sets `core.symlinks true` globally.
 
 Downstream repos should use a pointer-style `AGENTS.MD`:
 
@@ -113,6 +117,10 @@ Topology authoring:
 - Explicit one-machine setup for the shared `AGENTS.MD`/`CLAUDE.md`/`rules` pointers; not part of topology reconciliation or routine updates.
 - Idempotent; preserves real user files and foreign symlinks, including dangling ones.
 - Refuses to run until `AGENTS.codex.md` exists.
+
+`agent-tooling/setup-agent-instructions.ps1`
+- Windows PowerShell counterpart. Same pointers as the `.sh`. Absolute native symlinks. Sets `core.symlinks true` globally.
+- Preserves foreign symlinks. Replaces Git-for-Windows placeholder files. `-Force` replaces a regular file at a pointer path (needed for a leftover `~/.codex/AGENTS.md`).
 
 `agent-tooling/build-codex-instructions.sh`
 - Regenerates the tracked `AGENTS.codex.md` from `AGENTS.MD` plus `rules/`.

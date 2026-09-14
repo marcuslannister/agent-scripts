@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added `agent-tooling/setup-agent-instructions.ps1`, the Windows PowerShell counterpart of the instruction-pointer setup: absolute native symlinks, global `core.symlinks true`, Git-for-Windows placeholder replacement, and `-Force` to replace a leftover regular file at a pointer path.
+
 - Refreshed staged third-party skills (anthropics 34040c9, claude-community a727be1, danyuchn 7d4a135, humanlayer 3c26291, khazix 48e8ba5, matt 3cca18b, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
 
 - Simplified global instructions with ASD-STE100 wording and topic links. Moved secrets and artifact rules into separate files. Kept strict privacy, allowed non-overlapping work in dirty trees, and allowed worktrees outside repositories without asking. Rebuilt Codex instructions.
