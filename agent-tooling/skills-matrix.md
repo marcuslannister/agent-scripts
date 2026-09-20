@@ -10,7 +10,7 @@
 |---|---|---|---|---|---|
 | `academy-guide` | anthropics/skills | skill | N | N | ~1928 |
 | `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~1044 |
-| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1465 |
+| `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~1511 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4069 |
@@ -173,6 +173,7 @@
 | `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~697 |
 | `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~592 |
 | `pptx` | anthropics/skills | skill | N | N | ~5161 |
+| `pr` | mattpocock/skills | skill | N | N | ~1027 |
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
 | `prototype` | mattpocock/skills | skill | N | Y | ~730 |
 | `quickdesign` | anthropics/claude-plugins-community | skill | N | N | ~5040 |
@@ -184,13 +185,13 @@
 | `remote-mac` | steipete/agent-scripts | skill | N | N | ~2807 |
 | `research` | mattpocock/skills | skill | N | Y | ~198 |
 | `resolving-merge-conflicts` | mattpocock/skills | skill | N | Y | ~229 |
-| `retro` | mattpocock/skills | skill | N | N | ~847 |
+| `retro` | mattpocock/skills | skill | N | N | ~1092 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
 | `session-viewer` | steipete/agent-scripts | skill | N | N | ~920 |
 | `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1710 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
-| `show-me` | humanlayer/skills | skill | Y | Y | ~808 |
+| `show-me` | humanlayer/skills | skill | Y | Y | ~816 |
 | `skill-cleaner` | steipete/agent-scripts | skill | N | N | ~1045 |
 | `skill-creator` | anthropics/claude-plugins-official | plugin | N | N | ~8246 |
 | `skill-creator` | anthropics/skills | skill | N | N | ~8246 |
@@ -257,19 +258,20 @@
 | `triage` | mattpocock/skills | skill | N | Y | ~1639 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
-| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2481 |
+| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~3663 |
 | `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~3663 |
+| `visual-pr` | humanlayer/skills | skill | N | N | ~844 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1554 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~98 |
 | `wayfinder` | mattpocock/skills | skill | N | Y | ~2977 |
-| `waza:check` | tw93/Waza | plugin | Y | Y | ~7635 |
-| `waza:health` | tw93/Waza | plugin | Y | Y | ~4950 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4391 |
-| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2190 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~1926 |
-| `waza:think` | tw93/Waza | plugin | Y | Y | ~2925 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3901 |
-| `waza:write` | tw93/Waza | plugin | Y | Y | ~3865 |
+| `waza:check` | tw93/Waza | plugin | Y | Y | ~8032 |
+| `waza:health` | tw93/Waza | plugin | Y | Y | ~5171 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4458 |
+| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2157 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~1886 |
+| `waza:think` | tw93/Waza | plugin | Y | Y | ~2934 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3847 |
+| `waza:write` | tw93/Waza | plugin | Y | Y | ~3855 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
 | `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
@@ -283,7 +285,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=274 both=18 claude_only=2 codex_only=37 total_claude=20 total_codex=55 -->
+<!-- total=276 both=18 claude_only=2 codex_only=37 total_claude=20 total_codex=55 -->
 
 ## Enable-state
 
