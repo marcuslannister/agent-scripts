@@ -177,7 +177,7 @@
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
 | `prototype` | mattpocock/skills | skill | N | Y | ~730 |
 | `quickdesign` | anthropics/claude-plugins-community | skill | N | N | ~5040 |
-| `refresh-mac` | marcus | skill | Y | Y | ~409 |
+| `refresh-mac` | marcus | skill | Y | Y | ~526 |
 | `release-mac-app` | steipete/agent-scripts | skill | N | N | ~1969 |
 | `release-tweets` | steipete/agent-scripts | skill | N | N | ~989 |
 | `remember` | anthropics/claude-plugins-official | plugin | N | N | ~343 |

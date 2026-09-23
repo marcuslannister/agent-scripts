@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 34040c9, claude-community a727be1, danyuchn 7d4a135, humanlayer ca7c808, khazix 4f2db09, matt c55ee46, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
+
 - `refresh-mac` now ends by updating agent tooling: `update-all.sh` (which ships) on `mac-mini-m1`, `update-local.sh` on other Macs.
 
 - Refreshed staged-skill provenance metadata and regenerated the selection-preserving skills matrix.
