@@ -1,6 +1,6 @@
 ---
 name: refresh-mac
-description: "Mac upkeep: pull repos under ~/Projects, empty Trash, and apply the Nix Darwin configuration. Use when asked for Mac cleanup, maintenance, or repo refresh."
+description: "Mac upkeep: pull repos under ~/Projects, empty Trash, apply the Nix Darwin configuration, and update agent tooling. Use when asked for Mac cleanup, maintenance, or repo refresh."
 ---
 
 # Refresh Mac
@@ -59,3 +59,18 @@ sudo darwin-rebuild switch --flake . --impure
 - repos: pulled / up-to-date / failed (dirty: N)
 - trash: emptied / failed
 - Nix Darwin: applied / failed
+
+5. Update agent tooling from `~/Projects/agent-scripts`, chosen by host:
+
+```bash
+cd ~/Projects/agent-scripts
+if [ "$(hostname -s)" = mac-mini-m1 ]; then
+  agent-tooling/update-all.sh
+else
+  agent-tooling/update-local.sh
+fi
+```
+
+On `mac-mini-m1`, `update-all.sh` ships its changes: it commits, pushes, and pulls the repo. It needs a clean worktree; a dirty one fails the step. Add one count line:
+
+- agent tooling: updated (all / local) / failed
