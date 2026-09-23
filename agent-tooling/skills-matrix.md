@@ -79,7 +79,7 @@
 | `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
 | `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4713 |
-| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
+| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2340 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
 | `git-guardrails-claude-code` | mattpocock/skills | skill | N | Y | ~578 |
 | `github-author-context` | steipete/agent-scripts | skill | N | N | ~950 |
