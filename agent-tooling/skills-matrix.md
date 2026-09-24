@@ -165,7 +165,7 @@
 | `openclaw-relay` | steipete/agent-scripts | skill | N | N | ~1207 |
 | `oracle` | steipete/agent-scripts | skill | N | N | ~2080 |
 | `pdf` | anthropics/skills | skill | N | N | ~2008 |
-| `peekaboo` | steipete/agent-scripts | skill | Y | Y | ~1836 |
+| `peekaboo` | steipete/agent-scripts | skill | Y | Y | ~2822 |
 | `ponytail:ponytail` | DietrichGebert/ponytail | plugin | N | N | ~1654 |
 | `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~413 |
 | `ponytail:ponytail-debt` | DietrichGebert/ponytail | plugin | N | N | ~425 |
