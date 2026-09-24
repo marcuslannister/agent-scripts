@@ -11,11 +11,21 @@ Core idea: run the tool under test inside the guest, but verify it from outside 
 
 ## Safety Rules
 
-- Treat the VM snapshot as disposable, not the host.
+- Only task-owned clones are disposable. Preserve source/golden snapshots, recovery VMs, and other tasks' VMs; never reset, revert, or delete their snapshots.
+- Never access inherited guest credentials or bypass login/startup security to bootstrap a clone.
 - Never print secrets. If `op` is needed, follow the 1Password skill and run it only inside `tmux`.
 - Prefer fresh app windows you create yourself: TextEdit, a local HTML test page, or a small test app.
-- Avoid modifying host state except temporary screenshots under `/tmp`.
+- Limit host writes to task-owned temporary diagnostics and explicitly authorized clone recovery. Never change global Bash/Codex settings for a lab workaround.
 - For git repos inside the VM, use HTTPS remotes and normal branch discipline.
+
+## Bootstrap Preflight
+
+Before guest automation, confirm the exact task-owned VM UUID and snapshot provenance; the names below are examples, not permission to operate an existing VM.
+
+- Apple-VZ clone fails to boot: verify the active raw disk's contents, not just clone success or logical size. A sparse linked child alone does not prove a broken chain; `clone --unlink` creates another clone, not an in-place repair.
+- Packaging hangs before its first output: inspect the task-owned shell process and heredoc redirection before changing product code or build guards. A system-Bash retry must also pin PATH-resolved child shells, for that invocation only.
+
+Use [Bootstrap diagnostics](references/bootstrap-diagnostics.md) for read-only checks, evidence limits, and narrowly scoped recovery boundaries.
 
 ## VM Discovery
 

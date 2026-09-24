@@ -5,10 +5,11 @@ require "fileutils"
 require "json"
 require "open3"
 require "rbconfig"
+require "shellwords"
 require "tmpdir"
 
 SCRIPT = File.expand_path("preflight.rb", __dir__)
-MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna].freeze
+MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna gpt-6-astra].freeze
 CONTEXT_WINDOW = 922_000
 AUTO_COMPACT_TOKEN_LIMIT = 700_000
 OUTPUT_SENTINEL = "fixture-output-must-not-appear"
@@ -45,7 +46,7 @@ def write_fixture(
   )
 
   root_values = {
-    "model" => '"gpt-5.6-sol"',
+    "model" => '"gpt-6-astra"',
     "model_provider" => '"openai_api_direct"',
     "model_context_window" => CONTEXT_WINDOW,
     "model_auto_compact_token_limit" => AUTO_COMPACT_TOKEN_LIMIT,
@@ -75,17 +76,23 @@ def write_fixture(
   config
 end
 
-def run_preflight(config)
-  Open3.capture3({ "GITHUB_PAT_TOKEN" => nil }, RbConfig.ruby, SCRIPT, "--config", config)
+def run_preflight(config, *arguments)
+  Open3.capture3({ "GITHUB_PAT_TOKEN" => nil }, RbConfig.ruby, SCRIPT, "--config", config, *arguments)
 end
 
-Dir.mktmpdir("codex-huge-context-test") do |root|
-  config = write_fixture(root, helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'")
-  stdout, stderr, process_status = run_preflight(config)
-  assert(process_status.success?, "valid fixture failed: #{stderr}")
-  assert(stdout.include?("safe-context preflight: ok"), "success message missing")
-  assert(stderr.include?("GITHUB_PAT_TOKEN is unset"), "independent GitHub MCP warning missing")
-  assert(!"#{stdout}\n#{stderr}".include?(OUTPUT_SENTINEL), "credential leaked on successful preflight")
+MODELS.each do |model|
+  Dir.mktmpdir("codex-huge-context-test") do |root|
+    config = write_fixture(
+      root,
+      helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+      config_overrides: { "model" => model.inspect },
+    )
+    stdout, stderr, process_status = run_preflight(config)
+    assert(process_status.success?, "valid #{model} fixture failed: #{stderr}")
+    assert(stdout.include?("safe-context preflight: ok"), "success message missing")
+    assert(stderr.include?("GITHUB_PAT_TOKEN is unset"), "independent GitHub MCP warning missing")
+    assert(!"#{stdout}\n#{stderr}".include?(OUTPUT_SENTINEL), "credential leaked on successful preflight")
+  end
 end
 
 Dir.mktmpdir("codex-huge-context-test") do |root|
@@ -180,11 +187,69 @@ end
   end
 end
 
+%w[gpt-5.6-luna gpt-6-astra].each do |missing_model|
+  Dir.mktmpdir("codex-huge-context-test") do |root|
+    config = write_fixture(
+      root,
+      helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'",
+      catalog_models: MODELS - [missing_model],
+    )
+    _stdout, stderr, process_status = run_preflight(config)
+    assert(!process_status.success?, "catalogue missing #{missing_model} unexpectedly passed")
+    assert(stderr.include?("model catalogue is missing #{missing_model}"), "catalogue failure is unclear")
+  end
+end
+
 Dir.mktmpdir("codex-huge-context-test") do |root|
-  config = write_fixture(root, helper_body: "printf '%s\n' '#{OUTPUT_SENTINEL}'", catalog_models: MODELS.take(2))
-  _stdout, stderr, process_status = run_preflight(config)
-  assert(!process_status.success?, "incomplete model catalogue unexpectedly passed")
-  assert(stderr.include?("model catalogue is missing gpt-5.6-luna"), "catalogue failure is unclear")
+  parent_home = ENV.fetch("HOME")
+  config = write_fixture(
+    root,
+    helper_body: <<~SH,
+      printf '%s\\n' '#{OUTPUT_SENTINEL}'
+      if [ "$HOME" != #{Shellwords.escape(parent_home)} ]; then
+        printf '%s\\n' '#{OUTPUT_SENTINEL}' >&2
+        exit 44
+      fi
+    SH
+  )
+  _stdout, _stderr, process_status = run_preflight(config)
+  assert(process_status.success?, "parent-only delivery fixture failed")
+  stdout, stderr, process_status = run_preflight(config, "--private-home")
+  assert(!process_status.success?, "HOME-dependent helper unexpectedly passed private-home check")
+  assert(stderr.include?("private-home auth check failed"), "context mismatch diagnostic missing")
+  assert(stderr.include?("explicit Keychain path"), "context mismatch repair guidance missing")
+  assert(!"#{stdout}\n#{stderr}".include?(OUTPUT_SENTINEL), "credential leaked on context mismatch")
+end
+
+Dir.mktmpdir("codex-huge-context-test") do |root|
+  calls = File.join(root, "helper-homes")
+  parent_home = ENV.fetch("HOME")
+  config = write_fixture(
+    root,
+    helper_body: <<~SH,
+      printf '%s\\n' "$HOME" >> #{Shellwords.escape(calls)}
+      if [ "$HOME" != #{Shellwords.escape(parent_home)} ]; then
+        test "$USERPROFILE" = "$HOME"
+        test "$XDG_CONFIG_HOME" = "$HOME/.config"
+        test "$XDG_DATA_HOME" = "$HOME/.local/share"
+        test "$XDG_STATE_HOME" = "$HOME/.local/state"
+        test "$XDG_CACHE_HOME" = "$HOME/.cache"
+        for directory in "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"; do
+          test -d "$directory"
+        done
+      fi
+      printf '%s\\n' '#{OUTPUT_SENTINEL}'
+    SH
+  )
+  stdout, stderr, process_status = run_preflight(config, "--private-home")
+  assert(process_status.success?, "private-home delivery fixture failed: #{stderr}")
+  homes = File.readlines(calls, chomp: true)
+  assert(homes.length == 2 && homes.first == parent_home, "parent and private checks did not both run")
+  assert(homes.last != parent_home, "private-home check reused parent HOME")
+  assert(!File.exist?(homes.last), "private-home directories were not cleaned up")
+  assert(ENV.fetch("HOME") == parent_home, "preflight changed parent HOME")
+  assert(stdout.include?("private-home auth check: ok"), "private-home success message missing")
+  assert(!"#{stdout}\n#{stderr}".include?(OUTPUT_SENTINEL), "credential leaked on private-home success")
 end
 
 puts "codex huge-context preflight tests passed"

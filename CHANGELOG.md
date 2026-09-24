@@ -6,6 +6,33 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Synced upstream `steipete/agent-scripts` to ee4c719: added `peekaboo`, removed `one-password`, and refreshed mirrored skills; kept local `AGENTS.MD`, README, CI, and the retired `sync-skills` stub.
+
+- Upload macOS release archives before publishing, preserve release/tag/commit state on failures, retry transient enclosure downloads, and retain changelog section spacing in release notes.
+- Correct Octopool calling guidance for native JSON bundles, pagination, caller-owned headers, exact-run CI verification, and sandbox coverage.
+- Guard Xcode installs with bounded Git/Python smoke checks and selected-bundle rollback; require a Git host preflight before Codex workers and document the stable-Xcode workaround.
+- Fixed false missing-asset errors when verifying macOS releases with long asset lists.
+- Route intentional Team restarts through one coordinator session on Stable, preserving explicit deployment approval and holding restarts while the coordinator is unidentified or unavailable.
+- Require Peter's explicit approval for each Team server deployment and keep automatic deployment disabled, preserving scoped incident repair without an automatic follow-up upgrade.
+- Correct the OpenClaw deployment account to `services@openclaw.org`.
+- Corrected browser relay timeout recovery to persist canonical controls, distinguish per-step and total startup deadlines, require HTTP base URLs for explicit overrides, explain the 0.13.10 discovery fallback, and verify saved relay-only policy across daemon respawns.
+- Pin macOS release credential runners to system Bash so the shared tmux server's PATH cannot select an incompatible shell.
+- Fixed false macOS signing-canary failures on long signature reports while preserving Apple trust and Developer ID authority checks.
+- Run the Codex direct-route preflight regression suite in CI with a clean environment and temporary HOME, covering private-home auth delivery and secret-safe failures without live credentials.
+- Make Codex Keychain helper guidance independent of private reviewer HOME paths and add a secret-safe `--private-home` delivery diagnostic without changing reviewer isolation or provider selection.
+- Align shared Codex routing rules with the canonical `codex-first` skill and its launch recipe instead of stale saved-defaults guidance; preserve the model gate and isolated review workflow.
+- Added vm-lab bootstrap diagnostics for empty Apple-VZ clone disks and pre-output Bash heredoc stalls, with immutable-source safeguards and invocation-local shell fallback.
+- Simplified requested agent transcripts and require scope trimming before previews or publication; helpers that rerender sessions cannot reuse approval of edited Markdown.
+- Set `codex-first` workers and Codex-backed reviews to GPT-6 Astra with high reasoning and Fast service, including fresh, resumed, and watchdog launches.
+- Removed the retired private launch-skill dependency from shared instructions and Claude routing; Codex workers now inherit saved model, reasoning, and service-tier defaults.
+- Scoped release-time-only changelog generation to `openclaw/openclaw`; restored changelog updates at landing and post-release `Unreleased` sections for every other repository.
+- Fixed Bash 3.2 escaping of captured macOS release direct-reference values in the private environment handoff.
+- Prevented macOS release credential diagnostics from replaying provider stderr or secret-bearing JSON/parser errors; added synthetic regression coverage.
+- Fixed skill sync nesting links inside locally owned directories; added bounded allowlisted self-link repair and read-only audit detection.
+- Removed the machine-specific 1Password skill from the public skill set; local discovery now uses its private owner.
+- Fixed `clawsweeper-status` aborting before activity sections on large workflow snapshots while preserving row caps and upstream errors.
+- Fixed `clawsweeper-status` public queue parsing, preserved optional health fields without shifted columns, and added a separate publication-tail summary.
+
 - Refreshed staged third-party skills (anthropics 34040c9, claude-community a727be1, danyuchn 7d4a135, humanlayer ca7c808, khazix 4f2db09, matt c55ee46, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
 
 - `refresh-mac` now ends by updating agent tooling: `update-all.sh` (which ships) on `mac-mini-m1`, `update-local.sh` on other Macs.

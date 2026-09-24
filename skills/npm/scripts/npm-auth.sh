@@ -3,7 +3,8 @@
 # the Molty service-account item and requires OP_SERVICE_ACCOUNT_TOKEN.
 # Never prints secret values.
 
-# Callers set: VAULT ITEM ACCOUNT REGISTRY WORK NPMRC SCRIPT_DIR.
+# Callers set: VAULT ITEM ACCOUNT REGISTRY WORK NPMRC.
+NPM_AUTH_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 redact() {
   sed -E 's/(npm_[A-Za-z0-9_]+)/npm_REDACTED/g; s/[0-9]{6}/OTP_REDACTED/g'
@@ -60,13 +61,13 @@ resolve_op_item() {
 # invalidate the already-authenticated command.
 persist_registry_token() {
   if ! printf '%s' "$ITEM_JSON" |
-    node "$SCRIPT_DIR/npm-auth-cache.mjs" update "$NPMRC" "$REGISTRY" |
+    node "$NPM_AUTH_SCRIPT_DIR/npm-auth-cache.mjs" update "$NPMRC" "$REGISTRY" |
     op_item_edit_json; then
     echo "warning: npm auth works, but registry session cache update failed" >&2
     return 1
   fi
   if ! op_item_get --format json |
-    node "$SCRIPT_DIR/npm-auth-cache.mjs" verify "$NPMRC" "$REGISTRY"; then
+    node "$NPM_AUTH_SCRIPT_DIR/npm-auth-cache.mjs" verify "$NPMRC" "$REGISTRY"; then
     echo "warning: npm auth works, but registry session cache verification failed" >&2
     return 1
   fi
@@ -101,7 +102,7 @@ ensure_npm_auth() {
   esac
   printf '%s' "$ITEM_JSON" |
     NPM_OTP="$NPM_OTP" NPMRC="$NPMRC" REGISTRY="$REGISTRY" \
-    node "$SCRIPT_DIR/npm-auth-login.mjs" >"$login_log" 2>&1 || {
+    node "$NPM_AUTH_SCRIPT_DIR/npm-auth-login.mjs" >"$login_log" 2>&1 || {
     echo "npm registry login failed" >&2
     redact <"$login_log" >&2
     return 3

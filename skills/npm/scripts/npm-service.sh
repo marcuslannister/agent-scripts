@@ -82,7 +82,7 @@ for bin in op jq node npm; do
   }
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 WORK="$(mktemp -d /tmp/npm-service.XXXXXX)"
 NPMRC="$WORK/npmrc"
 cleanup() {

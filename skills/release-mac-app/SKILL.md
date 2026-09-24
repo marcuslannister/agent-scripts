@@ -12,8 +12,11 @@ Use for BlackBar, RepoBar, CodexBar, Trimmy, and similar Sparkle-updated macOS a
 - Work from the app repo.
 - Read `.mac-release.env`; it is the repo-owned release manifest.
 - Use `scripts/mac-release` from this skill for shared release/appcast/verify work.
+- Execute `mac-release` directly so its privileged Bash shebang ignores startup hooks; if an explicit interpreter is
+  unavoidable, use `/bin/bash -p`, never plain `bash mac-release`.
 - Keep app-specific build/package/sign behavior in repo scripts unless it is already manifest-driven.
 - Never print private key material.
+- Upload app/dSYM assets to a draft before publication. After a failure, preserve the release, tags, appcast commit, and local edits; inspect existing state and resume the failed step instead of deleting or retagging a possibly published release.
 - Prefer `MAC_RELEASE_SPARKLE_OP_REF` for headless release signing when the key is in 1Password; otherwise prefer
   Keychain Sparkle signing. `SPARKLE_PRIVATE_KEY_FILE` is an explicit local override only.
 
@@ -28,6 +31,7 @@ Use for BlackBar, RepoBar, CodexBar, Trimmy, and similar Sparkle-updated macOS a
 /Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release check-assets [tag]
 /Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release release
 /Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release codesign-run [--with-package-secrets] -- <command> [args...]
+/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release package-run -- <command> [args...]
 ```
 
 ## Manifest
@@ -82,12 +86,15 @@ Common optional:
 
 - Prefer already-exported env vars first; no `op` call if all `MAC_RELEASE_OP_FIELDS` are present.
 - If fields are missing, read configured package and codesign items in one tmux command for the whole release.
+- Provider stderr and parser exceptions are discarded; failed reads stop with fixed provider-read, JSON/schema, missing-field, or parser-failure diagnostics, without values or field labels.
+- Direct env-reference handoffs use Bash `%q` to preserve captured values safely on Bash 3.2; command substitution still strips terminal newlines from `op read` output.
 - Resolve `MAC_RELEASE_SPARKLE_OP_REF` without exposing the private key in the generated environment file or logs;
   only the temporary file path crosses the helper boundary.
 - Use service-account mode only with an explicit vault or `MAC_RELEASE_OP_USE_SERVICE_ACCOUNT=1`.
 - Do not retry `op` reads in a fresh shell; rerun only from the same tmux session after explicit user direction.
 - Never allow a release to reach app packaging with an unprepared Developer ID keychain. No SecurityAgent password windows during release; fail the signing canary first.
 - For non-app release scripts, use `codesign-run` instead of copying keychain setup into the repository. Supply the codesign manifest fields through `.mac-release.env` or explicit `MAC_RELEASE_CODESIGN_*` environment configuration. It loads only codesign credentials by default; pass `--with-package-secrets` when the wrapped release script also needs the configured package/notary fields in the same 1Password pass. It runs the bounded signing canary, scopes `codesign` through the managed-keychain shim, and restores/relocks before returning.
+- Use `package-run` for notarization/package credentials when no signing operation is required. It never resolves, prepares, or unlocks the Developer ID keychain and strips signing and Sparkle authority from the child.
 - Disable shell xtrace and verbose mode before loading release secrets. Arm cleanup before keychain/search-list mutations, restore the dedicated keychain's original lock policy and user search list, and relock it after packaging.
 
 ## Done

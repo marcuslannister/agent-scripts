@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 
@@ -89,7 +89,21 @@ async function main() {
 	console.log(`npm registry session created for ${result.username || username}`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isMainModule() {
+	if (!process.argv[1]) return false;
+	try {
+		// Resolve both sides, including when Node preserves the main module's symlink.
+		return (
+			fs.realpathSync(fileURLToPath(import.meta.url)) ===
+			fs.realpathSync(process.argv[1])
+		);
+	} catch {
+		// Library imports can have a non-file positional argument (node -e).
+		return false;
+	}
+}
+
+if (isMainModule()) {
 	main().catch((error) => {
 		console.error(error?.code ? `${error.code}: ${error.message}` : error.message);
 		if (error?.body) {

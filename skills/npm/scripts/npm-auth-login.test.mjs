@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { testCliEntrypoint } from "./npm-cli-test-helpers.mjs";
 import {
 	extractNpmCredentials,
 	selectCredentialField,
 } from "./npm-auth-login.mjs";
+
+testCliEntrypoint(
+	new URL("./npm-auth-login.mjs", import.meta.url),
+	"npm OTP must be six digits",
+);
 
 test("canonical IDs beat earlier duplicate labels", () => {
 	const credentials = extractNpmCredentials({

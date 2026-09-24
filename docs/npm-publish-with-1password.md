@@ -1,132 +1,63 @@
 ---
-summary: "Publish to npm via tmux + 1Password CLI (op)"
+summary: "npm publishing: hand off to the canonical npm and 1Password skills"
 read_when:
   - "Need npm publish without copy/paste secrets."
   - "Need npm OTP/TOTP from 1Password."
 ---
 
-# npm publish via tmux + op
+# npm publishing with 1Password
 
-Goal: publish to npm without pasting tokens/passwords into terminal logs.
+This document is a routing guide, not a standalone auth or publishing recipe.
+Load `one-password` first (`$one-password`, owned by
+`~/Projects/manager/skills/one-password/SKILL.md`), then
+[npm](../skills/npm/SKILL.md) (`$npm`). Those skills own the current commands,
+credential selection, consent rules, retries, verification, and cleanup. If a
+skill is unavailable, stop rather than reconstructing its workflow here.
+Publishing still requires an explicit release/publish request.
 
-Hard rule: do not run `op whoami`, `op item list`, `op item get`, `op read`, or any other
-1Password CLI command directly in a normal shell for this workflow. Use the tmux
-session below first, and send every `op` command through that tmux session. Direct
-`op` commands can trigger repeated 1Password desktop alerts.
+## Auth and session boundaries
 
-## Prereqs
+- **Service account first.** Follow `one-password` for `OP_SERVICE_ACCOUNT_TOKEN`
+  access to `Molty`, with both `OP_LOAD_DESKTOP_APP_SETTINGS=false` and
+  `OP_BIOMETRIC_UNLOCK_ENABLED=false`. No desktop unlock or sign-in is required
+  on this path. Do not add `--account` or run `op signin` on the service-account
+  path. Missing or expired access means stop and ask, not silent desktop fallback.
+- **Desktop access requires consent.** Follow the owning skills' explicit
+  desktop-consent rules, including the npm skill's release/publish consent rule.
+  An unlocked desktop app is not a prerequisite for the default workflow.
+- **One shared session, one task window.** Use the `one-password` bootstrap for
+  `clawdbot-op.sock` / `op-work`. Open exactly one window for the npm task,
+  target it by window ID, and reuse it for retries and follow-ups. Never create
+  an npm-specific socket, server, or session, send work to the permanent `shell`
+  keeper window, or interfere with another task's window. Never run `op`
+  directly in the normal shell tool.
 
-- 1Password desktop app unlocked + CLI integration enabled.
-- `op` installed.
-- `tmux` installed.
+## Use the npm helpers
 
-## tmux session (required)
+Inside that same task window, follow the npm skill to choose the entrypoint:
 
-Use a persistent tmux session so `op` auth survives across commands.
+- Local package publishing: `skills/npm/scripts/publish-package.sh`, from the
+  package root.
+- Ad-hoc authenticated registry commands: `skills/npm/scripts/npm-service.sh`
+  with `-- <npm args...>`.
+- Package reservation: `skills/npm/scripts/reserve-packages.sh`.
 
-```bash
-SOCKET_DIR="${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}"
-mkdir -p "$SOCKET_DIR"
-SOCKET="$SOCKET_DIR/op-auth.sock"
-SESSION="op-auth-$(date +%Y%m%d-%H%M%S)"
+These paths are relative to the agent-scripts checkout; use the invocation paths
+in the npm skill. The shared auth helper owns credential extraction, stored
+registry-session reuse, login/OTP fallback, cache writes, and temporary npmrc
+cleanup. Do not copy legacy `Private/Npmjs` field reads, buffer-based login,
+manual JSON extraction, or an OTP-only publish shortcut into a separate recipe.
+Keep secret values out of logs, chat, and pane output.
 
-tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op signin" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op whoami" Enter
-```
-
-All commands below assume that same tmux socket/session. If you need to discover
-the item name or fields, do it inside tmux too, for example:
-
-```bash
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item list" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item get '<Item>' --vault '<Vault>'" Enter
-```
-
-## Preferred: granular automation token (+ optional OTP)
-
-Store a granular npm token in 1Password (item field `token`), plus TOTP if required.
-For Peter's npm account, the 1Password item is `op://Private/Npmjs`.
-
-```bash
-TOKEN_REF='op://Private/Npmjs/token'
-OTP_REF='op://Private/Npmjs/one-time password?attribute=otp'
-
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "NODE_AUTH_TOKEN=\"\$(op read \"$TOKEN_REF\" | tr -d \"\\n\")\" npm publish --otp \"\$(op read \"$OTP_REF\" | tr -d \"\\n\")\"" Enter
-```
-
-Notes:
-- `tr -d "\n"` avoids accidental extra submits when pasting/reading.
-- Avoid printing token/OTP (no `echo`, no `set -x`, no pane capture right after OTP).
-
-## If you’re already logged in: OTP-only publish
-
-If `npm whoami` works, you usually only need OTP for publish:
-
-```bash
-OTP_REF='op://<Vault>/<Item>/one-time password?attribute=otp'
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "npm publish --otp \"\$(op read \"$OTP_REF\" | tr -d \"\\n\")\"" Enter
-```
-
-Tip: unset CI tokens so you don’t accidentally override your local login:
-
-```bash
-env -u NPM_TOKEN -u NODE_AUTH_TOKEN npm whoami
-```
-
-## Fallback: `npm login` using op buffers (no echo)
-
-When password auth is unavoidable, avoid typing secrets by piping into tmux
-buffers and pasting. Peter's npm account is stored in the 1Password item
-`Npmjs` in the `Private` vault.
-
-```bash
-USER_REF='op://Private/Npmjs/name'
-PASS_REF='op://Private/Npmjs/password'
-EMAIL_REF='op://Private/Npmjs/email'
-OTP_REF='op://Private/Npmjs/one-time password?attribute=otp'
-
-# load buffers (strip trailing newline)
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op read \"$USER_REF\"  | tr -d \"\\n\" | tmux -S \"$SOCKET\" load-buffer -b npm_user  -" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op read \"$PASS_REF\"  | tr -d \"\\n\" | tmux -S \"$SOCKET\" load-buffer -b npm_pass  -" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op read \"$EMAIL_REF\" | tr -d \"\\n\" | tmux -S \"$SOCKET\" load-buffer -b npm_email -" Enter
-
-# run login; paste at prompts (repeat pattern for Email/OTP)
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "npm login --auth-type=legacy" Enter
-tmux -S "$SOCKET" paste-buffer -t "$SESSION":1.1 -b npm_user
-tmux -S "$SOCKET" send-keys    -t "$SESSION":1.1 -- Enter
-tmux -S "$SOCKET" paste-buffer -t "$SESSION":1.1 -b npm_pass
-tmux -S "$SOCKET" send-keys    -t "$SESSION":1.1 -- Enter
-tmux -S "$SOCKET" paste-buffer -t "$SESSION":1.1 -b npm_email
-tmux -S "$SOCKET" send-keys    -t "$SESSION":1.1 -- Enter
-tmux -S "$SOCKET" paste-buffer -t "$SESSION":1.1 -b npm_otp
-tmux -S "$SOCKET" send-keys    -t "$SESSION":1.1 -- Enter
-```
-
-If the item has duplicate labels, extract by field purpose/type from JSON inside
-tmux instead of reading by label:
-
-```bash
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item get Npmjs --vault Private --format json | node -e \"let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const item=JSON.parse(s);const fields=item.fields||[];const pick=(fn)=>fields.find(fn)?.value||'';process.stdout.write(pick(f=>f.purpose==='USERNAME'))})\" | tmux -S \"$SOCKET\" load-buffer -b npm_user -" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item get Npmjs --vault Private --format json | node -e \"let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const item=JSON.parse(s);const fields=item.fields||[];const pick=(fn)=>fields.find(fn)?.value||'';process.stdout.write(pick(f=>f.purpose==='PASSWORD'&&f.type==='CONCEALED'))})\" | tmux -S \"$SOCKET\" load-buffer -b npm_pass -" Enter
-tmux -S "$SOCKET" send-keys -t "$SESSION":1.1 -- "op item get Npmjs --vault Private --format json | node -e \"let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const item=JSON.parse(s);const fields=item.fields||[];const pick=(fn)=>fields.find(fn)?.value||'';process.stdout.write(pick(f=>f.label==='email'))})\" | tmux -S \"$SOCKET\" load-buffer -b npm_email -" Enter
-```
-
-Gotchas:
-- If npm says “Incorrect or missing password”, the 1Password password is stale or the paste didn’t reach the prompt.
-- Don’t run `tmux capture-pane` after pasting OTP (it may echo); wait 30–60s if you must debug.
-- Repeated reads of the password field can trigger multiple 1Password “password used/copied” alerts; OTP-only flow avoids that entirely.
-
-## Verify
-
-```bash
-npm whoami
-npm view <pkg> version
-```
+Use the owning skill's identity and registry checks. If credentials are missing
+or ambiguous, auth fails, package access is denied, or the package/version does
+not match the release target, stop and ask; do not probe other items or open a
+second auth window.
 
 ## Cleanup
 
-```bash
-tmux -S "$SOCKET" kill-session -t "$SESSION"
-rm -f "$SOCKET"
-```
+On success or failure, ensure the helper's temporary auth files are cleaned up,
+then close only this task's window using the window ID and cleanup procedure
+from `one-password`. Leave `op-work`, its `shell` keeper, the shared socket, and
+all other task windows intact. Never kill the shared session/server or remove
+its socket as npm-task cleanup.

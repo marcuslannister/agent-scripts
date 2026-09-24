@@ -53,7 +53,7 @@ for bin in op jq node npm; do
 done
 test -f package.json || { echo "package.json not found in current directory" >&2; exit 2; }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PACKAGE_DIR="$PWD"
 WORK="$(mktemp -d /tmp/npm-publish.XXXXXX)"
 NPMRC="$WORK/npmrc"

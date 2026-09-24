@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 export function registryTokenFromNpmrc(npmrc, registry) {
 	const authKey = `//${new URL(registry).host}/:_authToken`;
@@ -56,7 +56,21 @@ async function main() {
 	}
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isMainModule() {
+	if (!process.argv[1]) return false;
+	try {
+		// Resolve both sides, including when Node preserves the main module's symlink.
+		return (
+			fs.realpathSync(fileURLToPath(import.meta.url)) ===
+			fs.realpathSync(process.argv[1])
+		);
+	} catch {
+		// Library imports can have a non-file positional argument (node -e).
+		return false;
+	}
+}
+
+if (isMainModule()) {
 	main().catch((error) => {
 		console.error(error.message);
 		process.exit(1);

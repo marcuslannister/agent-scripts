@@ -37,6 +37,26 @@ mac_release_expand_home_path() {
   fi
 }
 
+mac_release_login_home() {
+  # The user keychain domain lives under the *account's* home directory. A
+  # caller may hand us an isolated HOME (goplaces' release-local runs the
+  # signing step with HOME pointed at an empty scratch dir), which makes
+  # `security -d user` fail with "A default keychain could not be found".
+  # Resolve the real home from the account database so the check inspects the
+  # same domain regardless of the inherited HOME.
+  local home=""
+  home=$(/usr/bin/dscl . -read "/Users/$(/usr/bin/id -un)" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}')
+  if [[ -z $home || ! -d $home ]]; then
+    home=${HOME:-}
+  fi
+  printf '%s' "$home"
+}
+
+mac_release_user_security() {
+  # Run `security` against the real account's keychain domain.
+  HOME="$(mac_release_login_home)" security "$@"
+}
+
 mac_release_sparkle_account_args() {
   local out_var=${1:?"out var"} account
   account=${MAC_RELEASE_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}
@@ -58,20 +78,24 @@ mac_release_load_1password_env() {
   local mode=${1:-all} codesign_passwordless=${MAC_RELEASE_CODESIGN_PASSWORDLESS:-0}
   local primary_missing=0 codesign_missing=0 env_refs_missing=0 sparkle_missing=0 release_op_field
   local env_ref_entry env_ref_name
-  [[ "$mode" == "all" || "$mode" == "codesign-only" || "$mode" == "sparkle-only" ]] ||
+  [[ "$mode" == "all" || "$mode" == "codesign-only" || "$mode" == "package-only" ||
+    "$mode" == "sparkle-only" ]] ||
     mac_release_die "Unknown 1Password load mode: $mode"
-  if [[ "$codesign_passwordless" == "1" ]]; then
+  if [[ "$mode" == "package-only" || "$mode" == "sparkle-only" ]]; then
+    unset MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
+  elif [[ "$codesign_passwordless" == "1" ]]; then
     unset MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   elif [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
     export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   fi
-  if [[ "$mode" == "all" && -n "${MAC_RELEASE_OP_ITEM:-}" ]]; then
+  if [[ "$mode" != "codesign-only" && "$mode" != "sparkle-only" && -n "${MAC_RELEASE_OP_ITEM:-}" ]]; then
     [[ -n "${MAC_RELEASE_OP_FIELDS:-}" ]] || mac_release_die "Set MAC_RELEASE_OP_FIELDS with MAC_RELEASE_OP_ITEM"
     for release_op_field in $MAC_RELEASE_OP_FIELDS; do
       [[ -n "${!release_op_field:-}" ]] || primary_missing=1
     done
   fi
-  if [[ "$mode" != "sparkle-only" && -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
+  if [[ "$mode" != "package-only" && "$mode" != "sparkle-only" &&
+    -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
     [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || codesign_missing=1
     if [[ "$codesign_passwordless" != "1" ]]; then
       [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]] || codesign_missing=1
@@ -79,7 +103,8 @@ mac_release_load_1password_env() {
   fi
   # Extra env refs: ';'-separated NAME=op://Vault/Item/field entries (item names
   # may contain spaces, so whitespace cannot be the separator).
-  if [[ "$mode" == "all" && -n "${MAC_RELEASE_OP_ENV_REFS:-}" ]]; then
+  if [[ "$mode" != "codesign-only" && "$mode" != "sparkle-only" &&
+    -n "${MAC_RELEASE_OP_ENV_REFS:-}" ]]; then
     while IFS= read -r env_ref_entry; do
       [[ -n "${env_ref_entry// /}" ]] || continue
       env_ref_name=${env_ref_entry%%=*}
@@ -90,7 +115,8 @@ mac_release_load_1password_env() {
       [[ -n "${!env_ref_name:-}" ]] || env_refs_missing=1
     done < <(tr ';' '\n' <<<"${MAC_RELEASE_OP_ENV_REFS}")
   fi
-  if [[ "$mode" != "codesign-only" && -n "${MAC_RELEASE_SPARKLE_OP_REF:-}" &&
+  if [[ "$mode" != "codesign-only" && "$mode" != "package-only" &&
+    -n "${MAC_RELEASE_SPARKLE_OP_REF:-}" &&
     ! -f "${SPARKLE_PRIVATE_KEY_FILE:-}" ]]; then
     [[ "$MAC_RELEASE_SPARKLE_OP_REF" == op://* ]] ||
       mac_release_die "MAC_RELEASE_SPARKLE_OP_REF must be an op:// reference"
@@ -98,7 +124,7 @@ mac_release_load_1password_env() {
   fi
   if [[ "$primary_missing" != "1" && "$codesign_missing" != "1" &&
     "$env_refs_missing" != "1" && "$sparkle_missing" != "1" ]]; then
-    if [[ "$mode" == "all" ]]; then
+    if [[ "$mode" != "codesign-only" && "$mode" != "sparkle-only" ]]; then
       for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
         export "${release_op_field?}"
       done
@@ -111,7 +137,10 @@ mac_release_load_1password_env() {
     if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
       export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
     fi
-    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || export MAC_RELEASE_CODESIGN_KEYCHAIN
+    if [[ "$mode" != "package-only" && "$mode" != "sparkle-only" &&
+      -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]]; then
+      export MAC_RELEASE_CODESIGN_KEYCHAIN
+    fi
     return 0
   fi
 
@@ -229,19 +258,26 @@ trap 'rm -rf "$work_dir"' EXIT
 : >"$env_file"
 
 run_op() {
-  local use_service_account=$1 target_account=$2
+  local use_service_account=$1 target_account=$2 rc=0
   shift 2
-  if [[ "$use_service_account" == "1" ]]; then
-    OP_LOAD_DESKTOP_APP_SETTINGS=false \
-      OP_BIOMETRIC_UNLOCK_ENABLED=false \
-      OP_SERVICE_ACCOUNT_TOKEN="${OP_SERVICE_ACCOUNT_TOKEN:?}" \
-      op "$@" </dev/null
-  else
-    env -u OP_SERVICE_ACCOUNT_TOKEN \
-      -u MOLTY_OP_SERVICE_ACCOUNT_TOKEN \
-      -u OP_LOAD_DESKTOP_APP_SETTINGS \
-      -u OP_BIOMETRIC_UNLOCK_ENABLED \
-      op "$@" --account "$target_account"
+  # Provider stderr may contain secrets even on success; never retain or replay it.
+  {
+    if [[ "$use_service_account" == "1" ]]; then
+      OP_LOAD_DESKTOP_APP_SETTINGS=false \
+        OP_BIOMETRIC_UNLOCK_ENABLED=false \
+        OP_SERVICE_ACCOUNT_TOKEN="${OP_SERVICE_ACCOUNT_TOKEN:?}" \
+        op "$@" </dev/null
+    else
+      env -u OP_SERVICE_ACCOUNT_TOKEN \
+        -u MOLTY_OP_SERVICE_ACCOUNT_TOKEN \
+        -u OP_LOAD_DESKTOP_APP_SETTINGS \
+        -u OP_BIOMETRIC_UNLOCK_ENABLED \
+        op "$@" --account "$target_account"
+    fi
+  } 2>/dev/null || rc=$?
+  if [[ "$rc" != "0" ]]; then
+    echo "1Password provider read failed" >>"$log_file"
+    return "$rc"
   fi
 }
 
@@ -252,65 +288,71 @@ read_item() {
     args+=(--vault "$target_vault")
   fi
 
-  run_op "$use_service_account" "$target_account" "${args[@]}" >"$output" 2>>"$log_file"
+  run_op "$use_service_account" "$target_account" "${args[@]}" >"$output"
+}
+
+cat >"$work_dir/parse-item.js" <<'NODE'
+try {
+  const fs = require("fs");
+  const item = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+  const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  if (!isObject(item) || !Array.isArray(item.fields)) process.exit(2);
+  const values = new Map();
+  for (const field of item.fields) {
+    if (!isObject(field) || [field.label, field.id, field.value].some(
+      (value) => value != null && typeof value !== "string"
+    )) process.exit(2);
+    values.set(field.label || field.id, field.value || "");
+  }
+  const requested = process.argv[3] === "primary"
+    ? process.env.MAC_RELEASE_OP_FIELDS.split(/\s+/).filter(Boolean).map((name) => [name, name, true])
+    : [
+      ["MAC_RELEASE_CODESIGN_KEYCHAIN", process.env.MAC_RELEASE_CODESIGN_OP_PATH_FIELD, true],
+      ...(process.env.MAC_RELEASE_CODESIGN_PASSWORDLESS === "1" ? [] : [
+        ["MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD", process.env.MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD, false],
+      ]),
+    ];
+  const lines = [];
+  for (const [name, label, exported] of requested) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) process.exit(2);
+    const value = values.get(label);
+    if (!value) process.exit(3);
+    const quoted = `'${value.replaceAll("'", "'\\''")}'`;
+    lines.push(`${exported ? "export " : ""}${name}=${quoted}\n`);
+  }
+  process.stdout.write(lines.join(""));
+} catch {
+  // JSON and schema exceptions can contain input; communicate only by exit status.
+  process.exit(2);
+}
+NODE
+
+parse_item() {
+  local rc=0
+  # Discard even unexpected runtime diagnostics; only fixed categories reach the log.
+  node "$work_dir/parse-item.js" "$1" "$2" >>"$env_file" 2>/dev/null || rc=$?
+  case "$rc" in
+    0) return 0 ;;
+    2) echo "1Password item JSON/schema invalid" >>"$log_file" ;;
+    3) echo "1Password required field missing" >>"$log_file" ;;
+    *) echo "1Password item parser failed" >>"$log_file" ;;
+  esac
+  exit "$rc"
 }
 
 if [[ "$read_primary" == "1" ]]; then
   json_file="$work_dir/primary.json"
-  read_item "$item" "$account" "$vault" "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" "$json_file"
-  MAC_RELEASE_OP_FIELDS="$fields" node - "$json_file" >>"$env_file" 2>>"$log_file" <<'NODE'
-const fs = require("fs");
-const path = process.argv[2];
-const item = JSON.parse(fs.readFileSync(path, "utf8"));
-const fields = process.env.MAC_RELEASE_OP_FIELDS.split(/\s+/).filter(Boolean);
-const values = new Map((item.fields || []).map((field) => [field.label || field.id, field.value || ""]));
-function quote(value) {
-  return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-for (const name of fields) {
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
-    throw new Error(`invalid env field name: ${name}`);
-  }
-  const value = values.get(name);
-  if (!value) {
-    throw new Error(`missing 1Password field: ${name}`);
-  }
-  process.stdout.write(`export ${name}=${quote(value)}\n`);
-  process.stderr.write(`${name}: len=${value.length} escapedNewline=${value.includes("\\n")} realNewline=${value.includes("\n")}\n`);
-}
-NODE
+  read_item "$item" "$account" "$vault" "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" "$json_file" || exit $?
+  MAC_RELEASE_OP_FIELDS="$fields" parse_item "$json_file" primary
 fi
 
 if [[ "$read_codesign" == "1" ]]; then
   codesign_json_file="$work_dir/codesign.json"
-  read_item "$codesign_item" "$codesign_account" "$codesign_vault" "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT:-0}" "$codesign_json_file"
+  read_item "$codesign_item" "$codesign_account" "$codesign_vault" "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT:-0}" "$codesign_json_file" || exit $?
   MAC_RELEASE_CODESIGN_OP_PATH_FIELD="$codesign_path_field" \
     MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD="$codesign_password_field" \
     MAC_RELEASE_CODESIGN_PASSWORDLESS="$codesign_passwordless" \
-    node - "$codesign_json_file" >>"$env_file" 2>>"$log_file" <<'NODE'
-const fs = require("fs");
-const path = process.argv[2];
-const item = JSON.parse(fs.readFileSync(path, "utf8"));
-const values = new Map((item.fields || []).map((field) => [field.label || field.id, field.value || ""]));
-const pathField = process.env.MAC_RELEASE_CODESIGN_OP_PATH_FIELD;
-const passwordField = process.env.MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD;
-const passwordless = process.env.MAC_RELEASE_CODESIGN_PASSWORDLESS === "1";
-const keychainPath = values.get(pathField);
-const keychainPassword = values.get(passwordField);
-function quote(value) {
-  return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-if (!keychainPath) throw new Error(`missing 1Password field: ${pathField}`);
-if (!passwordless && !keychainPassword) throw new Error(`missing 1Password field: ${passwordField}`);
-process.stdout.write(`export MAC_RELEASE_CODESIGN_KEYCHAIN=${quote(keychainPath)}\n`);
-if (!passwordless) {
-  process.stdout.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD=${quote(keychainPassword)}\n`);
-}
-process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN: len=${keychainPath.length}\n`);
-if (!passwordless) {
-  process.stderr.write(`MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD: len=${keychainPassword.length}\n`);
-}
-NODE
+    parse_item "$codesign_json_file" codesign
 fi
 
 if [[ "${MAC_RELEASE_OP_ENV_REFS_READ:-0}" == "1" && -n "${MAC_RELEASE_OP_ENV_REFS:-}" ]]; then
@@ -318,11 +360,10 @@ if [[ "${MAC_RELEASE_OP_ENV_REFS_READ:-0}" == "1" && -n "${MAC_RELEASE_OP_ENV_RE
     [[ -n "${env_ref_entry// /}" ]] || continue
     env_ref_name=${env_ref_entry%%=*}
     env_ref_uri=${env_ref_entry#*=}
-    env_ref_value=$(run_op "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" "$account" read "$env_ref_uri" 2>>"$log_file") ||
-      { echo "op read failed for $env_ref_name" >&2; exit 1; }
-    [[ -n "$env_ref_value" ]] || { echo "empty 1Password value for $env_ref_name" >&2; exit 1; }
-    printf "export %s='%s'\n" "$env_ref_name" "${env_ref_value//\'/\'\\\'\'}" >>"$env_file"
-    echo "$env_ref_name: len=${#env_ref_value}" >&2
+    env_ref_value=$(run_op "${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}" "$account" read "$env_ref_uri") || exit $?
+    [[ -n "$env_ref_value" ]] || { echo "1Password required field missing" >>"$log_file"; exit 1; }
+    # Quote the captured value as one Bash word, including on Bash 3.2.
+    printf 'export %s=%q\n' "$env_ref_name" "$env_ref_value" >>"$env_file"
   done 3< <(tr ';' '\n' <<<"${MAC_RELEASE_OP_ENV_REFS}")
 fi
 
@@ -331,11 +372,8 @@ if [[ "$read_sparkle" == "1" ]]; then
   [[ -n "$sparkle_key_file" ]] || { echo "missing Sparkle temp-key path" >&2; exit 1; }
   sparkle_value=$(run_op \
     "${MAC_RELEASE_SPARKLE_OP_USE_SERVICE_ACCOUNT-${MAC_RELEASE_OP_USE_SERVICE_ACCOUNT:-0}}" \
-    "$sparkle_account" read "$sparkle_ref" 2>>"$log_file") || {
-    echo "Sparkle key read failed" >&2
-    exit 1
-  }
-  [[ -n "$sparkle_value" ]] || { echo "empty Sparkle private key" >&2; exit 1; }
+    "$sparkle_account" read "$sparkle_ref") || exit $?
+  [[ -n "$sparkle_value" ]] || { echo "1Password required field missing" >>"$log_file"; exit 1; }
   (umask 077; printf '%s\n' "$sparkle_value" >"$sparkle_key_file")
   chmod 600 "$sparkle_key_file"
   unset sparkle_value
@@ -344,7 +382,7 @@ if [[ "$read_sparkle" == "1" ]]; then
 fi
 
 chmod 600 "$env_file"
-echo "1Password fields exported: $(wc -l <"$env_file" | tr -d ' ')"
+echo "1Password fields exported"
 SCRIPT
   chmod 700 "$script"
 
@@ -385,17 +423,17 @@ if [[ -n "$MAC_RELEASE_OP_SERVICE_ACCOUNT_TOKEN_FILE" ]]; then
   export OP_SERVICE_ACCOUNT_TOKEN
 fi
 RUNNER
-    printf 'bash %q\n' "$script"
+    printf '/bin/bash %q\n' "$script"
   } >"$runner"
   chmod 700 "$runner"
 
   tmux -S "$socket" has-session -t "$session" 2>/dev/null ||
     tmux -S "$socket" new-session -d -s "$session" -n shell
-  op_window=$(tmux -S "$socket" new-window -d -t "$session" -n mac-release -P -F '#{window_id}')
-
   : >"$log_file"
-  tmux -S "$socket" send-keys -t "$op_window" -- \
-    "env -u BASH_ENV bash $(mac_release_tmux_quote "$runner"); printf '%s\n' \$? > $(mac_release_tmux_quote "$status_file")" C-m
+  # Start directly: an interactive shell can discard input sent before its prompt is ready.
+  op_window=$(tmux -S "$socket" new-window -d -t "$session" -n mac-release -P -F '#{window_id}' \
+    /bin/bash --noprofile --norc -p -c \
+    "env -u BASH_ENV /bin/bash $(mac_release_tmux_quote "$runner"); printf '%s\n' \$? > $(mac_release_tmux_quote "$status_file")")
 
   local deadline=$((SECONDS + ${MAC_RELEASE_OP_WAIT_SECONDS:-300}))
   until [[ -f "$status_file" ]]; do
@@ -417,7 +455,7 @@ RUNNER
 
   # shellcheck source=/dev/null
   source "$env_file"
-  if [[ "$mode" == "all" ]]; then
+  if [[ "$mode" != "codesign-only" && "$mode" != "sparkle-only" ]]; then
     for release_op_field in ${MAC_RELEASE_OP_FIELDS:-}; do
       export "${release_op_field?}"
       [[ -n "${!release_op_field:-}" ]] || mac_release_die "1Password field did not populate: $release_op_field"
@@ -426,7 +464,8 @@ RUNNER
   if [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD:-}" ]]; then
     export -n MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   fi
-  if [[ "$mode" != "sparkle-only" && -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
+  if [[ "$mode" != "package-only" && "$mode" != "sparkle-only" &&
+    -n "${MAC_RELEASE_CODESIGN_OP_ITEM:-}" ]]; then
     export MAC_RELEASE_CODESIGN_KEYCHAIN
     [[ -n "${MAC_RELEASE_CODESIGN_KEYCHAIN:-}" ]] || mac_release_die "1Password did not populate MAC_RELEASE_CODESIGN_KEYCHAIN"
     if [[ "$codesign_passwordless" != "1" ]]; then
@@ -868,15 +907,14 @@ extract_notes_from_changelog() {
 import sys, pathlib, re
 version, dest = sys.argv[1], pathlib.Path(sys.argv[2])
 text = pathlib.Path("CHANGELOG.md").read_text()
-pattern = re.compile(rf"^##\s+(?:\[)?{re.escape(version)}(?:\])?(?:\s+.*)?$", re.M)
+pattern = re.compile(rf"^##[ \t]+(?:\[)?{re.escape(version)}(?:\])?(?:[ \t]+.*)?$", re.M)
 m = pattern.search(text)
 if not m:
     raise SystemExit("section not found")
 start = m.end()
 next_header = text.find("\n## ", start)
 chunk = text[start: next_header if next_header != -1 else len(text)]
-lines = [ln for ln in chunk.strip().splitlines() if ln.strip()]
-dest.write_text("\n".join(lines) + "\n")
+dest.write_text(chunk.strip() + "\n")
 PY
 }
 
@@ -889,7 +927,7 @@ mac_release_changelog_html() {
 import html, pathlib, re, sys
 version, changelog, app, repo = sys.argv[1:5]
 text = pathlib.Path(changelog).read_text()
-pattern = re.compile(rf"^##\s+(?:\[)?{re.escape(version)}(?:\])?(?:\s+.*)?$", re.M)
+pattern = re.compile(rf"^##[ \t]+(?:\[)?{re.escape(version)}(?:\])?(?:[ \t]+.*)?$", re.M)
 m = pattern.search(text)
 if not m:
     raise SystemExit(f"changelog section not found for {version}")
@@ -977,13 +1015,35 @@ raise SystemExit(f"No appcast entry for version {version}")
 PY
 }
 
+mac_release_download_enclosure() {
+  local url=${1:?"enclosure URL required"} dest=${2:?"destination required"}
+  local attempt=1 delay=2 http_code curl_rc
+  require_bin curl
+  while true; do
+    curl_rc=0
+    http_code=$(curl --fail --location --silent --show-error --connect-timeout 15 --max-time 300 \
+      --output "$dest" --write-out '%{http_code}' "$url") || curl_rc=$?
+    [[ "$curl_rc" != "0" ]] || return 0
+    case "$curl_rc:$http_code" in
+      *:401|*:403) return "$curl_rc" ;;
+      22:404|22:408|22:425|22:429|22:500|22:502|22:503|22:504|5:*|6:*|7:*|18:*|28:*|52:*|55:*|56:*) ;;
+      *) return "$curl_rc" ;;
+    esac
+    [[ "$attempt" -lt 6 ]] || return "$curl_rc"
+    echo "Enclosure not ready (HTTP ${http_code:-unknown}, curl $curl_rc); retrying in ${delay}s ($attempt/6)." >&2
+    sleep "$delay"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
 verify_enclosure() {
   local url=$1 sig=$2 key_file=$3 expected_len=$4
   require_bin curl sign_update
   local tmp account_args=()
   tmp=$(mktemp /tmp/sparkle-enclosure.XXXX)
   trap 'rm -f "${tmp:-}"' RETURN
-  curl -L -o "$tmp" "$url"
+  mac_release_download_enclosure "$url" "$tmp"
   local len
   len=$(stat -f%z "$tmp")
   [[ "$len" == "$expected_len" ]] || mac_release_die "Length mismatch for $url (expected $expected_len, got $len)"
@@ -1013,7 +1073,7 @@ verify_codesign_from_enclosure() {
   tmp_dir=$(mktemp -d /tmp/sparkle-verify.XXXX)
   trap 'rm -rf "${tmp_dir:-}"' RETURN
   tmp_zip="$tmp_dir/enclosure.zip"
-  curl -L -o "$tmp_zip" "$url"
+  mac_release_download_enclosure "$url" "$tmp_zip"
   /usr/bin/ditto -x -k --norsrc "$tmp_zip" "$tmp_dir"
   app=$(find "$tmp_dir" -maxdepth 2 -name "${APP_NAME}.app" -not -path "*/__MACOSX/*" | head -n 1)
   [[ -n "$app" ]] || mac_release_die "No ${APP_NAME}.app found in enclosure $url"
@@ -1090,7 +1150,8 @@ check_assets() {
       MARKETING_VERSION="$asset_version"
       pattern=$(mac_release_expand "$pattern")
       MARKETING_VERSION="$old_marketing_version"
-      if ! printf "%s\n" "$assets" | grep -Eq "$pattern"; then
+      # Drain the list: grep -q can SIGPIPE printf and fail a match under pipefail.
+      if ! printf "%s\n" "$assets" | grep -E "$pattern" >/dev/null; then
         echo "ERROR: extra asset missing on release $tag: $pattern" >&2
         missing=1
       fi
@@ -1356,7 +1417,7 @@ mac_release_restore_codesign_keychains() {
   local cleanup_failed=0
   local settings_args=()
   if [[ "${MAC_RELEASE_CODESIGN_SEARCH_PREPARED:-0}" == "1" ]]; then
-    if security list-keychains -d user -s "${MAC_RELEASE_ORIGINAL_KEYCHAINS[@]}"; then
+    if mac_release_user_security list-keychains -d user -s "${MAC_RELEASE_ORIGINAL_KEYCHAINS[@]}"; then
       MAC_RELEASE_ORIGINAL_KEYCHAINS=()
       MAC_RELEASE_CODESIGN_SEARCH_PREPARED=0
     else
@@ -1433,7 +1494,7 @@ mac_release_prepare_codesign_keychain() {
     password=$MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD
   fi
   [[ -f "$keychain" ]] || mac_release_die "Developer ID keychain not found: $keychain"
-  default_keychain=$(security default-keychain -d user | sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//')
+  default_keychain=$(mac_release_user_security default-keychain -d user | sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//')
   keychain_file_id=$(stat -L -f '%d:%i' "$keychain")
   default_keychain_file_id=$(stat -L -f '%d:%i' "$default_keychain")
   [[ "$keychain_file_id" != "$default_keychain_file_id" ]] ||
@@ -1443,7 +1504,7 @@ mac_release_prepare_codesign_keychain() {
     mac_release_die "Another macOS release is using the user keychain search list"
   fi
   MAC_RELEASE_CODESIGN_LOCK_HELD=1
-  if ! keychain_list=$(security list-keychains -d user); then
+  if ! keychain_list=$(mac_release_user_security list-keychains -d user); then
     mac_release_restore_codesign_keychains
     mac_release_die "Could not read user keychain search list"
   fi
@@ -1517,7 +1578,7 @@ mac_release_prepare_codesign_keychain() {
     [[ "$existing_keychain" == "$keychain" ]] || signing_search+=("$existing_keychain")
   done
   MAC_RELEASE_CODESIGN_SEARCH_PREPARED=1
-  if ! security list-keychains -d user -s "${signing_search[@]}"; then
+  if ! mac_release_user_security list-keychains -d user -s "${signing_search[@]}"; then
     mac_release_restore_codesign_keychains
     mac_release_die "Could not configure user keychain search list"
   fi
@@ -1526,6 +1587,7 @@ mac_release_prepare_codesign_keychain() {
   probe_path="$probe_dir/probe"
   cp /usr/bin/true "$probe_path"
   canary_rc=0
+  HOME="$(mac_release_login_home)" \
   mac_release_run_with_timeout "${MAC_RELEASE_CODESIGN_CANARY_TIMEOUT:-30}" \
     codesign --force --timestamp=none --keychain "$keychain" --sign "$identity" "$probe_path" ||
     canary_rc=$?
@@ -1544,7 +1606,8 @@ mac_release_prepare_codesign_keychain() {
     mac_release_die "Developer ID signing canary failed Apple trust validation"
   fi
   signature_info=$(codesign -dvvv "$probe_path" 2>&1)
-  if ! printf '%s\n' "$signature_info" | grep -q '^Authority=Developer ID Application:'; then
+  # Drain the report so an early match cannot turn printf's SIGPIPE into failure.
+  if ! printf '%s\n' "$signature_info" | grep '^Authority=Developer ID Application:' >/dev/null; then
     rm -rf "$probe_dir"
     mac_release_restore_codesign_keychains
     mac_release_die "Signing canary is not signed by a Developer ID Application identity"
@@ -1579,7 +1642,7 @@ SCRIPT
   echo "Developer ID keychain prepared without GUI interaction."
 }
 
-mac_release_load_codesign_config() {
+mac_release_load_command_config() {
   set +vx
   ROOT=${ROOT:-$(mac_release_root)}
   cd "$ROOT" || mac_release_die "Could not cd to release root: $ROOT"
@@ -1590,6 +1653,10 @@ mac_release_load_codesign_config() {
   elif [[ -n "${MAC_RELEASE_MANIFEST:-}" ]]; then
     mac_release_die "Missing release manifest: $manifest"
   fi
+}
+
+mac_release_load_codesign_config() {
+  mac_release_load_command_config
 
   [[ -n "${MAC_RELEASE_CODESIGN_IDENTITY:-}" ]] ||
     mac_release_die "codesign-run requires MAC_RELEASE_CODESIGN_IDENTITY or a release manifest"
@@ -1602,6 +1669,35 @@ mac_release_load_codesign_config() {
   [[ -z "${MAC_RELEASE_CODESIGN_CANARY_TIMEOUT:-}" ]] || export MAC_RELEASE_CODESIGN_CANARY_TIMEOUT
   CODESIGN_IDENTITY=$MAC_RELEASE_CODESIGN_IDENTITY
   export CODESIGN_IDENTITY
+}
+
+mac_release_package_run() {
+  [[ "${1:-}" == "--" ]] && shift
+  [[ "$#" -gt 0 ]] || mac_release_die "Usage: mac-release package-run -- <command> [args...]"
+
+  mac_release_load_command_config
+  trap 'mac_release_cleanup_temp_sparkle_key' EXIT
+  mac_release_load_1password_env package-only
+
+  local command_rc=0 scrub_name
+  local scrub_args=(-u OP_SERVICE_ACCOUNT_TOKEN -u MOLTY_OP_SERVICE_ACCOUNT_TOKEN -u SIGN_IDENTITY)
+  while IFS= read -r scrub_name; do
+    case "$scrub_name" in
+      MAC_RELEASE_CODESIGN_*|MAC_RELEASE_CLI_CODESIGN_*|MAC_RELEASE_SIGNING_*|MAC_RELEASE_SPARKLE_*|\
+        CODESIGN_*|SPARKLE_*|BASH_FUNC_*|BASH_ENV|ENV|CDPATH|GLOBIGNORE)
+        scrub_args+=(-u "$scrub_name")
+        ;;
+    esac
+  done < <(builtin compgen -v)
+  for scrub_name in $(builtin compgen -A function); do
+    builtin export -n -f "$scrub_name" 2>/dev/null || true
+  done
+  /usr/bin/env "${scrub_args[@]}" \
+    PATH="${MAC_RELEASE_CALLER_PATH:-/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin}" \
+    /bin/bash --noprofile --norc -p -c '"$@"' mac-release-package "$@" || command_rc=$?
+  mac_release_cleanup_temp_sparkle_key
+  trap - EXIT
+  return "$command_rc"
 }
 
 mac_release_codesign_run() {
@@ -1641,8 +1737,25 @@ mac_release_codesign_run() {
   trap cleanup_codesign_run EXIT
 
   mac_release_prepare_codesign_keychain
+  local -a command_scrub_args=(-u BASH_ENV -u ENV -u CDPATH -u GLOBIGNORE)
+  local command_environment_name
+  local command_path="${MAC_RELEASE_CODESIGN_SHIM_DIR:?}:${MAC_RELEASE_CALLER_PATH:-/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin}"
+  while IFS= read -r command_environment_name; do
+    case "$command_environment_name" in
+      BASH_FUNC_*|BASH_ENV|ENV|CDPATH|GLOBIGNORE) command_scrub_args+=(-u "$command_environment_name") ;;
+    esac
+  done < <(builtin compgen -v)
+  for command_environment_name in $(builtin compgen -A function); do
+    builtin export -n -f "$command_environment_name" 2>/dev/null || true
+  done
   local command_rc=0 cleanup_rc=0
-  "$@" || command_rc=$?
+  # Signing tools resolve identities through the account's keychain domain, so
+  # the wrapped command needs a HOME that actually has one. Callers are free to
+  # sandbox HOME for build isolation (goplaces' release-local does), which
+  # otherwise surfaces as "A default keychain could not be found" from codesign.
+  /usr/bin/env "${command_scrub_args[@]}" PATH="$command_path" \
+    HOME="$(mac_release_login_home)" \
+    /bin/bash --noprofile --norc -p -c '"$@"' mac-release-codesign "$@" || command_rc=$?
   if ! mac_release_restore_codesign_keychains; then
     sleep 1
     mac_release_restore_codesign_keychains || cleanup_rc=$?
@@ -1664,15 +1777,13 @@ mac_release_release() {
   current_branch=$(git branch --show-current)
   [[ "$current_branch" == "$release_branch" ]] || mac_release_die "Release must run on $release_branch; current branch is ${current_branch:-detached}"
   require_clean_worktree
-  local pre_release_head
-  pre_release_head=$(git rev-parse HEAD)
   ensure_changelog_finalized "$MARKETING_VERSION"
   ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
   trap 'mac_release_cleanup_temp_sparkle_key' EXIT
   mac_release_load_1password_env
   mac_release_run_cmd "precheck" "${MAC_RELEASE_PRECHECK:-}"
   KEY_ARGS=()
-  local key_file="" notes_md="" release_created=0 tag_created=0 tag_pushed=0 appcast_committed=0 appcast_pushed=0
+  local key_file="" notes_md="" release_id="" publication_attempted=0 appcast_committed=0
   # shellcheck disable=SC2329 # invoked via EXIT trap
   cleanup_release() {
     local rc=$?
@@ -1688,15 +1799,12 @@ mac_release_release() {
     fi
     [[ -n "${key_file:-}" ]] && rm -f "$key_file"
     [[ -n "${notes_md:-}" ]] && rm -f "$notes_md"
-    if [[ "$rc" -ne 0 && "${appcast_pushed:-0}" != "1" ]]; then
-      if [[ "${release_created:-0}" == "1" ]]; then
-        gh release delete "$TAG" --repo "$MAC_RELEASE_REPO" --cleanup-tag -y >/dev/null 2>&1 || true
-      elif [[ "${tag_pushed:-0}" == "1" ]]; then
-        git push origin --delete "$TAG" >/dev/null 2>&1 || true
-      fi
-      [[ "${tag_created:-0}" == "1" ]] && git tag -d "$TAG" >/dev/null 2>&1 || true
-      if [[ "${appcast_committed:-0}" == "1" ]]; then
-        git reset --hard "$pre_release_head" >/dev/null 2>&1 || true
+    if [[ "$rc" -ne 0 && "${appcast_committed:-0}" == "1" ]]; then
+      echo "Release stopped; preserving release, tags, and appcast commit for recovery." >&2
+      if [[ "${publication_attempted:-0}" == "1" ]]; then
+        echo "Publication was attempted. Inspect $MAC_RELEASE_REPO release $TAG before resuming verification or push." >&2
+      else
+        echo "Inspect $MAC_RELEASE_REPO draft release $TAG and uploaded assets before continuing." >&2
       fi
     fi
     exit "$rc"
@@ -1727,14 +1835,16 @@ mac_release_release() {
   else
     git tag --no-sign ${tag_args[@]+"${tag_args[@]}"} "$TAG"
   fi
-  tag_created=1
   git push ${push_tag_args[@]+"${push_tag_args[@]}"} origin "$TAG"
-  tag_pushed=1
-  gh release create "$TAG" --repo "$MAC_RELEASE_REPO" --title "${APP_NAME} ${MARKETING_VERSION}" --notes-file "$notes_md"
-  release_created=1
+  release_id=$(gh api --method POST "repos/$MAC_RELEASE_REPO/releases" \
+    -f tag_name="$TAG" -f name="${APP_NAME} ${MARKETING_VERSION}" -F body=@"$notes_md" -F draft=true --jq .id)
+  [[ "$release_id" =~ ^[0-9]+$ ]] || mac_release_die "GitHub did not return a release ID for draft $TAG"
   local release_assets=("$APP_ZIP")
   [[ -n "$DSYM_ZIP" ]] && release_assets+=("$DSYM_ZIP")
   gh release upload "$TAG" "${release_assets[@]}" --repo "$MAC_RELEASE_REPO"
+  # A failed response can still mean GitHub published and started release workflows.
+  publication_attempted=1
+  gh api --method PATCH "repos/$MAC_RELEASE_REPO/releases/$release_id" -F draft=false --silent
   if [[ -n "$key_file" ]]; then
     SPARKLE_PRIVATE_KEY_FILE="$key_file" "$0" verify-appcast "$MARKETING_VERSION"
   else
@@ -1742,7 +1852,6 @@ mac_release_release() {
   fi
   wait_for_assets "$TAG" "$ARTIFACT_PREFIX"
   git push origin "HEAD:$release_branch"
-  appcast_pushed=1
   if [[ "${MAC_RELEASE_RUN_SPARKLE_UPDATE_TEST:-${RUN_SPARKLE_UPDATE_TEST:-0}}" == "1" && -x "$ROOT/Scripts/test_live_update.sh" ]]; then
     local prev_tag
     prev_tag=$(git tag --sort=-v:refname | sed -n '2p')

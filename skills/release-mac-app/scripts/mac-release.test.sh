@@ -2,6 +2,10 @@
 # shellcheck disable=SC1091,SC2030,SC2031
 set -euo pipefail
 
+if [[ "${1:-}" != --isolated ]]; then
+  exec /usr/bin/env -i PATH="$PATH" /bin/bash "$0" --isolated
+fi
+shift
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 test_root="$(mktemp -d /tmp/mac-release-test.XXXXXX)"
 trap 'rm -rf "$test_root"' EXIT
@@ -20,24 +24,28 @@ case " $* " in
     echo "unexpected new tmux session" >&2
     exit 1
     ;;
-  *" new-window "*) printf '@7\n' ;;
   *" display-message "*) printf '999999\n' ;;
   *" send-keys "*)
+    echo "credential dispatch must not depend on interactive shell input" >&2
+    exit 1
+    ;;
+  *" new-window "*)
     command_text=
     previous=
     for arg in "$@"; do
-      if [[ "$previous" == "--" ]]; then
+      if [[ "$previous" == "-c" ]]; then
         command_text=$arg
         break
       fi
       previous=$arg
     done
     [[ -n "$command_text" ]]
-    runner_path=${command_text#* bash }
+    runner_path=${command_text#* /bin/bash }
     runner_path=${runner_path%%;*}
     [[ -f "$runner_path" ]]
     work_dir=${runner_path%/*}
-    if grep -Fq "${MAC_RELEASE_TEST_TOKEN:?}" "$command_text" "$runner_path" "$work_dir/read-op.sh"; then
+    if [[ "$command_text" == *"${MAC_RELEASE_TEST_TOKEN:?}"* ]] ||
+      grep -Fq "$MAC_RELEASE_TEST_TOKEN" "$runner_path" "$work_dir/read-op.sh"; then
       echo "service-account token appeared in tmux command or generated script" >&2
       exit 1
     fi
@@ -58,6 +66,7 @@ case " $* " in
       eval "sparkle_path=$sparkle_path_line"
       [[ -z "$sparkle_path" ]] || printf '%s\n' "$sparkle_path" >"$MAC_RELEASE_TEST_ROOT/last-sparkle-path"
     fi
+    printf '@7\n'
     ;;
   *" kill-window "*)
     if [[ -f "$MAC_RELEASE_TEST_ROOT/last-sparkle-path" ]]; then
@@ -152,8 +161,174 @@ key_file=$2
 SIGN_UPDATE
 chmod +x "$test_root/bin/sign_update"
 
+# File-based Sparkle validation checks generate_keys availability but must never use it.
+for tool in generate_keys security codesign curl gh; do
+  cat >"$test_root/bin/$tool" <<'DENY'
+#!/usr/bin/env bash
+echo 'unexpected external tool call in synthetic release test' >&2
+exit 94
+DENY
+  chmod +x "$test_root/bin/$tool"
+done
+
+# Model the library's BSD permission query on Ubuntu too.
+cat >"$test_root/bin/stat" <<'STAT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1 $2" == '-f %Lp' ]]
+exec node -e 'process.stdout.write((require("fs").statSync(process.argv[1]).mode & 0o777).toString(8) + "\n")' "$3"
+STAT
+chmod +x "$test_root/bin/stat"
+export PATH="$test_root/bin:$PATH"
+export CLAWDBOT_TMUX_SOCKET_DIR="$test_root/sockets"
+
 # shellcheck source=lib/mac_release.sh
 source "$script_dir/lib/mac_release.sh"
+
+package_manifest="$test_root/package.env"
+cat >"$package_manifest" <<'EOF'
+MAC_RELEASE_OP_ITEM='Release credentials'
+MAC_RELEASE_OP_FIELDS=TEST_SECRET
+MAC_RELEASE_CODESIGN_IDENTITY='Developer ID Application: Fixture (TEAM)'
+MAC_RELEASE_CODESIGN_KEYCHAIN='/tmp/fixture.keychain-db'
+MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD='fixture-password'
+MAC_RELEASE_CODESIGN_OP_ITEM='Fixture signing item'
+MAC_RELEASE_CODESIGN_OP_ACCOUNT='fixture.example'
+MAC_RELEASE_CODESIGN_OP_VAULT='Fixture'
+MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT=1
+MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED=1
+MAC_RELEASE_CODESIGN_PASSWORDLESS=1
+MAC_RELEASE_SPARKLE_OP_REF='op://Release/Fixture/private key'
+SPARKLE_PRIVATE_KEY='fixture-sparkle-key'
+EOF
+(
+  trap - EXIT
+  export ROOT="$test_root"
+  export MAC_RELEASE_MANIFEST="$package_manifest"
+  export TEST_SECRET=already-loaded
+  export OP_SERVICE_ACCOUNT_TOKEN=package-run-token
+  export MOLTY_OP_SERVICE_ACCOUNT_TOKEN=legacy-package-run-token
+  export SIGN_IDENTITY='Developer ID Application: Ambient (TEAM)'
+  package_run_exported_probe() { return 97; }
+  export -f package_run_exported_probe
+  export MAC_RELEASE_CODESIGN_FUTURE_SENTINEL=must-not-leak
+  export MAC_RELEASE_CLI_CODESIGN_FUTURE_SENTINEL=must-not-leak
+  export MAC_RELEASE_SIGNING_FUTURE_SENTINEL=must-not-leak
+  export MAC_RELEASE_SPARKLE_FUTURE_SENTINEL=must-not-leak
+  export CODESIGN_FUTURE_SENTINEL=must-not-leak
+  export SPARKLE_FUTURE_SENTINEL=must-not-leak
+  mac_release_package_run -- bash --noprofile --norc -c '
+    [[ "$TEST_SECRET" == already-loaded ]]
+    [[ -z "${OP_SERVICE_ACCOUNT_TOKEN+x}" ]]
+    [[ -z "${MOLTY_OP_SERVICE_ACCOUNT_TOKEN+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_IDENTITY+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_ITEM+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_ACCOUNT+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_VAULT+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_PASSWORDLESS+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${MAC_RELEASE_CLI_CODESIGN_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${MAC_RELEASE_SIGNING_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${MAC_RELEASE_SPARKLE_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${CODESIGN_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${SPARKLE_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${SIGN_IDENTITY+x}" ]]
+    [[ -z "${CODESIGN_IDENTITY+x}" ]]
+    [[ -z "${SPARKLE_PRIVATE_KEY+x}" ]]
+    [[ -z "${MAC_RELEASE_SPARKLE_OP_REF+x}" ]]
+    ! declare -F package_run_exported_probe >/dev/null
+  '
+)
+
+mkdir -p "$test_root/caller-bin"
+cat >"$test_root/caller-bin/package-path-probe" <<'EOF'
+#!/bin/sh
+[ "$TEST_SECRET" = already-loaded ]
+printf 'caller-path-ok\n' > "$MAC_RELEASE_TEST_ROOT/caller-path-marker"
+EOF
+chmod 755 "$test_root/caller-bin/package-path-probe"
+cp "$test_root/caller-bin/package-path-probe" "$test_root/caller-bin/package=path-probe"
+(
+  trap - EXIT
+  export ROOT="$test_root"
+  export MAC_RELEASE_MANIFEST="$package_manifest"
+  export MAC_RELEASE_TEST_ROOT="$test_root"
+  export MAC_RELEASE_CALLER_PATH="$test_root/caller-bin:/usr/bin:/bin"
+  export TEST_SECRET=already-loaded
+  mac_release_package_run -- package-path-probe
+)
+[[ "$(<"$test_root/caller-path-marker")" == caller-path-ok ]]
+rm -f "$test_root/caller-path-marker"
+(
+  trap - EXIT
+  export ROOT="$test_root" MAC_RELEASE_MANIFEST="$package_manifest" MAC_RELEASE_TEST_ROOT="$test_root"
+  export MAC_RELEASE_CALLER_PATH="$test_root/caller-bin:/usr/bin:/bin" TEST_SECRET=already-loaded
+  mac_release_package_run -- package=path-probe
+)
+[[ "$(<"$test_root/caller-path-marker")" == caller-path-ok ]]
+rm -f "$test_root/caller-path-marker"
+(
+  raw_exported_probe() { return 96; }
+  export -f raw_exported_probe
+  ROOT="$test_root" MAC_RELEASE_MANIFEST="$package_manifest" MAC_RELEASE_TEST_ROOT="$test_root" \
+    TEST_SECRET=already-loaded PATH="$test_root/caller-bin:/usr/bin:/bin" \
+    "$script_dir/mac-release" package-run -- package-path-probe
+)
+[[ "$(<"$test_root/caller-path-marker")" == caller-path-ok ]]
+
+(
+  trap - EXIT
+  export PATH="$test_root/bin:$PATH"
+  export ROOT="$test_root"
+  export MAC_RELEASE_MANIFEST="$package_manifest"
+  export MAC_RELEASE_TEST_ROOT="$test_root"
+  export MAC_RELEASE_TEST_MODE=service
+  export MAC_RELEASE_TEST_TOKEN=package-run-service-token
+  export MAC_RELEASE_TEST_SPARKLE_KEY=unused-package-run-sparkle-key
+  export OP_SERVICE_ACCOUNT_TOKEN=package-run-service-token
+  export MOLTY_OP_SERVICE_ACCOUNT_TOKEN=legacy-package-run-token
+  export MAC_RELEASE_OP_USE_SERVICE_ACCOUNT=1
+  export MAC_RELEASE_OP_VAULT=Molty
+  export SIGN_IDENTITY='Developer ID Application: Ambient (TEAM)'
+  export MAC_RELEASE_CODESIGN_FUTURE_SENTINEL=must-not-leak
+  export MAC_RELEASE_CLI_CODESIGN_FUTURE_SENTINEL=must-not-leak
+  export MAC_RELEASE_SIGNING_FUTURE_SENTINEL=must-not-leak
+  export MAC_RELEASE_SPARKLE_FUTURE_SENTINEL=must-not-leak
+  export CODESIGN_FUTURE_SENTINEL=must-not-leak
+  export SPARKLE_FUTURE_SENTINEL=must-not-leak
+  unset TEST_SECRET
+  mac_release_package_run -- bash --noprofile --norc -c '
+    [[ "$TEST_SECRET" == loaded-value ]]
+    [[ -z "${OP_SERVICE_ACCOUNT_TOKEN+x}" ]]
+    [[ -z "${MOLTY_OP_SERVICE_ACCOUNT_TOKEN+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_IDENTITY+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN_PASSWORD+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_ITEM+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_ACCOUNT+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_VAULT+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_PASSWORDLESS+x}" ]]
+    [[ -z "${MAC_RELEASE_CODESIGN_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${MAC_RELEASE_CLI_CODESIGN_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${MAC_RELEASE_SIGNING_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${MAC_RELEASE_SPARKLE_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${CODESIGN_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${SPARKLE_FUTURE_SENTINEL+x}" ]]
+    [[ -z "${SIGN_IDENTITY+x}" ]]
+    [[ -z "${CODESIGN_IDENTITY+x}" ]]
+    [[ -z "${SPARKLE_PRIVATE_KEY+x}" ]]
+    [[ -z "${MAC_RELEASE_SPARKLE_OP_REF+x}" ]]
+  '
+)
+: >"$test_root/tmux.log"
+: >"$test_root/op.log"
+rm -f "$test_root/last-sparkle-path"
 
 service_token='service-token-that-must-never-appear'
 sparkle_test_key='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='

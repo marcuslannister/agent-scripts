@@ -1,10 +1,71 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import {
+	cliFixture,
+	cliFlags,
+	cliPaths,
+	testCliEntrypoint,
+} from "./npm-cli-test-helpers.mjs";
 import {
 	registryTokenFromNpmrc,
 	registryTokenMatches,
 	updateRegistryToken,
 } from "./npm-auth-cache.mjs";
+
+const moduleUrl = new URL("./npm-auth-cache.mjs", import.meta.url);
+testCliEntrypoint(
+	moduleUrl,
+	"usage: npm-auth-cache.mjs <update|verify> <npmrc> [registry]",
+);
+
+for (const link of cliPaths) {
+	for (const flags of cliFlags) {
+		test(`cache round-trip: ${link} ${flags.join(" ")}`, (t) => {
+			const fixture = cliFixture(t, moduleUrl);
+			const npmrc = path.join(fixture.work, "synthetic npmrc");
+			const token = "npm_synthetic_new==";
+			fs.writeFileSync(npmrc, `//registry.example.invalid/:_authToken=${token}\n`, {
+				mode: 0o600,
+			});
+			const item = {
+				id: "synthetic-item",
+				fields: [
+					{ id: "username", value: "synthetic-owner" },
+					{
+						id: "cache",
+						label: "registry_token",
+						type: "CONCEALED",
+						value: "synthetic-old",
+					},
+				],
+			};
+			const invoke = (mode, input) => fixture.run(
+				[...flags, fixture.scripts[link], mode, npmrc, "https://registry.example.invalid/"],
+				input,
+			);
+			const updated = invoke("update", JSON.stringify(item));
+			assert.equal(updated.status, 0);
+			assert.equal(updated.stderr, "");
+			const expected = structuredClone(item);
+			expected.fields[1].value = token;
+			assert.deepEqual(
+				JSON.parse(updated.stdout), expected, "cache pipeline must emit the updated item",
+			);
+			const verified = invoke("verify", updated.stdout);
+			assert.equal(verified.status, 0);
+			assert.equal(verified.stdout, "");
+			assert.equal(verified.stderr, "");
+			const mismatch = invoke("verify", JSON.stringify(item));
+			assert.equal(mismatch.status, 1);
+			assert.equal(mismatch.stdout, "");
+			assert.equal(
+				mismatch.stderr, "cached registry token does not match the new npm session\n",
+			);
+		});
+	}
+}
 
 test("extracts the exact registry token without truncating equals signs", () => {
 	const token = registryTokenFromNpmrc(

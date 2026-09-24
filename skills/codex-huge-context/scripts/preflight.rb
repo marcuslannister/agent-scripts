@@ -1,12 +1,14 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "fileutils"
 require "json"
 require "open3"
 require "optparse"
 require "shellwords"
+require "tmpdir"
 
-MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna].freeze
+MODELS = %w[gpt-5.6-sol gpt-5.6-terra gpt-5.6-luna gpt-6-astra].freeze
 CONTEXT_WINDOW = 922_000
 AUTO_COMPACT_TOKEN_LIMIT = 700_000
 AUTO_COMPACT_TOKEN_LIMIT_SCOPE = "total"
@@ -154,7 +156,7 @@ rescue JSON::ParserError
   raise PreflightError, "model catalogue is not valid JSON"
 end
 
-def run_auth_helper(command, timeout_ms)
+def run_auth_helper(command, timeout_ms, environment: {})
   arguments = Shellwords.split(command)
   unless arguments.length == 1
     raise PreflightError, "auth command must be one executable path with no arguments"
@@ -163,7 +165,7 @@ def run_auth_helper(command, timeout_ms)
   helper = File.expand_path(arguments.first)
   raise PreflightError, "auth helper is not executable: #{helper}" unless File.executable?(helper)
 
-  stdin, stdout, stderr, wait_thread = Open3.popen3([helper, helper])
+  stdin, stdout, stderr, wait_thread = Open3.popen3(environment, [helper, helper])
   stdin.close
   stdout_reader = Thread.new { stdout.read }
   stderr_reader = Thread.new { stderr.read }
@@ -198,10 +200,33 @@ ensure
   stderr&.close unless stderr&.closed?
 end
 
+def check_private_home_auth(command, timeout_ms)
+  # A delivery diagnostic, not a substitute for autoreview's sandbox and inference proof.
+  Dir.mktmpdir("codex-auth-preflight-") do |root|
+    home = File.join(root, "home")
+    environment = {
+      "HOME" => home,
+      "USERPROFILE" => home,
+      "XDG_CONFIG_HOME" => File.join(home, ".config"),
+      "XDG_DATA_HOME" => File.join(home, ".local", "share"),
+      "XDG_STATE_HOME" => File.join(home, ".local", "state"),
+      "XDG_CACHE_HOME" => File.join(home, ".cache"),
+    }
+    environment.values.uniq.each { |path| FileUtils.mkdir_p(path, mode: 0o700) }
+    run_auth_helper(command, timeout_ms, environment: environment)
+  end
+rescue PreflightError => error
+  raise PreflightError,
+        "private-home auth check failed: #{error.message}; use an explicit Keychain path " \
+        "in the external auth wrapper, not the reviewer's HOME or sandbox permissions"
+end
+
 config_path = File.expand_path("~/.codex/config.toml")
+private_home = false
 OptionParser.new do |options|
-  options.banner = "Usage: preflight.rb [--config PATH]"
+  options.banner = "Usage: preflight.rb [--config PATH] [--private-home]"
   options.on("--config PATH", "Codex config.toml to check") { |path| config_path = File.expand_path(path) }
+  options.on("--private-home", "Also check auth delivery with private HOME and XDG directories") { private_home = true }
 end.parse!
 
 begin
@@ -209,8 +234,10 @@ begin
   catalog_path, auth_command, timeout_ms = validate_config(sections)
   validate_catalog(catalog_path)
   run_auth_helper(auth_command, timeout_ms)
+  check_private_home_auth(auth_command, timeout_ms) if private_home
 
   puts "Codex direct API safe-context preflight: ok"
+  puts "Codex direct API private-home auth check: ok" if private_home
   warn "Note: GITHUB_PAT_TOKEN is unset; GitHub MCP may fail independently." if ENV.fetch("GITHUB_PAT_TOKEN", "").empty?
 rescue PreflightError => error
   warn "Codex direct API safe-context preflight failed: #{error.message}"

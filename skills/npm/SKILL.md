@@ -19,6 +19,7 @@ Use for npm registry/account tasks: `npm whoami`, package availability, package 
 - Run npm auth work inside one task window of the shared `op-work` tmux session (`clawdbot-op.sock`; see `one-password`). Reuse the window on failure; kill it when the npm task is done. Never mint an npm-specific socket or session.
 - Keep npm auth in a temp npmrc; delete it after the command.
 - All helpers share `scripts/npm-auth.sh`: stored `registry_token` session first, then `scripts/npm-auth-login.mjs` registry login with a fresh six-digit OTP; successful fallback sessions are cached back to the same item. Do not hand-roll field extraction, registry login, or cache writes.
+- Installed skill directory symlinks are supported. Shell entrypoints resolve physical siblings; sourced `npm-auth.sh` owns `NPM_AUTH_SCRIPT_DIR` without changing the caller's `SCRIPT_DIR` or working directory. Node helpers also support file symlinks, including `--preserve-symlinks-main`.
 - Credential selection prefers canonical field `id`, then `purpose`, then a unique label; duplicate label-only matches are rejected (legacy `npmjs` may retain same-label fields).
 - For ad-hoc authenticated registry commands, use `scripts/npm-service.sh -- <npm args...>`; use `publish-package.sh` for a local package.
 - npm 11 prompt piping is brittle; avoid `printf ... | npm login --auth-type=legacy`.
@@ -56,3 +57,17 @@ Notes:
 - npm may reject names as too similar to already-published names. Treat that as a registry policy result, not an auth failure.
 - npm CLI prompt piping is brittle on npm 11. Prefer the helper’s registry API login path over scripted `npm login`.
 - For scoped packages, `npm view` can lag/404 even when the package exists. Check `npm access get status <pkg>`; `public` or a publish failure saying `previously published versions` means the name is reserved.
+
+## Offline Regression Tests
+
+From the repo root; synthetic fixtures only, no real 1Password/npm auth. Always use an empty environment (the shell mock checks its environment for token leaks):
+
+```bash
+test_home="$(mktemp -d)"
+(
+  set -e
+  trap 'rm -rf "$test_home"' EXIT
+  env -i HOME="$test_home" PATH="$PATH" node --test skills/npm/scripts/*.test.mjs </dev/null
+  env -i HOME="$test_home" PATH="$PATH" /bin/bash skills/npm/scripts/npm-auth.test.sh </dev/null
+)
+```

@@ -84,8 +84,8 @@ rsync -a --partial --progress -e 'ssh -o RequestTTY=no -o RemoteCommand=none' \
    - current stable: `/Applications/Xcode.app`
    - newest prerelease, beta or RC: `/Applications/Xcode-beta.app`
    - previous-major stable: `/Applications/Xcode-previous.app`, only for three months after a new stable major ships unless the user sets another window
-5. Replace same-major point releases and same-channel prereleases; do not preserve them. An RC replaces the beta slot. Validate the staged app, move the old app to a temporary rollback path, install and verify the new app, then delete the rollback copy. Restore the old app on failure.
-6. When stable advances to a new major, rotate transactionally: move any existing `Xcode-previous.app` to a temporary rollback path, move the former stable to `Xcode-previous.app`, install and verify the new stable, then delete the older rollback copy. Restore both channel paths on failure. Record the new previous-major removal date in the task report.
+5. Replace same-major point releases and same-channel prereleases; do not preserve them. An RC replaces the beta slot. Validate the staged app, move the old app to a temporary rollback path, install and verify the new app, then delete the rollback copy. Run the CLI smoke gate below before deleting any rollback copy. Restore the old app on other failures; the smoke gate retains a failing unselected app for diagnosis.
+6. When stable advances to a new major, rotate transactionally: move any existing `Xcode-previous.app` to a temporary rollback path, move the former stable to `Xcode-previous.app`, install and verify the new stable, then delete the older rollback copy. Pass the former stable's new path as the smoke gate's rollback. If it restores stable, also restore the older previous-major rollback to `Xcode-previous.app`. Restore both channel paths on other failures; retain both rollback copies on an unselected smoke failure. Record the new previous-major removal date in the task report.
 7. Stop on unexpected destination collisions. Never delete an app outside these known channels without explicit confirmation.
 8. Preserve `xcode-select` unless the user requests a switch. Replacing the app at the already-selected path preserves selection.
 
@@ -93,7 +93,7 @@ Use writable `/Applications` directly. Otherwise use passwordless `sudo -n`; if 
 
 ## First launch and verification
 
-For every installed app:
+Keep the rollback copy through first-launch setup and the CLI smoke gate. Confirm GNU `timeout` (or `gtimeout`, from coreutils) is available before replacing a bundle. For every installed app:
 
 ```bash
 DEVELOPER_DIR="$app/Contents/Developer" xcodebuild -version
@@ -110,4 +110,15 @@ sudo env DEVELOPER_DIR="$app/Contents/Developer" xcodebuild -runFirstLaunch
 
 Recheck until status `0`. If sudo/admin UI is unavailable, the app is installed but not ready; report that distinction.
 
-Finish with a host matrix: macOS, desired version/build, installed path, selected path, signature, first-launch state, simulator-hygiene state, previous-major removal date, and skip/failure reason. Keep source archives unless deletion is explicitly requested.
+After **every installation or replacement**, once license/first-launch setup is complete and before rollback cleanup, run the CLI smoke gate. `xcrun` may reject a healthy bundle until its license is accepted:
+
+```bash
+skills/xcode-sync/scripts/xcode-post-install-smoke.sh "$app" "$rollback"
+# For a fresh install without an old bundle, omit the rollback argument.
+```
+
+One 20-second deadline covers the installed bundle's `Contents/Developer/usr/bin/git --version` and `Contents/Developer/usr/bin/python3 -V`, plus `xcrun --find git` when the bundle is the persistent `xcode-select` target. Selection lookup ignores the caller's `DEVELOPER_DIR` workaround. On failure, the helper exits nonzero and restores the supplied rollback at a selected path; it moves the failed app aside and prints its location. An unselected failure keeps the installed app and rollback, records `failed-kept`, and prints the workaround. A selected fresh install has no rollback: treat `failed-no-rollback` as immediate operator recovery. Use the same `/Applications` write privileges as the installation, and recheck the restored bundle. Never change `xcode-select` without the user's request.
+
+Observed failure signature: Git and Python sleep forever at dyld start (`sample` shows `_dyld_start`), near-zero CPU, no children. Diagnose with `timeout 8 /usr/bin/git --version`; when a broken Xcode-beta is selected, use `export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` in the affected session and every work order. Check the persistent target separately with `env -u DEVELOPER_DIR xcode-select -p`.
+
+Finish with a host matrix: macOS, desired version/build, installed path, selected path, signature, CLI smoke status (including rollback/failed-bundle paths), first-launch state, simulator-hygiene state, previous-major removal date, and skip/failure reason. Keep source archives unless deletion is explicitly requested.

@@ -72,7 +72,7 @@ for v in /Volumes/*; do [[ $v == */<App>* ]] && hdiutil detach "$v" -force; done
 - Notarization via `notarytool` with the exported API key; staple after success.
 - Before zipping, strip resource forks/extended attributes from the app (`xattr -cr <App>.app && find <App>.app -name '._*' -delete`) and zip with `ditto --norsrc -c -k --keepParent …` to avoid AppleDouble files that invalidate signatures.
 - Avoid `unzip` when testing locally; use `ditto -x -k <zip> /Applications` to prevent `._*` files that break signatures.
-- The shared release helpers now always download the enclosure, verify the ed25519 signature, and run `codesign --verify` plus the system distribution policy check on the extracted app before publishing—no opt-in flag needed. They prefer `syspolicy_check distribution` and fall back to `spctl` on older macOS versions.
+- The shared release helpers upload the app and dSYM to a draft before publishing. They then download the public enclosure with bounded retries for transient HTTP/transport failures, verify its ed25519 signature and length, and run `codesign --verify` plus the system distribution policy check before pushing the appcast. They prefer `syspolicy_check distribution` and fall back to `spctl` on older macOS versions.
 
 ### Shared release skill
 - Canonical entry point: `~/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release`.
@@ -103,8 +103,8 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 
 ## GitHub Release & Tag
 1) Tag the release after artifacts are ready: `git tag v<version>` (or let the release script tag).
-2) Create the GitHub release (pre-release for betas), title `<App> <version>`, body = changelog section for that version.
-3) Upload artifacts: DMG/ZIP **and the dSYM archive** (zip it and attach alongside the main artifact for symbolicated crash debugging). Upload the appcast if it is served via Releases. Ensure enclosure URLs in the appcast point to the uploaded assets and return 200/OK. The shared helpers already re-download the enclosure and run codesign/spctl; if the repo ships a release check script (e.g., `Scripts/check-release-assets.sh`), run it after publishing to verify both zip and dSYM are present.
+2) Create a draft GitHub release (pre-release for betas), title `<App> <version>`, body = changelog section for that version, preserving its section spacing.
+3) Upload artifacts: DMG/ZIP **and the dSYM archive** (zip it and attach alongside the main artifact for symbolicated crash debugging), then publish the draft. Upload the appcast if it is served via Releases. Ensure enclosure URLs in the appcast point to the uploaded assets and return 200/OK. The shared helpers already re-download the enclosure and run codesign/spctl; if the repo ships a release check script (e.g., `Scripts/check-release-assets.sh`), run it after publishing to verify both zip and dSYM are present. Workflows triggered by `release.published` can attach additional platform assets after publication; wait for those before pushing the appcast.
 4) Release notes correctness:
    - Header **must be exactly** `<App> <version>` — no prefixes/suffixes.
    - Body must be a copy of the curated changelog for that version (user-facing items only, same order).
@@ -133,6 +133,7 @@ sign_update -f "$SPARKLE_PRIVATE_KEY_FILE" path/to/<App>-<ver>.dmg --account "${
 - Log any deviations or manual fixes (e.g., regenerated signature) in the task notes before handing off.
 
 ## Recovery / Resume
+- The shared `mac-release release` helper preserves created releases, tags, appcast commits, and working-tree edits when a later step fails. It never automatically deletes a release/tag or resets Git. A failed publication response may still have published successfully: inspect the existing release and resume the failed upload, verification, or push step without retagging or recreating the release. The monotonic appcast check prevents blindly rerunning the whole release after its appcast commit.
 - If a scripted release stops mid-flight, rerun with `--resume` or consult any `.release-state` the script writes.
 - After notarization success but before publish, you can recover manually:
   1) Create DMG/ZIP if missing (`./scripts/create-dmg.sh` or `./Scripts/package_app.sh`).
