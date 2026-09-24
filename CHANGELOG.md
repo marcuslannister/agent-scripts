@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged-skill sync timestamps and regenerated skills-matrix token counts after the upstream ee4c719 sync.
+
 - Synced upstream `steipete/agent-scripts` to ee4c719: added `peekaboo`, removed `one-password`, and refreshed mirrored skills; kept local `AGENTS.MD`, README, CI, and the retired `sync-skills` stub.
 
 - Upload macOS release archives before publishing, preserve release/tag/commit state on failures, retry transient enclosure downloads, and retain changelog section spacing in release notes.
