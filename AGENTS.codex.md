@@ -116,7 +116,7 @@ Example:
 - `ship` means: update the changelog, make grouped commits, push, then pull. Report "shipped" only after the push to GitHub.
 - Publish a version or artifact only after an explicit `release` or `publish` request. A tag or push is not a release.
 - Before finishing a release, check that the docs and notes contain the current changelog. Fix missing or stale content.
-- Match the existing changelog style. Prefer one-line bullets. Do not wrap prose manually. Thank `@login` for user-visible work.
+- Match the existing changelog style. Prefer one-line bullets. Do not wrap prose manually. Thank `@login` for user-visible work by other people. Do not thank the repository owner for their own changes.
 
 # Secrets and environment variables
 
