@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- GitHub rule: thank `@login` only for other people's work, not for the repository owner's own changes; regenerated `AGENTS.codex.md`.
+
 - Refreshed staged third-party skills (anthropics 34040c9, claude-community a727be1, danyuchn 7d4a135, humanlayer ca7c808, khazix 4f2db09, matt c55ee46, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.
 
 - Refreshed staged-skill sync timestamps and regenerated skills-matrix token counts after the upstream ee4c719 sync.
