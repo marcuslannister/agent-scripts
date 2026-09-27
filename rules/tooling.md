@@ -35,6 +35,7 @@ Use the `anvil-advanced-ops` skill for worker pools, scheduled tasks, and large 
 - Claude Code design, API design, or tiny edits: work directly. In Codex sessions, ignore the Claude Code routing rule.
 - Screenshot or live-UI bugs: use `$browser-use`.
 - Private or historical questions: search local archives first. For current-state questions, also check that the facts are current.
+- When a subagent or delegated worker reports back, check its evidence before you accept it.
 
 ## Background work in Claude Code
 
