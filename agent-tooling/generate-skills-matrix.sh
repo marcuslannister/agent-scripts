@@ -122,12 +122,24 @@ if [ -f "$MATRIX" ]; then
   ' "$MATRIX" >> "$RECORDS"
 fi
 
+staged_source() { # owner_root
+  local owner_root="$1" repo_url source
+  repo_url="$(jq -er '.repo | strings' "$owner_root/.source.json" 2>/dev/null || true)"
+  source="$(github_repo "$repo_url" || true)"
+  printf '%s\n' "${source:-${owner_root##*/}}"
+}
+
+STAGING_ROOT="$(cd -P "$REPO_ROOT/other-skills" && pwd -P)"
 for path in "$REPO_ROOT"/skills/*/SKILL.md; do
   [ -f "$path" ] || continue
   skill_root="${path%/*}"
   name="${skill_root##*/}"
   printf '%s\n' "$name" >> "$MIRROR_NAMES"
-  append_discovered "$name" "$UPSTREAM_MIRROR" skill "$path"
+  # A mirror path repointed at staging takes the staged source's label.
+  real_root="$(cd -P "$skill_root" && pwd -P)"
+  source="$UPSTREAM_MIRROR"
+  [[ "$real_root" == "$STAGING_ROOT"/*/* ]] && source="$(staged_source "${real_root%/*}")"
+  append_discovered "$name" "$source" skill "$path"
 done
 
 for path in "$REPO_ROOT"/codex-skills/*/SKILL.md; do
@@ -150,15 +162,7 @@ for path in "$REPO_ROOT"/other-skills/*/*/SKILL.md; do
   fi
   printf '%s\n' "$name" >> "$STAGED_NAMES"
 
-  owner_root="${skill_root%/*}"
-  owner="${owner_root##*/}"
-  repo_url=""
-  if [ -f "$owner_root/.source.json" ]; then
-    repo_url="$(jq -er '.repo | strings' "$owner_root/.source.json" 2>/dev/null || true)"
-  fi
-  source="$(github_repo "$repo_url" || true)"
-  source="${source:-$owner}"
-  append_discovered "$name" "$source" skill "$path"
+  append_discovered "$name" "$(staged_source "${skill_root%/*}")" skill "$path"
 done
 
 KNOWN_MARKETPLACES="$HOME_ROOT/.claude/plugins/known_marketplaces.json"

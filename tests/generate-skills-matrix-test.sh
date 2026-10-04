@@ -25,6 +25,10 @@ for path in \
   other-skills/alpha/staged-new; do
   printf '%s\n' "fixture $path" > "$FIXTURE/$path/SKILL.md"
 done
+# An upstream mirror path repointed at staging takes the staged source label.
+mkdir -p "$FIXTURE/other-skills/alpha/upstream-repointed"
+printf '%s\n' 'fixture repointed' > "$FIXTURE/other-skills/alpha/upstream-repointed/SKILL.md"
+ln -s ../other-skills/alpha/upstream-repointed "$FIXTURE/skills/upstream-repointed"
 # Ten text characters, but twelve UTF-8 bytes: preserve Python's character-count
 # and ties-to-even rounding semantics (round(10 / 4) == 2).
 printf '%s\n' '12345678—' > "$FIXTURE/skills/upstream-existing/SKILL.md"
@@ -90,6 +94,8 @@ rg '^\| `upstream-existing` \| steipete/agent-scripts \| skill \| Y \| N \| ~2 \
 rg '^\| `codex-new` \| marcuslannister/agent-scripts \| skill \| N \| N \|' \
   "$FIXTURE/generated.md" >/dev/null
 rg '^\| `staged-new` \| example/alpha-skills \| skill \| N \| N \|' \
+  "$FIXTURE/generated.md" >/dev/null
+rg '^\| `upstream-repointed` \| example/alpha-skills \| skill \| N \| N \|' \
   "$FIXTURE/generated.md" >/dev/null
 rg '^\| `stale-selected` \| old/stale-source \| skill \| N \| Y \|' \
   "$FIXTURE/generated.md" >/dev/null
