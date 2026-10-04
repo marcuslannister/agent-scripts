@@ -2,9 +2,9 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 20 | 55 |
+| Total | 20 | 54 |
 | Shared | 18 | 18 |
-| Agent-only | 2 | 37 |
+| Agent-only | 2 | 36 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
@@ -127,6 +127,7 @@
 | `mattpocock-skills:qa` | mattpocock/skills | plugin | N | N | ~1232 |
 | `mattpocock-skills:request-refactor-plan` | mattpocock/skills | plugin | N | N | ~677 |
 | `mattpocock-skills:research` | mattpocock/skills | plugin | N | N | ~198 |
+| `mattpocock-skills:resolving-merge-conflicts` | mattpocock/skills | plugin | N | N | ~229 |
 | `mattpocock-skills:scaffold-exercises` | mattpocock/skills | plugin | N | N | ~897 |
 | `mattpocock-skills:setup-matt-pocock-skills` | mattpocock/skills | plugin | N | N | ~1713 |
 | `mattpocock-skills:setup-pre-commit` | mattpocock/skills | plugin | N | N | ~564 |
@@ -283,7 +284,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=276 both=18 claude_only=2 codex_only=37 total_claude=20 total_codex=55 -->
+<!-- total=275 both=18 claude_only=2 codex_only=36 total_claude=20 total_codex=54 -->
 
 ## Enable-state
 
@@ -293,8 +294,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 10 | 47 |
-| Total | 20 | 55 |
+| Always-on | 10 | 46 |
+| Total | 20 | 54 |
 
 ## Repos
 
