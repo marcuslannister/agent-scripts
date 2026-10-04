@@ -68,7 +68,7 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - xcode-sync
 - xurl
 
-## matt (34)
+## matt (33)
 
 - ask-matt
 - claude-handoff
@@ -86,7 +86,6 @@ Every distributed skill grouped by true upstream author, independent of delivery
 - migrate-to-shoehorn
 - prototype
 - research
-- resolving-merge-conflicts
 - scaffold-exercises
 - setup-matt-pocock-skills
 - setup-pre-commit
