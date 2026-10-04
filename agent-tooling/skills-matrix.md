@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 14 | 47 |
-| Shared | 12 | 12 |
+| Total | 13 | 46 |
+| Shared | 11 | 11 |
 | Agent-only | 2 | 35 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -177,7 +177,6 @@
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
 | `prototype` | mattpocock/skills | skill | N | Y | ~730 |
 | `quickdesign` | anthropics/claude-plugins-community | skill | N | N | ~5040 |
-| `refresh-mac` | marcus | skill | Y | Y | ~526 |
 | `release-mac-app` | steipete/agent-scripts | skill | N | N | ~2251 |
 | `release-tweets` | steipete/agent-scripts | skill | N | N | ~989 |
 | `remember` | anthropics/claude-plugins-official | plugin | N | N | ~343 |
@@ -284,7 +283,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=275 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=274 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
 
 ## Enable-state
 
@@ -294,8 +293,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 4 | 39 |
-| Total | 14 | 47 |
+| Always-on | 3 | 38 |
+| Total | 13 | 46 |
 
 ## Repos
 

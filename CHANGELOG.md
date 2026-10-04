@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Skills: moved `refresh-mac` from staging into the repo-scoped `.agents/skills/`, with `.claude/skills` symlinked to it, so it loads only in this repo; dropped its matrix row.
+
 - Refreshed staged third-party skills (anthropics 8a1541c, claude-community 87c843d, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt d81f3a1, nicobailon 5846f5a) and regenerated the selection-preserving skills matrix.
 
 - Skills matrix: label a `skills/` mirror path that is repointed into staging with the staged source, not `steipete/agent-scripts`.
