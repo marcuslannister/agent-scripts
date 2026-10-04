@@ -8,6 +8,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Refreshed staged third-party skills (anthropics 8a1541c, claude-community 87c843d, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt d81f3a1, nicobailon 5846f5a) and regenerated the selection-preserving skills matrix.
 
+- Skills matrix: label a `skills/` mirror path that is repointed into staging with the staged source, not `steipete/agent-scripts`.
+
+- Skills: disabled `agent-transcript`, `create-cli`, `internal-comms`, `markdown-converter`, `obsidian`, and `peekaboo` for both agents; Codex now uses Matt's released `handoff` (`skills/handoff` points into `other-skills/matt/`) and drops the in-progress `claude-handoff`.
+
 - Refreshed staged third-party skills (anthropics 8a1541c, claude-community 87c843d, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt d81f3a1, nicobailon 5846f5a) and regenerated the selection-preserving skills matrix; dropped `resolving-merge-conflicts`, which upstream removed.
 
 - Refreshed staged third-party skills (anthropics 3337550, claude-community a727be1, danyuchn 7d4a135, humanlayer ca7c808, khazix b81ad3b, matt c55ee46, nicobailon 7163c3e) and regenerated the selection-preserving skills matrix.

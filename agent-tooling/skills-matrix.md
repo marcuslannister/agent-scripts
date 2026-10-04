@@ -2,20 +2,20 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 20 | 54 |
-| Shared | 18 | 18 |
-| Agent-only | 2 | 36 |
+| Total | 14 | 47 |
+| Shared | 12 | 12 |
+| Agent-only | 2 | 35 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
 | `academy-guide` | anthropics/skills | skill | N | N | ~1928 |
-| `agent-transcript` | steipete/agent-scripts | skill | Y | Y | ~697 |
+| `agent-transcript` | steipete/agent-scripts | skill | N | N | ~697 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~460 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3088 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~3060 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~4973 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
@@ -24,8 +24,8 @@
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~25424 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
-| `claude-handoff` | mattpocock/skills | skill | N | Y | ~325 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
+| `claude-handoff` | mattpocock/skills | skill | N | N | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
 | `claude-mem:design-is` | thedotmack/claude-mem | plugin | N | N | ~4648 |
@@ -57,8 +57,8 @@
 | `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | N | N | ~432 |
 | `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | N | N | ~911 |
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
-| `crabbox` | steipete/agent-scripts | skill | N | N | ~3316 |
-| `create-cli` | steipete/agent-scripts | skill | Y | Y | ~834 |
+| `crabbox` | steipete/agent-scripts | skill | N | N | ~3585 |
+| `create-cli` | steipete/agent-scripts | skill | N | N | ~834 |
 | `design-control-loop` | humanlayer/skills | skill | N | N | ~3850 |
 | `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2131 |
 | `discernment-nudge` | anthropics/skills | skill | N | N | ~2623 |
@@ -79,7 +79,7 @@
 | `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
 | `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4819 |
-| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2340 |
+| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
 | `git-guardrails-claude-code` | mattpocock/skills | skill | N | Y | ~578 |
 | `github-author-context` | steipete/agent-scripts | skill | N | N | ~950 |
@@ -97,13 +97,13 @@
 | `improve-claude-md` | humanlayer/skills | skill | N | N | ~2351 |
 | `improve-codebase-architecture` | mattpocock/skills | skill | N | Y | ~1499 |
 | `instruments-profiling` | steipete/agent-scripts | skill | N | N | ~936 |
-| `internal-comms` | anthropics/skills | skill | Y | Y | ~377 |
+| `internal-comms` | anthropics/skills | skill | N | N | ~377 |
 | `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2947 |
 | `leader` | KKKKhazix/khazix-skills | skill | N | N | ~723 |
 | `loop-me` | mattpocock/skills | skill | N | Y | ~630 |
 | `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~183 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~2827 |
-| `markdown-converter` | steipete/agent-scripts | skill | Y | Y | ~433 |
+| `markdown-converter` | steipete/agent-scripts | skill | N | N | ~433 |
 | `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | N | N | ~2845 |
 | `mattpocock-skills:batch-grill-me` | mattpocock/skills | plugin | N | N | ~408 |
 | `mattpocock-skills:claude-handoff` | mattpocock/skills | plugin | N | N | ~320 |
@@ -159,13 +159,13 @@
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |
 | `nowledge-mem:search-memory` | nowledge-community | plugin | N | N | ~789 |
 | `npm` | steipete/agent-scripts | skill | N | N | ~1131 |
-| `obsidian` | steipete/agent-scripts | skill | Y | Y | ~915 |
+| `obsidian` | steipete/agent-scripts | skill | N | N | ~915 |
 | `one-password` | steipete/agent-scripts | skill | N | N | ~5678 |
 | `openai-image-gen` | steipete/agent-scripts | skill | N | N | ~248 |
 | `openclaw-relay` | steipete/agent-scripts | skill | N | N | ~1207 |
 | `oracle` | steipete/agent-scripts | skill | N | N | ~2080 |
 | `pdf` | anthropics/skills | skill | N | N | ~2008 |
-| `peekaboo` | steipete/agent-scripts | skill | Y | Y | ~2972 |
+| `peekaboo` | steipete/agent-scripts | skill | N | N | ~2972 |
 | `ponytail:ponytail` | DietrichGebert/ponytail | plugin | N | N | ~1654 |
 | `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~481 |
 | `ponytail:ponytail-debt` | DietrichGebert/ponytail | plugin | N | N | ~448 |
@@ -186,7 +186,7 @@
 | `research` | mattpocock/skills | skill | N | Y | ~198 |
 | `retro` | mattpocock/skills | skill | N | N | ~1092 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
-| `session-viewer` | steipete/agent-scripts | skill | N | N | ~920 |
+| `session-viewer` | steipete/agent-scripts | skill | N | N | ~917 |
 | `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1711 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
@@ -284,7 +284,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=275 both=18 claude_only=2 codex_only=36 total_claude=20 total_codex=54 -->
+<!-- total=275 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
@@ -294,8 +294,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 10 | 46 |
-| Total | 20 | 54 |
+| Always-on | 4 | 39 |
+| Total | 14 | 47 |
 
 ## Repos
 
