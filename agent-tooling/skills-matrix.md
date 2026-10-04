@@ -14,7 +14,7 @@
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
-| `ask-matt` | mattpocock/skills | skill | N | Y | ~3088 |
+| `ask-matt` | mattpocock/skills | skill | N | Y | ~3109 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~4973 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
@@ -24,7 +24,7 @@
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~25424 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | N | ~325 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -79,7 +79,7 @@
 | `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
 | `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4819 |
-| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
+| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2340 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
 | `git-guardrails-claude-code` | mattpocock/skills | skill | N | Y | ~578 |
 | `github-author-context` | steipete/agent-scripts | skill | N | N | ~950 |
@@ -104,49 +104,52 @@
 | `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~183 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~2827 |
 | `markdown-converter` | steipete/agent-scripts | skill | N | N | ~433 |
-| `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | N | N | ~2845 |
+| `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | N | N | ~3109 |
 | `mattpocock-skills:batch-grill-me` | mattpocock/skills | plugin | N | N | ~408 |
-| `mattpocock-skills:claude-handoff` | mattpocock/skills | plugin | N | N | ~320 |
-| `mattpocock-skills:code-review` | mattpocock/skills | plugin | N | N | ~1636 |
-| `mattpocock-skills:codebase-design` | mattpocock/skills | plugin | N | N | ~1520 |
+| `mattpocock-skills:claude-handoff` | mattpocock/skills | plugin | N | N | ~325 |
+| `mattpocock-skills:code-review` | mattpocock/skills | plugin | N | N | ~1639 |
+| `mattpocock-skills:codebase-design` | mattpocock/skills | plugin | N | N | ~1516 |
 | `mattpocock-skills:design-an-interface` | mattpocock/skills | plugin | N | N | ~841 |
-| `mattpocock-skills:diagnosing-bugs` | mattpocock/skills | plugin | N | N | ~2225 |
-| `mattpocock-skills:domain-modeling` | mattpocock/skills | plugin | N | N | ~820 |
+| `mattpocock-skills:diagnosing-bugs` | mattpocock/skills | plugin | N | N | ~2131 |
+| `mattpocock-skills:domain-modeling` | mattpocock/skills | plugin | N | N | ~805 |
 | `mattpocock-skills:edit-article` | mattpocock/skills | plugin | N | N | ~188 |
-| `mattpocock-skills:git-guardrails-claude-code` | mattpocock/skills | plugin | N | N | ~577 |
-| `mattpocock-skills:grill-me` | mattpocock/skills | plugin | N | N | ~36 |
+| `mattpocock-skills:git-guardrails-claude-code` | mattpocock/skills | plugin | N | N | ~578 |
+| `mattpocock-skills:grill-me` | mattpocock/skills | plugin | N | N | ~39 |
 | `mattpocock-skills:grill-with-docs` | mattpocock/skills | plugin | N | N | ~61 |
-| `mattpocock-skills:grilling` | mattpocock/skills | plugin | N | N | ~464 |
-| `mattpocock-skills:handoff` | mattpocock/skills | plugin | N | N | ~219 |
+| `mattpocock-skills:grilling` | mattpocock/skills | plugin | N | N | ~493 |
+| `mattpocock-skills:handoff` | mattpocock/skills | plugin | N | N | ~223 |
 | `mattpocock-skills:implement` | mattpocock/skills | plugin | N | N | ~108 |
-| `mattpocock-skills:improve-codebase-architecture` | mattpocock/skills | plugin | N | N | ~1490 |
-| `mattpocock-skills:loop-me` | mattpocock/skills | plugin | N | N | ~633 |
+| `mattpocock-skills:implement-spec` | mattpocock/skills | plugin | N | N | ~695 |
+| `mattpocock-skills:improve-codebase-architecture` | mattpocock/skills | plugin | N | N | ~1499 |
+| `mattpocock-skills:loop-me` | mattpocock/skills | plugin | N | N | ~630 |
 | `mattpocock-skills:migrate-to-shoehorn` | mattpocock/skills | plugin | N | N | ~697 |
 | `mattpocock-skills:obsidian-vault` | mattpocock/skills | plugin | N | N | ~377 |
-| `mattpocock-skills:prototype` | mattpocock/skills | plugin | N | N | ~732 |
+| `mattpocock-skills:pr` | mattpocock/skills | plugin | N | N | ~1026 |
+| `mattpocock-skills:prototype` | mattpocock/skills | plugin | N | N | ~730 |
 | `mattpocock-skills:qa` | mattpocock/skills | plugin | N | N | ~1232 |
 | `mattpocock-skills:request-refactor-plan` | mattpocock/skills | plugin | N | N | ~677 |
 | `mattpocock-skills:research` | mattpocock/skills | plugin | N | N | ~198 |
 | `mattpocock-skills:resolving-merge-conflicts` | mattpocock/skills | plugin | N | N | ~229 |
+| `mattpocock-skills:retro` | mattpocock/skills | plugin | N | N | ~1092 |
 | `mattpocock-skills:scaffold-exercises` | mattpocock/skills | plugin | N | N | ~897 |
-| `mattpocock-skills:setup-matt-pocock-skills` | mattpocock/skills | plugin | N | N | ~1713 |
+| `mattpocock-skills:setup-matt-pocock-skills` | mattpocock/skills | plugin | N | N | ~1711 |
 | `mattpocock-skills:setup-pre-commit` | mattpocock/skills | plugin | N | N | ~564 |
-| `mattpocock-skills:setup-ts-deep-modules` | mattpocock/skills | plugin | N | N | ~1882 |
-| `mattpocock-skills:tdd` | mattpocock/skills | plugin | N | N | ~884 |
-| `mattpocock-skills:teach` | mattpocock/skills | plugin | N | N | ~2374 |
+| `mattpocock-skills:setup-ts-deep-modules` | mattpocock/skills | plugin | N | N | ~1883 |
+| `mattpocock-skills:tdd` | mattpocock/skills | plugin | N | N | ~885 |
+| `mattpocock-skills:teach` | mattpocock/skills | plugin | N | N | ~2376 |
 | `mattpocock-skills:to-questionnaire` | mattpocock/skills | plugin | N | N | ~725 |
-| `mattpocock-skills:to-spec` | mattpocock/skills | plugin | N | N | ~756 |
+| `mattpocock-skills:to-spec` | mattpocock/skills | plugin | N | N | ~760 |
 | `mattpocock-skills:to-tickets` | mattpocock/skills | plugin | N | N | ~1415 |
-| `mattpocock-skills:triage` | mattpocock/skills | plugin | N | N | ~1630 |
+| `mattpocock-skills:triage` | mattpocock/skills | plugin | N | N | ~1639 |
 | `mattpocock-skills:ubiquitous-language` | mattpocock/skills | plugin | N | N | ~1220 |
-| `mattpocock-skills:wait-what` | mattpocock/skills | plugin | N | N | ~80 |
-| `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | N | N | ~2944 |
-| `mattpocock-skills:wizard` | mattpocock/skills | plugin | N | N | ~1032 |
-| `mattpocock-skills:writing-beats` | mattpocock/skills | plugin | N | N | ~1216 |
-| `mattpocock-skills:writing-for-agents` | mattpocock/skills | plugin | N | N | ~2721 |
-| `mattpocock-skills:writing-fragments` | mattpocock/skills | plugin | N | N | ~890 |
+| `mattpocock-skills:wait-what` | mattpocock/skills | plugin | N | N | ~99 |
+| `mattpocock-skills:wayfinder` | mattpocock/skills | plugin | N | N | ~2977 |
+| `mattpocock-skills:wizard` | mattpocock/skills | plugin | N | N | ~1028 |
+| `mattpocock-skills:writing-beats` | mattpocock/skills | plugin | N | N | ~1212 |
+| `mattpocock-skills:writing-for-agents` | mattpocock/skills | plugin | N | N | ~2720 |
+| `mattpocock-skills:writing-fragments` | mattpocock/skills | plugin | N | N | ~889 |
 | `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | N | N | ~2332 |
-| `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | N | N | ~1482 |
+| `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | N | N | ~1479 |
 | `mcp-builder` | anthropics/skills | skill | N | N | ~2264 |
 | `migrate-to-shoehorn` | mattpocock/skills | skill | N | Y | ~697 |
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
@@ -283,7 +286,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=274 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
+<!-- total=277 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
 
 ## Enable-state
 
