@@ -11,6 +11,12 @@
 Prefer `rg`, `fd`, `sd`, and `eza` over `grep`, `find`, `sed`, and `ls`.
 Use a classic tool only when the modern tool cannot do the task safely or exactly.
 
+## Read Git state
+
+When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`.
+Use the `mcp__anvil-emacs-eval__` tools instead: `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
+For a full commit SHA in a shell command, use `git rev-list -1 HEAD`.
+
 ## Edit files
 
 Use Anvil MCP tools for targeted edits:
@@ -48,3 +54,4 @@ Other harnesses: ignore this section.
 
 - In zsh, never name a variable `status`.
 - In zsh, use an array for a loop over multiple items. A scalar string does not split into words as in bash.
+- In zsh, `noclobber` is on: overwrite an existing file with `>|`. A plain `>` fails with "file exists", and the next command can read stale output.
