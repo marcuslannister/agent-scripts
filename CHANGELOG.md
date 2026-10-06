@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Rules: `tooling.md` names the Anvil tools that replace the read-only Git commands the redirect hook blocks, and notes that zsh `noclobber` needs `>|` to overwrite a file; regenerated `AGENTS.codex.md`.
+
 - Refreshed staged third-party skills (anthropics 8a1541c, claude-community 87c843d, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt 24fe0ef, nicobailon 5846f5a) and regenerated the selection-preserving skills matrix.
 
 - Skills: moved `refresh-mac` from staging into the repo-scoped `.agents/skills/`, with `.claude/skills` symlinked to it, so it loads only in this repo; dropped its matrix row.
