@@ -8,26 +8,27 @@
 2. Otherwise, locate files with `rg` and `fd`.
 3. Read the files found by the search.
 
-Prefer `rg`, `fd`, `sd`, and `eza` over `grep`, `find`, `sed`, and `ls`.
+Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` and `ls` as the first command, and rewrites a simple `find -name` or `sed -i` to `fd` or `sd`.
 Use a classic tool only when the modern tool cannot do the task safely or exactly.
 
 ## Read Git state
 
-When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`.
-Use the `mcp__anvil-emacs-eval__` tools instead: `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
+When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`. Global options such as `-C <path>` or `--no-pager` do not change this. `git diff --check` and `git diff -- <path>` (file content; `git diff -- .` for the full diff) stay allowed.
+Use the `mcp__anvil__` tools instead: `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
 For a full commit SHA in a shell command, use `git rev-list -1 HEAD`.
 
 ## Edit files
 
 Use Anvil MCP tools for targeted edits:
 
-- Three or more edits in one file: use `mcp__anvil-emacs-eval__file-batch`. Do not make separate calls for one logical edit.
+- Three or more edits in one file: use `mcp__anvil__file-batch`. Do not make separate calls for one logical edit.
 - Text replacement: use `file-replace-string` or `file-replace-regexp` under the same tool prefix.
 - Line edits: use `file-insert-at-line`, `file-delete-lines`, or `file-append` under the same prefix.
 - Small one-off changes: built-in `Edit` is also allowed.
+- Delete files: use `trash <path>`. It moves them to the Trash. `rm` asks for confirmation, and `rm -rf` is denied.
 
 Avoid repeated full-file reads and repeated elisp patterns. Use targeted file tools instead.
-Run heavy Emacs operations with `mcp__anvil__emacs-eval-async`. Poll with `mcp__anvil__emacs-eval-jobs` and `mcp__anvil__emacs-eval-result`.
+Run heavy Emacs operations with `mcp__anvil-eval__emacs-eval-async`. Poll with `mcp__anvil-eval__emacs-eval-jobs` and `mcp__anvil-eval__emacs-eval-result`.
 
 Anvil's `org` module is disabled in `~/.emacs.d/lisp/init-local-ai.el`.
 It conflicted with interactive Emacs buffers and caused many Syncthing conflict files.
@@ -55,3 +56,5 @@ Other harnesses: ignore this section.
 - In zsh, never name a variable `status`.
 - In zsh, use an array for a loop over multiple items. A scalar string does not split into words as in bash.
 - In zsh, `noclobber` is on: overwrite an existing file with `>|`. A plain `>` fails with "file exists", and the next command can read stale output.
+- In zsh, `noclobber` also blocks `>>` to a file that does not exist. Create the file with `>|`.
+- In zsh, `$EPOCHSECONDS` is empty until `zmodload zsh/datetime`. Use `date +%s` instead.
