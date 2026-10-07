@@ -22,10 +22,11 @@
 | `browser-use` | steipete/agent-scripts | skill | N | N | ~3948 |
 | `build-iterated-agentic-loop` | humanlayer/skills | skill | N | N | ~3388 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
+| `chief-of-staff` | mattpocock/skills | skill | N | N | ~528 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
-| `claude-api` | anthropics/skills | skill | N | N | ~25424 |
+| `claude-api` | anthropics/skills | skill | N | N | ~25857 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
-| `claude-handoff` | mattpocock/skills | skill | N | N | ~325 |
+| `claude-handoff` | mattpocock/skills | skill | N | N | ~356 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
 | `claude-mem:design-is` | thedotmack/claude-mem | plugin | N | N | ~4648 |
@@ -89,10 +90,11 @@
 | `grill-me` | mattpocock/skills | skill | N | Y | ~39 |
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
 | `grilling` | mattpocock/skills | skill | N | Y | ~493 |
-| `handoff` | mattpocock/skills | skill | N | Y | ~223 |
+| `handoff` | mattpocock/skills | skill | N | Y | ~235 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
+| `html-plan` | anthropics/claude-plugins-community | skill | N | N | ~2944 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
-| `implement` | mattpocock/skills | skill | N | Y | ~108 |
+| `implement` | mattpocock/skills | skill | N | Y | ~119 |
 | `implement-spec` | mattpocock/skills | skill | N | N | ~695 |
 | `improve-claude-md` | humanlayer/skills | skill | N | N | ~2351 |
 | `improve-codebase-architecture` | mattpocock/skills | skill | N | Y | ~1499 |
@@ -168,13 +170,13 @@
 | `openclaw-relay` | steipete/agent-scripts | skill | N | N | ~1207 |
 | `oracle` | steipete/agent-scripts | skill | N | N | ~2080 |
 | `pdf` | anthropics/skills | skill | N | N | ~2008 |
-| `peekaboo` | steipete/agent-scripts | skill | N | N | ~2972 |
+| `peekaboo` | steipete/agent-scripts | skill | N | N | ~3155 |
 | `ponytail:ponytail` | DietrichGebert/ponytail | plugin | N | N | ~1654 |
-| `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~481 |
+| `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~494 |
 | `ponytail:ponytail-debt` | DietrichGebert/ponytail | plugin | N | N | ~448 |
-| `ponytail:ponytail-gain` | DietrichGebert/ponytail | plugin | N | N | ~456 |
-| `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~707 |
-| `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~640 |
+| `ponytail:ponytail-gain` | DietrichGebert/ponytail | plugin | N | N | ~501 |
+| `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~714 |
+| `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~670 |
 | `pptx` | anthropics/skills | skill | N | N | ~5161 |
 | `pr` | mattpocock/skills | skill | N | N | ~1026 |
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
@@ -233,7 +235,7 @@
 | `things-todo` | steipete/agent-scripts | skill | N | N | ~709 |
 | `to-questionnaire` | mattpocock/skills | skill | N | Y | ~725 |
 | `to-spec` | mattpocock/skills | skill | N | Y | ~760 |
-| `to-tickets` | mattpocock/skills | skill | N | Y | ~1415 |
+| `to-tickets` | mattpocock/skills | skill | N | Y | ~1451 |
 | `tres-asc845-swap-reprice-skill` | anthropics/claude-plugins-community | skill | N | N | ~2233 |
 | `tres-asset-balance-validation` | anthropics/claude-plugins-community | skill | N | N | ~4498 |
 | `tres-cost-basis` | anthropics/claude-plugins-community | skill | N | N | ~6869 |
@@ -260,19 +262,19 @@
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
 | `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~3240 |
-| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~3240 |
+| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~3343 |
 | `visual-pr` | humanlayer/skills | skill | N | N | ~844 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
 | `wayfinder` | mattpocock/skills | skill | N | Y | ~2977 |
-| `waza:check` | tw93/Waza | plugin | Y | Y | ~8032 |
-| `waza:health` | tw93/Waza | plugin | Y | Y | ~5171 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4458 |
-| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2157 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~1886 |
-| `waza:think` | tw93/Waza | plugin | Y | Y | ~2934 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3847 |
-| `waza:write` | tw93/Waza | plugin | Y | Y | ~3855 |
+| `waza:check` | tw93/Waza | plugin | Y | Y | ~7116 |
+| `waza:health` | tw93/Waza | plugin | Y | Y | ~5079 |
+| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4272 |
+| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2212 |
+| `waza:read` | tw93/Waza | plugin | Y | Y | ~1779 |
+| `waza:think` | tw93/Waza | plugin | Y | Y | ~2921 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3733 |
+| `waza:write` | tw93/Waza | plugin | Y | Y | ~3645 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
 | `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
@@ -286,7 +288,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=277 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
+<!-- total=279 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
 
 ## Enable-state
 
