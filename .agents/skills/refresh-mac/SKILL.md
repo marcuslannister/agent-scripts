@@ -22,7 +22,7 @@ for repo in ~/Projects/*/.git; do
   out=$(git -C "$dir" pull --ff-only 2>&1)
   if [ $? -ne 0 ]; then
     result=failed
-  elif print -r -- "$out" | grep -q "Already up to date"; then
+  elif print -r -- "$out" | rg -q "Already up to date"; then
     result=up-to-date
   else
     result=pulled
@@ -43,9 +43,10 @@ failed, with the git error kept for the report.
 osascript -e 'tell application "Finder" to empty trash'
 ```
 
-3. Apply the Nix Darwin configuration from the flake directory:
+3. Apply the Nix Darwin configuration from `~/Projects/nix-config`:
 
 ```bash
+cd ~/Projects/nix-config
 sudo darwin-rebuild switch --flake . --impure
 ```
 
