@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Git: `.gitattributes` exempts staged `other-skills/` copies from whitespace checks, so upstream trailing whitespace no longer blocks the `update-all.sh` ship step.
+
 - Refreshed staged third-party skills (anthropics 683bc88, claude-community f60f045, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt 6fd9479, nicobailon 0cc6f15) and regenerated the selection-preserving skills matrix.
 
 - Rules: `tooling.md` names the Anvil tools that replace the read-only Git commands the redirect hook blocks, and notes that zsh `noclobber` needs `>|` to overwrite a file; regenerated `AGENTS.codex.md`.
