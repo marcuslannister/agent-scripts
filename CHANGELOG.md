@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Rules: `tooling.md` drops the `$codex-first` routing rule and its "work directly" exception, says the CLI hook blocks `grep`/`ls` at the start of every command segment and that a blocked command does not run at all, and documents the `curl` GET/HEAD redirect to `http-fetch`/`http-head`. `AGENTS.codex.md` is rebuilt.
+
 - Refreshed staged third-party skills (anthropics 683bc88, claude-community f60f045, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt 6fd9479, nicobailon 0cc6f15) and regenerated the selection-preserving skills matrix.
 
 - Rules: `tooling.md` names the real `mcp__anvil-emacs-eval__` (Git, file, HTTP) and `mcp__anvil__` (eval) tool prefixes, says which commands the CLI hook blocks or rewrites, notes that Git global options do not get past the read-only Git hook and that `git diff --check` and `git diff -- <path>` stay allowed, names `trash` for deletes, and adds two zsh traps (`>>` under `noclobber`, empty `$EPOCHSECONDS`); regenerated `AGENTS.codex.md`. `refresh-mac` names `~/Projects/nix-config` for the Nix Darwin step and uses `rg`.
