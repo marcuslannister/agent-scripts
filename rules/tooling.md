@@ -8,7 +8,8 @@
 2. Otherwise, locate files with `rg` and `fd`.
 3. Read the files found by the search.
 
-Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` and `ls` as the first command, and rewrites a simple `find -name` or `sed -i` to `fd` or `sd`.
+Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` and `ls` at the start of each command segment (after `;`, `&&`, `||`, or a newline); `grep` after `|` stays allowed. It rewrites a simple `find -name` or `sed -i` to `fd` or `sd`.
+A blocked command does not run at all, including its other segments. Fix the blocked segment, then run the full command again.
 Use a classic tool only when the modern tool cannot do the task safely or exactly.
 
 ## Read Git state
@@ -16,6 +17,7 @@ Use a classic tool only when the modern tool cannot do the task safely or exactl
 When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`. Global options such as `-C <path>` or `--no-pager` do not change this. `git diff --check` and `git diff -- <path>` (file content; `git diff -- .` for the full diff) stay allowed.
 Use the `mcp__anvil-emacs-eval__` tools instead (the `git-*`, `file-*`, and `http-*` tools live under this prefix, not `mcp__anvil__`): `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
 For a full commit SHA in a shell command, use `git rev-list -1 HEAD`.
+When Anvil is reachable, the hook also blocks a plain `curl` GET or HEAD: a URL plus only `-s`, `-S`, `-L`, `-f`, and for HEAD a separate `-I`. Use `http-fetch` or `http-head` under the same prefix. Any other curl option, such as `-H`, `-m`, `-o`, or `-w`, keeps curl.
 
 ## Edit files
 
@@ -38,8 +40,6 @@ Use the `anvil-advanced-ops` skill for worker pools, scheduled tasks, and large 
 
 ## Route work
 
-- Claude Code implementation, refactoring, tests, or fixes: use `$codex-first`.
-- Claude Code design, API design, or tiny edits: work directly. In Codex sessions, ignore the Claude Code routing rule.
 - Screenshot or live-UI bugs: use `$browser-use`.
 - Private or historical questions: search local archives first. For current-state questions, also check that the facts are current.
 - When a subagent or delegated worker reports back, check its evidence before you accept it.
