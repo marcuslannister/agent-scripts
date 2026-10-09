@@ -14,21 +14,21 @@ Use a classic tool only when the modern tool cannot do the task safely or exactl
 ## Read Git state
 
 When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`. Global options such as `-C <path>` or `--no-pager` do not change this. `git diff --check` and `git diff -- <path>` (file content; `git diff -- .` for the full diff) stay allowed.
-Use the `mcp__anvil__` tools instead: `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
+Use the `mcp__anvil-emacs-eval__` tools instead (the `git-*`, `file-*`, and `http-*` tools live under this prefix, not `mcp__anvil__`): `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
 For a full commit SHA in a shell command, use `git rev-list -1 HEAD`.
 
 ## Edit files
 
 Use Anvil MCP tools for targeted edits:
 
-- Three or more edits in one file: use `mcp__anvil__file-batch`. Do not make separate calls for one logical edit.
+- Three or more edits in one file: use `mcp__anvil-emacs-eval__file-batch`. Do not make separate calls for one logical edit.
 - Text replacement: use `file-replace-string` or `file-replace-regexp` under the same tool prefix.
 - Line edits: use `file-insert-at-line`, `file-delete-lines`, or `file-append` under the same prefix.
 - Small one-off changes: built-in `Edit` is also allowed.
 - Delete files: use `trash <path>`. It moves them to the Trash. `rm` asks for confirmation, and `rm -rf` is denied.
 
 Avoid repeated full-file reads and repeated elisp patterns. Use targeted file tools instead.
-Run heavy Emacs operations with `mcp__anvil-eval__emacs-eval-async`. Poll with `mcp__anvil-eval__emacs-eval-jobs` and `mcp__anvil-eval__emacs-eval-result`.
+Run heavy Emacs operations with `mcp__anvil__emacs-eval-async`. Poll with `mcp__anvil__emacs-eval-jobs` and `mcp__anvil__emacs-eval-result`.
 
 Anvil's `org` module is disabled in `~/.emacs.d/lisp/init-local-ai.el`.
 It conflicted with interactive Emacs buffers and caused many Syncthing conflict files.

@@ -8,7 +8,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Refreshed staged third-party skills (anthropics 683bc88, claude-community f60f045, danyuchn 32511c6, humanlayer ca7c808, khazix 322346d, matt 6fd9479, nicobailon 0cc6f15) and regenerated the selection-preserving skills matrix.
 
-- Rules: `tooling.md` names the real `mcp__anvil__` and `mcp__anvil-eval__` tool prefixes, says which commands the CLI hook blocks or rewrites, notes that Git global options do not get past the read-only Git hook and that `git diff --check` and `git diff -- <path>` stay allowed, names `trash` for deletes, and adds two zsh traps (`>>` under `noclobber`, empty `$EPOCHSECONDS`); regenerated `AGENTS.codex.md`. `refresh-mac` names `~/Projects/nix-config` for the Nix Darwin step and uses `rg`.
+- Rules: `tooling.md` names the real `mcp__anvil-emacs-eval__` (Git, file, HTTP) and `mcp__anvil__` (eval) tool prefixes, says which commands the CLI hook blocks or rewrites, notes that Git global options do not get past the read-only Git hook and that `git diff --check` and `git diff -- <path>` stay allowed, names `trash` for deletes, and adds two zsh traps (`>>` under `noclobber`, empty `$EPOCHSECONDS`); regenerated `AGENTS.codex.md`. `refresh-mac` names `~/Projects/nix-config` for the Nix Darwin step and uses `rg`.
 
 - Git: `.gitattributes` exempts staged `other-skills/` copies from whitespace checks, so upstream trailing whitespace no longer blocks the `update-all.sh` ship step.
 
