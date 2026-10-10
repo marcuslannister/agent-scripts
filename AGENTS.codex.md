@@ -11,7 +11,7 @@ This toolkit shares instructions, skills, and plugins across agent CLIs.
 - Before each reply, apply [English coaching](~/.claude/rules/english.md) to the user's message.
 - Use bullets only for lists, checklists, or comparisons.
 - When a step does not need my input, continue. Put status notes in the same message as the next action. Stop and ask only when you cannot continue without me, or before a destructive action.
-- Before you report a task as complete, review your diff. Mark each statement that you could not confirm, and say where you looked.
+- Before you report a task that edited files as complete, review your diff. Mark each statement that you could not confirm, and say where you looked.
 
 ## Topic rules
 
@@ -141,6 +141,7 @@ Example:
 Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` and `ls` at the start of each command segment (after `;`, `&&`, `||`, or a newline); `grep` after `|` stays allowed. It rewrites a simple `find -name` or `sed -i` to `fd` or `sd`.
 A blocked command does not run at all, including its other segments. Fix the blocked segment, then run the full command again.
 Use a classic tool only when the modern tool cannot do the task safely or exactly.
+Over `ssh`, the hook does not check the remote command. If the remote host lacks `rg`, `fd`, `sd`, or `eza`, use `grep`, `find`, `sed`, and `ls` there.
 
 ## Read Git state
 

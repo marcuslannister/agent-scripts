@@ -11,6 +11,7 @@
 Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` and `ls` at the start of each command segment (after `;`, `&&`, `||`, or a newline); `grep` after `|` stays allowed. It rewrites a simple `find -name` or `sed -i` to `fd` or `sd`.
 A blocked command does not run at all, including its other segments. Fix the blocked segment, then run the full command again.
 Use a classic tool only when the modern tool cannot do the task safely or exactly.
+Over `ssh`, the hook does not check the remote command. If the remote host lacks `rg`, `fd`, `sd`, or `eza`, use `grep`, `find`, `sed`, and `ls` there.
 
 ## Read Git state
 
