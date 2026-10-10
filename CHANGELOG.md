@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics dbd4588, claude-community f60f045, danyuchn 32511c6, humanlayer 653b641, khazix 322346d, matt 49dd158, nicobailon 1b13136) and regenerated the selection-preserving skills matrix.
+
 - Tooling: every `agent-tooling/` script that reads jq output now strips `\r`, because native `jq.exe` on Windows writes CRLF. Before this fix, `update-local.sh` under Git Bash asked Claude to update marketplace `ponytail\r` instead of `ponytail` and skipped installed plugins. `update-plugins-test.sh` covers this with a CRLF jq shim.
 
 - Rules: `tooling.md` says the CLI hook does not check commands run over `ssh`, so a remote host that lacks `rg`, `fd`, `sd`, or `eza` uses `grep`, `find`, `sed`, and `ls`. The completion-review line in `AGENTS.MD` now applies only to tasks that edited files. `AGENTS.codex.md` is rebuilt.

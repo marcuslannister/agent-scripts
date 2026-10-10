@@ -14,7 +14,7 @@
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
-| `ask-matt` | mattpocock/skills | skill | N | Y | ~3109 |
+| `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~4973 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
@@ -24,7 +24,7 @@
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
 | `chief-of-staff` | mattpocock/skills | skill | N | N | ~528 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
-| `claude-api` | anthropics/skills | skill | N | N | ~25857 |
+| `claude-api` | anthropics/skills | skill | N | N | ~26279 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | N | ~356 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
@@ -49,7 +49,7 @@
 | `clawsweeper-status` | steipete/agent-scripts | skill | N | N | ~971 |
 | `clickclack` | steipete/agent-scripts | skill | N | N | ~710 |
 | `cloudflare-registrar` | steipete/agent-scripts | skill | N | N | ~372 |
-| `code-review` | mattpocock/skills | skill | N | Y | ~1639 |
+| `code-review` | mattpocock/skills | skill | N | Y | ~1660 |
 | `codebase-design` | mattpocock/skills | skill | N | Y | ~1516 |
 | `codex-debugging` | steipete/agent-scripts | skill | N | N | ~265 |
 | `codex-first` | steipete/agent-scripts | skill | N | N | ~4888 |
@@ -61,7 +61,7 @@
 | `crabbox` | steipete/agent-scripts | skill | N | N | ~3585 |
 | `create-cli` | steipete/agent-scripts | skill | N | N | ~834 |
 | `design-control-loop` | humanlayer/skills | skill | N | N | ~3850 |
-| `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2131 |
+| `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2165 |
 | `discernment-nudge` | anthropics/skills | skill | N | N | ~2623 |
 | `discord-clawd` | steipete/agent-scripts | skill | N | N | ~271 |
 | `doc-coauthoring` | anthropics/skills | skill | N | N | ~3953 |
@@ -89,12 +89,12 @@
 | `github-project-triage` | steipete/agent-scripts | skill | N | N | ~3982 |
 | `grill-me` | mattpocock/skills | skill | N | Y | ~39 |
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
-| `grilling` | mattpocock/skills | skill | N | Y | ~493 |
+| `grilling` | mattpocock/skills | skill | N | Y | ~509 |
 | `handoff` | mattpocock/skills | skill | N | Y | ~235 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `html-plan` | anthropics/claude-plugins-community | skill | N | N | ~2944 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
-| `implement` | mattpocock/skills | skill | N | Y | ~119 |
+| `implement` | mattpocock/skills | skill | N | Y | ~155 |
 | `implement-spec` | mattpocock/skills | skill | N | N | ~695 |
 | `improve-claude-md` | humanlayer/skills | skill | N | N | ~2351 |
 | `improve-codebase-architecture` | mattpocock/skills | skill | N | Y | ~1499 |
@@ -171,12 +171,12 @@
 | `oracle` | steipete/agent-scripts | skill | N | N | ~2080 |
 | `pdf` | anthropics/skills | skill | N | N | ~2008 |
 | `peekaboo` | steipete/agent-scripts | skill | N | N | ~3155 |
-| `ponytail:ponytail` | DietrichGebert/ponytail | plugin | N | N | ~1654 |
-| `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~494 |
-| `ponytail:ponytail-debt` | DietrichGebert/ponytail | plugin | N | N | ~448 |
-| `ponytail:ponytail-gain` | DietrichGebert/ponytail | plugin | N | N | ~501 |
-| `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~714 |
-| `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~670 |
+| `ponytail:ponytail` | DietrichGebert/ponytail | plugin | N | N | ~873 |
+| `ponytail:ponytail-audit` | DietrichGebert/ponytail | plugin | N | N | ~1354 |
+| `ponytail:ponytail-debt` | DietrichGebert/ponytail | plugin | N | N | ~452 |
+| `ponytail:ponytail-gain` | DietrichGebert/ponytail | plugin | N | N | ~507 |
+| `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~725 |
+| `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~1285 |
 | `pptx` | anthropics/skills | skill | N | N | ~5161 |
 | `pr` | mattpocock/skills | skill | N | N | ~1026 |
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
@@ -189,9 +189,10 @@
 | `remote-mac` | steipete/agent-scripts | skill | N | N | ~3094 |
 | `research` | mattpocock/skills | skill | N | Y | ~198 |
 | `retro` | mattpocock/skills | skill | N | N | ~1092 |
+| `rpi` | humanlayer/skills | skill | N | N | ~1232 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
 | `session-viewer` | steipete/agent-scripts | skill | N | N | ~917 |
-| `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1711 |
+| `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1744 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
 | `show-me` | humanlayer/skills | skill | Y | Y | ~816 |
@@ -221,8 +222,8 @@
 | `swiftui-liquid-glass` | steipete/agent-scripts | skill | N | N | ~913 |
 | `swiftui-performance-audit` | steipete/agent-scripts | skill | N | N | ~1317 |
 | `swiftui-view-refactor` | steipete/agent-scripts | skill | N | N | ~1149 |
-| `tdd` | mattpocock/skills | skill | N | Y | ~885 |
-| `teach` | mattpocock/skills | skill | N | Y | ~2376 |
+| `tdd` | mattpocock/skills | skill | N | Y | ~905 |
+| `teach` | mattpocock/skills | skill | N | Y | ~2433 |
 | `telecrawl` | steipete/agent-scripts | skill | N | N | ~416 |
 | `testdino-audit` | anthropics/claude-plugins-community | skill | N | N | ~542 |
 | `testdino-health` | anthropics/claude-plugins-community | skill | N | N | ~254 |
@@ -266,7 +267,7 @@
 | `visual-pr` | humanlayer/skills | skill | N | N | ~844 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
-| `wayfinder` | mattpocock/skills | skill | N | Y | ~2977 |
+| `wayfinder` | mattpocock/skills | skill | N | Y | ~3095 |
 | `waza:check` | tw93/Waza | plugin | Y | Y | ~7116 |
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~5079 |
 | `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4272 |
@@ -288,7 +289,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=279 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
+<!-- total=280 both=11 claude_only=2 codex_only=35 total_claude=13 total_codex=46 -->
 
 ## Enable-state
 
