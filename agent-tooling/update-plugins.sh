@@ -18,6 +18,10 @@ if [ ! -f "$SOURCES_PATH" ] || ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 
+# Native jq.exe on Windows writes CRLF; the stray \r ends up in marketplace
+# names and plugin ids. Strip it; pipefail keeps jq's exit status for -e.
+jq() { command jq "$@" | tr -d '\r'; }
+
 run_native() { # label command...
   local label="$1" output
   shift

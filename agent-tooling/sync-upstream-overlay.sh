@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
+jq() { command jq "$@" | tr -d '\r'; }
+
 SCRIPT_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MANIFEST="${AGENT_SCRIPTS_UPSTREAM_MANIFEST:-$SCRIPT_DIR/upstream-overlay.json}"

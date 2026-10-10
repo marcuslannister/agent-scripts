@@ -8,6 +8,9 @@ set -uo pipefail
 # state refreshed best-effort by update-plugins.sh. Check mode writes nothing
 # under HOME: it clones into its own work root instead of the source cache.
 
+# Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
+jq() { command jq "$@" | tr -d '\r'; }
+
 SCRIPT_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SOURCES_PATH="$SCRIPT_DIR/sources.json"

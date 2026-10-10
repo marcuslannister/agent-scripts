@@ -8,6 +8,9 @@ set -euo pipefail
 #   generate-skill-index.sh          rewrite INDEX.md
 #   generate-skill-index.sh --check  fail if INDEX.md is stale (CI gate)
 
+# Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
+jq() { command jq "$@" | tr -d '\r'; }
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="$REPO_ROOT/agent-tooling/skill-authors.json"
 INDEX="$REPO_ROOT/INDEX.md"

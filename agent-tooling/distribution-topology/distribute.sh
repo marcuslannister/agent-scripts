@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+# Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
+jq() { command jq "$@" | tr -d '\r'; }
+
 MODULE_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
 REPO_ROOT="$(cd "$MODULE_DIR/../.." && pwd)"
 MATRIX_PATH="$REPO_ROOT/agent-tooling/skills-matrix.md"

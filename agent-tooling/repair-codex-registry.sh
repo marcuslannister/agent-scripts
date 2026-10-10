@@ -14,6 +14,9 @@ set -uo pipefail
 # (ADR-0007). It is deliberately not wired into update-all.sh or update-local.sh:
 # native-state repair stays an explicit operator action.
 
+# Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
+jq() { command jq "$@" | tr -d '\r'; }
+
 SCRIPT_DIR="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)"
 SOURCES="$SCRIPT_DIR/sources.json"
 

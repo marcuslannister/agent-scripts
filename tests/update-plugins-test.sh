@@ -104,6 +104,17 @@ rg -F 'claude-mem: Claude marketplace update failed' "$STATE/err" >/dev/null
 rg -q 'claude plugin update claude-mem@thedotmack' "$PLUGIN_LOG" \
   && { echo "FAIL: plugin update ran after its marketplace update failed" >&2; exit 1; }
 
+# Windows jq.exe writes CRLF; no \r may leak into marketplace names or ids.
+CRLF_BIN="$TMP_ROOT/crlf-bin"
+mkdir -p "$CRLF_BIN"
+printf '#!/usr/bin/env bash\n%q "$@" | sed "s/\\$/\\r/"\n' "$(command -v jq)" > "$CRLF_BIN/jq"
+chmod +x "$CRLF_BIN/jq"
+: > "$PLUGIN_LOG"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="$CRLF_BIN:$BIN:$PATH" "$FIXTURE/update-plugins.sh" >/dev/null 2>&1
+rg -Fx 'claude plugin marketplace update waza' "$PLUGIN_LOG" >/dev/null
+rg -Fx 'claude plugin update waza@waza' "$PLUGIN_LOG" >/dev/null
+rg -Fx 'codex plugin add waza@waza' "$PLUGIN_LOG" >/dev/null
+
 # An unreadable inventory is reported, and no plugin is called "not installed".
 cat > "$BIN/claude" <<'BASH'
 #!/usr/bin/env bash

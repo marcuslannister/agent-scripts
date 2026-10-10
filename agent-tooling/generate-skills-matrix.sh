@@ -2,6 +2,9 @@
 # Refresh matrix inventory and derived sections without changing selections.
 set -euo pipefail
 
+# Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
+jq() { command jq "$@" | tr -d '\r'; }
+
 shopt -s nullglob
 export LC_COLLATE=C
 
