@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Tooling: every `agent-tooling/` script that reads jq output now strips `\r`, because native `jq.exe` on Windows writes CRLF. Before this fix, `update-local.sh` under Git Bash asked Claude to update marketplace `ponytail\r` instead of `ponytail` and skipped installed plugins. `update-plugins-test.sh` covers this with a CRLF jq shim.
+
 - Rules: `tooling.md` says the CLI hook does not check commands run over `ssh`, so a remote host that lacks `rg`, `fd`, `sd`, or `eza` uses `grep`, `find`, `sed`, and `ls`. The completion-review line in `AGENTS.MD` now applies only to tasks that edited files. `AGENTS.codex.md` is rebuilt.
 
 - Rules: `tooling.md` drops the `$codex-first` routing rule and its "work directly" exception, says the CLI hook blocks `grep`/`ls` at the start of every command segment and that a blocked command does not run at all, and documents the `curl` GET/HEAD redirect to `http-fetch`/`http-head`. `AGENTS.codex.md` is rebuilt.
