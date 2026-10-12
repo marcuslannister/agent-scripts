@@ -56,6 +56,4 @@ Other harnesses: ignore this section.
 
 - In zsh, never name a variable `status`.
 - In zsh, use an array for a loop over multiple items. A scalar string does not split into words as in bash.
-- In zsh, `noclobber` is on: overwrite an existing file with `>|`. A plain `>` fails with "file exists", and the next command can read stale output.
-- In zsh, `noclobber` also blocks `>>` to a file that does not exist. Create the file with `>|`.
 - In zsh, `$EPOCHSECONDS` is empty until `zmodload zsh/datetime`. Use `date +%s` instead.
