@@ -25,7 +25,7 @@
 | `chief-of-staff` | mattpocock/skills | skill | N | N | ~528 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~26279 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
 | `claude-handoff` | mattpocock/skills | skill | N | N | ~356 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -80,7 +80,7 @@
 | `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
 | `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4819 |
-| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
+| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2340 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
 | `git-guardrails-claude-code` | mattpocock/skills | skill | N | Y | ~578 |
 | `github-author-context` | steipete/agent-scripts | skill | N | N | ~950 |
