@@ -26,6 +26,14 @@
       "discovery": "recursive"
     },
     {
+      "id": "tsk-skills",
+      "classification": "source-only",
+      "repo": "smarzban/tsk",
+      "subroot": "skills",
+      "staging": "smarzban",
+      "discovery": "flat"
+    },
+    {
       "id": "matt-skills",
       "classification": "npx-only",
       "repo": "mattpocock/skills",

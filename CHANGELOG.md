@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Skills: added `smarzban/tsk` (`tsk-cli`) as a staged source-only skill under `other-skills/smarzban/`, enabled for Claude and Codex in the skills matrix.
+
 - Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn 3944283, humanlayer 653b641, khazix 322346d, matt 49dd158, nicobailon c820ac6) and regenerated the selection-preserving skills matrix.
 
 - Rules: `tooling.md` drops the two zsh `noclobber` traps, because the dotfiles now turn `CLOBBER` back on. `AGENTS.codex.md` is rebuilt.
