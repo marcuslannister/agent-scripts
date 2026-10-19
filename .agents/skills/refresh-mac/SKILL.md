@@ -40,8 +40,10 @@ failed, with the git error kept for the report.
 2. Empty Trash:
 
 ```bash
-osascript -e 'tell application "Finder" to empty trash'
+[ -z "$(eza -A ~/.Trash)" ] && echo "trash: already empty" || osascript -e 'tell application "Finder" to empty trash'
 ```
+
+Finder errors with -128 on an empty Trash, so skip it then and report `skipped`.
 
 3. Apply the Nix Darwin configuration from `~/Projects/nix-config`:
 
@@ -58,7 +60,7 @@ sudo darwin-rebuild switch --flake . --impure
 | nix-config | no | pulled |
 
 - repos: pulled / up-to-date / failed (dirty: N)
-- trash: emptied / failed
+- trash: emptied / skipped (already empty) / failed
 - Nix Darwin: applied / failed
 
 5. Update agent tooling from `~/Projects/agent-scripts`, chosen by host:

@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `refresh-mac` skips the Finder empty-Trash call when `~/.Trash` is already empty, because Finder errors with -128 then, and reports `skipped (already empty)`.
+
 - Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn 3944283, humanlayer 653b641, khazix 322346d, matt 49dd158, nicobailon 5f37886, smarzban 82e934e) and regenerated the selection-preserving skills matrix.
 
 - Skills: added `smarzban/tsk` (`tsk-cli`) as a staged source-only skill under `other-skills/smarzban/`, enabled for Claude and Codex in the skills matrix.
