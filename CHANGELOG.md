@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Tooling rules: keep each Git state read in its own Anvil call (a blocked read stops the whole Bash chain), quote zsh URLs that contain `?`, and use `sd` only for one-line patterns because a multi-line `sd -F` can match nothing and still exit 0.
+
 - `refresh-mac` skips the Finder empty-Trash call when `~/.Trash` is already empty, because Finder errors with -128 then, and reports `skipped (already empty)`.
 
 - Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn 3944283, humanlayer 653b641, khazix 322346d, matt 49dd158, nicobailon 5f37886, smarzban 82e934e) and regenerated the selection-preserving skills matrix.
