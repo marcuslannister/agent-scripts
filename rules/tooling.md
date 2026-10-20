@@ -17,6 +17,7 @@ Over `ssh`, the hook does not check the remote command. If the remote host lacks
 
 When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`. Global options such as `-C <path>` or `--no-pager` do not change this. `git diff --check` and `git diff -- <path>` (file content; `git diff -- .` for the full diff) stay allowed.
 Use the `mcp__anvil-emacs-eval__` tools instead (the `git-*`, `file-*`, and `http-*` tools live under this prefix, not `mcp__anvil__`): `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
+Put each Git state read in its own Anvil call: a blocked read anywhere in a Bash chain stops the whole chain.
 For a full commit SHA in a shell command, use `git rev-list -1 HEAD`.
 When Anvil is reachable, the hook also blocks a plain `curl` GET or HEAD: a URL plus only `-s`, `-S`, `-L`, `-f`, and for HEAD a separate `-I`. Use `http-fetch` or `http-head` under the same prefix. Any other curl option, such as `-H`, `-m`, `-o`, or `-w`, keeps curl.
 
@@ -57,3 +58,5 @@ Other harnesses: ignore this section.
 - In zsh, never name a variable `status`.
 - In zsh, use an array for a loop over multiple items. A scalar string does not split into words as in bash.
 - In zsh, `$EPOCHSECONDS` is empty until `zmodload zsh/datetime`. Use `date +%s` instead.
+- In zsh, quote every URL or path that contains `?`, such as `gh api 'repos/o/r/contents/f?ref=main'`.
+- Use `sd` for one-line patterns. For multi-line replacements, use `Edit` or `file-replace-string`: a multi-line `sd -F` can match nothing and still exit 0.
