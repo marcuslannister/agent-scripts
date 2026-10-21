@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Tooling rules: when an agent sees a wasteful Anvil pattern (repeated full-file reads, repeated elisp, many calls for one edit), it changes to the correct tool immediately instead of at the end of the task.
+
 - Tooling rules: keep each Git state read in its own Anvil call (a blocked read stops the whole Bash chain), quote zsh URLs that contain `?`, and use `sd` only for one-line patterns because a multi-line `sd -F` can match nothing and still exit 0.
 
 - `refresh-mac` skips the Finder empty-Trash call when `~/.Trash` is already empty, because Finder errors with -128 then, and reports `skipped (already empty)`.
