@@ -162,6 +162,7 @@ Use Anvil MCP tools for targeted edits:
 - Delete files: use `trash <path>`. It moves them to the Trash. `rm` asks for confirmation, and `rm -rf` is denied.
 
 Avoid repeated full-file reads and repeated elisp patterns. Use targeted file tools instead.
+When you see one of these patterns during a task, change to the correct tool immediately. Do not wait until the task ends.
 Run heavy Emacs operations with `mcp__anvil__emacs-eval-async`. Poll with `mcp__anvil__emacs-eval-jobs` and `mcp__anvil__emacs-eval-result`.
 
 Anvil's `org` module is disabled in `~/.emacs.d/lisp/init-local-ai.el`.
