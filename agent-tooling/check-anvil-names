@@ -36,7 +36,7 @@ NOT_TOOLS = {
     "ccr-id",                  # context-compress result field
 }
 
-PREFIXED = re.compile(r"mcp__([a-z-]+)__([a-z0-9*-]*)")
+PREFIXED = re.compile(r"mcp__(anvil[a-z-]*)__([a-z0-9*-]*)")
 BARE = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+\*?)`")
 
 

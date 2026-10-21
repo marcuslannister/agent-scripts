@@ -19,7 +19,7 @@ expect() { # expect <pass|fail> <label>
   [ "$got" = "$1" ] || { echo "FAIL check-anvil-names: expected $1 for $2" >&2; exit 1; }
 }
 
-printf 'Use `mcp__anvil-emacs-eval__git-status` and `mcp__anvil__emacs-eval*`.\n' > "$TMP_ROOT/rules/tooling.md"
+printf 'Use `mcp__anvil-emacs-eval__git-status` and `mcp__anvil__emacs-eval*`, not `mcp__codegraph__codegraph_explore`.\n' > "$TMP_ROOT/rules/tooling.md"
 printf -- '- `cron-list`\n- `emacs-eval*`\n- `anvil-cron` tasks\n' > "$SKILL"
 expect pass "registered names"
 
