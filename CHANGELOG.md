@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `refresh-mac` marks each result with ✅ (fine) or ❌ (failed) in the status table and count lines, and marks agent tooling ❌ when the update script's own summary shows a ✗ stage even with exit code 0.
+
 - Add `agent-tooling/check-anvil-names`, run by `verify.sh`: it fails when `AGENTS.MD`, `rules/`, or the `anvil-advanced-ops` skill names an Anvil MCP tool that is not in the committed snapshot `agent-tooling/anvil-tools.txt`. It checks only `mcp__anvil*__` names, so a tool of another MCP server passes. A bare name in the skill must be a tool, so a real Elisp function such as `anvil-cron-list` does not pass. Refresh the snapshot with `--refresh` after an anvil bump or a module change.
 
 - Tooling rules: the Anvil Git-read redirect now fires only for a command of Git reads alone (with `cd` and read-only filters), so Git reads inside a chain that does other work run.
