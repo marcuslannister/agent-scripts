@@ -145,9 +145,9 @@ Over `ssh`, the hook does not check the remote command. If the remote host lacks
 
 ## Read Git state
 
-When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list`. Global options such as `-C <path>` or `--no-pager` do not change this. `git diff --check` and `git diff -- <path>` (file content; `git diff -- .` for the full diff) stay allowed.
+When Anvil is reachable, a hook blocks read-only `git status`, `log`, `diff`, `rev-parse`, bare `branch`, and `worktree list` when the command does only Git reads (with `cd` and read-only filters such as `| head` or `| rg`). In a chain that also does other work, such as commit, push, then check, the reads run. Global options such as `-C <path>` or `--no-pager` do not change this. `git diff --check` and `git diff -- <path>` (file content; `git diff -- .` for the full diff) stay allowed.
 Use the `mcp__anvil-emacs-eval__` tools instead (the `git-*`, `file-*`, and `http-*` tools live under this prefix, not `mcp__anvil__`): `git-status`, `git-log`, `git-diff-names` or `git-diff-stats`, `git-head-sha`, `git-branch-current`, and `git-worktree-list`.
-Put each Git state read in its own Anvil call: a blocked read anywhere in a Bash chain stops the whole chain.
+Use one Anvil call for each Git state read that stands alone.
 For a full commit SHA in a shell command, use `git rev-list -1 HEAD`.
 When Anvil is reachable, the hook also blocks a plain `curl` GET or HEAD: a URL plus only `-s`, `-S`, `-L`, `-f`, and for HEAD a separate `-I`. Use `http-fetch` or `http-head` under the same prefix. Any other curl option, such as `-H`, `-m`, `-o`, or `-w`, keeps curl.
 
