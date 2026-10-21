@@ -66,6 +66,9 @@ done < <(git ls-files -co --exclude-standard -z)
 section "Skill front matter"
 agent-tooling/validate-skills
 
+section "Anvil tool names"
+agent-tooling/check-anvil-names
+
 section "Skill topology cutover policy"
 agent-tooling/test-skill-topology-policy
 

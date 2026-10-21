@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Check that the Anvil MCP tool names in rules and skills are registered tools.
+
+The names come from a committed snapshot, agent-tooling/anvil-tools.txt, so CI
+needs no Emacs. Refresh it on a machine with a running Anvil daemon:
+
+    agent-tooling/check-anvil-names --refresh
+
+Two kinds of name are checked:
+- A prefixed name (`mcp__anvil__emacs-eval`) anywhere in the scanned files.
+  Its prefix and its tool must both exist; `name*` matches as a prefix.
+- A bare hyphenated name in backticks in a skill that uses bare tool IDs.
+  It must be a tool, or a word in NOT_TOOLS. Elisp names are not accepted by
+  lookup: `anvil-cron-list` is a real function but not a tool.
+"""
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(os.environ.get("ANVIL_NAMES_ROOT") or Path(__file__).resolve().parent.parent)
+SNAPSHOT = ROOT / "agent-tooling" / "anvil-tools.txt"
+
+# Anvil server id -> MCP server name, as the anvil.el README registers them.
+SERVERS = {"anvil": "anvil", "emacs-eval": "anvil-emacs-eval"}
+
+PREFIXED_FILES = ["AGENTS.MD", "rules/*.md", "other-skills/marcus/*/SKILL.md"]
+BARE_FILES = ["other-skills/marcus/anvil-advanced-ops/SKILL.md"]
+
+# Backticked words in BARE_FILES that are not tool IDs: modules, options,
+# fields, and Elisp names. Add a word here only after you check what it names.
+NOT_TOOLS = {
+    "anvil-cron",              # module / feature name
+    "anvil-optional-modules",  # Elisp option
+    "ccr-id",                  # context-compress result field
+}
+
+PREFIXED = re.compile(r"mcp__([a-z-]+)__([a-z0-9*-]*)")
+BARE = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+\*?)`")
+
+
+def refresh():
+    expr = (
+        "(let (out) (maphash (lambda (sid tbl) (maphash (lambda (k _v)"
+        " (push (format \"%s %s\" sid k) out)) tbl)) anvil-server--tools)"
+        " (mapconcat #'identity (sort out #'string<) \";\"))"
+    )
+    raw = subprocess.run(
+        ["emacsclient", "--timeout=10", "--eval", expr],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip().strip('"')
+    names = []
+    for entry in raw.split(";"):
+        sid, tool = entry.split(" ", 1)
+        if sid not in SERVERS:
+            sys.exit(f"error: unknown Anvil server id {sid!r}; add it to SERVERS")
+        names.append(f"mcp__{SERVERS[sid]}__{tool}")
+    SNAPSHOT.write_text("".join(f"{n}\n" for n in sorted(names)))
+    print(f"wrote {len(names)} tools to {SNAPSHOT.relative_to(ROOT)}")
+
+
+def files(patterns):
+    return sorted({p for pat in patterns for p in ROOT.glob(pat)})
+
+
+def matches(name, tools):
+    if name.endswith("*"):
+        return any(t.startswith(name[:-1]) for t in tools)
+    return name in tools
+
+
+def check():
+    full = set(SNAPSHOT.read_text().split())
+    prefixes = {f"mcp__{s}__" for s in SERVERS.values()}
+    bare = {t.split("__", 2)[2] for t in full}
+    errors = []
+    for path in files(PREFIXED_FILES):
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            for server, tool in PREFIXED.findall(line):
+                where = f"{path.relative_to(ROOT)}:{n}"
+                prefix = f"mcp__{server}__"
+                if prefix not in prefixes:
+                    errors.append(f"{where}: unknown MCP prefix {prefix}")
+                elif tool and not matches(prefix + tool, full):
+                    errors.append(f"{where}: {prefix}{tool} is not a registered tool")
+    for path in files(BARE_FILES):
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            for name in BARE.findall(line):
+                if name not in NOT_TOOLS and not matches(name, bare):
+                    errors.append(f"{path.relative_to(ROOT)}:{n}: `{name}` is not a registered tool")
+    for e in errors:
+        print(f"error: {e}", file=sys.stderr)
+    if errors:
+        print("Fix the name, or run --refresh if Anvil changed.", file=sys.stderr)
+        sys.exit(1)
+    print(f"anvil names ok ({len(full)} tools in snapshot)")
+
+
+if __name__ == "__main__":
+    refresh() if sys.argv[1:] == ["--refresh"] else check()
