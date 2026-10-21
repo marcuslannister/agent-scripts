@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Add `agent-tooling/check-anvil-names`, run by `verify.sh`: it fails when `AGENTS.MD`, `rules/`, or the `anvil-advanced-ops` skill names an Anvil MCP tool that is not in the committed snapshot `agent-tooling/anvil-tools.txt`. A bare name in the skill must be a tool, so a real Elisp function such as `anvil-cron-list` does not pass. Refresh the snapshot with `--refresh` after an anvil bump or a module change.
+
 - Tooling rules: the Anvil Git-read redirect now fires only for a command of Git reads alone (with `cd` and read-only filters), so Git reads inside a chain that does other work run.
 
 - `anvil-advanced-ops` skill: fixed the tool-name prefixes (`mcp__anvil-emacs-eval__` for all tools, `mcp__anvil__` only for `emacs-eval*` and `nelisp-eval*`) and the cron tool IDs (`cron-list`, `cron-status`, `cron-run`, not `anvil-cron-*`).
@@ -135,7 +137,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - English coaching ran only when a task happened to route to `rules/english.md`, so it was easy to skip; the Communication section now inlines an always-on trigger to check every reply against it, and the redundant Topic rules link is dropped.
 
-- Fixed stale Anvil MCP tool names in `rules/tooling.md`: file-edit tools now use the actual `mcp__anvil-emacs-eval__*` names, and heavy elisp ops route through `mcp__anvil__emacs-eval-async` instead of the nonexistent `anvil-worker-call`.
+- Fixed stale Anvil MCP tool names in `rules/tooling.md`: file-edit tools now use the actual `mcp__anvil-emacs-eval__*` names, and heavy elisp ops route through `mcp__anvil__emacs-eval-async` instead of `anvil-worker-call`, which is an Elisp function, not an MCP tool.
 
 - Refreshed staged third-party skills (anthropics 3b3fad9, humanlayer 3c26291, khazix 7a5c493, matt 6654f6b, nicobailon df35d97) and regenerated the selection-preserving skills matrix.
 
@@ -179,7 +181,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Restored the `anvil-advanced-ops` compression and Layer-2 disclosure sections after enabling Anvil's `state`, `shell-filter`, `context`, and `disclosure` optional modules, which register all nine previously missing tools; the skill now records the required module list so a missing tool points at the config rather than looking like a bug.
 
-- Rewrote the `anvil-advanced-ops` skill against the tools Anvil actually registers here: dropped the `anvil-org-*` and `shell-run`/`context-compress` sections whose tools do not exist, pointed heavy Emacs work at `emacs-eval-async` polling instead of the unregistered `anvil-worker-call`, and replaced the dead compression advice with file-disclosure layers and server-side HTTP extraction.
+- Rewrote the `anvil-advanced-ops` skill against the tools Anvil actually registers here: dropped the `anvil-org-*` and `shell-run`/`context-compress` sections whose tools do not exist, pointed heavy Emacs work at `emacs-eval-async` polling instead of `anvil-worker-call` (an Elisp function, not an MCP tool), and replaced the dead compression advice with file-disclosure layers and server-side HTTP extraction.
 
 - Installed the `ponytail` plugin (DietrichGebert/ponytail 4.9.0) on Claude Code, Codex, and Pi, and registered it in `sources.json` as a dual-plugin source so `update-plugins.sh` refreshes both native marketplaces; Pi is already covered by `pi update --extensions`.
 
