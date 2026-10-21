@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Tooling rules: the Anvil Git-read redirect now fires only for a command of Git reads alone (with `cd` and read-only filters), so Git reads inside a chain that does other work run.
+
 - `anvil-advanced-ops` skill: fixed the tool-name prefixes (`mcp__anvil-emacs-eval__` for all tools, `mcp__anvil__` only for `emacs-eval*` and `nelisp-eval*`) and the cron tool IDs (`cron-list`, `cron-status`, `cron-run`, not `anvil-cron-*`).
 
 - Tooling rules: when an agent sees a wasteful Anvil pattern (repeated full-file reads, repeated elisp, many calls for one edit), it changes to the correct tool immediately instead of at the end of the task.
