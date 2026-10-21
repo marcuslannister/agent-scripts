@@ -4,9 +4,10 @@ description: "Anvil MCP token discipline and heavy-op dispatch: compress long ou
 ---
 
 Tool names here are bare IDs. In Claude Code they carry the
-`mcp__anvil__` prefix, except the eval tools, which live under
-`mcp__anvil-eval__`. The two MCP server names are crossed against
-their `--server-id` values, so trust the prefix, not the name.
+`mcp__anvil-emacs-eval__` prefix, except the eval tools
+(`emacs-eval*`, `nelisp-eval*`), which live under `mcp__anvil__`.
+The two MCP server names are crossed against their `--server-id`
+values, so trust the prefix, not the name.
 
 ## org-mode — edit files directly
 
@@ -101,11 +102,11 @@ raw object.
 Inspect and trigger configured `anvil-cron` tasks (lint, health
 checks, batch indexers) through the cron MCP tools:
 
-- `anvil-cron-list` — what tasks exist and their schedules
-- `anvil-cron-status` — last run time, status, recent failures
-- `anvil-cron-run` — fire a registered task on demand
+- `cron-list` — what tasks exist and their schedules
+- `cron-status` — last run time, status, recent failures
+- `cron-run` — fire a registered task on demand
 
-Check `anvil-cron-list` before writing a new ad-hoc script — the
+Check `cron-list` before writing a new ad-hoc script — the
 job may already be defined.
 
 ## When a tool reports as unknown
