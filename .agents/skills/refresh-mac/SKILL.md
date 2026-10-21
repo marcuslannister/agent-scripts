@@ -52,16 +52,17 @@ cd ~/Projects/nix-config
 sudo darwin-rebuild switch --flake . --impure
 ```
 
-4. Finish with a status table (one row per repo) and terse counts:
+4. Finish with a status table (one row per repo) and terse counts. Put ✅ before each fine result (pulled, up-to-date, emptied, skipped, applied, updated) and ❌ before each failed result:
 
 | Repo | Dirty | Result |
 |---|---|---|
-| agent-scripts | no | up-to-date |
-| nix-config | no | pulled |
+| agent-scripts | no | ✅ up-to-date |
+| nix-config | no | ✅ pulled |
+| homelab | yes | ❌ failed |
 
-- repos: pulled / up-to-date / failed (dirty: N)
-- trash: emptied / skipped (already empty) / failed
-- Nix Darwin: applied / failed
+- repos: pulled / up-to-date / failed (dirty: N) — ❌ if any failed, else ✅
+- trash: ✅ emptied / ✅ skipped (already empty) / ❌ failed
+- Nix Darwin: ✅ applied / ❌ failed
 
 5. Update agent tooling from `~/Projects/agent-scripts`, chosen by host:
 
@@ -76,4 +77,4 @@ fi
 
 On `mac-mini-m1`, `update-all.sh` ships its changes: it commits, pushes, and pulls the repo. It needs a clean worktree; a dirty one fails the step. Add one count line:
 
-- agent tooling: updated (all / local) / failed
+- agent tooling: ✅ updated (all / local) / ❌ failed. Also ❌ when the script's own summary shows a ✗ stage, even if the exit code is 0.
