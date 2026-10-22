@@ -279,6 +279,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 - Made `codex-first` treat the Gorilla-backed Clawdex endpoint as already model-routed, preventing recursive Codex delegation after the fleet proxy migration.
 - Added a secret-safe Codex direct-API preflight so million-token launches fail before an unauthenticated Responses request when a machine is missing its Keychain delivery copy.
 
+- Rules: `tooling.md` adds two shell limits: in zsh, store a command in a function (a variable does not split into words), and write a remote script that uses `grep`, `ls`, or `find` to a file, then run `ssh host sh -s < file`, because the hook reads those words inside a heredoc as commands.
+
 ## 2026-07-25 — Mattpocock/Humanlayer Governance Migration
 - Generalized `npx-source.sh` to support multiple npx-only sources instead of hardcoding mattpocock/skills, and registered `humanlayer/skills`.
 - Migrated 39 mattpocock skills from raw, stale npx installs to governed staged copies on codex.
