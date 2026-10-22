@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn cd62d29, humanlayer 653b641, khazix 322346d, matt 5beb35b, nicobailon 5f37886, smarzban 8e7c577) and regenerated the selection-preserving skills matrix.
+
 - `refresh-mac` skill: the main Mac, which runs `update-all.sh` (ship) instead of `update-local.sh`, is now `macbook-pro-m1` (was `mac-mini-m1`).
 
 - `anvil-advanced-ops` skill: add the `file-batch` operation field names (`replace` takes `old`/`new`, `replace-regexp` takes `pattern`/`replacement`), since a wrong name fails the whole batch with `wrong-type-argument stringp nil`, and note that U+00A0 can be lost in the JSON round trip. The description now also triggers on batching file edits.

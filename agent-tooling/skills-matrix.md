@@ -12,20 +12,20 @@
 | `agent-transcript` | steipete/agent-scripts | skill | N | N | ~697 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~460 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
-| `anvil-advanced-ops` | marcus | skill | Y | Y | ~1238 |
+| `anvil-advanced-ops` | marcus | skill | Y | Y | ~1425 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~3653 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~3747 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
 | `browser-use` | steipete/agent-scripts | skill | N | N | ~3948 |
 | `build-iterated-agentic-loop` | humanlayer/skills | skill | N | N | ~3388 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
-| `chief-of-staff` | mattpocock/skills | skill | N | N | ~528 |
+| `chief-of-staff` | mattpocock/skills | skill | N | N | ~954 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~26279 |
-| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2744 |
+| `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
 | `claude-handoff` | mattpocock/skills | skill | N | N | ~356 |
 | `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
 | `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
@@ -80,7 +80,7 @@
 | `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
 | `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4819 |
-| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2340 |
+| `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
 | `git-guardrails-claude-code` | mattpocock/skills | skill | N | Y | ~578 |
 | `github-author-context` | steipete/agent-scripts | skill | N | N | ~950 |
@@ -260,7 +260,8 @@
 | `tres-upload-tx-header-validation` | anthropics/claude-plugins-community | skill | N | N | ~604 |
 | `tres-wallets-upload` | anthropics/claude-plugins-community | skill | N | N | ~4157 |
 | `triage` | mattpocock/skills | skill | N | Y | ~1639 |
-| `tsk-cli` | smarzban/tsk | skill | Y | Y | ~2349 |
+| `tsk-cli` | smarzban/tsk | skill | Y | Y | ~3173 |
+| `tsk-coordinator` | smarzban/tsk | skill | N | N | ~2220 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
 | `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2043 |
@@ -290,7 +291,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=281 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=282 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
