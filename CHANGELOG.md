@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `refresh-mac` skill: the main Mac, which runs `update-all.sh` (ship) instead of `update-local.sh`, is now `macbook-pro-m1` (was `mac-mini-m1`).
+
 - `anvil-advanced-ops` skill: add the `file-batch` operation field names (`replace` takes `old`/`new`, `replace-regexp` takes `pattern`/`replacement`), since a wrong name fails the whole batch with `wrong-type-argument stringp nil`, and note that U+00A0 can be lost in the JSON round trip. The description now also triggers on batching file edits.
 
 - `refresh-mac` marks each result with ✅ (fine) or ❌ (failed) in the status table and count lines, and marks agent tooling ❌ when the update script's own summary shows a ✗ stage even with exit code 0.
