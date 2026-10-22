@@ -59,6 +59,8 @@ Other harnesses: ignore this section.
 
 - In zsh, never name a variable `status`.
 - In zsh, use an array for a loop over multiple items. A scalar string does not split into words as in bash.
+- In zsh, store a command in a function, not a variable: `g() { env -u GITHUB_TOKEN gh "$@"; }`. A variable such as `G="env -u X gh"` does not split into words, so `$G args` fails with `command not found`.
+- Write a remote script that uses `grep`, `ls`, or `find` to a file with the file tool, then run `ssh host sh -s < file`. The hook reads these words inside a heredoc body as commands and blocks the whole command.
 - In zsh, `$EPOCHSECONDS` is empty until `zmodload zsh/datetime`. Use `date +%s` instead.
 - In zsh, quote every URL or path that contains `?`, such as `gh api 'repos/o/r/contents/f?ref=main'`.
 - Use `sd` for one-line patterns. For multi-line replacements, use `Edit` or `file-replace-string`: a multi-line `sd -F` can match nothing and still exit 0.
