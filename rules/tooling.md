@@ -43,6 +43,7 @@ Use the `anvil-advanced-ops` skill for worker pools, scheduled tasks, and large 
 
 ## Route work
 
+- Web research: search with `kagi_search_fetch`. Read a page with `http-fetch` and `selector="p"`. For a page that needs JavaScript or gives an empty result, use `kagi_extract` or `browser-fetch`.
 - Screenshot or live-UI bugs: use `$browser-use`.
 - Private or historical questions: search local archives first. For current-state questions, also check that the facts are current.
 - When a subagent or delegated worker reports back, check its evidence before you accept it.

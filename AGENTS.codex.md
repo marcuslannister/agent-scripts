@@ -126,6 +126,7 @@ Example:
 - Use the configured secret-management tool. If no tool is identified, ask before retrieving a secret.
 - Query only the exact environment variable needed for the task.
 - Never run `env`, `set`, `export -p`, or broad secret searches that expose values in a normal shell.
+- To store a secret the user gives, tell them to copy it, then run `<cmd> "$(pbpaste | tr -d '\n')" && pbcopy < /dev/null`. A `!` command gets no stdin, so an interactive prompt stores an empty value. Then check the stored length with `wc -c`. Do not print the value.
 - After handling a secret or environment variable, remove token variables from each public `gh` write. Use `env -u GITHUB_TOKEN -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN gh ...`.
 
 # Tools and task routing
@@ -173,6 +174,7 @@ Use the `anvil-advanced-ops` skill for worker pools, scheduled tasks, and large 
 
 ## Route work
 
+- Web research: search with `kagi_search_fetch`. Read a page with `http-fetch` and `selector="p"`. For a page that needs JavaScript or gives an empty result, use `kagi_extract` or `browser-fetch`.
 - Screenshot or live-UI bugs: use `$browser-use`.
 - Private or historical questions: search local archives first. For current-state questions, also check that the facts are current.
 - When a subagent or delegated worker reports back, check its evidence before you accept it.
