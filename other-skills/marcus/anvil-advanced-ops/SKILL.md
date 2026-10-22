@@ -1,6 +1,6 @@
 ---
 name: anvil-advanced-ops
-description: "Anvil MCP token discipline and heavy-op dispatch: compress long output, 3-layer file disclosure, server-side HTML/JSON extraction, async Emacs eval, anvil-cron tasks, and the org-tools guardrail. Reach for it before reading a large file, fetching a big page, running an Emacs op that may block, scheduling cron work, or editing org."
+description: "Anvil MCP token discipline and heavy-op dispatch: compress long output, 3-layer file disclosure, server-side HTML/JSON extraction, async Emacs eval, anvil-cron tasks, and the org-tools guardrail. Reach for it before reading a large file, fetching a big page, running an Emacs op that may block, scheduling cron work, batching file edits, or editing org."
 ---
 
 Tool names here are bare IDs. In Claude Code they carry the
@@ -32,6 +32,25 @@ Escalate only as far as you need:
   the earlier layers emit, which becomes the default range.
 
 `disclosure-help` prints the full contract.
+
+## file-batch operations
+
+`file-batch` takes `operations` as a JSON array string. Each op
+has its own field names; a wrong name fails the whole batch with
+`wrong-type-argument stringp nil` and writes nothing:
+
+```json
+[{"op": "replace", "old": "text", "new": "replacement"},
+ {"op": "replace-regexp", "pattern": "re", "replacement": "str"},
+ {"op": "insert-at-line", "line": 10, "content": "text"},
+ {"op": "delete-lines", "start": 5, "end": 8},
+ {"op": "append", "content": "text"},
+ {"op": "prepend", "content": "text"}]
+```
+
+Ops run in order on one buffer, so later line numbers see earlier
+edits. Invisible characters (U+00A0) can be lost in the JSON round
+trip; in Lisp source write them as `\u00a0` escapes.
 
 ## Compressing long output
 
