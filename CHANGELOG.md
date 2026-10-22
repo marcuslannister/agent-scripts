@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `anvil-advanced-ops` skill: add the `file-batch` operation field names (`replace` takes `old`/`new`, `replace-regexp` takes `pattern`/`replacement`), since a wrong name fails the whole batch with `wrong-type-argument stringp nil`, and note that U+00A0 can be lost in the JSON round trip. The description now also triggers on batching file edits.
+
 - `refresh-mac` marks each result with ✅ (fine) or ❌ (failed) in the status table and count lines, and marks agent tooling ❌ when the update script's own summary shows a ✗ stage even with exit code 0.
 
 - Add `agent-tooling/check-anvil-names`, run by `verify.sh`: it fails when `AGENTS.MD`, `rules/`, or the `anvil-advanced-ops` skill names an Anvil MCP tool that is not in the committed snapshot `agent-tooling/anvil-tools.txt`. It checks only `mcp__anvil*__` names, so a tool of another MCP server passes. A bare name in the skill must be a tool, so a real Elisp function such as `anvil-cron-list` does not pass. Refresh the snapshot with `--refresh` after an anvil bump or a module change.
