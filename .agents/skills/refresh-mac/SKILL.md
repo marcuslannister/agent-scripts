@@ -68,13 +68,13 @@ sudo darwin-rebuild switch --flake . --impure
 
 ```bash
 cd ~/Projects/agent-scripts
-if [ "$(hostname -s)" = mac-mini-m1 ]; then
+if [ "$(hostname -s)" = macbook-pro-m1 ]; then
   agent-tooling/update-all.sh
 else
   agent-tooling/update-local.sh
 fi
 ```
 
-On `mac-mini-m1`, `update-all.sh` ships its changes: it commits, pushes, and pulls the repo. It needs a clean worktree; a dirty one fails the step. Add one count line:
+On `macbook-pro-m1`, `update-all.sh` ships its changes: it commits, pushes, and pulls the repo. It needs a clean worktree; a dirty one fails the step. Add one count line:
 
 - agent tooling: ✅ updated (all / local) / ❌ failed. Also ❌ when the script's own summary shows a ✗ stage, even if the exit code is 0.
