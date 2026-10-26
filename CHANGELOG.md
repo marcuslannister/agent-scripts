@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt 5beb35b, nicobailon 5f37886, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
+
 - Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn cd62d29, humanlayer 653b641, khazix 322346d, matt 5beb35b, nicobailon 5f37886, smarzban 8e7c577) and regenerated the selection-preserving skills matrix.
 
 - Rules: `secrets.md` says how to store a secret the user gives (copy, then pipe `pbpaste` into the command, then check the length with `wc -c`), and `tooling.md` adds a web-research route (`kagi_search_fetch`, `http-fetch`, then `kagi_extract` or `browser-fetch`).
