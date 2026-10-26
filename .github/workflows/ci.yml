@@ -27,6 +27,7 @@ jobs:
 
       - name: Install verification dependencies
         run: |
+          sudo apt-get install --yes --quiet ripgrep >/dev/null
           python3 -m pip install --quiet pyyaml
           npm ci
           npm ci --prefix skills/video-transcript-downloader
