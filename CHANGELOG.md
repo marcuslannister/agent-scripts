@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Regenerated `package-lock.json` for the `puppeteer-core` `^25.9.0` range from the upstream sync, so `npm ci` in CI works again.
+
 - Privacy guard (ADR-0011): `hooks/dispatch` runs `agent-tooling/check-privacy` in every repo through a global `core.hooksPath`, blocks added lines and commit messages with home paths, non-`noreply` emails, or `gitleaks` findings, then chains each repo's own `.git/hooks`. A reusable `gitleaks` workflow backs it up in CI. `rules/artifacts.md` points to it, and `rules/git.md` adds two `filter-repo`/`git grep` gotchas.
 
 - Refreshed staged third-party skills (anthropics dbd4588, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt 5beb35b, nicobailon 5f37886, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
