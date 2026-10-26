@@ -11,8 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # the upstream overlay check needs the merged upstream commit
+
+      # The upstream overlay check reads the recorded upstream commit, which
+      # main restores paths from but does not contain.
+      - name: Fetch recorded upstream commit
+        run: git fetch --quiet --depth=1 https://github.com/steipete/agent-scripts "$(jq -r .commit agent-tooling/upstream-overlay.json)"
 
       - uses: actions/setup-node@v6
         with:
