@@ -16,9 +16,10 @@ while IFS= read -r executable; do
   [ "$name" = node ] && continue
   [ -e "$TMP_ROOT/bin/$name" ] || ln -s "$executable" "$TMP_ROOT/bin/$name"
 done < <(
+  # -L: Ubuntu 26.04 coreutils (cat, dirname, ...) are symlinks.
   for path_root in ${PATH//:/ }; do
     [ -d "$path_root" ] || continue
-    find "$path_root" -maxdepth 1 -type f -perm -111 -print 2>/dev/null
+    find -L "$path_root" -maxdepth 1 -type f -perm -111 -print 2>/dev/null
   done
 )
 
