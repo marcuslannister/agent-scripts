@@ -25,12 +25,10 @@ Read each matching file before the action. For generated Codex instructions, use
 
 # Artifact privacy and paths
 
-- Do not include personal identifiers: local account names, home directory names, real names, or email addresses.
-- This rule includes contributor-credit trailers.
-- Use `~` for the user's home directory in prose.
-- Do not write absolute or machine-specific paths.
-- Derive paths from the repository root, `$HOME`, or the script's location.
+- Do not include personal identifiers: local account names, home directory names, real names, or email addresses. This rule includes contributor-credit trailers.
+- Use `~` for the user's home directory in prose. In code, derive paths from the repository root, `$HOME`, or the script's location.
 - Apply these rules to files, commit messages, and generated artifacts, including documentation, comments, and tests.
+- The privacy guard (ADR-0011 in agent-scripts) blocks a commit that adds a home path, an email address, or a secret. If it blocks a commit, fix the line or ask the user. Never bypass it.
 
 # English coaching
 
@@ -60,6 +58,8 @@ Example:
 - This rule applies to every repository. Repository rules can define push steps, but cannot authorize a push.
 - Rewrite published history only when the user explicitly requests that specific rewrite.
 - This includes force-push, rebase onto a pushed base, `filter-branch`, and `filter-repo`.
+- `filter-repo` removes `origin` and its remote-tracking refs. Add `origin` again and run `git fetch origin` before `--force-with-lease`, or the lease has nothing to compare.
+- `git grep` exits 1 when it finds no match. Under `set -e`, guard it: `git grep ... || true`.
 - `reset --hard`, `clean`, and `restore` each require an explicit user request every time.
 - Delete files only within the task scope. Never delete or overwrite unknown or unrelated user data.
 

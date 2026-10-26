@@ -161,10 +161,9 @@ mkdir -p "$TMP_ROOT/elsewhere"
 )
 
 # No committed instruction file may carry a personal identifier or a
-# machine-specific path. Plain `!` would skip errexit and never fail (SC2251).
-if rg -n '/Users/|/home/[a-z]' "$REPO_ROOT/AGENTS.MD" "$REPO_ROOT/AGENTS.codex.md" "$REPO_ROOT"/rules/*.md; then
-  echo "machine-specific path in a tracked instruction file" >&2
-  exit 1
-fi
+# machine-specific path.
+GITLEAKS=none "$REPO_ROOT/agent-tooling/check-privacy" --files \
+  "$REPO_ROOT/AGENTS.MD" "$REPO_ROOT/AGENTS.codex.md" "$REPO_ROOT"/rules/*.md 2>/dev/null ||
+  { echo "machine-specific path or email in a tracked instruction file" >&2; exit 1; }
 
 echo "agent instruction setup tests passed"

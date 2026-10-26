@@ -120,3 +120,13 @@ _Avoid_: separate release step, manual-only push
 **Plugin refresh helper**:
 `update-plugins.sh`. Best-effort native plugin updates on every machine: runs the native update commands, honors manual-upgrade markers (ADR-0007), reports each failure in one line, and never fails the run.
 _Avoid_: plugin reconcile, verification gate
+
+### Commit guards
+
+**Privacy guard**:
+The commit-time check that runs in every repo through the global hooks path. It blocks a commit when an added line or the commit message holds a home path of any account, an email address that is neither `noreply` nor the committer's own configured address, or a secret. Lines that a commit does not add are not checked.
+_Avoid_: secret scan, pre-commit check, lint
+
+**Privacy allowlist**:
+A repo's `.privacy-allow` file of path globs that the privacy guard skips, for example upstream text under `other-skills/`. The only exception mechanism; there are no inline markers.
+_Avoid_: ignore file, exemption marker

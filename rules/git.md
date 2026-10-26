@@ -7,6 +7,8 @@
 - This rule applies to every repository. Repository rules can define push steps, but cannot authorize a push.
 - Rewrite published history only when the user explicitly requests that specific rewrite.
 - This includes force-push, rebase onto a pushed base, `filter-branch`, and `filter-repo`.
+- `filter-repo` removes `origin` and its remote-tracking refs. Add `origin` again and run `git fetch origin` before `--force-with-lease`, or the lease has nothing to compare.
+- `git grep` exits 1 when it finds no match. Under `set -e`, guard it: `git grep ... || true`.
 - `reset --hard`, `clean`, and `restore` each require an explicit user request every time.
 - Delete files only within the task scope. Never delete or overwrite unknown or unrelated user data.
 

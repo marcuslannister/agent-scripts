@@ -28,3 +28,6 @@ jobs:
 
       - name: Verify
         run: agent-tooling/verify.sh
+
+  gitleaks:
+    uses: ./.github/workflows/gitleaks.yml

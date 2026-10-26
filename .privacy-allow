@@ -1,0 +1,2 @@
+# Path globs the privacy guard skips (ADR-0011). Upstream skill text staged verbatim.
+other-skills/**

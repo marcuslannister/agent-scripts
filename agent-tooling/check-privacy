@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Privacy guard (ADR-0011): block home paths, email addresses, and secrets.
+#
+#   check-privacy --staged          added lines of the index (pre-commit)
+#   check-privacy --message <file>  a commit message (commit-msg)
+#   check-privacy --files <path>... whole files (tests)
+#
+# --staged skips path globs listed in the repo's .privacy-allow (Git pathspec
+# glob rules: `*` stays in one directory, `**` crosses them). In a merge, only
+# lines that no parent has are checked. Allowed emails: noreply, reserved
+# example domains, git@<host> remotes, and `git config user.email`.
+# Uses only git, grep -E, awk, and sed; any internal error blocks the commit.
+set -euo pipefail
+
+GITLEAKS=${GITLEAKS:-gitleaks}
+HOME_RE='(^|[^A-Za-z0-9._~-])/(Users|home)/[A-Za-z0-9][A-Za-z0-9._-]*'
+EMAIL_RE='[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}'
+ALLOW_EMAIL_RE='noreply|^git@|@([a-z0-9-]+\.)*example\.(com|org|net)$|\.(invalid|test|example|localhost)$'
+OWN_EMAIL=$(git config user.email 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
+
+# Added lines of `git diff --cached <base>`, as path<TAB>line<TAB>text.
+added_lines() {
+  local base=$1; shift
+  git -c core.quotePath=false diff --cached -U0 --no-color --no-ext-diff --no-textconv \
+    --src-prefix=a/ --dst-prefix=b/ "$base" -- :/ "$@" | awk -v OFS='\t' '
+    /^diff --git / { left = 0; next }
+    left == 0 && /^\+\+\+ / { path = substr($0, 7); next }
+    /^@@ / {
+      s = $0; sub(/^@@ -[0-9,]+ \+/, "", s); sub(/ .*/, "", s)
+      n = split(s, a, ","); ln = a[1] + 0; left = (n > 1) ? a[2] + 0 : 1; next
+    }
+    left > 0 && /^\+/ { print path, ln, substr($0, 2); ln++; left--; next }'
+}
+
+# Keep the records of $1 whose path and text also occur in $2.
+in_both() {
+  awk -F'\t' '
+    { t = $0; sub(/^[^\t]*\t[^\t]*\t/, "", t); k = $1 "\t" t }
+    NR == FNR { seen[k]; next }
+    k in seen' "$2" "$1"
+}
+
+# stdin: path<TAB>line<TAB>text. stdout: one report line per hit.
+scan() {
+  local path line text m name
+  { grep -E "$HOME_RE|$EMAIL_RE" || true; } | while IFS=$'\t' read -r path line text; do
+    { printf '%s\n' "$text" | grep -oE "$HOME_RE" || true; } | sed -E 's#^[^/]##' | while IFS= read -r m; do
+      name=${m#/*/}
+      case $name in Shared|linuxbrew) continue ;; esac
+      printf '%s:%s: home path: %s\n' "$path" "$line" "$m"
+    done
+    { printf '%s\n' "$text" | grep -oE "$EMAIL_RE" || true; } | while IFS= read -r m; do
+      lower=$(printf '%s' "$m" | tr '[:upper:]' '[:lower:]')
+      [ -n "$OWN_EMAIL" ] && [ "$lower" = "$OWN_EMAIL" ] && continue
+      printf '%s\n' "$lower" | grep -qE "$ALLOW_EMAIL_RE" && continue
+      printf '%s:%s: email: %s\n' "$path" "$line" "$m"
+    done
+  done
+}
+
+# stdin: the text to scan for secrets. Fails when gitleaks finds one.
+secrets() {
+  if ! command -v "$GITLEAKS" >/dev/null 2>&1; then
+    echo "check-privacy: warning: gitleaks not found; secret scan skipped" >&2
+    cat >/dev/null
+    return 0
+  fi
+  "$GITLEAKS" stdin --redact --no-banner --log-level warn
+}
+
+records=$(mktemp)
+trap 'rm -f "$records" "$records".*' EXIT
+
+case ${1:-} in
+  --staged)
+    excludes=()
+    top=$(git rev-parse --show-toplevel)
+    if [ -f "$top/.privacy-allow" ]; then
+      while IFS= read -r glob || [ -n "$glob" ]; do
+        case $glob in ''|'#'*) continue ;; esac
+        excludes+=(":(top,glob,exclude)$glob")
+      done < "$top/.privacy-allow"
+    fi
+    base=$(git rev-parse -q --verify HEAD || git hash-object -t tree /dev/null)
+    added_lines "$base" ${excludes[@]+"${excludes[@]}"} > "$records"
+    git_dir=$(git rev-parse --git-dir)
+    if [ -f "$git_dir/MERGE_HEAD" ]; then
+      while IFS= read -r parent; do
+        added_lines "$parent" ${excludes[@]+"${excludes[@]}"} > "$records.p"
+        in_both "$records" "$records.p" > "$records.k"
+        mv "$records.k" "$records"
+      done < "$git_dir/MERGE_HEAD"
+    fi
+    ;;
+  --message)
+    [ -f "${2:-}" ] || { echo "usage: check-privacy --message <file>" >&2; exit 2; }
+    awk -v OFS='\t' '/^# -+ >8 -+$/ { exit } !/^#/ { print "commit message", NR, $0 }' "$2" > "$records"
+    ;;
+  --files)
+    shift
+    [ $# -gt 0 ] || { echo "usage: check-privacy --files <path>..." >&2; exit 2; }
+    awk -v OFS='\t' '{ print FILENAME, FNR, $0 }' "$@" > "$records"
+    ;;
+  *)
+    echo "usage: check-privacy --staged | --message <file> | --files <path>..." >&2
+    exit 2
+    ;;
+esac
+
+hits=$(scan < "$records")
+leaks=0
+cut -f3- "$records" | secrets || leaks=1
+
+if [ -n "$hits" ] || [ "$leaks" -ne 0 ]; then
+  [ -z "$hits" ] || printf '%s\n' "$hits" >&2
+  [ "$leaks" -eq 0 ] || echo "check-privacy: gitleaks found a secret (redacted above)" >&2
+  cat >&2 <<'EOF'
+check-privacy: blocked. Use ~, $HOME, or a repo-relative path, and a noreply
+address. For upstream or fixture files, add a path glob to .privacy-allow.
+EOF
+  exit 1
+fi

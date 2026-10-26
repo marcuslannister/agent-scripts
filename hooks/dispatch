@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Global hooks entry point (ADR-0011). Each hook name links here. Run the
+# privacy guard, then the repo's own .git/hooks/<name>, which a global
+# core.hooksPath would otherwise switch off.
+set -euo pipefail
+
+name=${0##*/}
+hooks_dir=$(cd "$(dirname "$0")" && pwd -P)
+toolkit=${hooks_dir%/*}
+
+case $name in
+  pre-commit|pre-merge-commit) "$toolkit/agent-tooling/check-privacy" --staged ;;
+  commit-msg) "$toolkit/agent-tooling/check-privacy" --message "$1" ;;
+esac
+
+# The toolkit's own checks run only in the toolkit checkout.
+if [ "$name" = pre-commit ] && [ "$(git rev-parse --show-toplevel)" -ef "$toolkit" ]; then
+  "$toolkit/agent-tooling/validate-skills"
+fi
+
+local_hook="$(git rev-parse --git-common-dir)/hooks/$name"
+if [ -x "$local_hook" ] && ! [ "$local_hook" -ef "$0" ]; then
+  exec "$local_hook" "$@"
+fi

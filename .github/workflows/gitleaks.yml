@@ -1,0 +1,18 @@
+# Privacy guard backstop (ADR-0011). Other owned repos call this workflow:
+#   jobs: { gitleaks: { uses: marcuslannister/agent-scripts/.github/workflows/gitleaks.yml@main } }
+name: Gitleaks
+
+on:
+  workflow_call:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

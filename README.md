@@ -129,8 +129,13 @@ Topology authoring:
 `agent-tooling/validate-skills`
 - Checks every repo-owned `skills/*/SKILL.md` and `codex-skills/*/SKILL.md`.
 - Verifies YAML front matter plus required `name` and `description`.
-- Enable as a local hook with `git config core.hooksPath hooks`.
+- Runs from `hooks/pre-commit`, but only in this checkout.
 - Requires Python 3 with PyYAML (`pip install pyyaml`; add `--break-system-packages` on an externally-managed Python).
+
+`hooks/dispatch` and `agent-tooling/check-privacy`
+- The privacy guard (ADR-0011). Every hook name in `hooks/` links to the dispatcher. It runs the guard, then the repo's own `.git/hooks/<name>`.
+- Enabled for all repos by `core.hooksPath = ~/Projects/agent-scripts/hooks` in the dotfiles `.gitconfig`.
+- Blocks added lines and commit messages that hold a home path, a non-`noreply` email, or a `gitleaks` finding. Path globs in a repo's `.privacy-allow` are skipped.
 
 `scripts/docs-list.ts`
 - Walks `docs/`.
