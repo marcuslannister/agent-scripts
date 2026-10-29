@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Add `handoff-windows-privacy-rewrite.md`: PowerShell steps to move a Windows clone to the rewritten history (save unpushed work before any fetch, reset, check all refs for hits), with the privacy guard kept off on that PC.
+
 - Regenerated `package-lock.json` for the `puppeteer-core` `^25.9.0` range from the upstream sync, so `npm ci` in CI works again.
 
 - Privacy guard (ADR-0011): `hooks/dispatch` runs `agent-tooling/check-privacy` in every repo through a global `core.hooksPath`, blocks added lines and commit messages with home paths, non-`noreply` emails, or `gitleaks` findings, then chains each repo's own `.git/hooks`. A reusable `gitleaks` workflow backs it up in CI. `rules/artifacts.md` points to it, and `rules/git.md` adds two `filter-repo`/`git grep` gotchas.
