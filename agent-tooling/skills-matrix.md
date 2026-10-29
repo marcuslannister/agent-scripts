@@ -152,7 +152,7 @@
 | `mattpocock-skills:writing-fragments` | mattpocock/skills | plugin | N | N | ~889 |
 | `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | N | N | ~2332 |
 | `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | N | N | ~1479 |
-| `mcp-builder` | anthropics/skills | skill | N | N | ~2264 |
+| `mcp-builder` | anthropics/skills | skill | N | N | ~2773 |
 | `migrate-to-shoehorn` | mattpocock/skills | skill | N | Y | ~697 |
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
 | `narrow-react-prop-types` | humanlayer/skills | skill | N | N | ~1941 |
@@ -192,7 +192,7 @@
 | `rpi` | humanlayer/skills | skill | N | N | ~1232 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
 | `session-viewer` | steipete/agent-scripts | skill | N | N | ~917 |
-| `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1744 |
+| `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1881 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
 | `show-me` | humanlayer/skills | skill | Y | Y | ~816 |
