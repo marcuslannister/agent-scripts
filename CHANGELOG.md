@@ -8,6 +8,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 - Refreshed staged third-party skills (anthropics ca45fc4, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt 59db609, nicobailon 5f37886, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
 
+- Refreshed staged third-party skills (anthropics ca45fc4, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt 59db609, nicobailon 5f37886, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
+
 - Add `handoff-windows-privacy-rewrite.md`: PowerShell steps to move a Windows clone to the rewritten history (save unpushed work before any fetch, reset, check all refs for hits), with the privacy guard kept off on that PC.
 
 - Regenerated `package-lock.json` for the `puppeteer-core` `^25.9.0` range from the upstream sync, so `npm ci` in CI works again.

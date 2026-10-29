@@ -15,7 +15,7 @@
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1425 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~3747 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~3850 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
