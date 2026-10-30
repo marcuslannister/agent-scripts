@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics ca45fc4, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt a496f55, nicobailon 2a34c38, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
+
 - Refreshed staged third-party skills (anthropics ca45fc4, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt a496f55, nicobailon 5f37886, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
 
 - Refreshed staged third-party skills (anthropics ca45fc4, claude-community 06ec7b6, danyuchn 8da6b63, humanlayer 653b641, khazix 322346d, matt 59db609, nicobailon 5f37886, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.

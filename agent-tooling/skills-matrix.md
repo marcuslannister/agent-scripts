@@ -15,7 +15,7 @@
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1425 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~3850 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~4121 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
@@ -266,7 +266,7 @@
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
 | `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2043 |
-| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~2043 |
+| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~2096 |
 | `visual-pr` | humanlayer/skills | skill | N | N | ~844 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
