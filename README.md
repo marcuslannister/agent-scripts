@@ -147,6 +147,11 @@ Topology authoring:
 - Common commands: `start --profile`, `nav <url>`, `eval '<js>'`, `screenshot`, `console`, `network`, `search --content "<query>"`, `content <url>`, `inspect`, `kill --all --force`.
 - Requires Node.js 22.18 or newer; run with `node scripts/browser-tools.ts --help`.
 
+`scripts/win-run`
+- Runs a PowerShell script on a Windows host over SSH: `win-run <host> <script.ps1> [timeout-seconds]`.
+- Writes the output to a file on the host first, so a child process can't hang the SSH session, and a timeout still shows the output.
+- To get code onto the host, push a work branch and `git fetch` it there, instead of copying patches.
+
 ## Syncing
 
 Treat this repo as canonical for shared agent rules and portable helper scripts.

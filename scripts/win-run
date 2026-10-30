@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# win-run: runs a PowerShell script on a Windows host over SSH and prints its output.
+#
+#   win-run <host> <script.ps1> [timeout-seconds, default 600]
+#
+# The script runs in Windows PowerShell 5.1, so write `;` between commands, not `&&`.
+# Its output goes to a file on the host first. A child process that keeps the SSH pipe
+# open then can't hang the run, and a run that times out still shows what it printed.
+# An SSH session with an admin account runs elevated; to see what a normal user gets,
+# run the probe through a scheduled task (InteractiveToken, LeastPrivilege).
+set -euo pipefail
+
+if [[ $# -lt 2 || ! -f $2 ]]; then
+  echo "usage: win-run <host> <script.ps1> [timeout-seconds]" >&2
+  exit 2
+fi
+host=$1 script=$2 limit=${3:-600}
+out="agent-run-$(date +%s)-$$.txt"
+ps=(ssh -o BatchMode=yes "$host" 'powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create([Console]::In.ReadToEnd()))"')
+
+code=0
+{ printf '& {\n'; cat "$script"; printf '\n} *> "$env:TEMP\\%s"\n' "$out"; } | timeout "$limit" "${ps[@]}" || code=$?
+printf '$f = "$env:TEMP\\%s"; if (Test-Path $f) { Get-Content $f; Remove-Item $f -ErrorAction SilentlyContinue }\n' "$out" | "${ps[@]}"
+if [[ $code -eq 124 ]]; then
+  echo "win-run: stopped after ${limit}s; the output above is what it printed until then, and it may still run on the host" >&2
+fi
+exit "$code"
