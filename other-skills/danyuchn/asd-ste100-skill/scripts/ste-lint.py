@@ -34,9 +34,11 @@ IRREGULAR_PARTICIPLES = "given|taken|made|done|found|seen|known|shown|written|bu
 
 # Preserve the original passive heuristic; perfects also include intransitive verbs.
 PASSIVE_PARTICIPLES = "given|taken|made|done|found|seen|known|shown|written|built|sent|set|run|read|kept|held|left|put"
+# Up to two words may stand between the modal and "have": "may not",
+# "might already", "could not possibly".
 MODAL_PERFECT_PREFIX = re.compile(
-    r"\b(?:may|might|could|should|would|must|can|will|shall)"
-    r"(?:\s+not|n['’]t)?\s+$", re.I,
+    r"\b(?:may|might|could|should|would|must|can|will|shall)(?:n['’]t)?"
+    r"(?:\s+(?:not|already|also|ever|even|just|never|still|\w+ly)){0,2}\s+$", re.I,
 )
 
 RULES = [
@@ -79,13 +81,20 @@ SYNONYM_GROUPS = [
 
 MAX_WORDS = 25  # descriptions cap; instructions cap is 20 but undetectable without context
 
-CODE_FENCE = re.compile(r"^(```|~~~)")
+CODE_FENCE = re.compile(r"^(`{3,}|~{3,})")
 INLINE_CODE = re.compile(r"`[^`]*`")
+# Markup that is not prose: character references (&nbsp; &#39; &#x2192;),
+# inline link destinations ("](url"), and autolinks (<https://...>).
+NON_PROSE = re.compile(
+    r"&(?:[A-Za-z][A-Za-z0-9]{1,31}|#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6});"
+    r"|(?<=\]\()[^)\s]+"
+    r"|<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^<>\s]*>"
+)
 LIST_ITEM_START = re.compile(
     r"^(?P<indent> {0,3})(?P<marker>[-*+]|[0-9]+[.)])(?P<gap> +)(?P<body>.*)$"
 )
 CONJUNCTION_END = re.compile(r"\b(?:and|or)\s*$", re.I)
-TABLE_SEPARATOR_CELL = re.compile(r"^:?-{3,}:?$")
+TABLE_SEPARATOR_CELL = re.compile(r"^:?-+:?$")
 # Headings, thematic breaks, front-matter delimiters, and HTML lines stand alone.
 STANDALONE_LINE = re.compile(r"^ {0,3}(?:#|<|(?:[-*_=] *){3,}$)")
 BLOCKQUOTE_PREFIX = re.compile(r"^ {0,3}(?:> ?)+")
@@ -130,6 +139,16 @@ def _count_words(text):
 def _mask_inline_code(text):
     """Blank code spans with equal-length spaces so columns stay true."""
     return INLINE_CODE.sub(lambda match: " " * len(match.group(0)), text)
+
+
+def _mask_non_prose(text):
+    """Blank code spans, then fill character references and link targets.
+
+    The fill is underscores, not spaces, so a token stays one token and word
+    counts do not change. An underscore is not a word character for _count_words.
+    """
+    return NON_PROSE.sub(lambda match: "_" * len(match.group(0)),
+                         _mask_inline_code(text))
 
 
 def _sentence_starts(text):
@@ -186,8 +205,118 @@ def _long_sentence_findings(pieces, filename):
     return findings
 
 
-def _leading_spaces(line):
-    return len(line) - len(line.lstrip(" "))
+# One blockquote level: up to three spaces, ">", and one optional space.
+QUOTE_LEVEL = re.compile(r" {0,3}> ?")
+
+
+def _strip_quotes(line, depth=None):
+    """Return (levels, rest): the blockquote levels that start LINE and the text after them.
+
+    With DEPTH, remove at most DEPTH levels: a deeper ">" is content.
+    """
+    levels, pos = 0, 0
+    while depth is None or levels < depth:
+        level = QUOTE_LEVEL.match(line, pos)
+        if not level:
+            break
+        levels, pos = levels + 1, level.end()
+    return levels, line[pos:]
+
+
+def _indent_width(text):
+    """Columns of the spaces and tabs that start TEXT, with a tab stop of 4."""
+    return len(text[:len(text) - len(text.lstrip(" \t"))].expandtabs(4))
+
+
+def _fence_ends_with_quote(fence, line):
+    """True when LINE has fewer blockquote levels than the open FENCE."""
+    return fence is not None and _strip_quotes(line.expandtabs(4), fence[1])[0] < fence[1]
+
+
+def _fence_step(fence, line):
+    """Return (is_fence_line, open_fence) after LINE.
+
+    FENCE is None, or the open fence as (run, quote depth, indent). This follows
+    CommonMark 4.5 for blockquotes and for the fence itself: a fence in a blockquote
+    ends when its quote ends. Only a run of the same character, at least as long,
+    with only spaces or tabs after it, closes the block. A backtick fence has no
+    backtick in its info string. List items are not tracked, so the indent of a
+    fence is not limited to three columns. A closing fence may have at most three
+    columns more indent than the opening fence, also at the top level.
+    """
+    # Tabs become spaces from the real column, so a tab after ">" counts correctly.
+    line = line.expandtabs(4)
+    if fence is None:
+        depth, rest = _strip_quotes(line)
+        content = rest.lstrip(" \t")
+        marker = CODE_FENCE.match(content)
+        if not marker:
+            return False, None
+        run = marker.group(1)
+        if run[0] == "`" and "`" in content[marker.end():]:
+            return False, None
+        return True, (run, depth, _indent_width(rest))
+    if _fence_ends_with_quote(fence, line):
+        # The quote that holds the fence ended, so the fence ended too.
+        return _fence_step(None, line)
+    run, depth, indent = fence
+    rest = _strip_quotes(line, depth)[1]
+    content = rest.lstrip(" \t")
+    marker = CODE_FENCE.match(content)
+    if (marker and marker.group(1)[0] == run[0] and len(marker.group(1)) >= len(run)
+            and _indent_width(rest) <= indent + 3
+            and not content[marker.end():].strip(" \t")):
+        return True, None
+    return False, fence
+
+
+# CommonMark 4.6: how each kind of HTML block starts, and the text that ends it.
+# None: the block ends at a blank line (types 6 and 7).
+_BLOCK_TAGS = (
+    "address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|"
+    "details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|"
+    "h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|"
+    "optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|"
+    "tr|track|ul"
+)
+HTML_BLOCK_KINDS = [
+    (re.compile(r"^ {0,3}<(?:script|pre|style|textarea)(?:\s|>|$)", re.I),
+     re.compile(r"</(?:script|pre|style|textarea)>", re.I)),
+    (re.compile(r"^ {0,3}<!--"), re.compile(r"-->")),
+    (re.compile(r"^ {0,3}<\?"), re.compile(r"\?>")),
+    (re.compile(r"^ {0,3}<!\[CDATA\["), re.compile(r"\]\]>")),
+    (re.compile(r"^ {0,3}<![A-Za-z]"), re.compile(r">")),
+    (re.compile(rf"^ {{0,3}}</?(?:{_BLOCK_TAGS})(?:\s|/?>|$)", re.I), None),
+]
+# Type 7: one complete open or closing tag alone on its line (CommonMark 6.6 grammar).
+# It cannot interrupt a paragraph.
+_ATTRIBUTE = (r"\s+[A-Za-z_:][A-Za-z0-9_.:-]*"
+              r"(?:\s*=\s*(?:[^\s\"'=<>`]+|'[^']*'|\"[^\"]*\"))?")
+HTML_TYPE7 = re.compile(
+    rf"^ {{0,3}}(?:<[A-Za-z][A-Za-z0-9-]*(?:{_ATTRIBUTE})*\s*/?>|</[A-Za-z][A-Za-z0-9-]*\s*>)\s*$")
+# A heading or a thematic break ends a paragraph and is no paragraph line.
+NO_PARAGRAPH = re.compile(r"^ {0,3}(?:#{1,6}(?:\s|$)|(?:[-*_][ \t]*){3,}$)")
+
+
+def _html_block_step(block, line, in_paragraph):
+    """Return (in_html_block, open_block) for LINE.
+
+    BLOCK is None, False (an HTML block that ends at a blank line), or the pattern
+    that ends the open block. IN_PARAGRAPH: a paragraph is open before LINE. A ">"
+    in an HTML block is text, so it opens no fence.
+    """
+    if block is None:
+        for start, end in HTML_BLOCK_KINDS:
+            if start.match(line):
+                block = False if end is None else end
+                break
+        else:
+            if in_paragraph or not HTML_TYPE7.match(line):
+                return False, None
+            block = False
+    if block is False:
+        return bool(line.strip()), (block if line.strip() else None)
+    return True, (None if block.search(line) else block)
 
 
 def _is_list_continuation(line, content_indent):
@@ -195,28 +324,32 @@ def _is_list_continuation(line, content_indent):
         return True
     if LIST_ITEM_START.match(line):
         return False
-    return _leading_spaces(line) >= content_indent
+    return len(line[:len(line) - len(line.lstrip(" \t"))].expandtabs(4)) >= content_indent
 
 
 def _split_table_row(line):
     """Return trimmed table cells and their zero-based source columns.
 
-    A pipe must separate at least two cells. Escaped pipes stay in their cell.
-    This deliberately implements only the ordinary Markdown table shape; it is
-    enough to distinguish a table from prose that happens to contain a pipe.
+    A row needs a leading or trailing pipe, or a pipe between two cells.
+    Escaped pipes stay in their cell. This deliberately implements only the
+    ordinary Markdown table shape; it is enough to distinguish a table from
+    prose that happens to contain a pipe.
     """
     left = len(line) - len(line.lstrip())
     right = len(line.rstrip())
     content = line[left:right]
     if "|" not in content:
         return None
+    edge_pipe = False
     if content.startswith("|"):
         content = content[1:]
         left += 1
+        edge_pipe = True
     if content.endswith("|"):
         content = content[:-1]
+        edge_pipe = True
     raw_cells = re.split(r"(?<!\\)\|", content)
-    if len(raw_cells) < 2:
+    if len(raw_cells) < 2 and not edge_pipe:
         return None
 
     cells = []
@@ -233,7 +366,9 @@ def _markdown_table_cells(lines):
 
     The separator row anchors detection, so pipe-containing prose is not
     treated as a table. Both leading-pipe and no-leading-pipe table styles are
-    accepted when their header and body use the same number of cells.
+    accepted. As in GFM, the header and separator must have the same number of
+    cells, but a body row may have fewer or more. A line without a pipe ends
+    the table.
     """
     table_cells = {}
     index = 1
@@ -251,7 +386,7 @@ def _markdown_table_cells(lines):
         index += 1
         while index < len(lines):
             row = _split_table_row(lines[index])
-            if not row or len(row) != len(separator):
+            if not row:
                 break
             table_cells[index] = row
             index += 1
@@ -261,16 +396,12 @@ def _markdown_table_cells(lines):
 def _dangling_conjunction_findings(text, filename):
     lines = text.splitlines()
     findings = []
-    in_fence = False
+    fence = None
     index = 0
     while index < len(lines):
         line = lines[index]
-        stripped = line.strip()
-        if CODE_FENCE.match(stripped):
-            in_fence = not in_fence
-            index += 1
-            continue
-        if in_fence:
+        is_fence, fence = _fence_step(fence, line)
+        if is_fence or fence:
             index += 1
             continue
         start = LIST_ITEM_START.match(line)
@@ -283,20 +414,20 @@ def _dangling_conjunction_findings(text, filename):
                           + len(start.group("gap")))
         item_lines = [(index, start.group("body"))]
         next_index = index + 1
-        item_fence = False
+        item_fence = None
         while next_index < len(lines):
             candidate = lines[next_index]
-            candidate_stripped = candidate.strip()
-            if CODE_FENCE.match(candidate_stripped):
-                # Fence delimiters are state markers, not meaningful item lines.
-                item_fence = not item_fence
-                next_index += 1
-                continue
-            if item_fence:
-                next_index += 1
-                continue
-            if not _is_list_continuation(candidate, content_indent):
+            if _fence_ends_with_quote(item_fence, candidate):
+                # The quote of the fence ended: judge this line as any other line.
+                item_fence = None
+            # A line outside the item ends it, also when it opens a fence.
+            if item_fence is None and not _is_list_continuation(candidate, content_indent):
                 break
+            # Fence delimiters are state markers, not meaningful item lines.
+            is_fence, item_fence = _fence_step(item_fence, candidate)
+            if is_fence or item_fence:
+                next_index += 1
+                continue
             item_lines.append((next_index, candidate))
             next_index += 1
 
@@ -339,10 +470,27 @@ def _dangling_conjunction_findings(text, filename):
     return findings
 
 
+def _blank_front_matter(text):
+    """Blank a leading YAML front-matter block, keeping line numbers.
+
+    Front matter is metadata, not prose: without this, its keys and values
+    join into one sentence.
+    """
+    lines = text.splitlines()
+    if lines and lines[0].rstrip() == "---":
+        for end in range(1, len(lines)):
+            if lines[end].rstrip() == "---":
+                return "\n" * (end + 1) + "\n".join(lines[end + 1:])
+    return text
+
+
 def lint(text, filename="<stdin>"):
+    text = _blank_front_matter(text)
     findings = []
     words_total = 0
-    in_fence = False
+    fence = None
+    html_block = None
+    in_paragraph = False
     html_containers = []
     lines = text.splitlines()
     table_cells = _markdown_table_cells(lines)
@@ -358,12 +506,23 @@ def lint(text, filename="<stdin>"):
         block.clear()
 
     for lineno, raw_line in enumerate(lines, 1):
-        if CODE_FENCE.match(raw_line.strip()):
+        in_html = False
+        if fence is None:
+            in_html, html_block = _html_block_step(html_block, raw_line, in_paragraph)
+        if in_html and _strip_quotes(raw_line.expandtabs(4))[0]:
+            # In an HTML block, ">" is literal text, so it cannot open a quoted fence.
+            is_fence = False
+        else:
+            is_fence, fence = _fence_step(fence, raw_line)
+        # A paragraph is open after a line of text that no other block takes.
+        in_paragraph = bool(raw_line.strip() and not in_html and not is_fence and not fence
+                            and not NO_PARAGRAPH.match(raw_line))
+        if is_fence:
             flush()
-            in_fence = not in_fence
-            after_boundary = True
+            # A fence inside a quote does not start the quote: an alert marker after it is text.
+            after_boundary = _strip_quotes(raw_line)[0] == 0
             continue
-        if in_fence:
+        if fence:
             continue
         if HTML_BLOCK_TAG.match(raw_line.lstrip()):
             for tag in HTML_BLOCK_TAG.finditer(_mask_inline_code(raw_line)):
@@ -396,7 +555,7 @@ def lint(text, filename="<stdin>"):
         in_quote = is_quote
         after_boundary = not raw_line.strip()
         for segment, source_column in segments:
-            line = _mask_inline_code(segment)
+            line = _mask_non_prose(segment)
             words_total += len(line.split())
             for rule_id, level, pattern, msg in RULES:
                 for m in pattern.finditer(line):
@@ -484,6 +643,12 @@ def selftest():
             assert not any(f["rule"] == "present-perfect" for f in findings), findings
     findings, _ = lint("The task couldn't have run. The task MAY NOT HAVE RUN.")
     assert not any(f["rule"] == "present-perfect" for f in findings), findings
+    findings, _ = lint("It might already have finished. It could not possibly have run. "
+                       "It may never have started. It should probably have stopped.")
+    assert not any(f["rule"] == "present-perfect" for f in findings), findings
+    # an adverb without a modal is not a hedge
+    findings, _ = lint("The task already has run. They probably have finished.")
+    assert sum(f["rule"] == "present-perfect" for f in findings) == 2, findings
     findings, _ = lint("The task has run. We have begun. The flag is set.")
     assert sum(f["rule"] == "present-perfect" for f in findings) == 2, findings
     assert any(f["rule"] == "passive-voice" for f in findings), findings
@@ -492,6 +657,89 @@ def selftest():
     # code blocks skipped
     findings, _ = lint("```\nx = a; y = b\n```")
     assert findings == []
+    # a fence closes only on the same character, at least as long, with nothing after it
+    for text in ("````md\n```\n````\n\nProse; here.",
+                 "```\n~~~\n```\n\nProse; here.",
+                 "~~~~\n~~~\n~~~~\n\nProse; here."):
+        findings, _ = lint(text)
+        assert [f["rule"] for f in findings] == ["semicolon"], (text, findings)
+    findings, _ = lint("```\n```sh\nx = a; y = b\n```")
+    assert findings == [], findings
+    # a fence inside a blockquote is a fence
+    findings, _ = lint("Text.\n\n> ```\n> x = a; y = b\n> ```\n\nProse; here.")
+    assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", 7)], findings
+    # the dangling-conjunction rule uses the same fence state
+    findings, _ = lint("````md\n```\n- Do this and\n````")
+    assert findings == [], findings
+    findings, _ = lint("- Do this\n  ````md\n  ```\n  code and\n  ````\n- Do that")
+    assert findings == [], findings
+    # a quoted fence ends with its quote, and a deeper ">" in a fence is code
+    for text, lines in (("> ```\n> code\n\nProse; here.", [4]),
+                        ("```\n> ```\nx; y\n```\n\nProse; here.", [6]),
+                        (">  > ```\n>  > x; y\n>  > ```\n\nProse; here.", [5]),
+                        ("> ```\n>     ```\n> x; y\n> ```\n\nProse; here.", [6]),
+                        ("```foo`bar\nProse; here.", [2]),
+                        ("```\nx; y\n```` \t\n\nProse; here.", [5])):
+        findings, _ = lint(text)
+        assert [f["line"] for f in findings if f["rule"] == "semicolon"] == lines, (text, findings)
+    # the end of a quoted fence in a list item does not join the next line to the item
+    findings, _ = lint("- Item\n  > ```\n  > code\nProse and")
+    assert findings == [], findings
+    # a tab is indent up to the next tab stop of 4, from its real column, also after ">"
+    for text, line in (("\t```\n\tx = 1\n\t```\n\nProse; here.", 5),
+                       ("```\nx\n\t```\ny; z\n```\n\nProse; here.", 7),
+                       ("> ```\n> x\n>\t```\n> Use a; b.", 4),
+                       ("> ```\n> x\n>  \t```\n> Use a; b.", 4),
+                       (">\t> ```\n>\t> x; y\n>\t> ```\n\nProse; here.", 5),
+                       ("- Item\n  ```\n\t```\n\nProse; here.", 5)):
+        findings, _ = lint(text)
+        assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", line)], (text, findings)
+    # a tab-indented fence stays in its list item
+    findings, _ = lint("- Run the build and\n\t```\n\tmake\n\t```\n  check the log.")
+    assert findings == [], findings
+    # a ">" line in an HTML block is text, not a quoted fence. A blank line ends a
+    # block that starts with a tag, and a quoted fence after it is a fence.
+    for text, lines in (("<div>\n> ```\n> Prose; here.\n> ```\n</div>", [3]),
+                        ("<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [3]),
+                        ("<!--\n> ```\n> Prose; here.\n> ```\n-->", [3]),
+                        ("<div>\n\n> ```\n> x; y\n> ```\n\nProse; here.", [7]),
+                        ("<details>\n\n> ```\n> a; b\n> ```\n\n</details>\n\nProse; here.", [9]),
+                        ("<pre>\n> ```\n> Prose; here.\n> ```\n</pre>", [3]),
+                        ("<?php\n> ```\n> Prose; here.\n> ```\n?>", [3]),
+                        ("<![CDATA[\n> ```\n> Prose; here.\n> ```\n]]>", [3]),
+                        # inline HTML is no HTML block: the quoted fence after it is a fence
+                        ("<span>Label</span>\n> ```\n> a; b\n> ```", []),
+                        ("<kbd>Enter</kbd> starts the job.\n> ```\n> a; b\n> ```", []),
+                        ("Text.\n<custom>\n> ```\n> a; b\n> ```", []),
+                        # a type 7 tag after a heading or a fence starts a block
+                        ("# Title\n<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [4]),
+                        ("```\nx\n```\n<img src=\"a.png\">\n> ```\n> Prose; here.\n> ```", [6]),
+                        # attribute values may hold "<" and ">", an invalid attribute is no tag
+                        ('<span title="a > b">\n> ```\n> Prose; here.\n> ```', [3]),
+                        ("<custom a=>\n> ```\n> a; b\n> ```", []),
+                        ("<DIV class=x>text\n> ```\n> Prose; here.\n> ```", [3])):
+        findings, _ = lint(text)
+        assert [f["line"] for f in findings if f["rule"] == "semicolon"] == lines, (text, findings)
+    # a fence at column 0 ends a list item
+    findings, _ = lint("- Do this and\n```\nx\n```\n  done")
+    assert [(f["rule"], f["line"]) for f in findings] == [("dangling-conjunction", 1)], findings
+    # a quoted fence also ends on a line with fewer quote levels that is not blank
+    for text, line in (("> ```\n> x\nProse; here.", 3), ("> > ```\n> x; y", 2)):
+        findings, _ = lint(text)
+        assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", line)], (text, findings)
+    # a closing fence up to three columns deeper than the opening fence closes it
+    findings, _ = lint("```\nx; y\n   ```\n\nProse; here.")
+    assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", 5)], findings
+    # a tilde fence opens with a backtick in its info string
+    findings, _ = lint("~~~ a`b\nx; y\n~~~\n\nProse; here.")
+    assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", 5)], findings
+    # an alert marker after a fence in the same quote is text, as GitHub shows it
+    body = " ".join(["word"] * 25) + "."
+    findings, _ = lint(f"> ```\n> x\n> ```\n> [!NOTE]\n> {body}")
+    assert [f["rule"] for f in findings] == ["long-sentence"], findings
+    # a quoted fence after a list item does not join the item
+    findings, _ = lint("- Do this and\n\n> ```\n> code\n> ```\n  done")
+    assert [f["rule"] for f in findings] == ["dangling-conjunction"], findings
     # all supported list markers, case variants, and trailing whitespace
     findings, _ = lint(
         "- Confirm the target and\n"
@@ -509,6 +757,8 @@ def selftest():
     # valid continuation lines and standalone four-space code are ignored
     findings, _ = lint("  - Confirm the target and\n    record the result.")
     assert not any(f["rule"] == "dangling-conjunction" for f in findings)
+    findings, _ = lint("- Confirm the target and\n\trecord the result.")
+    assert not any(f["rule"] == "dangling-conjunction" for f in findings), findings
     findings, _ = lint("- Confirm the target\n  and")
     dangling = [f for f in findings if f["rule"] == "dangling-conjunction"]
     assert len(dangling) == 1 and dangling[0]["line"] == 2, dangling
@@ -570,6 +820,15 @@ def selftest():
         findings, words_total = lint(table)
         assert not any(f["rule"] == "long-sentence" for f in findings), findings
         assert words_total == 27, words_total
+    # GFM also accepts one-dash separators, one column, and ragged body rows.
+    short_row = " ".join(f"term{number}" for number in range(1, 9))
+    for table in (
+            "| Label | Detail |\n|-|-|\n" + f"| {short_row} | {short_row} |\n" * 5,
+            "| Label |\n| --- |\n" + f"| {short_row} |\n" * 8,
+            "| Label | Detail |\n| --- | --- |\n| x |\n"
+            + f"| {short_row} | {short_row} | extra |\n" * 2):
+        findings, _ = lint(table)
+        assert not any(f["rule"] == "long-sentence" for f in findings), (table, findings)
     long_cell = " ".join(f"term{number}" for number in range(1, 27)) + "."
     findings, _ = lint(
         "| Label | Detail |\n"
@@ -586,6 +845,12 @@ def selftest():
     # single consistent term: no flag
     findings, _ = lint("Check the config. Check the output.")
     assert not any(f["rule"] == "synonym-rotation" for f in findings)
+    # character references and link targets are markup, not prose
+    findings, _ = lint("Press Ctrl&nbsp;C to stop &#59; &#x3B; &rarr; now. "
+                       "See [the docs](https://x.io/a;b) or <https://x.io/a;b>.")
+    assert not any(f["rule"] == "semicolon" for f in findings), findings
+    findings, _ = lint("Press [stop](https://x.io); then wait. Use & ; here.")
+    assert [f["col"] for f in findings if f["rule"] == "semicolon"] == [27, 46], findings
     # per-file labels
     findings, _ = lint("a; b", filename="x.md")
     assert findings[0]["file"] == "x.md"
@@ -608,6 +873,14 @@ def selftest():
     assert len(long_sentences) == 1, long_sentences
     assert (long_sentences[0]["line"], long_sentences[0]["col"]) == (2, 1), long_sentences
     findings, _ = lint(f"- Item {twenty}\n  continued in the same item.")
+    assert any(f["rule"] == "long-sentence" for f in findings), findings
+    # leading front matter is skipped; line numbers after it stay true
+    findings, words_total = lint(f"---\nname: x\ndescription: {twenty} {twenty}.\n"
+                                 "tags:\n  - a and\n---\nThe job is robust.")
+    assert [(f["line"], f["rule"]) for f in findings] == [(7, "marketing-adjective")], findings
+    assert words_total == 4, words_total
+    # a later --- pair is a thematic break, not front matter
+    findings, _ = lint(f"Intro.\n\n---\n{twenty} {twenty}.\n---")
     assert any(f["rule"] == "long-sentence" for f in findings), findings
     # blank lines, headings, rules, list items, and quotes end a prose block
     for sep in ("\n\n", "\n# Heading\n", "\n---\n", "\n- ", "\n> "):
@@ -708,6 +981,14 @@ def selftest():
         with contextlib.redirect_stdout(out):
             assert main([paths[0], "--json", paths[1]]) == 0
         assert json.loads(out.getvalue())["words"] == 6, out.getvalue()
+        # repeated --disable flags add up instead of replacing each other
+        with open(paths[0], "w", encoding="utf-8") as fh:
+            fh.write("a; b. " + " ".join(["word"] * 30) + ".\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            assert main([paths[0], "--json", "--disable", "semicolon",
+                         "--disable", "long-sentence"]) == 0
+        assert json.loads(out.getvalue())["count"] == 0, out.getvalue()
     # command-line parsing rejects typos and bad values
     for bad in (["--basline", "3"], ["--baseline"], ["--baseline", "x"],
                 ["--baseline", "-1"], ["--disable", "passive"], ["--base", "3"]):
@@ -755,15 +1036,17 @@ def main(argv):
     parser.add_argument("--json", action="store_true", help="print findings as JSON")
     parser.add_argument("--baseline", type=_non_negative_int, default=0, metavar="N",
                         help="pass unless hard violations exceed N (default 0)")
-    parser.add_argument("--disable", type=_rule_list, default=set(), metavar="RULES",
-                        help="comma-separated rule IDs to silence")
+    parser.add_argument("--disable", type=_rule_list, action="append", default=[],
+                        metavar="RULES",
+                        help="comma-separated rule IDs to silence; may be repeated")
     parser.add_argument("--selftest", action="store_true", help="run the built-in tests")
     # intermixed parsing keeps flags valid between file paths
     args = parser.parse_intermixed_args(argv)
     if args.selftest:
         selftest()
         return 0
-    as_json, baseline, disabled, paths = args.json, args.baseline, args.disable, args.paths
+    as_json, baseline, paths = args.json, args.baseline, args.paths
+    disabled = set().union(*args.disable)
 
     findings, words_total = [], 0
     if paths:

@@ -22,7 +22,7 @@
 | `browser-use` | steipete/agent-scripts | skill | N | N | ~3948 |
 | `build-iterated-agentic-loop` | humanlayer/skills | skill | N | N | ~3388 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
-| `chief-of-staff` | mattpocock/skills | skill | N | N | ~966 |
+| `chief-of-staff` | mattpocock/skills | skill | N | N | ~1182 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~26279 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
@@ -190,7 +190,7 @@
 | `remote-mac` | steipete/agent-scripts | skill | N | N | ~3094 |
 | `research` | mattpocock/skills | skill | N | Y | ~208 |
 | `retro` | mattpocock/skills | skill | N | N | ~1092 |
-| `rpi` | humanlayer/skills | skill | N | N | ~1232 |
+| `rpi` | humanlayer/skills | skill | N | N | ~1339 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
 | `session-viewer` | steipete/agent-scripts | skill | N | N | ~917 |
 | `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1881 |
@@ -201,6 +201,7 @@
 | `skill-creator` | anthropics/claude-plugins-official | plugin | N | N | ~8246 |
 | `skill-creator` | anthropics/skills | skill | N | N | ~8246 |
 | `slack-gif-creator` | anthropics/skills | skill | N | N | ~1960 |
+| `software-factory` | mattpocock/skills | skill | N | N | ~1499 |
 | `sonos` | steipete/agent-scripts | skill | N | N | ~439 |
 | `speaking` | steipete/agent-scripts | skill | N | N | ~1203 |
 | `ssh-doctor` | steipete/agent-scripts | skill | N | N | ~1221 |
@@ -271,14 +272,14 @@
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
 | `wayfinder` | mattpocock/skills | skill | N | Y | ~3102 |
-| `waza:check` | tw93/Waza | plugin | Y | Y | ~6422 |
+| `waza:check` | tw93/Waza | plugin | Y | Y | ~7005 |
 | `waza:health` | tw93/Waza | plugin | Y | Y | ~5282 |
 | `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4272 |
 | `waza:learn` | tw93/Waza | plugin | Y | Y | ~2212 |
 | `waza:read` | tw93/Waza | plugin | Y | Y | ~1950 |
 | `waza:think` | tw93/Waza | plugin | Y | Y | ~2961 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3733 |
-| `waza:write` | tw93/Waza | plugin | Y | Y | ~3878 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3795 |
+| `waza:write` | tw93/Waza | plugin | Y | Y | ~3920 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
 | `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
@@ -292,7 +293,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=283 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=284 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
