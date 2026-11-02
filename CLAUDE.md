@@ -16,6 +16,10 @@ Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+## Shell snippets in scripts and skills
+
+Agents run shell snippets in bash. Write every shell snippet in scripts, `SKILL.md` files, and docs in bash. Do not use zsh-only syntax, such as `print`, `${var:h}`, `${var:t}`, glob qualifiers (`*(N)`), or `=(...)` process substitution (bash arrays `x=(...)` are fine). Use `printf`, `dirname`, and `basename` instead. A file with a `#!/bin/zsh` shebang is the only exception.
+
 ## Plugin & skill update rules
 
 Root policy: each CLI reads exactly one skills root. Claude Code reads only `~/.claude/skills`; Codex reads only `~/.agents/skills`. `agent-tooling/update-skill-topology.sh` (acquire: network → tracked `other-skills/` staging) and `agent-tooling/sync-skill-surfaces.sh` (distribute: staging → both roots, offline, owns the matrix) reconcile both roots as marker-owned, matrix-selected per-skill copies (ADR-0005/0009). Native plugins are user-managed per-machine state; `agent-tooling/update-plugins.sh` refreshes them best-effort and never fails a run (ADR-0009). Never create a whole-tree skills symlink or a `~/.codex/skills` symlink.
