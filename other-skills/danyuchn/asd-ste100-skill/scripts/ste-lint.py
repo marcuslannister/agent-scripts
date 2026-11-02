@@ -35,10 +35,12 @@ IRREGULAR_PARTICIPLES = "given|taken|made|done|found|seen|known|shown|written|bu
 # Preserve the original passive heuristic; perfects also include intransitive verbs.
 PASSIVE_PARTICIPLES = "given|taken|made|done|found|seen|known|shown|written|built|sent|set|run|read|kept|held|left|put"
 # Up to two words may stand between the modal and "have": "may not",
-# "might already", "could not possibly".
+# "might already", "could not possibly", "may very well".
 MODAL_PERFECT_PREFIX = re.compile(
-    r"\b(?:may|might|could|should|would|must|can|will|shall)(?:n['’]t)?"
-    r"(?:\s+(?:not|already|also|ever|even|just|never|still|\w+ly)){0,2}\s+$", re.I,
+    r"\b(?:(?:may|might|could|should|would|must|can|will|shall)(?:n['’]t)?"
+    r"|cannot|can['’]t|won['’]t|shan['’]t)"
+    r"(?:\s+(?:not|already|also|ever|even|just|never|still|very|well|\w+ly)){0,2}\s+$",
+    re.I,
 )
 
 RULES = [
@@ -83,6 +85,9 @@ MAX_WORDS = 25  # descriptions cap; instructions cap is 20 but undetectable with
 
 CODE_FENCE = re.compile(r"^(`{3,}|~{3,})")
 INLINE_CODE = re.compile(r"`[^`]*`")
+BACKTICK_RUN = re.compile(r"`+")
+# A list item start at any indent, to find the content indent of its item.
+LIST_ITEM_INDENT = re.compile(r"^( *)([-*+]|[0-9]+[.)])( +|$)")
 # Markup that is not prose: character references (&nbsp; &#39; &#x2192;),
 # inline link destinations ("](url"), and autolinks (<https://...>).
 NON_PROSE = re.compile(
@@ -139,6 +144,42 @@ def _count_words(text):
 def _mask_inline_code(text):
     """Blank code spans with equal-length spaces so columns stay true."""
     return INLINE_CODE.sub(lambda match: " " * len(match.group(0)), text)
+
+
+def _closes_later(run, lines):
+    """True when a backtick run of length RUN is in LINES before a blank line."""
+    for line in lines:
+        if not line.strip():
+            return False
+        if any(len(m.group()) == run for m in BACKTICK_RUN.finditer(line)):
+            return True
+    return False
+
+
+def _mask_code_spans(line, open_run, later_lines):
+    """Blank the code spans in LINE, also a span that wraps across lines.
+
+    OPEN_RUN is the backtick run length of a span still open from an earlier
+    line, or 0. LATER_LINES are the lines after LINE. As in CommonMark 6.1, a
+    span ends at the next run of the same length, and a run that no later run
+    in the paragraph closes is literal text. Return (masked line, open run).
+    """
+    masked = list(line)
+    start = 0 if open_run else None
+    runs = list(BACKTICK_RUN.finditer(line))
+    for i, run in enumerate(runs):
+        n = len(run.group())
+        if start is not None:
+            if n == open_run:
+                masked[start:run.end()] = " " * (run.end() - start)
+                start, open_run = None, 0
+            continue
+        if (any(len(r.group()) == n for r in runs[i + 1:])
+                or _closes_later(n, later_lines)):
+            start, open_run = run.start(), n
+    if start is not None:
+        masked[start:] = " " * (len(line) - start)
+    return "".join(masked), open_run
 
 
 def _mask_non_prose(text):
@@ -292,10 +333,20 @@ HTML_BLOCK_KINDS = [
 # It cannot interrupt a paragraph.
 _ATTRIBUTE = (r"\s+[A-Za-z_:][A-Za-z0-9_.:-]*"
               r"(?:\s*=\s*(?:[^\s\"'=<>`]+|'[^']*'|\"[^\"]*\"))?")
+# The names of type 1 (pre, script, style, textarea) never start a type 7 block,
+# as an open tag or as a closing tag. A custom name such as pre-x is no type 1 name.
+_TYPE1_NAME = r"(?!(?i:pre|script|style|textarea)(?![A-Za-z0-9-]))"
 HTML_TYPE7 = re.compile(
-    rf"^ {{0,3}}(?:<[A-Za-z][A-Za-z0-9-]*(?:{_ATTRIBUTE})*\s*/?>|</[A-Za-z][A-Za-z0-9-]*\s*>)\s*$")
-# A heading or a thematic break ends a paragraph and is no paragraph line.
-NO_PARAGRAPH = re.compile(r"^ {0,3}(?:#{1,6}(?:\s|$)|(?:[-*_][ \t]*){3,}$)")
+    rf"^ {{0,3}}(?:<{_TYPE1_NAME}[A-Za-z][A-Za-z0-9-]*(?:{_ATTRIBUTE})*\s*/?>"
+    rf"|</{_TYPE1_NAME}[A-Za-z][A-Za-z0-9-]*\s*>)\s*$")
+# Lines that end a paragraph and are no paragraph line, after the quote prefix: an ATX
+# heading and a thematic break of one repeated character. A quote line with no text
+# also ends a paragraph.
+NO_PARAGRAPH = re.compile(
+    r"^ {0,3}(?:#{1,6}(?:\s|$)|(?:-[ \t]*){3,}$|(?:\*[ \t]*){3,}$|(?:_[ \t]*){3,}$)")
+# A setext underline. It ends a paragraph only when a paragraph is open at the same
+# quote depth. Else it is text, also as a lazy line after a quote (CommonMark 4.3).
+SETEXT_UNDERLINE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
 
 
 def _html_block_step(block, line, in_paragraph):
@@ -491,6 +542,11 @@ def lint(text, filename="<stdin>"):
     fence = None
     html_block = None
     in_paragraph = False
+    # content indent of the open list item, so its indented lines are not code
+    list_indent = 0
+    # backtick run length of a code span that is open across lines, or 0
+    open_span = 0
+    paragraph_depth = 0
     html_containers = []
     lines = text.splitlines()
     table_cells = _markdown_table_cells(lines)
@@ -506,17 +562,33 @@ def lint(text, filename="<stdin>"):
         block.clear()
 
     for lineno, raw_line in enumerate(lines, 1):
+        was_paragraph = in_paragraph
+        if not raw_line.strip():
+            open_span = 0
+        if _fence_ends_with_quote(fence, raw_line):
+            # The quote that holds the fence ended: judge this line as any other line.
+            fence = None
         in_html = False
         if fence is None:
             in_html, html_block = _html_block_step(html_block, raw_line, in_paragraph)
-        if in_html and _strip_quotes(raw_line.expandtabs(4))[0]:
-            # In an HTML block, ">" is literal text, so it cannot open a quoted fence.
+        if in_html:
+            # An HTML block holds literal text until it ends, so no fence opens in it.
             is_fence = False
         else:
             is_fence, fence = _fence_step(fence, raw_line)
         # A paragraph is open after a line of text that no other block takes.
-        in_paragraph = bool(raw_line.strip() and not in_html and not is_fence and not fence
-                            and not NO_PARAGRAPH.match(raw_line))
+        # The paragraph state reads the line after its quote prefix, so a line with only
+        # quote markers is blank inside its quote.
+        depth, unquoted = _strip_quotes(raw_line.expandtabs(4))
+        underline = (in_paragraph and depth == paragraph_depth
+                     and SETEXT_UNDERLINE.match(unquoted))
+        in_paragraph = bool(unquoted.strip() and not in_html and not is_fence and not fence
+                            and not NO_PARAGRAPH.match(unquoted) and not underline)
+        if not in_paragraph:
+            paragraph_depth = 0
+        elif not was_paragraph or depth > paragraph_depth:
+            paragraph_depth = depth
+        # A lazy line with fewer ">" keeps the depth of the paragraph.
         if is_fence:
             flush()
             # A fence inside a quote does not start the quote: an alert marker after it is text.
@@ -524,6 +596,18 @@ def lint(text, filename="<stdin>"):
             continue
         if fence:
             continue
+        # CommonMark 4.4: an indented code block. It cannot interrupt a paragraph.
+        rest = _strip_quotes(raw_line.expandtabs(4))[1]
+        indent = _indent_width(rest)
+        if rest.strip() and not in_html and not was_paragraph:
+            if indent >= list_indent + 4:
+                in_paragraph = False
+                continue
+            item = LIST_ITEM_INDENT.match(rest)
+            if item:
+                list_indent = len(item.group(0)) if item.group(3) else len(item.group(0)) + 1
+            elif indent < list_indent:
+                list_indent = 0
         if HTML_BLOCK_TAG.match(raw_line.lstrip()):
             for tag in HTML_BLOCK_TAG.finditer(_mask_inline_code(raw_line)):
                 name = tag.group(2).lower()
@@ -555,13 +639,18 @@ def lint(text, filename="<stdin>"):
         in_quote = is_quote
         after_boundary = not raw_line.strip()
         for segment, source_column in segments:
-            line = _mask_non_prose(segment)
+            if is_table or in_html:
+                # a table cell holds its own spans, and an HTML block has none
+                line = _mask_non_prose(segment)
+            else:
+                masked, open_span = _mask_code_spans(segment, open_span, lines[lineno:])
+                line = _mask_non_prose(masked)
             words_total += len(line.split())
             for rule_id, level, pattern, msg in RULES:
                 for m in pattern.finditer(line):
-                    if rule_id == "present-perfect" and MODAL_PERFECT_PREFIX.search(
-                        line[:m.start()]
-                    ):
+                    # the modal may end the line before: "may" / "have failed"
+                    before = (block[-1][2] + " " if block else "") + line[:m.start()]
+                    if rule_id == "present-perfect" and MODAL_PERFECT_PREFIX.search(before):
                         continue
                     findings.append({"file": filename, "line": lineno,
                                      "col": source_column + m.start() + 1,
@@ -646,6 +735,13 @@ def selftest():
     findings, _ = lint("It might already have finished. It could not possibly have run. "
                        "It may never have started. It should probably have stopped.")
     assert not any(f["rule"] == "present-perfect" for f in findings), findings
+    findings, _ = lint("It cannot have run. It won't have finished. It can't have stopped. "
+                       "It may well have failed. It may very well have failed.\n\n"
+                       "The request may\nhave failed.")
+    assert not any(f["rule"] == "present-perfect" for f in findings), findings
+    # a modal in an earlier paragraph does not protect the next one
+    findings, _ = lint("It may\n\nhave failed.")
+    assert sum(f["rule"] == "present-perfect" for f in findings) == 1, findings
     # an adverb without a modal is not a hedge
     findings, _ = lint("The task already has run. They probably have finished.")
     assert sum(f["rule"] == "present-perfect" for f in findings) == 2, findings
@@ -717,6 +813,29 @@ def selftest():
                         # attribute values may hold "<" and ">", an invalid attribute is no tag
                         ('<span title="a > b">\n> ```\n> Prose; here.\n> ```', [3]),
                         ("<custom a=>\n> ```\n> a; b\n> ```", []),
+                        # a setext underline, an empty quote line and a thematic break of one
+                        # character end a paragraph, so a type 7 tag after them starts a block
+                        ("Title\n=====\n<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [5]),
+                        ("> Quote.\n>\n<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [5]),
+                        ("-*-\n<custom>\n> ```\n> a; b\n> ```", []),
+                        ("Title\n-\n<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [5]),
+                        ("> Quote.\n> >\n<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [5]),
+                        # an underline with no paragraph, or as a lazy line, is text
+                        ("Intro.\n\n==\n<custom>\n> ```\n> a; b\n> ```", []),
+                        ("> Title\n===\n<custom>\n> ```\n> a; b\n> ```", []),
+                        ("> > Title\n> lazy\n> ===\n<custom>\n> ```\n> a; b\n> ```", []),
+                        # a quoted heading or thematic break is no paragraph line
+                        ("> # Note\n> ===\n<custom>\n> ```\n> a; b\n> ```", []),
+                        ("> Note\n> ***\n<custom>\n> ```\n> Prose; here.\n> ```\n</custom>", [5]),
+                        # the line that ends a quoted fence can start an HTML block
+                        ("> ```\n> x\n<custom>\n> ```\n> Prose; here.", [5]),
+                        # a type 1 name is no type 7 tag
+                        ("<pre/>\n> ```\n> a; b\n> ```", []),
+                        ("</pre>\n> ```\n> a; b\n> ```", []),
+                        ("<pre-x>\n> ```\n> Prose; here.\n> ```", [3]),
+                        # no fence opens in an HTML block, also without ">"
+                        ("<pre>\n```\nsample\n</pre>\n\nThe paragraph is here; it must be checked.", [6]),
+                        ("<div>\n```\n\nProse; here.", [4]),
                         ("<DIV class=x>text\n> ```\n> Prose; here.\n> ```", [3])):
         findings, _ = lint(text)
         assert [f["line"] for f in findings if f["rule"] == "semicolon"] == lines, (text, findings)
@@ -851,6 +970,23 @@ def selftest():
     assert not any(f["rule"] == "semicolon" for f in findings), findings
     findings, _ = lint("Press [stop](https://x.io); then wait. Use & ; here.")
     assert [f["col"] for f in findings if f["rule"] == "semicolon"] == [27, 46], findings
+    # an indented code block is code, also in a quote and under a list item
+    def semicolon_lines(text):
+        return [f["line"] for f in lint(text)[0] if f["rule"] == "semicolon"]
+    assert semicolon_lines("Intro text.\n\n    x = 1; y = 2\n\tz; w") == []
+    assert semicolon_lines("> Intro.\n>\n>     x = 1; y = 2") == []
+    assert semicolon_lines("- Item.\n\n      x = 1; y = 2") == []
+    # it cannot interrupt a paragraph, and a list item's own indent is prose
+    assert semicolon_lines("Intro text\n    goes on; here.") == [2]
+    assert semicolon_lines("- Item.\n\n    More; text.") == [3]
+    assert semicolon_lines("1. Item.\n\n   - Sub.\n\n     More; text.") == [5]
+    # the list ends at a line with less indent
+    assert semicolon_lines("- Item.\n\nText.\n\n    x; y") == []
+    # a code span may wrap across lines of one paragraph
+    assert semicolon_lines("Run `a;\nb; c` now; then") == [2]
+    assert semicolon_lines("Run ``a`;\nb;`` now.") == []
+    # a run that nothing closes in the paragraph is literal text
+    assert semicolon_lines("A ` mark; here.\n\nAnd ` there; too.") == [1, 3]
     # per-file labels
     findings, _ = lint("a; b", filename="x.md")
     assert findings[0]["file"] == "x.md"
@@ -907,10 +1043,14 @@ def selftest():
     assert not any(f["rule"] == "long-sentence" for f in findings), findings
     # An inner close or a fenced closing tag must not close the outer container.
     for content in ("<details>\n<div>\n</div>",
-                    "<details>\n~~~\n</details>\n~~~"):
+                    "<details>\n\n~~~\n</details>\n~~~"):
         findings, _ = lint(f"{content}\n\n> [!NOTE]\n> {body}\n\n</details>")
         long_sentences = [f for f in findings if f["rule"] == "long-sentence"]
         assert [f["match"] for f in long_sentences] == ["26 words"], (content, findings)
+    # Directly after <details>, ~~~ is HTML text, not a fence. So the </details> line after
+    # it closes the container, and the alert after it is outside, as GitHub shows it.
+    findings, _ = lint(f"<details>\n~~~\n</details>\n~~~\n\n> [!NOTE]\n> {body}\n\n</details>")
+    assert not any(f["rule"] == "long-sentence" for f in findings), findings
     # Fenced, commented, inline, void, and self-closing tags do not open containers.
     for content in ("```html\n<details>\n```", "<!-- <details> -->",
                     "<span>Text.</span>", "<hr>", "<div />",
