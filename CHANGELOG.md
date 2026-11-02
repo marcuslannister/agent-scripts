@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `verify.sh` no longer prints a false "gitleaks not found" warning: `tests/check-privacy-test.sh` uses a clean gitleaks stub by default and a missing path only in its "no gitleaks" case.
+
 - Refreshed staged third-party skills (anthropics ca45fc4, claude-community 06ec7b6, danyuchn 833810d, humanlayer 4d69d20, khazix 322346d, matt 4ae2317, nicobailon 2a34c38, smarzban 8d714a2) and regenerated the selection-preserving skills matrix.
 
 - `refresh-mac` and `mac-maintenance` repo loops now run in bash: they drop zsh-only `print -r` and `${var:h}`/`${var:t}`, and `refresh-mac` labels a repo `pulled` only when HEAD moved, so up-to-date repos no longer show as pulled.

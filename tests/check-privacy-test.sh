@@ -12,7 +12,9 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 unset GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS
 OWN="me@own""dev.io"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL="$OWN" GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL="$OWN"
-export GITLEAKS="$TMP_ROOT/no-gitleaks"
+# A clean stub keeps the real gitleaks out and the "not found" warning quiet.
+printf '#!/bin/sh\ncat >/dev/null\n' > "$TMP_ROOT/clean-gitleaks"; chmod +x "$TMP_ROOT/clean-gitleaks"
+export GITLEAKS="$TMP_ROOT/clean-gitleaks"
 
 # Fixture strings are built at run time, so this file holds no real hit.
 U=Users H=home
@@ -95,7 +97,7 @@ if "$CHECK" --message "$msg" >/dev/null 2>&1; then fail "a home path in a messag
 printf '#!/bin/sh\ncat >/dev/null; echo leak; exit 1\n' > "$TMP_ROOT/leaky"; chmod +x "$TMP_ROOT/leaky"
 add s.txt "token"
 GITLEAKS="$TMP_ROOT/leaky" staged fail "a gitleaks finding"
-staged pass "no gitleaks"
+GITLEAKS="$TMP_ROOT/no-gitleaks" staged pass "no gitleaks"
 grep -q 'gitleaks not found' "$TMP_ROOT/out" || fail "warn when gitleaks is missing"
 git reset -q s.txt; rm s.txt
 
