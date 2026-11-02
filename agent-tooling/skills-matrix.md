@@ -103,7 +103,7 @@
 | `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2947 |
 | `leader` | KKKKhazix/khazix-skills | skill | N | N | ~723 |
 | `loop-me` | mattpocock/skills | skill | N | Y | ~630 |
-| `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~183 |
+| `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~186 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~2827 |
 | `markdown-converter` | steipete/agent-scripts | skill | N | N | ~433 |
 | `mattpocock-skills:ask-matt` | mattpocock/skills | plugin | N | N | ~3145 |
