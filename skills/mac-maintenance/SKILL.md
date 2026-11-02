@@ -19,7 +19,7 @@ brew update && brew upgrade
 
 ```bash
 for repo in ~/Projects/*/.git; do
-  dir=${repo:h}
+  dir=$(dirname "$repo")
   git -C "$dir" status --short --branch
   git -C "$dir" pull --ff-only
 done

@@ -15,14 +15,14 @@ Do not update or upgrade Homebrew. Nix manages Homebrew.
 
 ```bash
 for repo in ~/Projects/*/.git; do
-  dir=${repo:h}
-  name=${dir:t}
+  dir=$(dirname "$repo")
+  name=$(basename "$dir")
   dirty=no
   [ -n "$(git -C "$dir" status --porcelain)" ] && dirty=yes
-  out=$(git -C "$dir" pull --ff-only 2>&1)
-  if [ $? -ne 0 ]; then
+  before=$(git -C "$dir" rev-parse HEAD)
+  if ! out=$(git -C "$dir" pull --ff-only 2>&1); then
     result=failed
-  elif print -r -- "$out" | rg -q "Already up to date"; then
+  elif [ "$(git -C "$dir" rev-parse HEAD)" = "$before" ]; then
     result=up-to-date
   else
     result=pulled
