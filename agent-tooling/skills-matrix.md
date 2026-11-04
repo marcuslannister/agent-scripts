@@ -15,7 +15,7 @@
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1425 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~4121 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~4142 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
@@ -39,7 +39,7 @@
 | `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | N | N | ~432 |
 | `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | N | N | ~911 |
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
-| `crabbox` | steipete/agent-scripts | skill | N | N | ~1608 |
+| `crabbox` | steipete/agent-scripts | skill | N | N | ~1750 |
 | `create-cli` | steipete/agent-scripts | skill | N | N | ~834 |
 | `design-control-loop` | humanlayer/skills | skill | N | N | ~3850 |
 | `diagnosing-bugs` | mattpocock/skills | skill | N | Y | ~2165 |
@@ -74,15 +74,15 @@
 | `handoff` | mattpocock/skills | skill | N | Y | ~235 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `html-plan` | anthropics/claude-plugins-community | skill | N | N | ~2944 |
-| `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2101 |
+| `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2240 |
 | `implement` | mattpocock/skills | skill | N | Y | ~155 |
 | `implement-spec` | mattpocock/skills | skill | N | N | ~708 |
 | `improve-claude-md` | humanlayer/skills | skill | N | N | ~2351 |
 | `improve-codebase-architecture` | mattpocock/skills | skill | N | Y | ~1506 |
 | `instruments-profiling` | steipete/agent-scripts | skill | N | N | ~936 |
 | `internal-comms` | anthropics/skills | skill | N | N | ~377 |
-| `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2947 |
-| `leader` | KKKKhazix/khazix-skills | skill | N | N | ~723 |
+| `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2161 |
+| `leader` | KKKKhazix/khazix-skills | skill | N | N | ~756 |
 | `loop-me` | mattpocock/skills | skill | N | Y | ~630 |
 | `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~186 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~2827 |
@@ -139,7 +139,7 @@
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
 | `narrow-react-prop-types` | humanlayer/skills | skill | N | N | ~1941 |
 | `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
-| `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1903 |
+| `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1915 |
 | `notcrawl` | steipete/agent-scripts | skill | N | N | ~271 |
 | `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~683 |
 | `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
@@ -173,7 +173,7 @@
 | `retro` | mattpocock/skills | skill | N | N | ~1092 |
 | `rpi` | humanlayer/skills | skill | N | N | ~1339 |
 | `scaffold-exercises` | mattpocock/skills | skill | N | Y | ~897 |
-| `session-viewer` | steipete/agent-scripts | skill | N | N | ~917 |
+| `session-viewer` | steipete/agent-scripts | skill | N | N | ~1105 |
 | `setup-matt-pocock-skills` | mattpocock/skills | skill | N | Y | ~1881 |
 | `setup-pre-commit` | mattpocock/skills | skill | N | Y | ~564 |
 | `setup-ts-deep-modules` | mattpocock/skills | skill | N | Y | ~1883 |
@@ -186,7 +186,7 @@
 | `sonos` | steipete/agent-scripts | skill | N | N | ~439 |
 | `speaking` | steipete/agent-scripts | skill | N | N | ~1203 |
 | `ssh-doctor` | steipete/agent-scripts | skill | N | N | ~1221 |
-| `storage-analyzer` | KKKKhazix/khazix-skills | skill | N | N | ~1397 |
+| `storage-analyzer` | KKKKhazix/khazix-skills | skill | N | N | ~1639 |
 | `superpowers:brainstorming` | anthropics/claude-plugins-official | plugin | N | N | ~3840 |
 | `superpowers:dispatching-parallel-agents` | anthropics/claude-plugins-official | plugin | N | N | ~1513 |
 | `superpowers:executing-plans` | anthropics/claude-plugins-official | plugin | N | N | ~576 |
@@ -274,7 +274,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2135 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=284 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=265 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
