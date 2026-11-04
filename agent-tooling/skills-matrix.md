@@ -27,25 +27,6 @@
 | `claude-api` | anthropics/skills | skill | N | N | ~26279 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
 | `claude-handoff` | mattpocock/skills | skill | N | N | ~356 |
-| `claude-mem:babysit` | thedotmack/claude-mem | plugin | N | N | ~1088 |
-| `claude-mem:cloud-sync` | thedotmack/claude-mem | plugin | N | N | ~1172 |
-| `claude-mem:design-is` | thedotmack/claude-mem | plugin | N | N | ~4648 |
-| `claude-mem:do` | thedotmack/claude-mem | plugin | N | N | ~507 |
-| `claude-mem:how-it-works` | thedotmack/claude-mem | plugin | N | N | ~307 |
-| `claude-mem:knowledge-agent` | thedotmack/claude-mem | plugin | N | N | ~616 |
-| `claude-mem:learn-codebase` | thedotmack/claude-mem | plugin | N | N | ~225 |
-| `claude-mem:make-plan` | thedotmack/claude-mem | plugin | N | N | ~787 |
-| `claude-mem:mem-search` | thedotmack/claude-mem | plugin | N | N | ~1018 |
-| `claude-mem:mode-creator` | thedotmack/claude-mem | plugin | N | N | ~2361 |
-| `claude-mem:oh-my-issues` | thedotmack/claude-mem | plugin | N | N | ~2903 |
-| `claude-mem:pathfinder` | thedotmack/claude-mem | plugin | N | N | ~1538 |
-| `claude-mem:smart-explore` | thedotmack/claude-mem | plugin | N | N | ~2304 |
-| `claude-mem:standup` | thedotmack/claude-mem | plugin | N | N | ~1659 |
-| `claude-mem:timeline-report` | thedotmack/claude-mem | plugin | N | N | ~3172 |
-| `claude-mem:version-bump` | thedotmack/claude-mem | plugin | N | N | ~1151 |
-| `claude-mem:weekly-digests` | thedotmack/claude-mem | plugin | N | N | ~3532 |
-| `claude-mem:what-the` | thedotmack/claude-mem | plugin | N | N | ~61 |
-| `claude-mem:wowerpoint` | thedotmack/claude-mem | plugin | N | N | ~2208 |
 | `clawsweeper-status` | steipete/agent-scripts | skill | N | N | ~971 |
 | `clickclack` | steipete/agent-scripts | skill | N | N | ~710 |
 | `cloudflare-registrar` | steipete/agent-scripts | skill | N | N | ~372 |
@@ -324,6 +305,5 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
 | `smarzban/tsk` | https://github.com/smarzban/tsk |
 | `steipete/agent-scripts` | https://github.com/steipete/agent-scripts |
-| `thedotmack/claude-mem` | https://github.com/thedotmack/claude-mem |
 | `tw93/Waza` | https://github.com/tw93/Waza |
 | `ykdojo` | ? |

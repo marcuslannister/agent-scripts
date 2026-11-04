@@ -26,7 +26,7 @@ Root policy: each CLI reads exactly one skills root. Claude Code reads only `~/.
 
 Destination principle: every `Type: skill` row in `agent-tooling/skills-matrix.md` independently selects Claude and Codex copies. `Type: plugin` rows are report-only. Repo-owned skills live under `skills/` or `codex-skills/`; foreign skill inventories stage tracked under `other-skills/` before selection. `agent-tooling/sources.json` is the one list of skill-bearing sources.
 
-1. Ships both Claude Code and Codex plugins (claude-mem, Waza) → each CLI's native plugin marketplace commands, run by the operator and refreshed best-effort by `update-plugins.sh`; no entries in `skills/`.
+1. Ships both Claude Code and Codex plugins (Waza) → each CLI's native plugin marketplace commands, run by the operator and refreshed best-effort by `update-plugins.sh`; no entries in `skills/`.
 2. Ships a Claude Code plugin but no Codex plugin (visual-explainer) → Claude via plugin; Codex via a tracked staged copy under `other-skills/`, distributed by `sync-skill-surfaces.sh`; no entries in `skills/`.
 3. npx-only skill repos (mattpocock/skills) → stage tracked under `other-skills/` for matrix-selected Codex copies; Claude uses its separate plugin source; never track them in `skills/`.
 4. Source-only skill repos (khazix-skills, anthropics/skills) → stage tracked under `other-skills/`, then distribute selected copies into each destination surface — never symlinks.
