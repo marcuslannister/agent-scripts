@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics 2c5958e, claude-community 163301d, danyuchn d48bfca, humanlayer 4d69d20, khazix cfa3436, matt 4ae2317, nicobailon 9d5f880, smarzban 5b30b8d) and regenerated the selection-preserving skills matrix.
+
 - Global instructions add a rule: write a multi-line or long command for the user to a script file, and give one short command that runs it. Rebuilt Codex instructions.
 
 - Global instructions add a Chinese prose rule: full-width punctuation, 「」 quotation marks, and no `/` as a conjunction. Rebuilt Codex instructions.
