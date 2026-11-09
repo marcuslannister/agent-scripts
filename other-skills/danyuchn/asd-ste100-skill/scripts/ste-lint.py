@@ -21,7 +21,6 @@ import bisect
 import contextlib
 import html.entities
 import io
-import itertools
 import json
 import os
 import re
@@ -95,9 +94,23 @@ LIST_ITEM_INDENT = re.compile(r"^( *)([-*+]|[0-9]{1,9}[.)])( +|$)")
 # _link_destination_end. A reference is markup only when GitHub reads it as one.
 CHAR_REF = re.compile(r"&(?:([A-Za-z][A-Za-z0-9]{1,31})|#([0-9]{1,7})|#[xX]([0-9A-Fa-f]{1,6}));")
 LINK_OPEN = re.compile(r"\]\(")
+BRACKET = re.compile(r"[\[\]]")
 # A list item or a fence that can interrupt a paragraph: a bullet or "1." with text.
 PARAGRAPH_INTERRUPT = re.compile(r" {0,3}(?:[-+*][ \t]+\S|1[.)][ \t]+\S|`{3,}|~{3,})")
 AUTOLINK = re.compile(r"<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^<>\s]*>")
+# An inline HTML open or closing tag on one line (CommonMark 6.6).
+INLINE_TAG = re.compile(
+    r"<(?:(?P<name>[A-Za-z][A-Za-z0-9-]*)(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*"
+    r"(?:[ \t]*=[ \t]*(?:[^\s\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)*[ \t]*/?"
+    r"|/[A-Za-z][A-Za-z0-9-]*[ \t]*)>"
+)
+# Other inline HTML (CommonMark 6.6): a comment, a processing instruction, a
+# declaration, a CDATA section. Each pair is (opener, closer).
+INLINE_HTML_OTHER = ((re.compile(r"<!--"), "-->"), (re.compile(r"<\?"), "?>"),
+                     (re.compile(r"<![A-Za-z]"), ">"), (re.compile(r"<!\[CDATA\["), "]]>"))
+# GitHub shows these tags as text (GFM 6.11, the tagfilter extension).
+FILTERED_TAGS = {"title", "textarea", "style", "xmp", "iframe", "noembed", "noframes", "script", "plaintext"}
+ATTRIBUTE_VALUE = re.compile(r"=[ \t]*(?:\"[^\"]*\"|'[^']*'|[^\s\"'=<>`]+)")
 # CommonMark 6.3 lets an implementation limit the nesting of parentheses in a
 # link destination. The limit keeps the scan of a long line linear.
 MAX_LINK_PARENS = 32
@@ -112,6 +125,12 @@ STANDALONE_LINE = re.compile(r"^ {0,3}(?:#|<|(?:[-*_=] *){3,}$)")
 BLOCKQUOTE_PREFIX = re.compile(r"^ {0,3}(?:> ?)+")
 # A GitHub alert marker, alone on the first line of a quote: "> [!NOTE]".
 GITHUB_ALERT = re.compile(r"\[!(?:note|tip|important|warning|caution)\]", re.I)
+# MkDocs admonition title lines. Four spaces allow a title inside a list item.
+# Only ??? admonitions support the collapsible "+" marker.
+ADMONITION_TITLE = re.compile(
+    r'^ {0,4}(?:!!!|\?\?\?\+?)[ \t]*[\w-]+'
+    r'(?:[ \t]+[\w-]+)*(?:[ \t]+".*")?[ \t]*$'
+)
 # Track ordinary block containers, not inline or void tags such as span or hr.
 HTML_BLOCK_TAG = re.compile(
     r"<(/?)(address|article|aside|blockquote|body|caption|center|dd|details|"
@@ -208,27 +227,88 @@ def _paragraph_runs(lines, start, depth, list_indent):
     return end, last
 
 
-def _mask_code_spans(line, open_run, closes_later, lines=(), next_index=0, depth=0, skip=0, carry=None):
+def _mask_code_spans(line, open_run, closes_later, lines=(), next_index=0, depth=0, skip=0, carry=None,
+                     brackets=None):
     """Blank the code spans in LINE, also a span that wraps across lines.
 
     OPEN_RUN is the backtick run length of a span still open from an earlier
     line, or 0. LINES[NEXT_INDEX:] are the lines after LINE. As in CommonMark 6.1, a
     span ends at the next run of the same length, and a run that no later run
     in the paragraph closes is literal text. Outside code spans, fill inline
-    link destinations with underscores. What starts first wins: a code span
-    that opens before "](" hides the link, and a backtick in a link is text.
+    link destinations with underscores, blank link titles, and fill the
+    inline HTML that GitHub does not show. What starts first wins: a code
+    span that opens before "](" hides the link, and a backtick in a link, an
+    autolink or inline HTML is text.
     DEPTH is the quote depth of the paragraph that LINE is in, or None when no
     paragraph goes on after LINE, so a link must close in it. SKIP is where a
     link from an earlier line ends in LINE. When a link goes on in a later
-    line, CARRY gets [lines ahead, column after its ")"]. Return (masked line,
-    open run).
+    line, CARRY gets [lines ahead, column after its ")"]. BRACKETS carries the
+    open "[" marks from line to line of a paragraph. Return (masked line, open
+    run).
     """
     masked = list(line)
     start = 0 if open_run else None
     runs = list(BACKTICK_RUN.finditer(line))
-    opens = [m.end() for m in LINK_OPEN.finditer(line)]
+    last = {len(run.group()): i for i, run in enumerate(runs)}  # last run of each length
+    opens = [m.end() for m in LINK_OPEN.finditer(line) if not _escaped(line, m.start())]
+    # Autolinks and inline HTML tags: a code span or a link in one is text.
+    # An item is (start, end, the parts of it that GitHub does not show).
+    atoms = [(m.start(), m.end(), ()) for m in AUTOLINK.finditer(line)]
+    for m in INLINE_TAG.finditer(line):
+        # GitHub shows no attribute value. A bare word stays, as in the
+        # placeholder "<one of the two>".
+        hide = ()
+        if m.group("name") and m.group("name").lower() not in FILTERED_TAGS:
+            hide = [value.span() for value in ATTRIBUTE_VALUE.finditer(line, m.end("name"), m.end())]
+        atoms.append((m.start(), m.end(), hide))
+    atoms += _inline_html_other(line)
+    atoms.sort(key=lambda atom: atom[:2])
+    atoms = [atom for atom in atoms if not _escaped(line, atom[0])]
+    marks = [m.start() for m in BRACKET.finditer(line) if not _escaped(line, m.start())]
+    if brackets is None:
+        brackets = [[], 0]
+    # BRACKETS[0] holds the "[" marks of the paragraph that no "]" closed yet,
+    # True for an image "![". A "[" below BRACKETS[1] is in a link, so it
+    # opens no link (CommonMark 6.3); an image "![" can still open an image.
+    stack = brackets[0]
+    a = 0
+    b = 0
     k = 0
     done = skip  # the end of the last code span or link
+    _blank_title(masked, line, 0, skip)  # a link title from an earlier line
+
+    def pop_bracket():
+        image = stack.pop()
+        active = image or len(stack) >= brackets[1]
+        brackets[1] = min(brackets[1], len(stack))
+        return image, active
+
+    def take_brackets(limit):
+        # Read the "[" and "]" marks before LIMIT, outside code, links and tags.
+        nonlocal b
+        while b < len(marks) and marks[b] < limit:
+            pos = marks[b]
+            b += 1
+            if pos < done:
+                continue
+            if line[pos] == "[":
+                stack.append(pos > 0 and line[pos - 1] == "!" and not _escaped(line, pos - 1))
+            elif line[pos + 1:pos + 2] != "(" and stack:
+                pop_bracket()  # mask_links reads a "](" mark
+
+    def take_atoms(limit):
+        # Let the autolinks and tags that start before LIMIT start first.
+        nonlocal a, done
+        while a < len(atoms) and atoms[a][0] < limit:
+            begin, end, hide = atoms[a]
+            a += 1
+            if begin < done:
+                continue
+            take_brackets(begin)
+            done = end
+            # Keep the spaces, so the token count stays.
+            for left, right in hide:
+                masked[left:right] = [c if c.isspace() else "_" for c in line[left:right]]
 
     def mask_links(limit):
         # Fill the destinations after the "](" marks before LIMIT.
@@ -236,14 +316,24 @@ def _mask_code_spans(line, open_run, closes_later, lines=(), next_index=0, depth
         while k < len(opens) and opens[k] <= limit:
             pos = opens[k]
             k += 1
-            if pos - 2 < done:
+            take_atoms(pos - 2)
+            take_brackets(pos - 2)
+            if pos - 2 < done or not stack:
+                continue  # no "[" opens link text, so "](" is text
+            image, active = pop_bracket()
+            if not active:
                 continue
-            link = _link_destination_end(line, pos, itertools.islice(lines, next_index, None), depth)
-            if link is not None and link[0] > pos:
-                masked[pos:link[0]] = "_" * (link[0] - pos)
-                done = link[1]
-                if carry is not None and link[2]:
-                    carry[:] = link[2]
+            later = (lines[index] for index in range(next_index, len(lines)))
+            link = _link_destination_end(line, pos, later, depth)
+            if link is None or (link[0] == pos and line[pos:link[1]].strip() != ")"):
+                continue  # with no destination, a "title" is the destination: a gap this reads as no link
+            if not image:
+                brackets[1] = len(stack)  # a link holds no link
+            masked[pos:link[0]] = "_" * (link[0] - pos)
+            _blank_title(masked, line, link[0], link[1])
+            done = link[1]
+            if carry is not None and link[2]:
+                carry[:] = link[2]
 
     for i, run in enumerate(runs):
         n = len(run.group())
@@ -254,16 +344,66 @@ def _mask_code_spans(line, open_run, closes_later, lines=(), next_index=0, depth
                 done = run.end()
             continue
         mask_links(run.start())
+        take_atoms(run.start())
         if run.start() < done:
-            continue  # a backtick in a link is text
-        if (any(len(r.group()) == n for r in runs[i + 1:])
-                or closes_later(n)):
-            start, open_run = run.start(), n
+            continue  # a backtick in a link, an autolink or a tag is text
+        first = run.start()
+        if _escaped(line, first):
+            first, n = first + 1, n - 1  # an escaped backtick is text
+        if n and (last.get(n, -1) > i or closes_later(n)):
+            take_brackets(first)
+            start, open_run = first, n
     if start is not None:
         masked[start:] = " " * (len(line) - start)
     else:
         mask_links(len(line))
+        take_atoms(len(line))
+        take_brackets(len(line))  # a "[" that a later line can close
     return "".join(masked), open_run
+
+
+def _inline_html_other(line):
+    """Return (start, end, hidden parts) for each comment, processing
+    instruction, declaration and CDATA section that starts and ends in LINE.
+
+    GitHub shows none of a comment or a declaration. Its HTML sanitizer reads
+    a processing instruction and CDATA as a comment that ends at the first ">",
+    so it shows the text after that ">".
+    """
+    found = []
+    for opener, closer in INLINE_HTML_OTHER:
+        for m in opener.finditer(line):
+            if closer == "-->" and line.startswith(("<!-->", "<!--->"), m.start()):
+                end = line.index(">", m.end()) + 1
+                found.append((m.start(), end, [(m.start(), end)]))
+                continue
+            end = line.find(closer, m.end())
+            if end < 0:
+                break  # no later opener closes either
+            end += len(closer)
+            shown = end if closer in ("-->", ">") else line.index(">", m.start()) + 1
+            found.append((m.start(), end, [(m.start(), shown)]))
+    return found
+
+
+def _escaped(line, pos):
+    """True when an odd number of backslashes comes right before LINE[POS]."""
+    start = pos
+    while start and line[start - 1] == "\\":
+        start -= 1
+    return (pos - start) % 2 == 1
+
+
+def _blank_title(masked, line, start, end):
+    """Blank the link title in MASKED[START:END] with spaces, but keep its ")".
+
+    GitHub shows a title in no text, so it is not prose. The ")" stays, so the
+    link stays one token for the word count, as it is when it has no title.
+    """
+    if start < end:
+        masked[start:end] = " " * (end - start)
+        if line[end - 1] == ")":
+            masked[end - 1] = ")"
 
 
 def _char_ref_is_markup(match):
@@ -406,13 +546,12 @@ def _link_destination_end(text, start, later_lines=(), depth=None):
 
 
 def _mask_non_prose(text):
-    """Blank code spans, then fill character references and autolinks.
+    """Fill character references and autolinks.
 
     The fill is underscores, not spaces, so a token stays one token and word
     counts do not change. An underscore is not a word character for _count_words.
-    Link destinations are filled by _mask_code_spans.
+    Code spans and link destinations are blanked by _mask_code_spans.
     """
-    text = _mask_inline_code(text)
     out = []
     pos = done = 0
     while pos < len(text):
@@ -564,29 +703,31 @@ _BLOCK_TAGS = (
     "tr|track|ul"
 )
 HTML_BLOCK_KINDS = [
-    (re.compile(r"^ {0,3}<(?:script|pre|style|textarea)(?:\s|>|$)", re.I),
+    (re.compile(r"^ {0,3}<(?:script|pre|style|textarea)(?:[ \t]|>|$)", re.I),
      re.compile(r"</(?:script|pre|style|textarea)>", re.I)),
     (re.compile(r"^ {0,3}<!--"), re.compile(r"-->")),
     (re.compile(r"^ {0,3}<\?"), re.compile(r"\?>")),
     (re.compile(r"^ {0,3}<!\[CDATA\["), re.compile(r"\]\]>")),
     (re.compile(r"^ {0,3}<![A-Za-z]"), re.compile(r">")),
-    (re.compile(rf"^ {{0,3}}</?(?:{_BLOCK_TAGS})(?:\s|/?>|$)", re.I), None),
+    (re.compile(rf"^ {{0,3}}</?(?:{_BLOCK_TAGS})(?:[ \t]|/?>|$)", re.I), None),
 ]
+HTML_COMMENT_END = HTML_BLOCK_KINDS[1][1]
 # Type 7: one complete open or closing tag alone on its line (CommonMark 6.6 grammar).
-# It cannot interrupt a paragraph.
-_ATTRIBUTE = (r"\s+[A-Za-z_:][A-Za-z0-9_.:-]*"
-              r"(?:\s*=\s*(?:[^\s\"'=<>`]+|'[^']*'|\"[^\"]*\"))?")
+# It cannot interrupt a paragraph. In one line, CommonMark whitespace is a space or a
+# tab: a no-break space or another Unicode space is text, so the line is no tag.
+_ATTRIBUTE = (r"[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*"
+              r"(?:[ \t]*=[ \t]*(?:[^ \t\"'=<>`]+|'[^']*'|\"[^\"]*\"))?")
 # The names of type 1 (pre, script, style, textarea) never start a type 7 block,
 # as an open tag or as a closing tag. A custom name such as pre-x is no type 1 name.
 _TYPE1_NAME = r"(?!(?i:pre|script|style|textarea)(?![A-Za-z0-9-]))"
 HTML_TYPE7 = re.compile(
-    rf"^ {{0,3}}(?:<{_TYPE1_NAME}[A-Za-z][A-Za-z0-9-]*(?:{_ATTRIBUTE})*\s*/?>"
-    rf"|</{_TYPE1_NAME}[A-Za-z][A-Za-z0-9-]*\s*>)\s*$")
+    rf"^ {{0,3}}(?:<{_TYPE1_NAME}[A-Za-z][A-Za-z0-9-]*(?:{_ATTRIBUTE})*[ \t]*/?>"
+    rf"|</{_TYPE1_NAME}[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*$")
 # Lines that end a paragraph and are no paragraph line, after the quote prefix: an ATX
 # heading and a thematic break of one repeated character. A quote line with no text
 # also ends a paragraph.
 NO_PARAGRAPH = re.compile(
-    r"^ {0,3}(?:#{1,6}(?:\s|$)|(?:-[ \t]*){3,}$|(?:\*[ \t]*){3,}$|(?:_[ \t]*){3,}$)")
+    r"^ {0,3}(?:#{1,6}(?:[ \t]|$)|(?:-[ \t]*){3,}$|(?:\*[ \t]*){3,}$|(?:_[ \t]*){3,}$)")
 # A setext underline. It ends a paragraph only when a paragraph is open at the same
 # quote depth. Else it is text, also as a lazy line after a quote (CommonMark 4.3).
 SETEXT_UNDERLINE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
@@ -611,6 +752,17 @@ def _html_block_step(block, line, in_paragraph):
     if block is False:
         return bool(line.strip()), (block if line.strip() else None)
     return True, (None if block.search(line) else block)
+
+
+# GitHub shows the text of an HTML block of type 6 or 7. It also shows the text of a
+# <script>, <style> or <textarea> block, because it escapes these tags (tagfilter). It
+# shows a <pre> block as code, and it hides a comment and a "<?", "<!X" or CDATA block.
+SHOWN_TYPE1 = re.compile(r"^ {0,3}<(?i:script|style|textarea)(?:[ \t]|>|$)")
+
+
+def _block_shows_text(block, line):
+    """True when GitHub shows the text of the HTML BLOCK that starts on LINE as prose."""
+    return block is False or bool(SHOWN_TYPE1.match(line))
 
 
 def _is_list_continuation(line, content_indent):
@@ -691,39 +843,209 @@ def _dangling_conjunction_findings(text, filename):
     lines = text.splitlines()
     findings = []
     fence = None
+    # The HTML block open outside the item loop below, as _html_block_step returns it,
+    # the content indent of the list item that holds it (0: no item), and whether
+    # GitHub shows its text.
+    html_block, html_container, html_shows = None, 0, False
+    # The content indents of the list items that can still hold a line, outermost first.
+    open_items = []
+    # A paragraph is open before the line: a text line with less indent continues it
+    # (a lazy line). PARAGRAPH_INDENT is the content indent of the list item that holds
+    # the paragraph (0: no item), or None in a quote. As in cmark-gfm, type 7 cannot
+    # interrupt the paragraph on a line that is in that item too.
+    in_paragraph, paragraph_indent = False, None
+
+    def close_items(indent):
+        """A line with INDENT ends the list items with more content indent."""
+        while open_items and open_items[-1] > indent:
+            open_items.pop()
+
     index = 0
     while index < len(lines):
         line = lines[index]
+        if _fence_ends_with_quote(fence, line):
+            # The quote of the fence ended: judge this line as any other line.
+            fence = None
+        if fence is None:
+            # A line with less indent than the item that holds the block ends the item,
+            # and the block in it. GitHub still hides the text after an open comment up to
+            # "-->", as in the item loop below.
+            if (html_block is not None and html_block is not HTML_COMMENT_END
+                    and line.strip(" \t") and _indent_width(line) < html_container):
+                html_block = None
+            open_block = html_block
+            continues = (in_paragraph and paragraph_indent is not None
+                         and _indent_width(line) >= paragraph_indent)
+            # A block starts at the indent of the list item that holds the line, not at
+            # the start of the line.
+            line_indent = _indent_width(line)
+            block_indent = next((indent for indent in reversed(open_items)
+                                 if indent <= line_indent), 0)
+            block_line = line.expandtabs(4)[block_indent:]
+            in_html, html_block = _html_block_step(html_block, block_line, continues)
+            if in_html and open_block is None:
+                close_items(line_indent)
+                html_container = open_items[-1] if open_items else 0
+                html_shows = _block_shows_text(html_block, block_line)
+            # An HTML block holds literal text: no fence opens in it, and outside list items
+            # no list item starts in it. In a list item, the text that GitHub shows in the
+            # block is item text, so a list marker there starts an item, as before. The
+            # block stays open after that item, so a fence line in it is still text. The
+            # line that ends the block is in the block, so no item starts on it.
+            if (in_html and open_block is not None and html_block is not None
+                    and html_shows and html_container and LIST_ITEM_START.match(line)):
+                in_html = False
+            if in_html:
+                in_paragraph = False
+                index += 1
+                continue
         is_fence, fence = _fence_step(fence, line)
         if is_fence or fence:
+            if is_fence and fence is not None:
+                close_items(_indent_width(line))
+            in_paragraph = False
             index += 1
             continue
         start = LIST_ITEM_START.match(line)
         if not start:
+            # A blank line has only spaces and tabs: a no-break space is text. A line
+            # with only quote markers is blank in its quote.
+            depth, content = _strip_quotes(line.expandtabs(4))
+            # A setext underline in the container of the paragraph makes it a heading,
+            # so the paragraph ends. As a lazy line it is text (CommonMark 4.3).
+            underline = (in_paragraph and paragraph_indent is not None and not depth
+                         and _indent_width(line) >= paragraph_indent
+                         and SETEXT_UNDERLINE.match(content))
+            text_line = (bool(content.strip(" \t")) and not NO_PARAGRAPH.match(content)
+                         and not underline)
+            if line.strip(" \t") and not (in_paragraph and text_line and not depth):
+                close_items(_indent_width(line))
+                paragraph_indent = None if depth else (open_items[-1] if open_items else 0)
+            in_paragraph = text_line
             index += 1
             continue
 
-        content_indent = (len(start.group("indent"))
-                          + len(start.group("marker"))
-                          + len(start.group("gap")))
-        item_lines = [(index, start.group("body"))]
+        # A list item that starts with a number other than 1, and an empty list item,
+        # cannot interrupt a paragraph (CommonMark 5.2): GitHub reads the line as text of
+        # the paragraph. An empty "-" item there is a setext underline, so the paragraph
+        # ends. The pass still reads the lines of the item, but with no HTML block in them
+        # (they are paragraph text), and after the item the paragraph stays open in its
+        # container. The item is not open for later lines.
+        marker, body = start.group("marker"), start.group("body")
+        outer_paragraph = (in_paragraph and paragraph_indent is not None
+                           and _indent_width(line) >= paragraph_indent
+                           and ((marker[:-1].isdigit() and marker[:-1].lstrip("0") != "1")
+                                or (not body.strip(" \t") and marker != "-")))
+        outer_indent = paragraph_indent
+        close_items(len(start.group("indent")))
+        # After five or more spaces the text is indented code, and the content column
+        # is one space after the marker (CommonMark 5.2).
+        gap = len(start.group("gap"))
+        if gap > 4 and body.strip(" \t"):
+            gap = 1
+        content_indent = len(start.group("indent")) + len(start.group("marker")) + gap
+        # A list marker in an open HTML block around the item is text of the block on
+        # GitHub, so the item is not open for later lines (see the item loop below).
+        if not outer_paragraph and html_block is None:
+            open_items.append(content_indent)
+        # An HTML block can start on the line of the marker. It is in the item, and it
+        # ends when the item ends. After five or more spaces the text is indented code.
+        body_html, item_html, item_shows = False, None, False
+        # In an open HTML block around the item, the body is text of that block.
+        if html_block is None and not outer_paragraph and len(start.group("gap")) <= 4:
+            body_html, item_html = _html_block_step(None, body, False)
+            item_shows = _block_shows_text(item_html, body)
+        item_paragraph = outer_paragraph or (bool(body.strip(" \t")) and not body_html
+                                             and not NO_PARAGRAPH.match(body))
+        # A block of code or hidden text that stays open shows no item text (see below).
+        item_lines = [] if item_html and not item_shows else [(index, body)]
         next_index = index + 1
         item_fence = None
         while next_index < len(lines):
             candidate = lines[next_index]
+            # An open HTML block around this item (a list marker in it started the item,
+            # see above) goes on over the lines of the item, as raw item text, up to a
+            # blank line, its end pattern or a line with less indent than its container.
+            if html_block is not None:
+                if candidate.strip(" \t") and _indent_width(candidate) < html_container:
+                    html_block = None
+                else:
+                    in_outer_html, html_block = _html_block_step(html_block, candidate, False)
+                    if html_block is None:
+                        # The block ended. GitHub reads the next lines in its container.
+                        content_indent = html_container
+                    if in_outer_html:
+                        # The line that ends the block is in it, also after a list marker.
+                        if (html_block is not None
+                                and not _is_list_continuation(candidate, content_indent)):
+                            break
+                        item_lines.append((next_index, candidate))
+                        item_paragraph = False
+                        next_index += 1
+                        continue
             if _fence_ends_with_quote(item_fence, candidate):
                 # The quote of the fence ended: judge this line as any other line.
                 item_fence = None
-            # A line outside the item ends it, also when it opens a fence.
-            if item_fence is None and not _is_list_continuation(candidate, content_indent):
-                break
-            # Fence delimiters are state markers, not meaningful item lines.
-            is_fence, item_fence = _fence_step(item_fence, candidate)
-            if is_fence or item_fence:
+            if item_html is HTML_COMMENT_END:
+                # GitHub hides the text from "<!--" up to "-->", also over the end of the
+                # item and over the next items. The text after "-->" joins this item. No
+                # item, block or fence starts in the comment.
+                end = HTML_COMMENT_END.search(candidate)
+                if end:
+                    item_html = None
+                    # spaces keep the columns
+                    item_lines.append((next_index, " " * end.end() + candidate[end.end():]))
+                item_paragraph = False
                 next_index += 1
                 continue
+            in_html = hidden = False
+            if item_fence is None and not outer_paragraph:
+                if candidate.strip() and _indent_width(candidate) < content_indent:
+                    item_html = None  # the line ends the item, and the HTML block in it
+                else:
+                    # The item holds its lines from the content indent on.
+                    open_block = item_html
+                    rest = candidate.expandtabs(4)[content_indent:]
+                    in_html, item_html = _html_block_step(open_block, rest, item_paragraph)
+                    if in_html and open_block is None:
+                        item_shows = _block_shows_text(item_html, rest)
+                    # A <pre> block holds code, and GitHub hides a comment and a "<?", "<!X"
+                    # or CDATA block. As in a fence, the lines of such a block, from its
+                    # first line up to its last line, are no item text, and no list item
+                    # starts there. The last line can show text after the end of the block.
+                    # (An open end pattern is not None or False.)
+                    hidden = bool(item_html) and not item_shows
+            if hidden:
+                item_paragraph = False
+                next_index += 1
+                continue
+            # A line outside the item ends it, also when it opens a fence. The line that ends
+            # an HTML block of the item is in the block, also after a list marker.
+            if (item_fence is None and not _is_list_continuation(candidate, content_indent)
+                    and not (in_html and item_html is None)):
+                break
+            # Fence delimiters are state markers, not meaningful item lines.
+            # In an HTML block, a fence line is text.
+            if not in_html:
+                is_fence, item_fence = _fence_step(item_fence, candidate)
+                if is_fence or item_fence:
+                    item_paragraph = False
+                    next_index += 1
+                    continue
             item_lines.append((next_index, candidate))
+            item_paragraph = (not in_html and bool(candidate.strip(" \t"))
+                              and not NO_PARAGRAPH.match(candidate.expandtabs(4)[content_indent:]))
             next_index += 1
+        # A list marker in a block of the item whose text GitHub shows ends the item, as
+        # before, but on GitHub the block goes on. Hand it on, so that the lines after the
+        # next item are still in it.
+        if (item_html is not None and next_index < len(lines)
+                and LIST_ITEM_START.match(lines[next_index])
+                and _indent_width(lines[next_index]) >= content_indent):
+            html_block, html_container, html_shows = item_html, content_indent, item_shows
+        # The line after the item can continue the last paragraph of the item.
+        in_paragraph = item_paragraph
+        paragraph_indent = outer_indent if outer_paragraph else content_indent
 
         meaningful = []
         for line_index, item_line in item_lines:
@@ -772,7 +1094,8 @@ _YAML_KEY = (r"""(?:"(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"\[\]{},&*!|>%@`-]\S*
              r"[ \t]*:(?:[ \t]|$)")
 FRONT_MATTER_KEY = re.compile(_YAML_KEY)
 FRONT_MATTER_LINE = re.compile(_YAML_KEY + r"|-(?:[ \t]|$)|[ \t]+\S|#")
-DESCRIPTION_KEY = re.compile(r"description[ \t]*:(?:[ \t]+|$)")
+# The key "description", plain or in quotes.
+DESCRIPTION_KEY = re.compile(r"""(?:description|"description"|'description')[ \t]*:(?:[ \t]+|$)""")
 # A block scalar indicator ("|", ">-", "|2+"), with an optional comment.
 BLOCK_SCALAR = re.compile(r"[|>][1-9+-]{0,2}(?:[ \t]+#.*)?")
 # A YAML comment in a plain scalar: "#" at the start or after a space or tab.
@@ -859,6 +1182,8 @@ def _front_matter(text):
             or not all(FRONT_MATTER_LINE.match(line) for line in body)):
         return text, []
     pieces = []
+    # "description" in quotes is the same key. The first key counts: a later line that
+    # starts with the key can be in a quoted value that goes on over lines.
     for index in range(1, end):
         key = DESCRIPTION_KEY.match(lines[index])
         if key:
@@ -911,7 +1236,8 @@ def lint(text, filename="<stdin>"):
         findings.extend(_long_sentence_findings(block, filename))
         block.clear()
 
-    def check(lineno, segment, source_column, line, skip, is_table):
+    def check(lineno, segment, source_column, line, skip, is_table,
+              add_to_block=True):
         nonlocal words_total
         words_total += len(line.split())
         for rule_id, level, pattern, msg in RULES:
@@ -933,13 +1259,19 @@ def lint(text, filename="<stdin>"):
                     seen_synonyms[(gi, base)] = (
                         lineno, source_column + m.start() + 1, m.group(0)
                     )
-        if line[skip:].strip():
+        # This flag affects sentence blocks only; rule checks still scan the line.
+        if add_to_block and line[skip:].strip():
             block.append((lineno, source_column + skip, line[skip:]))
 
     # The description in the front matter is one paragraph of prose.
     span = 0
     values = [piece[2] for piece in description]
+    last_piece = {}  # the last piece with a run of each length
+    for piece_index, piece_value in enumerate(values):
+        for m in BACKTICK_RUN.finditer(piece_value):
+            last_piece[len(m.group())] = piece_index
     piece_end = None  # (piece, column) where a link from an earlier piece ends
+    piece_brackets = [[], 0]
     for position, (index, column, value) in enumerate(description):
         skip = 0
         if piece_end and piece_end[0] > position:
@@ -947,8 +1279,8 @@ def lint(text, filename="<stdin>"):
         elif piece_end and piece_end[0] == position:
             skip = piece_end[1]
         carry = []
-        masked, span = _mask_code_spans(value, span, lambda run: any(len(m.group()) == run for later in values[position + 1:] for m in BACKTICK_RUN.finditer(later)), values, position + 1,
-                                        0, skip, carry)
+        masked, span = _mask_code_spans(value, span, lambda run: last_piece.get(run, -1) > position, values, position + 1,
+                                        0, skip, carry, piece_brackets)
         if carry:
             piece_end = (position + carry[0], carry[1])
         elif piece_end and piece_end[0] <= position:
@@ -966,9 +1298,9 @@ def lint(text, filename="<stdin>"):
 
     for lineno, raw_line in enumerate(lines, 1):
         was_paragraph = in_paragraph
-        if open_span and (not was_paragraph
-                          or _breaks_paragraph(paragraph_depth, raw_line, list_indent)):
+        if not was_paragraph or _breaks_paragraph(paragraph_depth, raw_line, list_indent):
             open_span = 0
+            open_brackets = [[], 0]  # the "[" marks that can open link text
         if _fence_ends_with_quote(fence, raw_line):
             # The quote that holds the fence ended: judge this line as any other line.
             fence = None
@@ -1060,7 +1392,8 @@ def lint(text, filename="<stdin>"):
         alert = (not html_containers and raw_line.startswith(">") and after_boundary
                  and quote.group().count(">") == 1
                  and GITHUB_ALERT.fullmatch(content.strip()))
-        standalone = STANDALONE_LINE.match(content) or alert
+        admonition_title = bool(ADMONITION_TITLE.match(content))
+        standalone = STANDALONE_LINE.match(content) or admonition_title or alert
         if (is_table or not content.strip() or standalone
                 or ANY_LIST_ITEM.match(content) or is_quote != in_quote
                 # a deeper quote starts a new paragraph, so the text before it is no context
@@ -1070,8 +1403,8 @@ def lint(text, filename="<stdin>"):
         after_boundary = not raw_line.strip()
         for segment, source_column in segments:
             if in_html:
-                # an HTML block has no code spans and no Markdown links
-                line = _mask_non_prose(segment)
+                # an HTML block has no Markdown links; backtick pairs stay blanked
+                line = _mask_non_prose(_mask_inline_code(segment))
             elif is_table:
                 # a table cell holds its own spans and links
                 line = _mask_non_prose(_mask_code_spans(segment, 0, lambda run: False)[0])
@@ -1084,7 +1417,7 @@ def lint(text, filename="<stdin>"):
                 carry = []
                 masked, open_span = _mask_code_spans(segment, open_span, closes_later, lines, lineno,
                                                      paragraph_depth if in_paragraph else None,
-                                                     skip, carry)
+                                                     skip, carry, open_brackets)
                 if carry:
                     link_end = (lineno + carry[0], carry[1])
                 elif link_end and link_end[0] <= lineno:
@@ -1095,7 +1428,10 @@ def lint(text, filename="<stdin>"):
             marker = None if is_table else ANY_LIST_ITEM.match(segment[skip:])
             if marker:
                 skip += marker.end()
-            check(lineno, segment, source_column, line, skip, is_table)
+            check(
+                lineno, segment, source_column, line, skip, is_table,
+                add_to_block=not admonition_title,
+            )
             if is_table:
                 flush()  # each table cell is its own block
         if standalone:
@@ -1135,11 +1471,54 @@ def selftest():
     bad = ("The panel is removed; spin up the job. "
            "Perform an analysis of the seamless log. "
            "We have received the report.")
-    findings, _ = lint(bad)
-    rules = {f["rule"] for f in findings}
+    bad_findings, _ = lint(bad)
+    rules = {f["rule"] for f in bad_findings}
     for expected in ("semicolon", "phrasal-verb", "nominalization",
                      "marketing-adjective", "passive-voice", "present-perfect"):
-        assert expected in rules, expected
+        assert expected in rules, (expected, bad_findings)
+
+    # MkDocs admonition title variants, including multiple classes and no space.
+    for title in (
+        "!!! note",
+        "!!!note",
+        "!!! info inline end \"Title\"",
+        "!!! danger highlight blink \"Title\"",
+        "??? note",
+        "???+ note",
+        '!!! note "Quoted title"',
+    ):
+        assert ADMONITION_TITLE.fullmatch(title), title
+    for title in ("!!!+ note", "!!!+note"):
+        assert not ADMONITION_TITLE.fullmatch(title), title
+
+    # Long admonition titles are headings, not prose sentences.
+    long_title = '!!! note "' + " ".join(["title"] * 30) + '"'
+    findings, _ = lint(long_title)
+    assert not any(f["rule"] == "long-sentence" for f in findings), findings
+
+    # A standalone title does not join the four-space-indented body sentence.
+    body = " ".join(["word"] * 26) + "."
+    findings, _ = lint('!!! note "Title"\n    ' + body)
+    long_sentences = [
+        f for f in findings if f["rule"] == "long-sentence"
+    ]
+    assert len(long_sentences) == 1, findings
+    assert long_sentences[0]["match"] == "26 words", findings
+
+    # A four-space-indented title inside a list item is also standalone.
+    list_title = '!!! info inline end "' + " ".join(["title"] * 30) + '"'
+    findings, _ = lint("- item\n    " + list_title + "\n        " + body)
+    long_sentences = [
+        f for f in findings if f["rule"] == "long-sentence"
+    ]
+    assert len(long_sentences) == 1, findings
+    assert long_sentences[0]["line"] == 3, findings
+    assert long_sentences[0]["match"] == "26 words", findings
+
+    # A long whitespace-only title candidate must fail quickly.
+    assert not ADMONITION_TITLE.fullmatch("!!!" + " " * 32000)
+    # Many class words followed by a broken title must also fail without backtracking.
+    assert not ADMONITION_TITLE.fullmatch("!!! " + "info " * 16000 + '"')
     # hedges must never be flagged, including modal + perfect infinitive
     findings, _ = lint("The request may have failed. It could be a timeout. "
                        "The disk might have filled.")
@@ -1203,6 +1582,97 @@ def selftest():
     assert findings == [], findings
     findings, _ = lint("- Do this\n  ````md\n  ```\n  code and\n  ````\n- Do that")
     assert findings == [], findings
+    # it tracks HTML blocks: there no fence opens and no list item starts
+    for text, lines in (("<div>\n```\n</div>\n\n- Open the valve and\n", [5]),
+                        ("<!--\n```\n-->\n- Open the valve and\n", [4]),
+                        ("<div>\n- Open the valve and\n</div>\n", []),
+                        ("- x\n<div>\n- y and\n", []),
+                        # an HTML block in an item, also on the line of the marker
+                        ("- Open the valve\n\n  <div>\n  ```\n  </div>\n\n- Close it and\n", [7]),
+                        ("- x\n  - y\n  <div>\n  ```\n  </div>\n\n- z and\n", [7]),
+                        ("- <pre>\n  ```\n  </pre>\n- y and\n", [4]),
+                        # a line with less indent ends the item, and the HTML block in it
+                        ("- x\n  <div>\n- y and\n", [3]),
+                        ("- <pre>\n```\n- y and\n```\n", []),
+                        ("- a\n  - b\n  <div>\n- c and\n", [4]),
+                        # the lines in a <pre> block or a comment are no item text, and no
+                        # item starts there; GitHub hides the text after an open comment
+                        ("- Close it\n  <pre>\n  ```\n  - Step and\n- Next\n", []),
+                        ("- a\n  <!--\n  x\n- b and\n", []),
+                        ("- a\n  <?php\n  x and\n- b\n", []),
+                        # an open comment joins the next items up to "-->"
+                        ("- Run tests and\n  <!-- pending\n- Next:\n  <!-- closes -->\n  finish the checklist.\n", []),
+                        ("- Run tests and\n  <!-- pending\n- Next\n", [1]),
+                        # also the first line of such a block, when the block stays open
+                        ("- Change summary:\n  <!-- Explain the change and\n  include test results.\n", []),
+                        ("- <pre>Expected an expression after and\n  at parser.py:12\n", []),
+                        ("- Fix it\n  <!-- old -->\n  <pre>a</pre> and\n", [3]),
+                        # GitHub shows the text of a <script> block: it escapes the tag
+                        ("- a\n  <script>\n  x and\n- b\n", [3]),
+                        ("- a\n  <!--\n- b and\n\n<div>\n-->\n</div>\n\n- c and\n", [9]),
+                        # in an item, the text of a <div> block is item text: a list marker
+                        # there starts an item, as before
+                        ("- <div>\n  ```\n  - Step and\n- Next\n", [3]),
+                        ("- a\n  - b\n  <div>\n  - c and\n  </div>\n", [4]),
+                        ("  <!--\n  ```\n- Open it and\n", []),
+                        # one tag alone after a text line continues the paragraph, so the
+                        # fence after it opens
+                        ("Text\n<span>\n```\n```\n- a and\n", [5]),
+                        ("- x\n  <span>\n  ```\n  - y and\n  ```\n", []),
+                        # a no-break space is no whitespace in a tag
+                        ("<div\u00a0class=\"note\">\n- Next and\n", [2]),
+                        ("<br/>\u00a0\n- Next and\n", [2]),
+                        # a line with a no-break space is text, also after "#"
+                        ("#\u00a0Notes\n<img src=\"a.png\">\n- Run checks and\n", [3]),
+                        ("Text\n\u00a0\n<img src=\"a.png\">\n- Run checks and\n", [4]),
+                        # a line with only ">" ends the paragraph, and a heading in a quote too
+                        (">\n<img src=\"a.png\">\n- Run checks and\n", []),
+                        ("> # Head\n<img src=\"a.png\">\n- Run checks and\n", []),
+                        # a tag alone interrupts a paragraph of a quote or of an item that
+                        # the line is not in, as in cmark-gfm
+                        ("> Note\n<img src=\"a.png\">\n- Run checks and\n", []),
+                        ("- a\n<span>\n- b and\n", []),
+                        ("- a\nlazy\n<span>\n- b and\n", []),
+                        ("- a\n  - b\n  text\n  <span>\n  ```\n  ```\n- c and\n", [7]),
+                        ("- a\n  - b\n\n  text\n  <span>\n  ```\n  ```\n- c and\n", [8]),
+                        # "2." cannot interrupt a paragraph, so the tag line is paragraph text
+                        ("Text\n2. Example\n<br>\n- Open the valve and\n", [4]),
+                        ("- a\n  Text\n  2. Example\n  <br>\n- Open the valve and\n", [5]),
+                        ("Text\n1. Example\n<br>\n- Open the valve and\n", []),
+                        ("Screenshot:\n2. <img src=\"example.png\">\n<br>\n- Run tests and\n", [4]),
+                        ("Text\n2. # Heading\n<br>\n- Run tests and\n", [4]),
+                        # an empty item cannot interrupt a paragraph; an empty "-" is a setext underline
+                        ("Text\n1. \n<br>\n- Run tests and\n", [4]),
+                        ("Text\n* \n<br>\n- Run tests and\n", [4]),
+                        ("Text\n- \n<br>\n- Run tests and\n", []),
+                        # its lines are paragraph text: no HTML block starts in them
+                        ("Example:\n2. Steps\n   <details>\n   ```markdown\n- Run tests and\n   ```\n"
+                         "   </details>\n", []),
+                        ("Text\n2. Steps and\n   <details>\n", []),
+                        ("Text\n2. Steps\n    <details>\n- Run tests and\n", [4]),
+                        # a setext underline ends the paragraph, so "2." starts a list
+                        ("Setup\n=====\n2. Install\n   - Linux\n   <div>Note</div>\n- Run tests and\n", [6]),
+                        # a lazy underline is text, and "<br>" after the "2." item is a block
+                        ("- Setup\n=====\n2. Install\n<br>\n- Run tests and\n", []),
+                        # an HTML block in an item goes on after a list marker in it
+                        ("- <div>\n  ~~~\n  - Note\n  ~~~\n  </div>\n\n- Open the valve and\n", [7]),
+                        ("-     code\n  <div>Note</div>\n- Open the valve and\n", [3]),
+                        ("1. <details>\n   ~~~\n   - Linux\n   ~~~\n   </details>\n\n2. Run tests and\n", [7]),
+                        ("- <div>\n  - Note\n\n  ~~~\n  - x and\n  ~~~\n- y and\n", [7]),
+                        ("- <div>\n  ~~~\n  - Note\n    ~~~\n  </div>\n\n- Open the valve and\n", [7]),
+                        # a block starts at the indent of the item that holds the line
+                        ("- Example:\n  - Linux\n  <div>\n  ~~~\n  </div>\n\n    <div>\n    ~~~\n    </div>\n\n"
+                         "- Run tests and\n", [11]),
+                        # after the block, the lines are in the item that held the block
+                        ("- <div>\n  ~~~\n  - Note\n  </div>\n\n    <div>\n  ~~~\n    </div>\n\n- Run tests and\n",
+                         [10]),
+                        ("- <div>\n  ~~~\n  - Note\n\n    <div>\n  ~~~\n    </div>\n\n- Run tests and\n", [9]),
+                        # a list marker on the line that ends the block is text of the block
+                        ("- <textarea>\n  ~~~\n  - Note </textarea>\n\n    <div>\n  ~~~\n    </div>\n\n"
+                         "- Run tests and\n", [9]),
+                        ("- <pre>\n  ~~~\n  - Note </pre>\n\n    <div>\n  ~~~\n    </div>\n\n- Run tests and\n", [9])):
+        findings, _ = lint(text)
+        assert [f["line"] for f in findings if f["rule"] == "dangling-conjunction"] == lines, (text, findings)
     # a quoted fence ends with its quote, and a deeper ">" in a fence is code
     for text, lines in (("> ```\n> code\n\nProse; here.", [4]),
                         ("```\n> ```\nx; y\n```\n\nProse; here.", [6]),
@@ -1453,7 +1923,75 @@ def selftest():
                        # a title that goes on in the next line holds its backticks there too
                        ("See [a](b \"x\ny`z\") and `w; v` q.", []),
                        ("> See [a](b \"x\n> y\n> `z\") and `w; v` q.", []),
-                       ("See [a](b \"x\ny\") a; `b` c", [(2, 6)])):
+                       ("See [a](b \"x\ny\") a; `b` c", [(2, 6)]),
+                       # a backtick that no code span holds is text, also after a link
+                       ("See [a](b \"y`z\") ``c ` d`` text; last `.", [(1, 32)]),
+                       ("See [a](b \"x\ny`z\") ``c ` d`` text; last `.", [(2, 21)]),
+                       ("Run ```a; b```` now.", [(1, 9)]),
+                       # "](" and a space start no destination
+                       ("]( ;)", [(1, 4)]),
+                       ("]( `);`", []),
+                       ("`[`]( ;)", [(1, 7)]),
+                       ("<aa:;[]( )>", [(1, 5)]),
+                       # an escaped backtick is text, and the rest of its run can open a span
+                       ("\\```;``", []),
+                       ("\\```;```", [(1, 5)]),
+                       ("> \\```;``", []),
+                       ("| A |\n|-|\n| \\```;`` |", []),
+                       # GitHub shows a link title in no text, so it is not prose
+                       ("[a](b \"`;`\")", []),
+                       ("[a](b \"`\n`;`\")", []),
+                       ("[a](b \"`;\")`", []),
+                       ("See [a](b \"x; y\") now; stop.", [(1, 22)]),
+                       ("See [a](b \"x\ny; z\nw\") now; stop.", [(3, 8)]),
+                       # an escaped "]" starts no link, and an autolink that starts first holds its backticks
+                       ("[label\\](url \"visible; prose\")", [(1, 22)]),
+                       ("[a\\](b;c) d", [(1, 7)]),
+                       ("<https://example.com/\\``> visible; prose `.", [(1, 34)]),
+                       ("<https://x.io/`a> b; c `.", [(1, 20)]),
+                       ("See <https://x.io/a`b> and `c; d` e.", []),
+                       ("`a <https://x` b; c>", [(1, 17)]),
+                       # "](" is a link only after a "[" of its paragraph that no "]" closed
+                       ("](b \";\")", [(1, 6)]),
+                       ("](b;c) d", [(1, 4)]),
+                       ("](b \"`;`\")", []),
+                       ("\\[a](b \";\")", [(1, 9)]),
+                       ("[a] ](b \";\")", [(1, 10)]),
+                       ("[a](x) ](b \";\")", [(1, 13)]),
+                       ("[a <b>](c \";\") d", []),
+                       ("[a\n](b \";\")", []),
+                       ("> [a\n> ](b \";\")", []),
+                       ("- [a\n  ](b \";\")", []),
+                       ("[a\n\n](b \";\")", [(3, 6)]),
+                       # an image can be in a link; a link in a link is text
+                       ("[![x](y)](z \";\")", []),
+                       ("![a [b](c) d](e \";\") f", []),
+                       ("[a [b](c) d](e \";\") f", [(1, 17)]),
+                       # with no destination, the quoted text is the destination: no title
+                       ("[]( \"\n;\")", [(2, 1)]),
+                       # an autolink or an inline tag starts first; an escaped "<" starts neither
+                       ("\\<aa:`>;`", []),
+                       ("<aa:[a](b> \";\")", [(1, 13)]),
+                       ("<span title=\"`\"> text; `", [(1, 22)]),
+                       ("<span title=\"\\``\"> text; `", [(1, 24)]),
+                       ("<b title='`'>`c; d`", []),
+                       # GitHub shows no attribute of a tag
+                       ("x <b a=\"`;`\">", []),
+                       ("<a href=\"](x ';')\"> a; b", [(1, 22)]),
+                       ("x <b a=\";<b a=\"</b> y", [(1, 9)]),
+                       # GitHub shows a tag that its tagfilter escapes as text
+                       ("x <title a=\"x;y\"> b", [(1, 14)]),
+                       # a comment, a processing instruction, a declaration and CDATA hold their brackets
+                       ("[a <!-- ] --> b](c \"d;\")", []),
+                       ("[x <!-- [a](b) --> y](c \"d;\")", []),
+                       ("[a <? ] ?> b](c \"d;\")", []),
+                       ("[a <!X ] > b](c \"d;\")", []),
+                       ("[a <![CDATA[ ] ]]> b](c \"d;\")", []),
+                       ("x <!-- <a b=\" --> c; <d e=\"> f", [(1, 20)]),
+                       ("x <!-- ](a;b) --> y", []),
+                       ("x <? a; b ?> y", []),
+                       ("x <? a> b; c ?> d", [(1, 10)]),
+                       ("x <![CDATA[ a> b; c ]]> d", [(1, 17)])):
         findings, _ = lint(text)
         assert [(f["line"], f["col"]) for f in findings if f["rule"] == "semicolon"] == cols, (text, findings)
     findings, _ = lint("Press [stop](https://x.io); then wait. Use & ; here.")
@@ -1598,11 +2136,23 @@ def selftest():
             ("---\ndescription: See [a](b \"x\n  y`z\") `w; v` q.\n---\n", []),
             ("---\ndescription: See [a](b \"x\n  y\n  z`w\") `p; q` r.\n---\n", []),
             ("---\ndescription: See [a](b \"x\n  y\") c; d.\n---\n", [(3, 8, "semicolon")]),
+            ("---\ndescription: See [a](b \"x\n  y`z\") ``c ` d`` text; last `.\n---\n", [(3, 23, "semicolon")]),
+            ("---\ndescription: ]( ;)\n---\n", [(2, 17, "semicolon")]),
+            ("---\ndescription: See [a\n  ](b \";\") c; d.\n---\n", [(3, 13, "semicolon")]),
+            ("---\ndescription: \\```;``\n---\n", []),
             # a "#" in quotes, in a block scalar, or inside a word is text
             ("---\ndescription: \"Read # the; file.\"\n---\n", [(2, 25, "semicolon")]),
             ("---\ndescription: 'It''s robust' # c\n---\n", [(2, 21, "marketing-adjective")]),
             ("---\ndescription: >\n  a # robust; b\n---\n", [(3, 7, "marketing-adjective"), (3, 13, "semicolon")]),
             ("---\ndescription: a#b; c\n---\n", [(2, 17, "semicolon")]),
+            # the key "description" in quotes is the same key
+            ("---\n\"description\": robust;\n---\n", [(2, 16, "marketing-adjective"), (2, 22, "semicolon")]),
+            ("---\n'description' : a; b\n---\n", [(2, 18, "semicolon")]),
+            ("---\n\"description\": |\n  a; b\n---\n", [(3, 4, "semicolon")]),
+            ("---\n\"descriptions\": a; b\n---\n", []),
+            # a later line that starts with the key can be in a quoted value of another key
+            ("---\ndescription: robust;\nexample: \"foo\ndescription: plain\"\n---\n",
+             [(2, 14, "marketing-adjective"), (2, 20, "semicolon")]),
             # a comment after a block scalar has less indent than its text
             ("---\ndescription: |\n    Use it.\n  # robust; note\n---\n", []),
             # quoted keys, keys with spaces and keys with other characters are YAML
@@ -1719,6 +2269,11 @@ def selftest():
     # a long block stays linear: one short sentence per line, no blank lines
     findings, _ = lint("The agent read the log.\n" * 20000)
     assert not any(f["rule"] == "long-sentence" for f in findings)
+    # a long line with many code spans, and many links that go on in the next line, stay linear
+    findings, _ = lint("`x` " * 60000 + "c; d.")
+    assert [(f["rule"], f["col"]) for f in findings] == [("semicolon", 240002)], findings
+    findings, _ = lint("[a](x;y\n)\n" * 5000)
+    assert not any(f["rule"] == "semicolon" for f in findings), findings
     # flags may appear between file paths
     with tempfile.TemporaryDirectory() as tmp:
         paths = [os.path.join(tmp, name) for name in ("a.md", "b.md")]
