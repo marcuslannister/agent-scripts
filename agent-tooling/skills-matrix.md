@@ -141,7 +141,8 @@
 | `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
 | `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1915 |
 | `notcrawl` | steipete/agent-scripts | skill | N | N | ~271 |
-| `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~683 |
+| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~2403 |
+| `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~806 |
 | `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |
 | `nowledge-mem:search-memory` | nowledge-community | plugin | N | N | ~1058 |
@@ -274,7 +275,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2132 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=265 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=266 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
