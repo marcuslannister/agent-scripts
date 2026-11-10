@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 14 | 47 |
-| Shared | 12 | 12 |
+| Total | 15 | 48 |
+| Shared | 13 | 13 |
 | Agent-only | 2 | 35 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -72,6 +72,7 @@
 | `grill-with-docs` | mattpocock/skills | skill | N | Y | ~61 |
 | `grilling` | mattpocock/skills | skill | N | Y | ~516 |
 | `handoff` | mattpocock/skills | skill | N | Y | ~235 |
+| `herdr` | herdrdev/herdr | skill | Y | Y | ~3792 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `html-plan` | anthropics/claude-plugins-community | skill | N | N | ~2944 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~2276 |
@@ -275,7 +276,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2132 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=266 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=267 both=13 claude_only=2 codex_only=35 total_claude=15 total_codex=48 -->
 
 ## Enable-state
 
@@ -285,8 +286,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 4 | 39 |
-| Total | 14 | 47 |
+| Always-on | 5 | 40 |
+| Total | 15 | 48 |
 
 ## Repos
 
@@ -298,6 +299,7 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `anthropics/claude-plugins-official` | https://github.com/anthropics/claude-plugins-official |
 | `anthropics/skills` | https://github.com/anthropics/skills |
 | `danyuchn/asd-ste100-skill` | https://github.com/danyuchn/asd-ste100-skill |
+| `herdrdev/herdr` | https://github.com/herdrdev/herdr |
 | `humanlayer/skills` | https://github.com/humanlayer/skills |
 | `marcus` | ? |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |

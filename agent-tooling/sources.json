@@ -34,6 +34,14 @@
       "discovery": "flat"
     },
     {
+      "id": "herdr-skill",
+      "classification": "source-only",
+      "repo": "herdrdev/herdr",
+      "subroot": "skills",
+      "staging": "herdrdev",
+      "discovery": "flat"
+    },
+    {
       "id": "matt-skills",
       "classification": "npx-only",
       "repo": "mattpocock/skills",
