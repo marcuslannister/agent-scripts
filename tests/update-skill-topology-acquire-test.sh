@@ -117,6 +117,35 @@ cat > "$FIXTURE/agent-tooling/sources.json" <<'JSON'
 }
 JSON
 
+# Well-known source: a site publishing an index instead of a git repo.
+SITE="$TMP_ROOT/site"
+WK="$SITE/.well-known/agent-skills"
+mkdir -p "$WK/site-skill/references" "$WK/site-skill/scripts"
+printf '%s\n' '---' 'name: site-skill' 'description: "well-known fixture"' '---' \
+  'See [guide](references/guide.md) and run `scripts/hello.sh`.' > "$WK/site-skill/SKILL.md"
+printf 'guide\n' > "$WK/site-skill/references/guide.md"
+printf '#!/bin/sh\necho hello\n' > "$WK/site-skill/scripts/hello.sh"
+# Archive skill: supporting files travel inside a tar.gz (the RFC's own shape).
+PACK="$TMP_ROOT/pack"
+mkdir -p "$PACK/scripts"
+printf '%s\n' '---' 'name: site-pack' 'description: "archive fixture"' '---' \
+  'Run `scripts/run.sh`.' > "$PACK/SKILL.md"
+printf '#!/bin/sh\necho run\n' > "$PACK/scripts/run.sh"
+chmod +x "$PACK/scripts/run.sh"
+tar -czf "$WK/site-pack.tar.gz" -C "$PACK" .
+write_index() { # archive file name under $WK
+  jq -n --arg md "sha256:$(shasum -a 256 "$WK/site-skill/SKILL.md" | cut -d' ' -f1)" \
+    --arg ar "sha256:$(shasum -a 256 "$WK/$1" | cut -d' ' -f1)" --arg arurl "/.well-known/agent-skills/$1" \
+    '{skills:[
+      {name:"site-skill",type:"skill-md",url:"/.well-known/agent-skills/site-skill/SKILL.md",digest:$md},
+      {name:"site-pack",type:"archive",url:$arurl,digest:$ar}]}' > "$WK/index.json"
+}
+write_index site-pack.tar.gz
+jq --arg site "file://$SITE" \
+  '.sources += [{id:"site-skills",classification:"source-only",wellKnown:$site,subroot:"",staging:"site",discovery:"flat"}]' \
+  "$FIXTURE/agent-tooling/sources.json" > "$TMP_ROOT/sources.json"
+cp "$TMP_ROOT/sources.json" "$FIXTURE/agent-tooling/sources.json"
+
 # Matrix that would select a subset — acquire must ignore it.
 cat > "$FIXTURE/agent-tooling/skills-matrix.md" <<'MD'
 | Skill | Source | Type | Claude | Codex |
@@ -210,6 +239,18 @@ grep -F 'upstream fixture' "$FIXTURE/other-skills/anthropics/pdf/SKILL.md" >/dev
 jq -e '.repo == "https://github.com/anthropics/skills.git" and (.commit | length) == 40' \
   "$FIXTURE/other-skills/anthropics/.source.json" >/dev/null
 
+# Well-known source: skill plus its linked reference staged, digest recorded.
+jq -e 'any(.changes[]; .skill == "site-skill" and .action == "installed")' \
+  "$FIXTURE/first.json" >/dev/null
+grep -F 'well-known fixture' "$FIXTURE/other-skills/site/site-skill/SKILL.md" >/dev/null
+test -f "$FIXTURE/other-skills/site/site-skill/references/guide.md"
+# Loose scripts named in SKILL.md and scripts inside an archive are both staged.
+test -f "$FIXTURE/other-skills/site/site-skill/scripts/hello.sh"
+test -x "$FIXTURE/other-skills/site/site-pack/scripts/run.sh"
+grep -F 'archive fixture' "$FIXTURE/other-skills/site/site-pack/SKILL.md" >/dev/null
+jq -e '(.repo | startswith("file://")) and (.digests["site-skill"] | startswith("sha256:")) and (.digests["site-pack"] | startswith("sha256:"))' \
+  "$FIXTURE/other-skills/site/.source.json" >/dev/null
+
 # Surfaces and matrix untouched by acquire.
 diff -qr "$SURFACE_BEFORE/claude" "$FIXTURE/home/.claude/skills" >/dev/null
 diff -qr "$SURFACE_BEFORE/codex" "$FIXTURE/home/.agents/skills" >/dev/null
@@ -231,6 +272,41 @@ git -C "$FLAT" commit -qam moved
 run_acquire --json > "$FIXTURE/third.json"
 jq -e 'any(.changes[]; .skill == "docx" and .action == "updated")' "$FIXTURE/third.json" >/dev/null
 grep -F 'upstream moved' "$FIXTURE/other-skills/anthropics/docx/SKILL.md" >/dev/null
+
+# A well-known digest mismatch fails the run and leaves staging untouched.
+cp "$WK/site-skill/SKILL.md" "$TMP_ROOT/site-skill.md"
+printf 'tampered\n' >> "$WK/site-skill/SKILL.md"
+set +e
+run_acquire --json > "$FIXTURE/digest.json"
+digest_code=$?
+set -e
+test "$digest_code" -eq 1
+jq -e '.status == "failed" and any(.errors[]; contains("digest mismatch for site-skill"))' \
+  "$FIXTURE/digest.json" >/dev/null
+[ -z "$(grep -F tampered "$FIXTURE/other-skills/site/site-skill/SKILL.md" || true)" ]
+cp "$TMP_ROOT/site-skill.md" "$WK/site-skill/SKILL.md"
+
+# An archive with an absolute path or a link fails the run and stages nothing.
+for unsafe in link absolute; do
+  BAD="$TMP_ROOT/bad-$unsafe"
+  mkdir -p "$BAD"
+  printf 'x\n' > "$BAD/SKILL.md"
+  if [ "$unsafe" = link ]; then
+    ln -s /etc/passwd "$BAD/escape"
+    tar -czf "$WK/bad.tar.gz" -C "$BAD" .
+  else
+    tar -czPf "$WK/bad.tar.gz" "$BAD/SKILL.md"
+  fi
+  write_index bad.tar.gz
+  set +e
+  run_acquire --json > "$FIXTURE/bad.json"
+  bad_code=$?
+  set -e
+  test "$bad_code" -eq 1
+  jq -e '.status == "failed" and any(.errors[]; test("archive"))' "$FIXTURE/bad.json" >/dev/null
+  [ ! -e "$FIXTURE/other-skills/site/site-pack/escape" ]
+done
+write_index site-pack.tar.gz
 
 # An unexpected skills-lock entry is reported as a decision, never mutated.
 mkdir -p "$FIXTURE/home/.agents"

@@ -53,7 +53,7 @@ The repo `codex-skills/` directory, not read by Claude. Holds repo-owned skills 
 _Avoid_: Codex surface, Codex-only surface
 
 **Foreign skill staging**:
-The repo `other-skills/<owner>/` holding area, not an agent surface. Fully tracked; staged skills carry no copy markers — git history is their provenance and drift detection. Each source dir holds a tracked `.source.json` (upstream repo, commit SHA, sync time), written by acquire. Two-phase flow: acquire mirrors complete inventories into staging; distribute copies matrix-selected skills onward.
+The repo `other-skills/<owner>/` holding area, not an agent surface. Fully tracked; staged skills carry no copy markers — git history is their provenance and drift detection. Each source dir holds a tracked `.source.json` (upstream repo, commit SHA, sync time; a well-known source records its origin and per-skill digests instead; its scripts are staged, never run), written by acquire. Two-phase flow: acquire mirrors complete inventories into staging; distribute copies matrix-selected skills onward.
 _Avoid_: Claude surface, Codex surface, automatic install, gitignored copy
 
 **Acquire phase**:

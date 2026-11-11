@@ -104,7 +104,8 @@ if ! jq -e '
     ([.sources[].id] | length) == ([.sources[].id] | unique | length) and
     all(.sources[];
       (.id | test("^[a-z0-9]+(-[a-z0-9]+)*$")) and
-      (.repo | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) and
+      (if has("wellKnown") then has("repo") | not
+       else .repo | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$") end) and
       (has("staging") or has("plugin")) and
       ((has("staging") | not) or (has("subroot") and has("discovery"))))
   ' "$SOURCES" >/dev/null; then

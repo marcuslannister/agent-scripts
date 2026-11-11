@@ -152,7 +152,14 @@ if ! jq -e '
       (.id | test("^[a-z0-9]+(-[a-z0-9]+)*$")) and
       (.classification == "source-only" or .classification == "npx-only" or
        .classification == "plugin-claude-only" or .classification == "dual-plugin") and
-      (.repo | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) and
+      (if has("wellKnown") then
+         # A site origin publishing /.well-known/agent-skills/index.json instead
+         # of a git repo; staged and source-only. file:// exists for tests.
+         (has("repo") | not) and .classification == "source-only" and has("staging") and
+         (.wellKnown | test("^(https|file)://[^ ]+$"))
+       else
+         (.repo | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"))
+       end) and
       ((has("staging") | not) or
         ((.staging | test("^[a-z0-9]+(-[a-z0-9]+)*$")) and
          (.discovery == "flat" or .discovery == "recursive") and
@@ -205,20 +212,30 @@ scan_skills_lock() {
 # --- Per-source staging reconciliation --------------------------------------
 acquire_source() { # source_id
   local source_id="$1"
-  local repo subroot staging discovery classification repo_url clone_dir source_root
+  local repo wellknown fetch_error subroot staging discovery classification repo_url clone_dir source_root
   local inventory="$WORK_ROOT/$source_id.inventory.tsv"
   local skill_file skill relative state detail count=0 source_failed=0
   local staging_root action planned
 
   classification="$(source_field "$source_id" '.classification')"
-  repo="$(source_field "$source_id" '.repo')"
+  repo="$(source_field "$source_id" '.repo // ""')"
+  wellknown="$(source_field "$source_id" '.wellKnown // ""')"
   subroot="$(source_field "$source_id" '.subroot')"
   staging="$(source_field "$source_id" '.staging')"
   discovery="$(source_field "$source_id" '.discovery')"
   staging_root="$REPO_ROOT/other-skills/$staging"
-  repo_url="https://github.com/$repo.git"
+  repo_url=
+  [ -n "$repo" ] && repo_url="https://github.com/$repo.git"
 
-  if [ "$MODE" = check ]; then
+  if [ -n "$wellknown" ]; then
+    # Fetched into the work root in both modes, so --check never writes under HOME.
+    clone_dir="$WORK_ROOT/wellknown/$source_id"
+    if ! fetch_error="$(fetch_well_known_skills "$wellknown" "$clone_dir" 2>&1)"; then
+      append_error "source $source_id fetch failed: $wellknown: $fetch_error"
+      record_source "$source_id" "$classification" 0 failed
+      return
+    fi
+  elif [ "$MODE" = check ]; then
     clone_dir="$WORK_ROOT/clones/$source_id"
     if [ ! -d "$clone_dir/.git" ]; then
       if ! git clone --depth 1 --quiet "$repo_url" "$clone_dir" 2>>"$WORK_ROOT/$source_id.clone.err"; then
@@ -326,10 +343,14 @@ acquire_source() { # source_id
   if [ "$MODE" != check ]; then
     clear_staging_gitignore "$REPO_ROOT" "$source_id" || source_failed=1
     clear_staging_gitignore "$REPO_ROOT" "$staging" || source_failed=1
-    if ! write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"; then
+    if [ -n "$wellknown" ]; then
+      write_well_known_source_json "$staging_root" "$wellknown" "$clone_dir"
+    else
+      write_staging_source_json "$staging_root" "$repo_url" "$clone_dir"
+    fi || {
       append_error "source $source_id could not record staging provenance"
       source_failed=1
-    fi
+    }
   fi
 
   local result=clean
