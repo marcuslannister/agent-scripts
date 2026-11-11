@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added a `wellKnown` source type to `sources.json` and `update-skill-topology.sh`: a site that publishes `/.well-known/agent-skills/index.json` is fetched into staging with SHA-256 digest verification instead of cloned. `skill-md` entries also stage the `references/`, `scripts/`, and `assets/` files they name, and `archive` entries (`.tar.gz` or `.zip`) are unpacked with path, link, and size checks, so scripts a site adds later are staged (never run). Added the Metrix.Bar skill this way (`metrix-bar-skill`, staged under `other-skills/metrixbar/`) and selected it for Claude and Codex in the skills matrix.
+
 - Added the Herdr skill from `herdrdev/herdr` as a staged source-only skill under `other-skills/herdrdev/` (`herdr-skill` in `sources.json`, upstream ee5bfb5) and selected it for Claude and Codex in the skills matrix.
 
 - Refreshed staged third-party skills (anthropics 2c5958e, claude-community 163301d, danyuchn d48bfca, humanlayer 4d69d20, khazix cfa3436, matt 4ae2317, nicobailon 9d5f880, smarzban 5b30b8d) and regenerated the selection-preserving skills matrix.

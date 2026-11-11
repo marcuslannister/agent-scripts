@@ -42,6 +42,14 @@
       "discovery": "flat"
     },
     {
+      "id": "metrix-bar-skill",
+      "classification": "source-only",
+      "wellKnown": "https://metrix.bar",
+      "subroot": "",
+      "staging": "metrixbar",
+      "discovery": "flat"
+    },
+    {
       "id": "matt-skills",
       "classification": "npx-only",
       "repo": "mattpocock/skills",

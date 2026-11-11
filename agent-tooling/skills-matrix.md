@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 15 | 48 |
-| Shared | 13 | 13 |
+| Total | 16 | 49 |
+| Shared | 14 | 14 |
 | Agent-only | 2 | 35 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -136,6 +136,7 @@
 | `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | N | N | ~2332 |
 | `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | N | N | ~1479 |
 | `mcp-builder` | anthropics/skills | skill | N | N | ~2773 |
+| `metrix-bar` | metrixbar | skill | Y | Y | ~6176 |
 | `migrate-to-shoehorn` | mattpocock/skills | skill | N | Y | ~697 |
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
 | `narrow-react-prop-types` | humanlayer/skills | skill | N | N | ~1941 |
@@ -276,7 +277,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2132 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=267 both=13 claude_only=2 codex_only=35 total_claude=15 total_codex=48 -->
+<!-- total=268 both=14 claude_only=2 codex_only=35 total_claude=16 total_codex=49 -->
 
 ## Enable-state
 
@@ -286,8 +287,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 5 | 40 |
-| Total | 15 | 48 |
+| Always-on | 6 | 41 |
+| Total | 16 | 49 |
 
 ## Repos
 
@@ -303,6 +304,7 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `humanlayer/skills` | https://github.com/humanlayer/skills |
 | `marcus` | ? |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |
+| `metrixbar` | ? |
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |
 | `nowledge-community` | ? |
 | `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
