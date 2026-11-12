@@ -8,7 +8,7 @@
 2. Otherwise, locate files with `rg` and `fd`.
 3. Read the files found by the search.
 
-Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` and `ls` at the start of each command segment (after `;`, `&&`, `||`, or a newline); `grep` after `|` stays allowed. It rewrites a simple `find -name` or `sed -i` to `fd` or `sd`.
+Use `rg`, `fd`, `sd`, and `eza`. A hook blocks `grep` at the start of each command segment (after `;`, `&&`, `||`, or a newline); `grep` after `|` stays allowed. It rewrites a simple `find -name`, `sed -i`, or `ls` (flags `l a A 1 h` and one path) to `fd`, `sd`, or `eza`. Any other `ls` runs as typed.
 A blocked command does not run at all, including its other segments. Fix the blocked segment, then run the full command again.
 Use a classic tool only when the modern tool cannot do the task safely or exactly.
 Over `ssh`, the hook does not check the remote command. If the remote host lacks `rg`, `fd`, `sd`, or `eza`, use `grep`, `find`, `sed`, and `ls` there.
@@ -60,7 +60,7 @@ Other harnesses: ignore this section.
 - In zsh, never name a variable `status`.
 - In zsh, use an array for a loop over multiple items. A scalar string does not split into words as in bash.
 - In zsh, store a command in a function, not a variable: `g() { env -u GITHUB_TOKEN gh "$@"; }`. A variable such as `G="env -u X gh"` does not split into words, so `$G args` fails with `command not found`.
-- Write a remote script that uses `grep`, `ls`, or `find` to a file with the file tool, then run `ssh host sh -s < file`. The hook reads these words inside a heredoc body as commands and blocks the whole command.
+- Write a remote script that uses `grep` or `find` to a file with the file tool, then run `ssh host sh -s < file`. The hook reads these words inside a heredoc body as commands and blocks the whole command.
 - In zsh, `$EPOCHSECONDS` is empty until `zmodload zsh/datetime`. Use `date +%s` instead.
 - In zsh, quote every URL or path that contains `?`, such as `gh api 'repos/o/r/contents/f?ref=main'`.
 - Use `sd` for one-line patterns. For multi-line replacements, use `Edit` or `file-replace-string`: a multi-line `sd -F` can match nothing and still exit 0.
