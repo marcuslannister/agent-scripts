@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- The Emacs config moved to the fork of `zHaOdANiuu/.emacs.d`, so the Anvil `org` note in the tooling rules and the `anvil-advanced-ops` skill now point at `~/.emacs.d/user-lisp/init-local-anvil.el` (`my/anvil-modules`, `my/anvil-optional-modules`). The tooling rules add two shell limits: `sd --` before a pattern that starts with `-`, and the `mv -i`/`rm -i` aliases that wait for an answer. Rebuilt Codex instructions and synced the skill copies.
+
 - Added a `wellKnown` source type to `sources.json` and `update-skill-topology.sh`: a site that publishes `/.well-known/agent-skills/index.json` is fetched into staging with SHA-256 digest verification instead of cloned. `skill-md` entries also stage the `references/`, `scripts/`, and `assets/` files they name, and `archive` entries (`.tar.gz` or `.zip`) are unpacked with path, link, and size checks, so scripts a site adds later are staged (never run). Added the Metrix.Bar skill this way (`metrix-bar-skill`, staged under `other-skills/metrixbar/`) and selected it for Claude and Codex in the skills matrix.
 
 - Added the Herdr skill from `herdrdev/herdr` as a staged source-only skill under `other-skills/herdrdev/` (`herdr-skill` in `sources.json`, upstream ee5bfb5) and selected it for Claude and Codex in the skills matrix.

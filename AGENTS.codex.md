@@ -168,7 +168,7 @@ Avoid repeated full-file reads and repeated elisp patterns. Use targeted file to
 When you see one of these patterns during a task, change to the correct tool immediately. Do not wait until the task ends.
 Run heavy Emacs operations with `mcp__anvil__emacs-eval-async`. Poll with `mcp__anvil__emacs-eval-jobs` and `mcp__anvil__emacs-eval-result`.
 
-Anvil's `org` module is disabled in `~/.emacs.d/lisp/init-local-ai.el`.
+Anvil's `org` module is off: `my/anvil-modules` in `~/.emacs.d/user-lisp/init-local-anvil.el` leaves it out.
 It conflicted with interactive Emacs buffers and caused many Syncthing conflict files.
 Edit org files with Read/Edit or built-in org tools. Never use Anvil org MCP tools.
 
@@ -197,3 +197,5 @@ Other harnesses: ignore this section.
 - In zsh, `$EPOCHSECONDS` is empty until `zmodload zsh/datetime`. Use `date +%s` instead.
 - In zsh, quote every URL or path that contains `?`, such as `gh api 'repos/o/r/contents/f?ref=main'`.
 - Use `sd` for one-line patterns. For multi-line replacements, use `Edit` or `file-replace-string`: a multi-line `sd -F` can match nothing and still exit 0.
+- For a `sd` pattern that starts with `-`, put `--` before the pattern: `sd -F -- '-L lisp' '-L user-lisp' file`.
+- The user's zsh profile makes `mv`, `rm`, and `cp` aliases (`mv -i`, `rm -i`, `cp -av`), so `mv` and `rm` wait for an answer when the target exists, and the command hangs. To replace a file, use the Write tool or `cat new > target`.

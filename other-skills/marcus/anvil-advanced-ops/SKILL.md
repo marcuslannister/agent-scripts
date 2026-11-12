@@ -133,7 +133,7 @@ job may already be defined.
 The disclosure, compression, and cron tools each come from an
 optional Anvil module. An unknown tool almost always means its
 module is not enabled, rather than a broken tool. Check
-`anvil-optional-modules` in `~/.emacs.d/lisp/init-local-ai.el`.
+`my/anvil-optional-modules` in `~/.emacs.d/user-lisp/init-local-anvil.el`.
 
 `state` backs both `context` and `shell-filter` with a SQLite
 blob store, so those two need `state` in that list as well.
