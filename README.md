@@ -3,7 +3,7 @@
 Shared agent instructions, skills, and small portable helpers for Peter's local workspaces.
 
 This repo is the canonical place for:
-- `AGENTS.MD`: shared hard rules for Codex/Claude-style agents
+- shared agent rules: moved to the `home` repo at `~/Projects/home`
 - `agent-tooling/`: code-agent and skill update machinery — matrix generator, staging acquire, surface distribute, verify/validate gates, `skill-authors.json`, `sources.json` (the one tracked list of skill-bearing sources), `skills-matrix.md`
 - repository root: upstream-complete overlay of `steipete/agent-scripts:main`; every recorded upstream path remains present while local additions and modifications coexist
 - `skills/`: exact tracked mirror of `steipete/agent-scripts:main`
@@ -41,29 +41,7 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 ## Agent Instructions
 
-Shared hard rules live in `AGENTS.MD`.
-
-Topic detail lives in `rules/`. `AGENTS.MD` links to it as `~/.claude/rules/<name>.md`: home-relative, so no machine-specific path appears in a tracked file and the links still resolve when the agent runs in some other project. A repo-relative link would resolve against the agent's cwd and break everywhere except this checkout; the test suite rejects one.
-
-Codex has no import syntax and does not reliably open a file it is only linked to, so it reads `AGENTS.codex.md`: `AGENTS.MD` with every `rules/` file inlined. That artifact is tracked, so `git pull` refreshes it like any other file and no install step can go stale (ADR-0010). Rebuild it with `agent-tooling/build-codex-instructions.sh` after editing `AGENTS.MD` or `rules/`; `--check` fails when it drifts, and the test suite enforces that.
-
-Run `agent-tooling/setup-agent-instructions.sh` explicitly once per machine. On Windows PowerShell, run `agent-tooling/setup-agent-instructions.ps1` instead. Both create missing pointers, preserve foreign symlinks, and are never called by routine skill updates. Claude Code reads `CLAUDE.md` and Pi reads `~/.pi/agent/AGENTS.md`, so setup creates the pointers below:
-- `~/.claude/CLAUDE.md -> AGENTS.MD`
-- `~/.codex/AGENTS.md -> AGENTS.codex.md`
-- `~/.pi/agent/AGENTS.md -> AGENTS.MD`, because Pi resolves and opens the topic links like Claude Code
-- `~/.claude/rules -> rules`, one directory symlink, so the `~/.claude/rules/*.md` links resolve from any cwd
-
-The `.sh` writes relative targets, computed from the pointer's physically resolved directory, because `~/.claude`, `~/.codex`, and `~/.pi` are themselves symlinks into other checkouts. A pointer that already resolves to the right place counts as correct: a relative symlink you made yourself is left alone, and an absolute spelling is normalized in place.
-
-The `.ps1` writes absolute native symlinks. Windows resolves a relative target against the path used to open it, so a relative target misses when `~/.claude` is itself a symlink. A correct absolute link is left alone. A correct relative link is rewritten as absolute. Git-for-Windows placeholder files are replaced. `-Force` replaces a regular file at a pointer path. The script sets `core.symlinks true` globally.
-
-Downstream repos should use a pointer-style `AGENTS.MD`:
-
-```text
-READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
-```
-
-Repo-specific rules go below that pointer. Do not copy the shared blocks into downstream repos.
+The shared rules, `rules/`, the generated Codex file, and the pointer setup scripts live in the `home` repo at `~/Projects/home`. This repo keeps only its own `CLAUDE.md`.
 
 ## Helpers
 
@@ -113,19 +91,6 @@ Topology authoring:
 - For an external skill-bearing source, add exactly one `agent-tooling/sources.json` entry: `id`, `classification`, `repo` (or `wellKnown` for a site that publishes `/.well-known/agent-skills/index.json` and has no git repo; source-only and staged), plus `subroot`/`staging`/`discovery` for staged sources or a `plugin` block for plugin sources. Stage source-only and npx-only inventories under the matching `other-skills/<owner>/`; never write them directly into `skills/`. Never add another public updater.
 - Preview upstream/staging drift with `agent-tooling/update-skill-topology.sh --check`; run it to acquire. Regenerate `agent-tooling/skills-matrix.md` to append new skills without changing selections, then preview surfaces offline with `agent-tooling/sync-skill-surfaces.sh --check`. Run `agent-tooling/verify.sh` before commit.
 
-`agent-tooling/setup-agent-instructions.sh`
-- Explicit one-machine setup for the shared `AGENTS.MD`/`CLAUDE.md`/`rules` pointers; not part of topology reconciliation or routine updates.
-- Idempotent; preserves real user files and foreign symlinks, including dangling ones.
-- Refuses to run until `AGENTS.codex.md` exists.
-
-`agent-tooling/setup-agent-instructions.ps1`
-- Windows PowerShell counterpart. Same pointers as the `.sh`. Absolute native symlinks. Sets `core.symlinks true` globally.
-- Preserves foreign symlinks. Replaces Git-for-Windows placeholder files. `-Force` replaces a regular file at a pointer path (needed for a leftover `~/.codex/AGENTS.md`).
-
-`agent-tooling/build-codex-instructions.sh`
-- Regenerates the tracked `AGENTS.codex.md` from `AGENTS.MD` plus `rules/`.
-- `--check` exits non-zero when the artifact is stale; wired into the test suite.
-
 `agent-tooling/validate-skills`
 - Checks every repo-owned `skills/*/SKILL.md` and `codex-skills/*/SKILL.md`.
 - Verifies YAML front matter plus required `name` and `description`.
@@ -154,12 +119,10 @@ Topology authoring:
 
 ## Syncing
 
-Treat this repo as canonical for shared agent rules and portable helper scripts.
+Treat this repo as canonical for portable helper scripts. The shared agent rules live in the `home` repo.
 
 When syncing downstream repos:
 - Pull latest here first.
-- Ensure each target repo starts with the pointer-style `AGENTS.MD`.
-- Preserve repo-local rules below the pointer.
 - Copy helper changes both directions only when the helper is meant to stay byte-identical.
 - Keep scripts dependency-free and portable; no repo-specific imports or path aliases.
 

@@ -1,6 +1,6 @@
 # agent-scripts — project rules
 
-Project-scoped file. Root `AGENTS.MD` here is the shared global rules file (symlinked into `~/.claude` / `~/.codex`), not this repo's — repo-specific config goes in this file.
+Project-scoped file. The shared global rules moved to the `home` repo (`~/Projects/home/AGENTS.md`); repo-specific config goes in this file.
 
 ## Agent skills
 

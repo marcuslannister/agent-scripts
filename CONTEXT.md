@@ -20,17 +20,7 @@ _Avoid_: automatic mirror, default copy
 
 ### Instruction pointers
 
-**Instruction pointer**:
-A path each agent CLI reads its global rules from, created by `setup-agent-instructions.sh` or `setup-agent-instructions.ps1` only when explicitly invoked. Setup state, not distribution policy (ADR-0002/0010): the routine updater never creates or refreshes one. Claude Code reads `~/.claude/CLAUDE.md` plus `~/.claude/rules`; Pi reads `~/.pi/agent/AGENTS.md`; Codex reads `~/.codex/AGENTS.md`.
-_Avoid_: instruction symlink, global config, agent surface
-
-**Topic rules**:
-The repo `rules/` directory, one file per subject, linked from `AGENTS.MD` as `~/.claude/rules/<name>.md`. The single editable source for everything outside the root hard rules. A repo-relative link resolves against the agent's cwd and breaks outside this checkout, so links stay home-relative.
-_Avoid_: docs, rule modules, split instructions
-
-**Generated Codex instructions**:
-Tracked `AGENTS.codex.md`: `AGENTS.MD` with every topic rule inlined, built by `build-codex-instructions.sh`. Codex has no import syntax and does not open a file it is only linked to, so it needs one flat file. Tracking it means a pull refreshes it and no install lifecycle can go stale (ADR-0010); `--check` fails on drift. Build stages into a temp file and swaps on success, so a failed build cannot truncate the artifact into a false-green check.
-_Avoid_: flattened copy, snapshot, generated pointer
+Moved to the `home` repo at `~/Projects/home`: the global rules, `rules/`, the generated Codex file, and the pointer setup scripts.
 
 **Pointer migration**:
 Replacing an installer-owned predecessor at an instruction pointer: a symlink only when its resolved target proves setup wrote it, a regular file only when the operator explicitly requests it. Foreign symlinks, including dangling ones, are always preserved.

@@ -12,7 +12,6 @@
 | `agent-transcript` | steipete/agent-scripts | skill | N | N | ~697 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~459 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
-| `anvil-advanced-ops` | marcus | skill | Y | Y | ~1425 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~4142 |
@@ -302,7 +301,6 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `danyuchn/asd-ste100-skill` | https://github.com/danyuchn/asd-ste100-skill |
 | `herdrdev/herdr` | https://github.com/herdrdev/herdr |
 | `humanlayer/skills` | https://github.com/humanlayer/skills |
-| `marcus` | ? |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |
 | `metrixbar` | ? |
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |
