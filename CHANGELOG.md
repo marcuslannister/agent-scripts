@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Moved the global agent rules (`AGENTS.MD`, `rules/`, `AGENTS.codex.md`), the pointer setup and Codex build scripts, `check-anvil-names`, and the `anvil-advanced-ops` and `refresh-mac` skills to the `home` repo at `~/Projects/home`. This repo keeps only its own `CLAUDE.md`.
+
 - Added `handoff-other-machines-privacy-rewrite.md` with Mac and Linux steps to save local work, move clones to the rewritten history, and enable the privacy guard.
 
 - The tooling rules say the `enforce-modern-cli.sh` hook no longer blocks `ls`: a simple `ls` still maps to `eza`, and any other `ls` runs as typed. `grep` stays blocked. The heredoc warning no longer lists `ls`. Rebuilt Codex instructions.
