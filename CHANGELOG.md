@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added `handoff-other-machines-privacy-rewrite.md` with Mac and Linux steps to save local work, move clones to the rewritten history, and enable the privacy guard.
+
 - The tooling rules say the `enforce-modern-cli.sh` hook no longer blocks `ls`: a simple `ls` still maps to `eza`, and any other `ls` runs as typed. `grep` stays blocked. The heredoc warning no longer lists `ls`. Rebuilt Codex instructions.
 
 - The Emacs config moved to the fork of `zHaOdANiuu/.emacs.d`, so the Anvil `org` note in the tooling rules and the `anvil-advanced-ops` skill now point at `~/.emacs.d/user-lisp/init-local-anvil.el` (`my/anvil-modules`, `my/anvil-optional-modules`). The tooling rules add two shell limits: `sd --` before a pattern that starts with `-`, and the `mv -i`/`rm -i` aliases that wait for an answer. Rebuilt Codex instructions and synced the skill copies.
