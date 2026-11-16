@@ -59,4 +59,17 @@ grep -Fx 'local shared change' "$LOCAL_REPO/shared.txt" >/dev/null
 test "$(jq -r .commit "$LOCAL_REPO/agent-tooling/upstream-overlay.json")" \
   = "$(git -C "$UPSTREAM_REPO" rev-parse HEAD)"
 
+manifest="$LOCAL_REPO/agent-tooling/upstream-overlay.json"
+jq '. + {excluded: ["scripts/tool"]}' "$manifest" > "$TMP_ROOT/manifest.json"
+cat "$TMP_ROOT/manifest.json" > "$manifest"
+git -C "$LOCAL_REPO" rm -q scripts/tool
+git -C "$LOCAL_REPO" add .
+git -C "$LOCAL_REPO" commit -qm 'exclude scripts/tool'
+"$LOCAL_REPO/agent-tooling/sync-upstream-overlay.sh" --check > "$TMP_ROOT/excluded.out"
+grep -F 'Upstream overlay complete' "$TMP_ROOT/excluded.out" >/dev/null
+AGENT_SCRIPTS_UPSTREAM_URL="$UPSTREAM_REPO" \
+  "$LOCAL_REPO/agent-tooling/sync-upstream-overlay.sh" > "$TMP_ROOT/excluded-sync.out"
+test ! -e "$LOCAL_REPO/scripts/tool"
+test "$(jq -c .excluded "$manifest")" = '["scripts/tool"]'
+
 echo 'upstream overlay tests passed'

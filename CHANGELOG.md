@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Added an `excluded` list to `agent-tooling/upstream-overlay.json`. `sync-upstream-overlay.sh` does not require or restore these paths, and keeps the list when it records a new upstream commit. `AGENTS.MD` is excluded because it moved to the `home` repo; this fixes the `verify.sh` failure that stopped `update-all.sh` from shipping. ADR-0008 has the amendment.
+
 - Moved the global agent rules (`AGENTS.MD`, `rules/`, `AGENTS.codex.md`), the pointer setup and Codex build scripts, `check-anvil-names`, and the `anvil-advanced-ops` and `refresh-mac` skills to the `home` repo at `~/Projects/home`. This repo keeps only its own `CLAUDE.md`.
 
 - Added `handoff-other-machines-privacy-rewrite.md` with Mac and Linux steps to save local work, move clones to the rewritten history, and enable the privacy guard.

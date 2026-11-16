@@ -15,7 +15,8 @@ usage() {
     'Usage: sync-upstream-overlay.sh [--check]' \
     '' \
     'Merge steipete/agent-scripts and restore every upstream path while keeping' \
-    'local additions and committed modifications.' \
+    'local additions and committed modifications. Paths in the manifest' \
+    '"excluded" list are never required or restored.' \
     '' \
     'Options:' \
     '  --check     Verify the recorded upstream overlay without network access.' \
@@ -27,12 +28,31 @@ fail() {
   exit 1
 }
 
+load_excluded() {
+  excluded_paths=()
+  [ -f "$MANIFEST" ] || return 0
+  local path
+  while IFS= read -r path; do
+    excluded_paths+=("$path")
+  done < <(jq -r '(.excluded // [])[] | strings' "$MANIFEST")
+}
+
+is_excluded() {
+  local path
+  for path in "${excluded_paths[@]+"${excluded_paths[@]}"}"; do
+    [ "$path" = "$1" ] && return 0
+  done
+  return 1
+}
+
 collect_missing_paths() {
   local source_commit="$1"
   local path
   missing_paths=()
+  load_excluded
 
   while IFS= read -r -d '' path; do
+    is_excluded "$path" && continue
     if [ ! -e "$REPO_ROOT/$path" ] && [ ! -L "$REPO_ROOT/$path" ]; then
       missing_paths+=("$path")
     fi
@@ -100,13 +120,18 @@ if [ "${#missing_paths[@]}" -gt 0 ]; then
     | tar -xf - -C "$REPO_ROOT"
 fi
 
+excluded_json='[]'
+[ "${#excluded_paths[@]}" -eq 0 ] \
+  || excluded_json="$(printf '%s\n' "${excluded_paths[@]}" | jq -R . | jq -sc .)"
 manifest_tmp="$(mktemp "${MANIFEST}.tmp.XXXXXX")"
 trap 'rm -f "$manifest_tmp"' EXIT
 jq -n \
   --arg repository "$UPSTREAM_URL" \
   --arg branch "$UPSTREAM_BRANCH" \
   --arg commit "$source_commit" \
-  '{repository: $repository, branch: $branch, commit: $commit}' > "$manifest_tmp"
+  --argjson excluded "$excluded_json" \
+  '{repository: $repository, branch: $branch, commit: $commit}
+   + (if ($excluded | length) > 0 then {excluded: $excluded} else {} end)' > "$manifest_tmp"
 mv "$manifest_tmp" "$MANIFEST"
 trap - EXIT
 

@@ -1,5 +1,6 @@
 {
   "repository": "https://github.com/steipete/agent-scripts",
   "branch": "main",
-  "commit": "ee4c7193bf4854fd7b7531c4f0ff30658ca5f0ae"
+  "commit": "ee4c7193bf4854fd7b7531c4f0ff30658ca5f0ae",
+  "excluded": ["AGENTS.MD"]
 }

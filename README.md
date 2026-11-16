@@ -47,7 +47,7 @@ The shared rules, `rules/`, the generated Codex file, and the pointer setup scri
 
 `agent-tooling/sync-upstream-overlay.sh`
 - Public upstream sync command. Requires a clean worktree, fetches and merges `steipete/agent-scripts:main`, restores upstream paths deleted by local history, and records the verified source commit without overwriting local additions or committed modifications.
-- `--check` is offline. It verifies that the recorded commit is merged into `HEAD` and that every path in that commit remains present.
+- `--check` is offline. It verifies that the recorded commit is merged into `HEAD` and that every path in that commit remains present, except paths in the manifest's `excluded` list.
 
 `agent-tooling/update-all.sh` — the one command on the main machine
 - Five ordered steps: `update-agents.sh`, `update-plugins.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).

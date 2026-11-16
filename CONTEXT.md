@@ -29,7 +29,7 @@ _Avoid_: repair, overwrite, reinstall
 ### Source classification
 
 **Upstream-complete overlay**:
-The repository root contains every path from the recorded `steipete/agent-scripts:main` commit. Local paths and local modifications can coexist, but an upstream path cannot be absent.
+The repository root contains every path from the recorded `steipete/agent-scripts:main` commit. Local paths and local modifications can coexist, but an upstream path cannot be absent unless the manifest's `excluded` list names it.
 _Avoid_: full mirror, exact mirror, vendored upstream
 
 **Repo-owned source**:
