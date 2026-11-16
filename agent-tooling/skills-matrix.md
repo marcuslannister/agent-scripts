@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 16 | 49 |
-| Shared | 14 | 14 |
+| Total | 15 | 48 |
+| Shared | 13 | 13 |
 | Agent-only | 2 | 35 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -12,9 +12,9 @@
 | `agent-transcript` | steipete/agent-scripts | skill | N | N | ~697 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~459 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
-| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4083 |
+| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4086 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
-| `autoreview` | steipete/agent-scripts | skill | N | N | ~4142 |
+| `autoreview` | steipete/agent-scripts | skill | N | N | ~4269 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
 | `behavior-validator` | steipete/agent-scripts | skill | N | N | ~939 |
 | `brand-guidelines` | anthropics/skills | skill | N | N | ~558 |
@@ -45,7 +45,7 @@
 | `discernment-nudge` | anthropics/skills | skill | N | N | ~2623 |
 | `discord-clawd` | steipete/agent-scripts | skill | N | N | ~271 |
 | `doc-coauthoring` | anthropics/skills | skill | N | N | ~3953 |
-| `docx` | anthropics/skills | skill | N | N | ~1713 |
+| `docx` | anthropics/skills | skill | N | N | ~1849 |
 | `domain-dns-ops` | steipete/agent-scripts | skill | N | N | ~679 |
 | `domain-modeling` | mattpocock/skills | skill | N | Y | ~805 |
 | `dx:gha` | ykdojo | plugin | N | N | ~639 |
@@ -82,7 +82,7 @@
 | `instruments-profiling` | steipete/agent-scripts | skill | N | N | ~936 |
 | `internal-comms` | anthropics/skills | skill | N | N | ~377 |
 | `khazix-writer` | KKKKhazix/khazix-skills | skill | N | N | ~2161 |
-| `leader` | KKKKhazix/khazix-skills | skill | N | N | ~761 |
+| `leader` | KKKKhazix/khazix-skills | skill | N | N | ~754 |
 | `loop-me` | mattpocock/skills | skill | N | Y | ~630 |
 | `mac-maintenance` | steipete/agent-scripts | skill | N | N | ~186 |
 | `maintainer-orchestrator` | steipete/agent-scripts | skill | N | N | ~2827 |
@@ -135,14 +135,14 @@
 | `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | N | N | ~2332 |
 | `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | N | N | ~1479 |
 | `mcp-builder` | anthropics/skills | skill | N | N | ~2773 |
-| `metrix-bar` | metrixbar | skill | Y | Y | ~6176 |
+| `metrix-bar` | metrixbar | skill | Y | Y | ~7118 |
 | `migrate-to-shoehorn` | mattpocock/skills | skill | N | Y | ~697 |
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
 | `narrow-react-prop-types` | humanlayer/skills | skill | N | N | ~1941 |
 | `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
-| `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1915 |
+| `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1768 |
 | `notcrawl` | steipete/agent-scripts | skill | N | N | ~271 |
-| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~2403 |
+| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~2758 |
 | `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~806 |
 | `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |
@@ -161,7 +161,7 @@
 | `ponytail:ponytail-gain` | DietrichGebert/ponytail | plugin | N | N | ~496 |
 | `ponytail:ponytail-help` | DietrichGebert/ponytail | plugin | N | N | ~797 |
 | `ponytail:ponytail-review` | DietrichGebert/ponytail | plugin | N | N | ~1285 |
-| `pptx` | anthropics/skills | skill | N | N | ~5158 |
+| `pptx` | anthropics/skills | skill | N | N | ~7042 |
 | `pr` | mattpocock/skills | skill | N | N | ~1026 |
 | `project-structure` | steipete/agent-scripts | skill | N | N | ~1875 |
 | `prototype` | mattpocock/skills | skill | N | Y | ~730 |
@@ -184,7 +184,7 @@
 | `skill-creator` | anthropics/claude-plugins-official | plugin | N | N | ~8246 |
 | `skill-creator` | anthropics/skills | skill | N | N | ~8246 |
 | `slack-gif-creator` | anthropics/skills | skill | N | N | ~1960 |
-| `software-factory` | mattpocock/skills | skill | N | N | ~1499 |
+| `software-factory` | mattpocock/skills | skill | N | N | ~1527 |
 | `sonos` | steipete/agent-scripts | skill | N | N | ~439 |
 | `speaking` | steipete/agent-scripts | skill | N | N | ~1203 |
 | `ssh-doctor` | steipete/agent-scripts | skill | N | N | ~1221 |
@@ -255,13 +255,13 @@
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
 | `wayfinder` | mattpocock/skills | skill | N | Y | ~3102 |
-| `waza:check` | tw93/Waza | plugin | Y | Y | ~7005 |
-| `waza:health` | tw93/Waza | plugin | Y | Y | ~5282 |
+| `waza:check` | tw93/Waza | plugin | Y | Y | ~7002 |
+| `waza:health` | tw93/Waza | plugin | Y | Y | ~5393 |
 | `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4272 |
 | `waza:learn` | tw93/Waza | plugin | Y | Y | ~2212 |
 | `waza:read` | tw93/Waza | plugin | Y | Y | ~1950 |
 | `waza:think` | tw93/Waza | plugin | Y | Y | ~2961 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3795 |
+| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3813 |
 | `waza:write` | tw93/Waza | plugin | Y | Y | ~3920 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
@@ -273,10 +273,10 @@
 | `writing-fragments` | mattpocock/skills | skill | N | Y | ~889 |
 | `writing-shape` | mattpocock/skills | skill | N | Y | ~1479 |
 | `xcode-sync` | steipete/agent-scripts | skill | N | N | ~2085 |
-| `xlsx` | anthropics/skills | skill | N | N | ~2132 |
+| `xlsx` | anthropics/skills | skill | N | N | ~2429 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=268 both=14 claude_only=2 codex_only=35 total_claude=16 total_codex=49 -->
+<!-- total=267 both=13 claude_only=2 codex_only=35 total_claude=15 total_codex=48 -->
 
 ## Enable-state
 
@@ -286,8 +286,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 6 | 41 |
-| Total | 16 | 49 |
+| Always-on | 5 | 40 |
+| Total | 15 | 48 |
 
 ## Repos
 

@@ -36,7 +36,7 @@ Fetch `https://downloads.agili.app/metrix-bar/release-info.json`. Its current co
 1. Choose `channels.stable` by default. Only choose `channels.preview` if the user explicitly requests preview. If stable has no compatible GUI package, explain that fact and, if available, offer preview; do not silently switch channels.
 2. Filter for the detected platform and `role === "gui"` **or missing role**. Exclude CLI packages.
 3. Match the native CPU exactly; on macOS an `arch: "universal"` GUI package is also valid for Intel and Apple silicon. Do not substitute another architecture.
-4. Compare the host OS version against `minimumSystemVersion` where present. Do not install an incompatible package. Current macOS builds require macOS 12 or newer; always honor the selected asset's requirements.
+4. Compare the host OS version against `minimumSystemVersion` where present. Do not install an incompatible package. Current macOS builds require macOS 13 or newer and Windows builds require Windows 10 or newer; always honor the selected asset's requirements.
 5. Current GUI formats are macOS `dmg`, Windows NSIS `exe`, and Linux `deb` or `tar.gz`. Inspect the actual index rather than inventing a filename, URL, package manager, or format. There is no published Homebrew/winget formula, RPM, or AppImage promised by this guide.
 6. Use the asset's `url` unchanged. Download into a temporary/user-owned directory. Verify the downloaded bytes against **that asset's** `sha256` before opening, executing, mounting, or extracting them. Stop on mismatch or missing verification data.
 
@@ -92,7 +92,7 @@ Have the user complete the installer and any OS authorization. Do not invent sil
 
 ### Linux: DEB or tar.gz
 
-The app needs GTK 3, a StatusNotifierItem tray host, a graphical desktop, and a D-Bus session. Tray behavior varies by desktop and does not promise macOS-style text. DEB metadata may declare additional distribution dependencies; use the package manager's real diagnostics rather than removing those requirements.
+The app needs GTK 3.22 or newer, a StatusNotifierItem tray host, a graphical desktop, and a D-Bus session. Tray behavior varies by desktop and does not promise macOS-style text. DEB metadata may declare additional distribution dependencies; use the package manager's real diagnostics rather than removing those requirements.
 
 For a `deb` on Debian/Ubuntu, open the verified file with the desktop package installer and let the user authorize installation and dependencies. Alternatively, if the user chooses a system package installation, the standard package-manager operation is `apt install /absolute/path/to/the-verified.deb` in a user-authorized administrator session. Do not run it with automatic elevation. Launch from the applications menu. To inspect the installed paths without assuming them, use `dpkg-deb -c "$PACKAGE"` and the packaged desktop entry; the current package places the executable under `/opt/metrix-bar/metrix-bar`.
 
