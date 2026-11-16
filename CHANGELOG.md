@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Corrected the README for `sync-upstream-overlay.sh --check`: it verifies that the recorded commit is in local Git history, not that `HEAD` contains it.
+
 - Refreshed staged third-party skills (anthropics 1780c5e, claude-community 163301d, danyuchn 9c35169, herdrdev ee5bfb5, humanlayer 4d69d20, khazix 725ac94, matt 5863806, nicobailon 9d5f880, smarzban d1430bf) and regenerated the selection-preserving skills matrix.
 
 - Added an `excluded` list to `agent-tooling/upstream-overlay.json`. `sync-upstream-overlay.sh` does not require or restore these paths, and keeps the list when it records a new upstream commit. `AGENTS.MD` is excluded because it moved to the `home` repo; this fixes the `verify.sh` failure that stopped `update-all.sh` from shipping. ADR-0008 has the amendment.
