@@ -87,6 +87,11 @@ MAX_WORDS = 25  # descriptions cap; instructions cap is 20 but undetectable with
 
 CODE_FENCE = re.compile(r"^(`{3,}|~{3,})")
 INLINE_CODE = re.compile(r"`[^`]*`")
+# A bare file name is code, not a verb: "verify-geometry.py" names no action.
+# The lookbehind starts a match only at the start of a token.
+FILE_NAME = re.compile(
+    r"(?<![\w./\\:-])[\w./\\:-]*[\w-]\.(?:py|md|ps1|sh|json|ya?ml|txt|html?|js|css|R|qmd|docx|pptx|xlsx|pdf|png|svg|csv)\b"
+)
 BACKTICK_RUN = re.compile(r"`+")
 # A list item start at any indent, to find the content indent of its item.
 LIST_ITEM_INDENT = re.compile(r"^( *)([-*+]|[0-9]{1,9}[.)])( +|$)")
@@ -238,17 +243,39 @@ def _breaks_paragraph(depth, line, list_indent):
                     or _list_item(rest, list_indent, line_depth == depth)))
 
 
-def _paragraph_runs(lines, start, depth, list_indent):
+def _run_in_autolink(line, run):
+    """True when RUN sits inside an autolink on LINE.
+
+    GitHub does not treat that backtick as a code span.
+    """
+    for pattern in (AUTOLINK, EMAIL_AUTOLINK):
+        for match in pattern.finditer(line):
+            if match.start() <= run.start() and run.end() <= match.end():
+                return True
+    return False
+
+
+def _paragraph_runs(lines, start, depth, list_indent, table_lines=()):
     """Return (end, last) for the paragraph that continues at LINES[START].
 
     END is the index of the line that ends it. LAST maps each backtick run length
     to the index of its last line before END. One scan serves every run in the
-    paragraph, so the cost stays linear in the line count.
+    paragraph, so the cost stays linear in the line count. An escaped backtick,
+    a backtick in an autolink, and a backtick on a table row are text: none of
+    them closes a code span. TABLE_LINES holds the indexes of those rows.
     """
     last, end = {}, start
     while end < len(lines) and not _breaks_paragraph(depth, lines[end], list_indent):
-        for run in BACKTICK_RUN.finditer(lines[end]):
-            last[len(run.group())] = end
+        line = lines[end]
+        if end not in table_lines:
+            for run in BACKTICK_RUN.finditer(line):
+                if _run_in_autolink(line, run):
+                    continue
+                length = len(run.group())
+                if _escaped(line, run.start()):
+                    length -= 1
+                if length:
+                    last[length] = end
         end += 1
     return end, last
 
@@ -955,10 +982,10 @@ def _block_emphasis(blocks):
 
     A block is a list of (lineno, source_column, text, view, paragraph, wraps,
     unsure) pieces, and the offsets are in its views joined with spaces.
-    GitHub reads the emphasis of a paragraph as a whole, and a paragraph can
-    hold more than one block: a lazy line after a quote line starts a new
-    block, for example. So the runs are read in the joined views of all pieces
-    of a PARAGRAPH. WRAPS is True when an inline HTML item can start in the
+    GitHub reads the emphasis of a paragraph as a whole. A lazy continuation
+    line stays in that paragraph and in its block. A flush can still split a
+    paragraph, so the runs are read in the joined views of all pieces of a
+    PARAGRAPH. WRAPS is True when an inline HTML item can start in the
     piece and end on a later line. The view does not show where that item
     ends. UNSURE is True when GitHub can put the line in another paragraph
     than the main loop does. So when a piece other than the last piece of a
@@ -1020,6 +1047,26 @@ def _indent_width(text):
 def _fence_ends_with_quote(fence, line):
     """True when LINE has fewer blockquote levels than the open FENCE."""
     return fence is not None and _strip_quotes(line.expandtabs(4), fence[1])[0] < fence[1]
+
+
+# A list marker, then a fence, at the start of a line. At most three spaces of
+# indent, also after a blockquote prefix. A space or a tab follows the marker.
+MARKER_THEN_FENCE = re.compile(
+    r"^((?: {0,3}> ?)*)( {0,3})([-*+]|[0-9]{1,9}[.)])([ \t]+)(`{3,}|~{3,})"
+)
+
+
+def _line_for_opening_fence(line):
+    """Return LINE with one list marker blanked when a fence follows it.
+
+    The marker keeps its width, so the fence indent does not move. A line
+    that is not this shape is returned unchanged. The dangling-conjunction
+    pass does not use this: it already tracks a fence on a marker line.
+    """
+    match = MARKER_THEN_FENCE.match(line)
+    if not match:
+        return line
+    return line[:match.start(3)] + (" " * len(match.group(3))) + line[match.end(3):]
 
 
 def _fence_step(fence, line):
@@ -1792,6 +1839,8 @@ def lint(text, filename="<stdin>"):
     in_paragraph = False
     # content indent of the open list item, so its indented lines are not code
     list_indent = 0
+    # content indents of the items that contain the open item
+    list_stack = []
     # backtick run length of a code span that is open across lines, or 0
     open_span = 0
     paragraph_depth = 0
@@ -1840,11 +1889,13 @@ def lint(text, filename="<stdin>"):
                                  "col": source_column + m.start() + 1,
                                  "rule": rule_id, "level": level,
                                  "match": m.group(0), "message": msg})
+        # Blank file names with spaces of the same length, so columns stay true.
+        named = FILE_NAME.sub(lambda found: " " * len(found.group(0)), line)
         for gi, group in enumerate(SYNONYM_GROUPS):
             for base in group:
                 if (gi, base) in seen_synonyms:
                     continue
-                m = _word_re(base).search(line)
+                m = _word_re(base).search(named)
                 if m:
                     seen_synonyms[(gi, base)] = (
                         lineno, source_column + m.start() + 1, m.group(0)
@@ -1888,7 +1939,8 @@ def lint(text, filename="<stdin>"):
         if not in_paragraph:
             return False
         if lineno > span_end:
-            span_end, span_runs = _paragraph_runs(lines, lineno, paragraph_depth, list_indent)
+            span_end, span_runs = _paragraph_runs(
+                lines, lineno, paragraph_depth, list_indent, table_cells)
         return span_runs.get(run, -1) >= lineno
 
     for lineno, raw_line in enumerate(lines, 1):
@@ -1922,7 +1974,10 @@ def lint(text, filename="<stdin>"):
             # An HTML block holds literal text until it ends, so no fence opens in it.
             is_fence = False
         else:
-            is_fence, fence = _fence_step(fence, raw_line)
+            # A fence may open on the line of a list marker. Blank that marker
+            # for this call only, so the rest of the line is still a list item.
+            fence_line = _line_for_opening_fence(raw_line) if fence is None else raw_line
+            is_fence, fence = _fence_step(fence, fence_line)
         after_blank = not unquoted.strip()  # the line before is blank or a quote marker only
         # A paragraph is open after a line of text that no other block takes.
         # The paragraph state reads the line after its quote prefix, so a line with only
@@ -1969,14 +2024,25 @@ def lint(text, filename="<stdin>"):
                 # in a tight list. A lazy line does not end the item.
                 item = _list_item(rest, list_indent, was_paragraph and depth == prev_depth)
                 if item:
-                    list_indent = len(item.group(0)) if item.group(3) else len(item.group(0)) + 1
+                    new_indent = len(item.group(0)) if item.group(3) else len(item.group(0)) + 1
+                    if list_indent and new_indent > list_indent:
+                        list_stack.append(list_indent)
+                    else:
+                        while list_stack and list_stack[-1] >= new_indent:
+                            list_stack.pop()
+                    list_indent = new_indent
                     list_depth = depth
                 elif indent < list_indent and not (was_paragraph and in_paragraph):
-                    # only a lazy text line keeps the item open, not a heading or a break
-                    list_indent = 0
-                    # An indented line can be in an outer item, and a ">" with an indent
-                    # can start a block quote in the item: GitHub reads the list on.
-                    unsure_list = lead > 0
+                    # A line back at a parent item's indent returns to that item.
+                    # A quote in the item has no indent after its ">", but LEAD
+                    # is the indent before that quote, so the item stays open.
+                    # Only a lazy text line keeps the item open without this pop.
+                    while list_indent and indent < list_indent and list_stack:
+                        list_indent = list_stack.pop()
+                    if indent < list_indent and lead < list_indent:
+                        list_indent = 0
+                        list_stack.clear()
+                        unsure_list = lead > 0
         item_text = rest[ITEM_PREFIX.match(rest).end():]
         if (list_indent and indent < list_indent + 4
                 and (depth > list_depth or item_text.startswith(">") or NO_PARAGRAPH.match(item_text)
@@ -2009,7 +2075,10 @@ def lint(text, filename="<stdin>"):
         admonition_title = bool(ADMONITION_TITLE.match(content))
         standalone = STANDALONE_LINE.match(content) or admonition_title or alert
         if (is_table or not content.strip() or standalone
-                or ANY_LIST_ITEM.match(content) or is_quote != in_quote
+                or ANY_LIST_ITEM.match(content)
+                # A lazy continuation has no ">" and still belongs to the open
+                # paragraph. Do not split the sentence there.
+                or (is_quote != in_quote and new_paragraph)
                 # a deeper quote starts a new paragraph, so the text before it is no context
                 or depth > prev_depth):
             flush()
@@ -2402,6 +2471,28 @@ def selftest():
     findings, _ = lint("- Item\n  > ```\n  > code\nProse and")
     assert findings == [], findings
     # a tab is indent up to the next tab stop of 4, from its real column, also after ">"
+    # a paragraph back at the parent item, or after a quote in the item, is prose
+    findings, _ = lint("- Step one\n    - detail\n\n    Back in step one.\n\n    Another; paragraph.\n")
+    assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", 6)], findings
+    findings, _ = lint("- Item\n\n  > quote\n\n    More; text.\n")
+    assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", 5)], findings
+    # a backtick in an autolink, on a table row, or escaped does not close a span
+    for text in ("A ` mark; here.\nSee <https://x.io/`a>.\n",
+                 "Press the ` key; it opens.\n| a | b ` c |\n|---|---|\n",
+                 "Type \\` to quote; it opens.\nThen run `x` now.\n"):
+        findings, _ = lint(text)
+        assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", 1)], (text, findings)
+    # a real span still hides the semicolon on the next line
+    findings, _ = lint("See `the\ncode; here`\n")
+    assert not any(f["rule"] == "semicolon" for f in findings), findings
+    # a fence on the line of a list marker is code, so the prose after it is read
+    for text, line in (("- ```python\n  a; b\n  ```\n\nProse; here.", 5),
+                       ("1. ~~~\n  a; b\n  ~~~\n\nProse; here.", 5),
+                       ("> - ```python\n>   a; b\n>   ```\n\n> Prose; here.", 5)):
+        findings, _ = lint(text)
+        assert [(f["rule"], f["line"]) for f in findings] == [("semicolon", line)], (text, findings)
+    findings, _ = lint("- see ```this; code\n")
+    assert [f["rule"] for f in findings] == ["semicolon"], findings
     for text, line in (("\t```\n\tx = 1\n\t```\n\nProse; here.", 5),
                        ("```\nx\n\t```\ny; z\n```\n\nProse; here.", 7),
                        ("> ```\n> x\n>\t```\n> Use a; b.", 4),
@@ -2584,6 +2675,12 @@ def selftest():
     # single consistent term: no flag
     findings, _ = lint("Check the config. Check the output.")
     assert not any(f["rule"] == "synonym-rotation" for f in findings)
+    # a bare file name is not a verb
+    findings, _ = lint(
+        "Check the figure before you export it. Then run verify-geometry.py on the exported file.")
+    assert not any(f["rule"] == "synonym-rotation" for f in findings), findings
+    findings, _ = lint("Check the figure. Then verify the exported file.")
+    assert any(f["rule"] == "synonym-rotation" for f in findings), findings
     # character references and link targets are markup, not prose
     findings, _ = lint("Press Ctrl&nbsp;C to stop &rarr; &#8594; &#x2192; now. "
                        "See [the docs](https://x.io/a;b) or <https://x.io/a;b>.")
@@ -3075,6 +3172,14 @@ def selftest():
     # a blockquote prefix is not a word in a wrapped quoted sentence
     findings, _ = lint("> " + "\n> ".join(["word word word word word"] * 5) + ".")
     assert not any(f["rule"] == "long-sentence" for f in findings), findings
+    # a lazy continuation line, with no ">" , stays in the quoted sentence
+    lazy_quote = ("The agent reads each line of the log file from the local disk "
+                  "into a buffer and writes the words to the output in one order.")
+    for text in ("> " + lazy_quote.replace(" disk ", " disk\n"),
+                 "> " + lazy_quote.replace(" disk ", " disk\n> ")):
+        findings, _ = lint(text)
+        long_sentences = [f for f in findings if f["rule"] == "long-sentence"]
+        assert [f["match"] for f in long_sentences] == ["26 words"], (text, findings)
     # a list marker is not a word either, in every marker style
     twenty_five = " ".join(f"term{number}" for number in range(1, 26)) + "."
     for marker in ("-", "*", "+", "1.", "1)", "  -", "> -"):
@@ -3123,6 +3228,20 @@ def selftest():
             assert main([paths[0], "--json", "--disable", "semicolon",
                          "--disable", "long-sentence"]) == 0
         assert json.loads(out.getvalue())["count"] == 0, out.getvalue()
+        # a file that is not valid UTF-8 is unreadable: exit 2, no traceback
+        bad_path = os.path.join(tmp, "bad.md")
+        with open(bad_path, "wb") as fh:
+            fh.write(b"Text \xff here.\n")
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                main([bad_path])
+        except SystemExit as e:
+            assert e.code == 2, e.code
+        else:
+            raise AssertionError("invalid utf-8")
+        message = err.getvalue()
+        assert "bad.md" in message and "Traceback" not in message, message
     # command-line parsing rejects typos and bad values
     for bad in (["--basline", "3"], ["--baseline"], ["--baseline", "x"],
                 ["--baseline", "-1"], ["--disable", "passive"], ["--base", "3"]):
@@ -3203,6 +3322,9 @@ def main(argv):
                     text = fh.read()
             except OSError as e:
                 parser.error(f"cannot read {p}: {e.strerror}")
+            except UnicodeDecodeError as e:
+                # A file that is not valid UTF-8 is unreadable.
+                parser.error(f"cannot read {p}: {e}")
             f, w = lint(text, filename=p)
             findings.extend(f)
             words_total += w

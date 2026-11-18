@@ -12,7 +12,7 @@
 | `agent-transcript` | steipete/agent-scripts | skill | N | N | ~697 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~459 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
-| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4086 |
+| `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4122 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~4269 |
 | `beeper` | steipete/agent-scripts | skill | N | N | ~250 |
@@ -45,7 +45,7 @@
 | `discernment-nudge` | anthropics/skills | skill | N | N | ~2623 |
 | `discord-clawd` | steipete/agent-scripts | skill | N | N | ~271 |
 | `doc-coauthoring` | anthropics/skills | skill | N | N | ~3953 |
-| `docx` | anthropics/skills | skill | N | N | ~1849 |
+| `docx` | anthropics/skills | skill | N | N | ~1860 |
 | `domain-dns-ops` | steipete/agent-scripts | skill | N | N | ~679 |
 | `domain-modeling` | mattpocock/skills | skill | N | Y | ~805 |
 | `dx:gha` | ykdojo | plugin | N | N | ~639 |
@@ -245,7 +245,7 @@
 | `tres-upload-tx-header-validation` | anthropics/claude-plugins-community | skill | N | N | ~604 |
 | `tres-wallets-upload` | anthropics/claude-plugins-community | skill | N | N | ~4157 |
 | `triage` | mattpocock/skills | skill | N | Y | ~1639 |
-| `tsk-cli` | smarzban/tsk | skill | Y | Y | ~3327 |
+| `tsk-cli` | smarzban/tsk | skill | Y | Y | ~3462 |
 | `tsk-coordinator` | smarzban/tsk | skill | N | N | ~2504 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |

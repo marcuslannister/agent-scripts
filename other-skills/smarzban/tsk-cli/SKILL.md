@@ -1,7 +1,7 @@
 ---
 name: tsk-cli
 description: Work the user's tsk task board from the command line. Use when asked to add, update, edit, start, block, finish, archive, or restore a task on the board (or "tsk", "the tsk board", "the desk"), to add or tick steps, to answer "what's on the board", "what's next", "what's on deck", "what needs me", or to refine a task ("refine T12", "let's discuss T12", "what's missing from T12", "improve / rewrite this task"). Always `tsk add|list|status|reply|edit|steps|archive|dispatch|clean|trash`, never the TUI.
-version: 1.7.0
+version: 1.8.0
 ---
 
 # tsk: the user's task board
@@ -49,13 +49,16 @@ task with nothing open refuses with `not-blocked`. When the user asks you to sen
 task's running agent, in Herdr or Rex, add `--send`: it sends only that reply and prints
 `sent to @<agent>` or `not sent: <reason>`.
 
+Checks are the reviewer's. Mark one with `tsk checks T12 set <n> passed|failed|open` only when the
+review is on you (`review.on` names your profile), never on a review you asked for.
+
 ## Rules
 
 1. **Human status is the user's.** Set `review` when your work is finished. Set `done` only when the
    user says the task is done, and never unblock or approve your own task unless told.
 2. **Read JSON, not presentation.** Always add `--json` to `tsk list`. Write commands may answer in
    text only: trust the exit and refusal codes, then verify with `tsk list … --json`.
-3. **Never blind-retry.** `add`, `status`, `edit`, and `archive` are safe to repeat. `reply`,
+3. **Never blind-retry.** `add`, `status`, `edit`, `checks`, and `archive` are safe to repeat. `reply`,
    `dispatch`, `edit --append-notes`, `steps add`, `steps toggle`, and `steps remove` are not:
    read the task first.
 4. **Use a known project name or a full path.** A name is a project's title or folder name.
@@ -79,12 +82,16 @@ task's running agent, in Herdr or Rex, add `--send`: it sends only that reply an
     ([JSON plans](https://gettsk.sh/docs/cli.md#json-plans)).
 12. **A restored task may change number.** `tsk trash restore T12` prints the number it got; use that
     one from then on ([trash](https://gettsk.sh/docs/cli.md#trash)).
+13. **A due date is a day.** `--due YYYY-MM-DD` on `tsk add` and `tsk edit`, `--clear-due` to remove
+    it; a time, a zone, or a word refuses with `invalid-due`. Order by it with
+    `tsk list --sort due --json` ([edit](https://gettsk.sh/docs/cli.md#edit)).
 
 ## Reading the board
 
 `tsk list --json` reads this repo's project, or the desk outside Git. Present it in board language:
 what needs the user first, then in motion, then on deck. Rows come grouped by status, and within a
-status they are already in the board's order; keep it.
+status they are already in the board's order; keep it. Each row's `steps_done` and `steps_total`
+say how far its steps have come.
 
 | The user says | Read |
 | --- | --- |
@@ -177,8 +184,8 @@ criteria, no design document, no code. It ends with a better task on the board.
    - Does not exist yet: `tsk add -t "…" -n "…"` in the agreed scope (`--desk`, `-p`), with
      `--thread` if agreed.
    - Steps only when the user wants order of work tracked: `tsk steps T12 add "…"` per step.
-   - Never change status. `edit` cannot change scope or thread: for a scope change re-add in the
-     right scope and archive the stray; say so before doing it.
+   - Never change status. `edit --thread` changes the thread; `edit` cannot change scope: re-add
+     in the right scope and archive the stray, and say so before doing it.
 7. **Stop.** The hand-off is the updated or created task. Report its number and title in one line.
    Do not offer builders, worktrees, or plans, and do not start building unless asked.
 
