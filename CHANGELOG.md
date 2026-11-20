@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Adopted ADR-0012: Pi reads the tracked, inlined `AGENTS.codex.md` like Codex, because Pi 1.5.2 does not expand the `@` imports (about +3.2k input tokens per request). ADR-0010's status now marks its Pi pointer as superseded. The scripts and the artifact live in the `home` repo.
+
 - Stop the Codex copy of `eli5` (`skills-matrix.md` row `eli5` `skill`: Codex `Y` → `N`, counts updated), and `sync-skill-surfaces.sh` removed `~/.agents/skills/eli5`. `update-plugins.sh` also reapplies `eli5-lean.sh` after the plugin refresh; the test covers it.
 - `update-plugins.sh` reapplies both lean patches from claude-code-settings (`nowledge-lean.sh` and `ponytail-lean.sh`) after the plugin refresh; the test covers both.
 - Remove the `openai-codex` source (`openai/codex-plugin-cc`) from `sources.json` and its three report-only rows from `skills-matrix.md`, because the Claude Code plugin is uninstalled. `update-plugins.sh` no longer warns about its removed marketplace.

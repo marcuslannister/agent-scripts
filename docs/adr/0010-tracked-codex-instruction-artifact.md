@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; Pi pointer superseded by ADR-0012
 ---
 
 # Tracked Codex instruction artifact
