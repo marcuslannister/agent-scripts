@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 15 | 48 |
-| Shared | 13 | 13 |
+| Total | 14 | 47 |
+| Shared | 12 | 12 |
 | Agent-only | 2 | 35 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -245,7 +245,7 @@
 | `tres-upload-tx-header-validation` | anthropics/claude-plugins-community | skill | N | N | ~604 |
 | `tres-wallets-upload` | anthropics/claude-plugins-community | skill | N | N | ~4157 |
 | `triage` | mattpocock/skills | skill | N | Y | ~1639 |
-| `tsk-cli` | smarzban/tsk | skill | Y | Y | ~3462 |
+| `tsk-cli` | smarzban/tsk | skill | N | N | ~3462 |
 | `tsk-coordinator` | smarzban/tsk | skill | N | N | ~2504 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
@@ -276,7 +276,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2429 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=267 both=13 claude_only=2 codex_only=35 total_claude=15 total_codex=48 -->
+<!-- total=267 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
@@ -286,8 +286,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 5 | 40 |
-| Total | 15 | 48 |
+| Always-on | 4 | 39 |
+| Total | 14 | 47 |
 
 ## Repos
 

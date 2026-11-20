@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Skills: deselected `tsk-cli` for Claude and Codex in the skills matrix, because `tsk` was removed from the Macs, and refreshed the derived counts. The staged source under `other-skills/smarzban/` stays.
+
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 163301d, danyuchn 7073627, herdrdev ee5bfb5, humanlayer 4d69d20, khazix 725ac94, matt 5863806, nicobailon 9d5f880, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
 
 - Refreshed staged third-party skills (anthropics 1780c5e, claude-community 163301d, danyuchn 9c35169, herdrdev ee5bfb5, humanlayer 4d69d20, khazix 725ac94, matt 5863806, nicobailon 9d5f880, smarzban d1430bf) and regenerated the selection-preserving skills matrix.
