@@ -12,6 +12,8 @@ FIXTURE="$TMP_ROOT/agent-tooling"
 BIN="$TMP_ROOT/bin"
 STATE="$TMP_ROOT/state"
 mkdir -p "$FIXTURE" "$BIN" "$STATE"
+# Keep the real ~/.claude hooks out of every run below.
+export HOME="$TMP_ROOT/home"
 cp "$REPO_ROOT/agent-tooling/update-plugins.sh" "$FIXTURE/"
 
 cat > "$FIXTURE/sources.json" <<'JSON'
@@ -152,5 +154,19 @@ PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
   > "$STATE/nocli.out" 2>&1
 rg -F 'claude CLI not found' "$STATE/nocli.out" >/dev/null
 rg -F 'codex CLI not found' "$STATE/nocli.out" >/dev/null
+
+# The nowledge-mem lean patch runs after plugin refresh when its hook exists,
+# and a failed patch is one warning, not a failed run.
+mkdir -p "$HOME/.claude/hooks"
+printf '%s\n' 'echo ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/nowledge-lean.sh"
+: > "$PLUGIN_LOG"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+  > "$STATE/lean.out" 2>&1
+rg -Fx ran "$PLUGIN_LOG" >/dev/null
+rg -F 'lean context patch applied' "$STATE/lean.out" >/dev/null
+printf '%s\n' 'echo anchor missing >&2; exit 1' > "$HOME/.claude/hooks/nowledge-lean.sh"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+  > /dev/null 2> "$STATE/lean.err"
+rg -F 'lean context patch failed: anchor missing' "$STATE/lean.err" >/dev/null
 
 echo "update-plugins tests passed"
