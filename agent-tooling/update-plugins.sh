@@ -109,7 +109,7 @@ fi
 
 # A plugin update replaces patched plugin files. Reapply the patches from
 # claude-code-settings now, so the next session starts lean.
-for plugin in nowledge ponytail; do
+for plugin in nowledge ponytail eli5; do
   lean_patch="$HOME/.claude/hooks/$plugin-lean.sh"
   if [ -f "$lean_patch" ]; then
     run_native "$plugin: lean context patch failed" bash "$lean_patch" \

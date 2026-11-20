@@ -155,18 +155,21 @@ PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
 rg -F 'claude CLI not found' "$STATE/nocli.out" >/dev/null
 rg -F 'codex CLI not found' "$STATE/nocli.out" >/dev/null
 
-# The nowledge-mem and ponytail lean patches run after plugin refresh when
+# The nowledge-mem, ponytail, and eli5 lean patches run after plugin refresh when
 # their hooks exist, and a failed patch is one warning, not a failed run.
 mkdir -p "$HOME/.claude/hooks"
 printf '%s\n' 'echo nowledge ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/nowledge-lean.sh"
 printf '%s\n' 'echo ponytail ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/ponytail-lean.sh"
+printf '%s\n' 'echo eli5 ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/eli5-lean.sh"
 : > "$PLUGIN_LOG"
 PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
   > "$STATE/lean.out" 2>&1
 rg -Fx 'nowledge ran' "$PLUGIN_LOG" >/dev/null
 rg -Fx 'ponytail ran' "$PLUGIN_LOG" >/dev/null
+rg -Fx 'eli5 ran' "$PLUGIN_LOG" >/dev/null
 rg -F 'nowledge: lean context patch applied' "$STATE/lean.out" >/dev/null
 rg -F 'ponytail: lean context patch applied' "$STATE/lean.out" >/dev/null
+rg -F 'eli5: lean context patch applied' "$STATE/lean.out" >/dev/null
 printf '%s\n' 'echo anchor missing >&2; exit 1' > "$HOME/.claude/hooks/nowledge-lean.sh"
 PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
   > "$STATE/lean2.out" 2> "$STATE/lean.err"

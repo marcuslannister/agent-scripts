@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Stop the Codex copy of `eli5` (`skills-matrix.md` row `eli5` `skill`: Codex `Y` → `N`, counts updated), and `sync-skill-surfaces.sh` removed `~/.agents/skills/eli5`. `update-plugins.sh` also reapplies `eli5-lean.sh` after the plugin refresh; the test covers it.
 - `update-plugins.sh` reapplies both lean patches from claude-code-settings (`nowledge-lean.sh` and `ponytail-lean.sh`) after the plugin refresh; the test covers both.
 - Remove the `openai-codex` source (`openai/codex-plugin-cc`) from `sources.json` and its three report-only rows from `skills-matrix.md`, because the Claude Code plugin is uninstalled. `update-plugins.sh` no longer warns about its removed marketplace.
 

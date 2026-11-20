@@ -2,9 +2,9 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 14 | 47 |
+| Total | 14 | 46 |
 | Shared | 12 | 12 |
-| Agent-only | 2 | 35 |
+| Agent-only | 2 | 34 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
@@ -55,7 +55,7 @@
 | `dx:review-claudemd` | ykdojo | plugin | N | N | ~676 |
 | `dx:version-check` | ykdojo | plugin | N | N | ~1836 |
 | `eli5` | anthropics/claude-plugins-community | plugin | Y | N | ~80 |
-| `eli5` | anthropics/claude-plugins-community | skill | N | Y | ~80 |
+| `eli5` | anthropics/claude-plugins-community | skill | N | N | ~80 |
 | `fleet-maintenance` | steipete/agent-scripts | skill | N | N | ~4819 |
 | `frontend-design` | anthropics/claude-plugins-official | plugin | N | N | ~2062 |
 | `frontend-design` | steipete/agent-scripts | skill | N | N | ~1027 |
@@ -273,7 +273,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2429 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=264 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=264 both=12 claude_only=2 codex_only=34 total_claude=14 total_codex=46 -->
 
 ## Enable-state
 
@@ -283,8 +283,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 4 | 39 |
-| Total | 14 | 47 |
+| Always-on | 4 | 38 |
+| Total | 14 | 46 |
 
 ## Repos
 
