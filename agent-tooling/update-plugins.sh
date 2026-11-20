@@ -107,12 +107,14 @@ if [ "$codex_inventory_ok" -eq 1 ]; then
     [.id, .plugin.name, .plugin.marketplaces.codex, (.plugin.codexUpgrade // "auto")] | @tsv' "$SOURCES_PATH")
 fi
 
-# A plugin update replaces the patched nowledge-mem hook file. Reapply the
-# patch from claude-code-settings now, so the next session starts lean.
-lean_patch="$HOME/.claude/hooks/nowledge-lean.sh"
-if [ -f "$lean_patch" ]; then
-  run_native "nowledge-mem: lean context patch failed" bash "$lean_patch" \
-    && info "nowledge-mem: lean context patch applied"
-fi
+# A plugin update replaces patched plugin files. Reapply the patches from
+# claude-code-settings now, so the next session starts lean.
+for plugin in nowledge ponytail; do
+  lean_patch="$HOME/.claude/hooks/$plugin-lean.sh"
+  if [ -f "$lean_patch" ]; then
+    run_native "$plugin: lean context patch failed" bash "$lean_patch" \
+      && info "$plugin: lean context patch applied"
+  fi
+done
 
 exit 0

@@ -6,6 +6,9 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `update-plugins.sh` reapplies both lean patches from claude-code-settings (`nowledge-lean.sh` and `ponytail-lean.sh`) after the plugin refresh; the test covers both.
+- Remove the `openai-codex` source (`openai/codex-plugin-cc`) from `sources.json` and its three report-only rows from `skills-matrix.md`, because the Claude Code plugin is uninstalled. `update-plugins.sh` no longer warns about its removed marketplace.
+
 - `update-plugins.sh` runs `~/.claude/hooks/nowledge-lean.sh` after the plugin refresh, so `update-all.sh` and `update-local.sh` reapply the lean nowledge-mem patch before the next session. A failure is one warning. The test runs with a temporary `HOME`.
 
 - Skills: deselected `tsk-cli` for Claude and Codex in the skills matrix, because `tsk` was removed from the Macs, and refreshed the derived counts. The staged source under `other-skills/smarzban/` stays.

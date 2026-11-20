@@ -106,17 +106,6 @@
       }
     },
     {
-      "id": "openai-codex",
-      "classification": "plugin-claude-only",
-      "repo": "openai/codex-plugin-cc",
-      "plugin": {
-        "name": "codex",
-        "marketplaces": {
-          "claude": "openai-codex"
-        }
-      }
-    },
-    {
       "id": "waza",
       "classification": "dual-plugin",
       "repo": "tw93/Waza",

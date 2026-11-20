@@ -34,9 +34,6 @@
 | `codex-debugging` | steipete/agent-scripts | skill | N | N | ~265 |
 | `codex-first` | steipete/agent-scripts | skill | N | N | ~4888 |
 | `codex-huge-context` | steipete/agent-scripts | skill | N | N | ~4015 |
-| `codex:codex-cli-runtime` | openai/codex-plugin-cc | plugin | N | N | ~774 |
-| `codex:codex-result-handling` | openai/codex-plugin-cc | plugin | N | N | ~432 |
-| `codex:gpt-5-4-prompting` | openai/codex-plugin-cc | plugin | N | N | ~911 |
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
 | `crabbox` | steipete/agent-scripts | skill | N | N | ~1750 |
 | `create-cli` | steipete/agent-scripts | skill | N | N | ~834 |
@@ -276,7 +273,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2429 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=267 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
+<!-- total=264 both=12 claude_only=2 codex_only=35 total_claude=14 total_codex=47 -->
 
 ## Enable-state
 
@@ -305,7 +302,6 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `metrixbar` | ? |
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |
 | `nowledge-community` | ? |
-| `openai/codex-plugin-cc` | https://github.com/openai/codex-plugin-cc |
 | `smarzban/tsk` | https://github.com/smarzban/tsk |
 | `steipete/agent-scripts` | https://github.com/steipete/agent-scripts |
 | `tw93/Waza` | https://github.com/tw93/Waza |

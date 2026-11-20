@@ -155,18 +155,22 @@ PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
 rg -F 'claude CLI not found' "$STATE/nocli.out" >/dev/null
 rg -F 'codex CLI not found' "$STATE/nocli.out" >/dev/null
 
-# The nowledge-mem lean patch runs after plugin refresh when its hook exists,
-# and a failed patch is one warning, not a failed run.
+# The nowledge-mem and ponytail lean patches run after plugin refresh when
+# their hooks exist, and a failed patch is one warning, not a failed run.
 mkdir -p "$HOME/.claude/hooks"
-printf '%s\n' 'echo ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/nowledge-lean.sh"
+printf '%s\n' 'echo nowledge ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/nowledge-lean.sh"
+printf '%s\n' 'echo ponytail ran >> "$PLUGIN_LOG"' > "$HOME/.claude/hooks/ponytail-lean.sh"
 : > "$PLUGIN_LOG"
 PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
   > "$STATE/lean.out" 2>&1
-rg -Fx ran "$PLUGIN_LOG" >/dev/null
-rg -F 'lean context patch applied' "$STATE/lean.out" >/dev/null
+rg -Fx 'nowledge ran' "$PLUGIN_LOG" >/dev/null
+rg -Fx 'ponytail ran' "$PLUGIN_LOG" >/dev/null
+rg -F 'nowledge: lean context patch applied' "$STATE/lean.out" >/dev/null
+rg -F 'ponytail: lean context patch applied' "$STATE/lean.out" >/dev/null
 printf '%s\n' 'echo anchor missing >&2; exit 1' > "$HOME/.claude/hooks/nowledge-lean.sh"
 PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
-  > /dev/null 2> "$STATE/lean.err"
-rg -F 'lean context patch failed: anchor missing' "$STATE/lean.err" >/dev/null
+  > "$STATE/lean2.out" 2> "$STATE/lean.err"
+rg -F 'nowledge: lean context patch failed: anchor missing' "$STATE/lean.err" >/dev/null
+rg -F 'ponytail: lean context patch applied' "$STATE/lean2.out" >/dev/null
 
 echo "update-plugins tests passed"
