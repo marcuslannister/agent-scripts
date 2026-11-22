@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 163301d, danyuchn 65c8ab6, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt abeeaf9, nicobailon 9d5f880, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
+
 - Adopted ADR-0012: Pi reads the tracked, inlined `AGENTS.codex.md` like Codex, because Pi 1.5.2 does not expand the `@` imports (about +3.2k input tokens per request). ADR-0010's status now marks its Pi pointer as superseded. The scripts and the artifact live in the `home` repo.
 - `nowledge-lean-codex-pi.sh` prints `not found` when the Pi extension file, or the Codex plugin on an opted-in run, is not at its expected path, and `update-plugins.sh` shows that line as a warning. Before, a moved install path passed with the same "applied" line as a patched file. The script still exits 0 for this case, so the run never fails. A machine without Pi gets one warning line for each run.
 

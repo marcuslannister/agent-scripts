@@ -54,7 +54,7 @@ grep -i '^etag:' /tmp/headers.txt
 
 ## Create a dashboard
 
-Pass the raw `.bar` file content as `text/plain`:
+Pass the raw `.bar` file content as `text/plain`. Every successful POST returns a new instance, including repeated source. Keep the returned `id` or `Location` for subsequent operations; `dashboard_id` is the source root ID and `name` is the local instance name:
 
 ```sh
 curl -fsS -X POST -H "$AUTH" -H "Content-Type: text/plain" \
@@ -62,9 +62,20 @@ curl -fsS -X POST -H "$AUTH" -H "Content-Type: text/plain" \
   $MB/v0/dashboards
 ```
 
+## Rename one installed instance
+
+Use the actual instance ID from the list or create response. This changes host labels without editing source or restarting its Worker; send an empty name to restore the author title:
+
+```sh
+curl -fsS -X PATCH -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"Work project"}' "$MB/v0/dashboards/$ID"
+```
+
+The request accepts exactly one `name` string or `enabled` boolean. The existing `PUT /v0/dashboards/$ID/enabled` accepts only `enabled`.
+
 ## Update a dashboard source (optimistic concurrency)
 
-Send `If-Match` with the quoted `ETag` from the previous source fetch. On HTTP 412, re-fetch, reconcile, and retry:
+Retain the existing source root ID, which can differ from `$ID`. Send `If-Match` with the quoted `ETag` from the previous source fetch. On HTTP 412, re-fetch, reconcile, and retry:
 
 ```sh
 curl -fsS -X PUT -H "$AUTH" -H "Content-Type: text/plain" \
@@ -90,7 +101,7 @@ curl -fsS -H "$AUTH" $MB/v0/dashboards/$ID/inputs
 # Set public inputs
 curl -fsS -X POST -H "$AUTH" -H "Content-Type: application/json" \
   $MB/v0/dashboards/$ID/inputs \
-  -d '{"inputs": {"repository": "golang/go"}}'
+  -d '{"inputs": {"repository": "agili-app/Awesome.Metrix.Bar"}}'
 
 # Store a secret value (write-only)
 curl -fsS -X PUT -H "$AUTH" -H "Content-Type: application/json" \
