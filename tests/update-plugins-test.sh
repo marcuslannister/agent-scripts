@@ -14,7 +14,7 @@ STATE="$TMP_ROOT/state"
 mkdir -p "$FIXTURE" "$BIN" "$STATE"
 # Keep the real ~/.claude hooks out of every run below.
 export HOME="$TMP_ROOT/home"
-cp "$REPO_ROOT/agent-tooling/update-plugins.sh" "$FIXTURE/"
+cp "$REPO_ROOT/agent-tooling/update-plugins.sh" "$REPO_ROOT/agent-tooling/nowledge-lean-codex-pi.sh" "$FIXTURE/"
 
 cat > "$FIXTURE/sources.json" <<'JSON'
 {
@@ -175,5 +175,48 @@ PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
   > "$STATE/lean2.out" 2> "$STATE/lean.err"
 rg -F 'nowledge: lean context patch failed: anchor missing' "$STATE/lean.err" >/dev/null
 rg -F 'ponytail: lean context patch applied' "$STATE/lean2.out" >/dev/null
+
+# The Codex nowledge-mem patch sends one note at start and nothing on a prompt
+# (a thread resume still passes), changes nothing on a second run, and
+# NMEM_FULL_CONTEXT=1 restores the plugin's own output.
+CODEX_HOOK="$HOME/.codex/plugins/cache/nowledge-community/nowledge-mem/9.9.9/hooks/nmem-context.py"
+mkdir -p "${CODEX_HOOK%/*}"
+cat > "$CODEX_HOOK" <<'PY'
+import json, os, sys
+PROMPT_ROUTING_GUIDANCE = "per prompt text"
+def _write_hook_response(event, text):
+    print(json.dumps({"event": event, "text": text}))
+def main(payload):
+    event_name = payload["hook_event_name"]
+    resume_context = payload.get("resume", "")
+    if event_name == "UserPromptSubmit":
+        guidance = PROMPT_ROUTING_GUIDANCE
+    elif event_name == "SubagentStart":
+        guidance = "subagent text"
+    else:
+        guidance = "full start text"
+    _write_hook_response(event_name, guidance)
+    return 0
+main(json.loads(sys.stdin.read()))
+PY
+codex_hook() { printf '%s' "$1" | python3 "$CODEX_HOOK"; }
+bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+cp "$CODEX_HOOK" "$STATE/codex-hook.once"
+bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+cmp -s "$CODEX_HOOK" "$STATE/codex-hook.once" \
+  || { echo "FAIL: second codex lean patch run changed the file" >&2; exit 1; }
+codex_hook '{"hook_event_name":"SessionStart"}' | rg -F 'search first: nmem --json m search' >/dev/null
+[ -z "$(codex_hook '{"hook_event_name":"UserPromptSubmit"}')" ] \
+  || { echo "FAIL: lean Codex hook still adds text on a prompt" >&2; exit 1; }
+codex_hook '{"hook_event_name":"UserPromptSubmit","resume":"thread context"}' | rg -F 'thread context' >/dev/null
+codex_hook '{"hook_event_name":"SubagentStart"}' | rg -F 'subagent text' >/dev/null
+printf '%s' '{"hook_event_name":"UserPromptSubmit"}' | NMEM_FULL_CONTEXT=1 python3 "$CODEX_HOOK" \
+  | rg -F 'per prompt text' >/dev/null
+printf '%s\n' 'print("upstream changed")' > "$CODEX_HOOK"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+  > "$STATE/codexlean.out" 2> "$STATE/codexlean.err"
+rg -F 'nowledge (Codex, Pi): lean context patch failed: nowledge-lean: anchor not found' "$STATE/codexlean.err" >/dev/null
+[ "$(cat "$CODEX_HOOK")" = 'print("upstream changed")' ] \
+  || { echo "FAIL: codex lean patch edited a file without its anchor" >&2; exit 1; }
 
 echo "update-plugins tests passed"

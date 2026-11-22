@@ -117,4 +117,9 @@ for plugin in nowledge ponytail eli5; do
   fi
 done
 
+# The Codex and Pi nowledge-mem plugins have no switch either. This repo owns
+# their patch, and a plugin update replaces the patched files.
+run_native "nowledge (Codex, Pi): lean context patch failed" bash "$SCRIPT_DIR/nowledge-lean-codex-pi.sh" \
+  && info "nowledge (Codex, Pi): lean context patch applied"
+
 exit 0
