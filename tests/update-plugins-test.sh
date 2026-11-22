@@ -14,6 +14,7 @@ STATE="$TMP_ROOT/state"
 mkdir -p "$FIXTURE" "$BIN" "$STATE"
 # Keep the real ~/.claude hooks out of every run below.
 export HOME="$TMP_ROOT/home"
+unset CODEX_HOME # the nowledge patch reads it before ~/.codex
 cp "$REPO_ROOT/agent-tooling/update-plugins.sh" "$REPO_ROOT/agent-tooling/nowledge-lean-codex-pi.sh" "$FIXTURE/"
 
 cat > "$FIXTURE/sources.json" <<'JSON'
@@ -188,7 +189,9 @@ def _write_hook_response(event, text):
     print(json.dumps({"event": event, "text": text}))
 def main(payload):
     event_name = payload["hook_event_name"]
-    resume_context = payload.get("resume", "")
+    resume_context = ""
+    if "resume" in payload:
+        resume_context = payload["resume"]
     if event_name == "UserPromptSubmit":
         guidance = PROMPT_ROUTING_GUIDANCE
     elif event_name == "SubagentStart":
@@ -200,9 +203,18 @@ def main(payload):
 main(json.loads(sys.stdin.read()))
 PY
 codex_hook() { printf '%s' "$1" | python3 "$CODEX_HOOK"; }
-bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+cp "$CODEX_HOOK" "$STATE/codex-hook.orig"
+# Default run: Codex trusts the whole plugin, so the patch is opt-in. The file
+# stays as it is, and one line says how to turn the patch on.
+PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+  > "$STATE/codexskip.out" 2>&1
+cmp -s "$CODEX_HOOK" "$STATE/codex-hook.orig" \
+  || { echo "FAIL: default run patched the Codex plugin" >&2; exit 1; }
+rg -F 'Codex: skipped' "$STATE/codexskip.out" | rg -F 'NOWLEDGE_LEAN_CODEX=1' >/dev/null
+# Opt-in run: patched, then already patched with no change.
+NOWLEDGE_LEAN_CODEX=1 bash "$FIXTURE/nowledge-lean-codex-pi.sh" | rg -Fx 'nowledge lean patch, Codex 9.9.9: patched' >/dev/null
 cp "$CODEX_HOOK" "$STATE/codex-hook.once"
-bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+NOWLEDGE_LEAN_CODEX=1 bash "$FIXTURE/nowledge-lean-codex-pi.sh" | rg -Fx 'nowledge lean patch, Codex 9.9.9: already patched' >/dev/null
 cmp -s "$CODEX_HOOK" "$STATE/codex-hook.once" \
   || { echo "FAIL: second codex lean patch run changed the file" >&2; exit 1; }
 codex_hook '{"hook_event_name":"SessionStart"}' | rg -F 'search first: nmem --json m search' >/dev/null
@@ -213,17 +225,28 @@ codex_hook '{"hook_event_name":"SubagentStart"}' | rg -F 'subagent text' >/dev/n
 printf '%s' '{"hook_event_name":"UserPromptSubmit"}' | NMEM_FULL_CONTEXT=1 python3 "$CODEX_HOOK" \
   | rg -F 'per prompt text' >/dev/null
 printf '%s\n' 'print("upstream changed")' > "$CODEX_HOOK"
-PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+NOWLEDGE_LEAN_CODEX=1 PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
   > "$STATE/codexlean.out" 2> "$STATE/codexlean.err"
-rg -F 'nowledge (Codex, Pi): lean context patch failed: nowledge-lean: anchor not found' "$STATE/codexlean.err" >/dev/null
+rg -F 'nowledge (Codex, Pi): lean context patch failed:' "$STATE/codexlean.err" | rg -F 'anchor not found' >/dev/null
 [ "$(cat "$CODEX_HOOK")" = 'print("upstream changed")' ] \
   || { echo "FAIL: codex lean patch edited a file without its anchor" >&2; exit 1; }
+# A name the inserted code uses is an anchor too: after a rename upstream the
+# patch must exit 1 and write nothing, not raise NameError on every prompt.
+for name in _write_hook_response resume_context; do
+  sed "s/$name/${name}_renamed/g" "$STATE/codex-hook.orig" > "$CODEX_HOOK"
+  cp "$CODEX_HOOK" "$STATE/codex-hook.renamed"
+  if NOWLEDGE_LEAN_CODEX=1 bash "$FIXTURE/nowledge-lean-codex-pi.sh" > /dev/null 2> "$STATE/rename.err"; then
+    echo "FAIL: codex lean patch ran after $name was renamed" >&2; exit 1
+  fi
+  rg -F 'anchor not found' "$STATE/rename.err" >/dev/null
+  cmp -s "$CODEX_HOOK" "$STATE/codex-hook.renamed" \
+    || { echo "FAIL: codex lean patch wrote after $name was renamed" >&2; exit 1; }
+done
 
 # The Pi nowledge-mem patch swaps the system-prompt bundle for the note, skips
 # the nmem reads that fill it, and changes nothing on a second run. The fixture
 # is TypeScript, so the test checks the text, not the behavior.
 PI_EXT="$HOME/.pi/agent/npm/node_modules/nowledge-mem-pi/extensions/nowledge-mem.ts"
-rm -f "$CODEX_HOOK" # its anchor-less fixture would fail the runs below
 mkdir -p "${PI_EXT%/*}"
 cat > "$PI_EXT" <<'TS'
 async function refreshStartupContext(ctx: ExtensionContext): Promise<void> {
@@ -234,9 +257,9 @@ async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext):
 	return `${systemPrompt}\n\nBUNDLE`;
 }
 TS
-bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+bash "$FIXTURE/nowledge-lean-codex-pi.sh" | rg -Fx 'nowledge lean patch, Pi: patched' >/dev/null
 cp "$PI_EXT" "$STATE/pi-ext.once"
-bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+bash "$FIXTURE/nowledge-lean-codex-pi.sh" | rg -Fx 'nowledge lean patch, Pi: already patched' >/dev/null
 cmp -s "$PI_EXT" "$STATE/pi-ext.once" \
   || { echo "FAIL: second pi lean patch run changed the file" >&2; exit 1; }
 [ "$(rg -c 'NMEM_FULL_CONTEXT' "$PI_EXT")" = 2 ]

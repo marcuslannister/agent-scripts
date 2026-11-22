@@ -118,8 +118,13 @@ for plugin in nowledge ponytail eli5; do
 done
 
 # The Codex and Pi nowledge-mem plugins have no switch either. This repo owns
-# their patch, and a plugin update replaces the patched files.
-run_native "nowledge (Codex, Pi): lean context patch failed" bash "$SCRIPT_DIR/nowledge-lean-codex-pi.sh" \
-  && info "nowledge (Codex, Pi): lean context patch applied"
+# their patch, and a plugin update replaces the patched files. The script
+# prints one result line for each CLI. The Codex part is opt-in
+# (NOWLEDGE_LEAN_CODEX=1) because Codex asks to approve the hooks after it.
+if lean_out="$(bash "$SCRIPT_DIR/nowledge-lean-codex-pi.sh" 2>&1)"; then
+  while IFS= read -r line; do info "$line"; done <<< "$lean_out"
+else
+  warn "nowledge (Codex, Pi): lean context patch failed: ${lean_out//$'\n'/ }"
+fi
 
 exit 0
