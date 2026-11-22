@@ -8,7 +8,8 @@
 # plugin, so after the patch every Nowledge hook fails ("hook approval
 # required") until the user approves the hooks once in Codex.
 # NMEM_FULL_CONTEXT=1 restores the plugin's own output without unpatching.
-# Prints one result line for each CLI. Exits 1 when an anchor is missing.
+# Prints one result line for each CLI ("not found" when the install path is
+# wrong). Exits 1 when an anchor is missing.
 # shortcut: string match on upstream code; if upstream changes an anchor, that
 # file is skipped and the script exits 1, so update-plugins.sh warns. Then update the anchor.
 set -euo pipefail
@@ -66,7 +67,10 @@ else:
            '        if lean:\n'
            '            _write_hook_response(event_name, "\\n\\n".join(lean))\n'
            '        return 0\n') + old
-    for path in glob.glob(f"{codex_home}/plugins/cache/nowledge-community/nowledge-mem/*/hooks/nmem-context.py"):
+    files = glob.glob(f"{codex_home}/plugins/cache/nowledge-community/nowledge-mem/*/hooks/nmem-context.py")
+    if not files:
+        report("Codex", f"not found (no nowledge-mem plugin under {codex_home}/plugins/cache)")
+    for path in files:
         patch("Codex " + path.split("/")[-3], path, [(old, new)],
               needs=("def _write_hook_response(", 'resume_context = ""'))
 
@@ -80,6 +84,8 @@ if os.path.isfile(path):
         (refresh, refresh + "\t// " + MARKER + "\n\tif (process.env.NMEM_FULL_CONTEXT !== \"1\") return;\n"),
         (append, append + "\tif (process.env.NMEM_FULL_CONTEXT !== \"1\") return systemPrompt + \"\\n\\n\" + " + json.dumps(NOTE) + ";\n"),
     ])
+else:
+    report("Pi", f"not found ({path})")
 
 sys.exit(1 if failed else 0)
 PY

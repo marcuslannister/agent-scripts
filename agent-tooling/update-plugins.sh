@@ -122,7 +122,12 @@ done
 # prints one result line for each CLI. The Codex part is opt-in
 # (NOWLEDGE_LEAN_CODEX=1) because Codex asks to approve the hooks after it.
 if lean_out="$(bash "$SCRIPT_DIR/nowledge-lean-codex-pi.sh" 2>&1)"; then
-  while IFS= read -r line; do info "$line"; done <<< "$lean_out"
+  while IFS= read -r line; do
+    case "$line" in
+      *"not found"*) warn "$line" ;; # a moved install path must not pass silently
+      *) info "$line" ;;
+    esac
+  done <<< "$lean_out"
 else
   warn "nowledge (Codex, Pi): lean context patch failed: ${lean_out//$'\n'/ }"
 fi

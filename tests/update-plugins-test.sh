@@ -180,6 +180,15 @@ rg -F 'ponytail: lean context patch applied' "$STATE/lean2.out" >/dev/null
 # The Codex nowledge-mem patch sends one note at start and nothing on a prompt
 # (a thread resume still passes), changes nothing on a second run, and
 # NMEM_FULL_CONTEXT=1 restores the plugin's own output.
+# A target that is not there is a warning, not a silent "applied": Pi has no
+# extension file yet, and the opted-in Codex run has no plugin under its home.
+PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+  > "$STATE/pimissing.out" 2> "$STATE/pimissing.err"
+rg -F '!!!' "$STATE/pimissing.err" | rg -F 'Pi: not found' >/dev/null
+rg -F 'Pi: not found' "$STATE/pimissing.out" \
+  && { echo "FAIL: a missing Pi file was reported as info" >&2; exit 1; }
+NOWLEDGE_LEAN_CODEX=1 CODEX_HOME="$STATE/no-codex" bash "$FIXTURE/nowledge-lean-codex-pi.sh" \
+  | rg -F 'Codex: not found' >/dev/null
 CODEX_HOOK="$HOME/.codex/plugins/cache/nowledge-community/nowledge-mem/9.9.9/hooks/nmem-context.py"
 mkdir -p "${CODEX_HOOK%/*}"
 cat > "$CODEX_HOOK" <<'PY'
