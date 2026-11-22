@@ -7,6 +7,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 ## Unreleased
 
 - Adopted ADR-0012: Pi reads the tracked, inlined `AGENTS.codex.md` like Codex, because Pi 1.5.2 does not expand the `@` imports (about +3.2k input tokens per request). ADR-0010's status now marks its Pi pointer as superseded. The scripts and the artifact live in the `home` repo.
+- `nowledge-lean-codex-pi.sh` also patches `extensions/nowledge-mem.ts` of the installed `nowledge-mem-pi` package. The system prompt gets the search note instead of the Context Bundle and the guidance block, and the `nmem` reads that fill the bundle are skipped. `NMEM_FULL_CONTEXT=1` restores the full output. First-turn prompt tokens of `pi -p`: 11521 → 10813. The test covers the patch, a second run, and a missing anchor.
+
 - Added `agent-tooling/nowledge-lean-codex-pi.sh`, and `update-plugins.sh` runs it after the plugin refresh. For Codex it patches `hooks/nmem-context.py` of the installed `nowledge-mem` plugin: session start injects one search note (same text as the Claude patch), a prompt injects nothing, and a thread resume still passes. `NMEM_FULL_CONTEXT=1` restores the full output. First-turn input tokens of `codex exec`, paired runs: 24714 → 23892. Codex trust covers the patched file, so the hook does not run until the user trusts it again. The test covers the patch, a second run, and a missing anchor.
 
 - Stop the Codex copy of `eli5` (`skills-matrix.md` row `eli5` `skill`: Codex `Y` → `N`, counts updated), and `sync-skill-surfaces.sh` removed `~/.agents/skills/eli5`. `update-plugins.sh` also reapplies `eli5-lean.sh` after the plugin refresh; the test covers it.

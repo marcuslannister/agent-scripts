@@ -219,4 +219,33 @@ rg -F 'nowledge (Codex, Pi): lean context patch failed: nowledge-lean: anchor no
 [ "$(cat "$CODEX_HOOK")" = 'print("upstream changed")' ] \
   || { echo "FAIL: codex lean patch edited a file without its anchor" >&2; exit 1; }
 
+# The Pi nowledge-mem patch swaps the system-prompt bundle for the note, skips
+# the nmem reads that fill it, and changes nothing on a second run. The fixture
+# is TypeScript, so the test checks the text, not the behavior.
+PI_EXT="$HOME/.pi/agent/npm/node_modules/nowledge-mem-pi/extensions/nowledge-mem.ts"
+rm -f "$CODEX_HOOK" # its anchor-less fixture would fail the runs below
+mkdir -p "${PI_EXT%/*}"
+cat > "$PI_EXT" <<'TS'
+async function refreshStartupContext(ctx: ExtensionContext): Promise<void> {
+	const key = startupContextCacheKey(ctx);
+}
+
+async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext): Promise<string> {
+	return `${systemPrompt}\n\nBUNDLE`;
+}
+TS
+bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+cp "$PI_EXT" "$STATE/pi-ext.once"
+bash "$FIXTURE/nowledge-lean-codex-pi.sh"
+cmp -s "$PI_EXT" "$STATE/pi-ext.once" \
+  || { echo "FAIL: second pi lean patch run changed the file" >&2; exit 1; }
+[ "$(rg -c 'NMEM_FULL_CONTEXT' "$PI_EXT")" = 2 ]
+rg -F 'return systemPrompt + "\n\n" + "[Nowledge Mem] Memory is available.' "$PI_EXT" >/dev/null
+printf '%s\n' 'export default function () {}' > "$PI_EXT"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="/usr/bin:/bin" "$FIXTURE/update-plugins.sh" \
+  > "$STATE/pilean.out" 2> "$STATE/pilean.err"
+rg -F "nowledge-lean: anchor not found in $PI_EXT" "$STATE/pilean.err" >/dev/null
+[ "$(cat "$PI_EXT")" = 'export default function () {}' ] \
+  || { echo "FAIL: pi lean patch edited a file without its anchor" >&2; exit 1; }
+
 echo "update-plugins tests passed"

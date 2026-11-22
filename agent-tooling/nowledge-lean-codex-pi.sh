@@ -9,10 +9,10 @@
 # file is skipped and the script exits 1, so update-plugins.sh warns. Then update the anchor.
 set -euo pipefail
 
-python3 - "${CODEX_HOME:-$HOME/.codex}" <<'PY'
+python3 - "${CODEX_HOME:-$HOME/.codex}" "$HOME/.pi/agent/npm/node_modules/nowledge-mem-pi" <<'PY'
 import glob, json, os, shutil, sys
 
-codex_home = sys.argv[1]
+codex_home, pi_root = sys.argv[1:3]
 NOTE = ("[Nowledge Mem] Memory is available. For prior decisions, history, or "
         "continuation work, search first: nmem --json m search \"query\" -n 5, or "
         "nmem --json t search \"query\" --limit 5. If retrieval fails, say so. "
@@ -53,6 +53,17 @@ new = ("    # " + MARKER + "\n"
        '        return 0\n') + old
 for path in glob.glob(f"{codex_home}/plugins/cache/nowledge-community/nowledge-mem/*/hooks/nmem-context.py"):
     patch(path, [(old, new)])
+
+# Pi: the extension appends the bundle to the system prompt on every agent
+# start. Swap it for the note, and skip the nmem reads that fill the bundle.
+path = f"{pi_root}/extensions/nowledge-mem.ts"
+if os.path.isfile(path):
+    refresh = "async function refreshStartupContext(ctx: ExtensionContext): Promise<void> {\n"
+    append = "async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext): Promise<string> {\n"
+    patch(path, [
+        (refresh, refresh + "\t// " + MARKER + "\n\tif (process.env.NMEM_FULL_CONTEXT !== \"1\") return;\n"),
+        (append, append + "\tif (process.env.NMEM_FULL_CONTEXT !== \"1\") return systemPrompt + \"\\n\\n\" + " + json.dumps(NOTE) + ";\n"),
+    ])
 
 sys.exit(1 if failed else 0)
 PY
