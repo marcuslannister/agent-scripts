@@ -30,7 +30,7 @@ State on 2026-11-22: steps 0 to 5 are done on the limited PC. Step 5 showed `hit
 2. Line 24 of `pi-settings/agent/settings.json` has a full Windows home path to `agentmemory`, the memory system of the limited PC. Keep the entry, and replace only the path, as step 4 says. Start pi once, and check that the extension still loads. Do not commit.
 3. Run `git -C ~/Projects/dotfiles diff` and `git -C ~/Projects/pi-settings diff`. Each must show only the local lines, and no path under `C:\Users` or `/c/Users`.
 4. Pull the repos that were not rewritten with `git pull --ff-only`.
-5. Do steps 6 and 7. This PC uses `agentmemory`, not Nowledge Mem: in step 7.4, skip the 3 lines with `nowledge`, and when Claude Code offers to install `nowledge-mem`, decline. In place of step 7.6, reply with the output of items 1 and 3 above, step 6, steps 7.2 and 7.3, and the `!!!` lines of step 7.4 if any.
+5. Do steps 6 and 7. This PC uses `agentmemory`, not Nowledge Mem: in step 7.4, skip the 3 lines with `nowledge`, and when Claude Code offers to install `nowledge-mem`, decline. `update-plugins.sh` then prints `!!! nowledge-mem: Codex marketplace upgrade failed`. That line is expected here. In place of step 7.6, reply with the output of items 1 and 3 above, step 6, steps 7.2 and 7.3, and the `!!!` lines of step 7.4 if any.
 
 ## 0. Check that this session can make links
 
@@ -196,8 +196,10 @@ This PC does not use the privacy guard. Run `git config --show-origin --get core
    claude plugin install waza@waza
    claude plugin install nowledge-mem@nowledge-community
    codex plugin marketplace add https://github.com/tw93/Waza.git
+   codex plugin marketplace add https://github.com/DietrichGebert/ponytail.git
    codex plugin marketplace add https://github.com/nowledge-co/community.git
    codex plugin add waza@waza
+   codex plugin add ponytail@ponytail
    codex plugin add nowledge-mem@nowledge-community
    bash ~/Projects/agent-scripts/agent-tooling/update-plugins.sh
    ```
