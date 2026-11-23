@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Rewrote `handoff-windows-privacy-rewrite.md` from the `nuc` run, for the next Windows PC: a link preflight with `check-agent-setup.sh` first, then Git Bash blocks in place of the untested PowerShell ones. Step 1 adds `git cherry`, the `forced-update` reflog check, and hits for each side branch and stash. Step 2 saves to patch files and file copies, not `git stash`. The reset skips a repo that is not on `main` and pulls `agent-scripts` first. Step 4 restores one file at a time with `git apply --3way` (an ignored file is copied back, a conflict is merged by hand, `jq` CRLF is stripped). The new step 7 runs `update-local.sh` and the full check. `handoff-windows-agent-setup-check.md` names the new guard step number.
+
 - Added `global/bin/check-agent-setup.sh` and its fixture test: check Git link support, session link privilege, instruction pointers, and own skills, with `--preflight` before a pull. The Windows guide now uses the script and requires Developer Mode or an elevated shell.
 
 - Added `handoff-windows-agent-setup-check.md`: steps for a Codex or Claude Code agent on a Windows PC to write and test `global/bin/check-agent-setup.sh` (Git link support, link privilege, the four pointers, the own skills), then deploy `global/` with it. It records that Developer Mode is off on `nuc`, so only an elevated session there can make links.

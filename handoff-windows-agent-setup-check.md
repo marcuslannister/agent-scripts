@@ -16,7 +16,7 @@ The commands are for Git Bash. Claude Code runs its Bash tool in Git Bash. Codex
 - Pointers: `~/.claude/CLAUDE.md` and `~/.pi/agent/AGENTS.md` link to the old `agent-scripts/AGENTS.MD`. `~/.codex/AGENTS.md` links to the old `agent-scripts/AGENTS.codex.md`. `~/.claude/agent-rules` does not exist. `~/.claude`, `~/.codex`, and `~/.pi` are links to the three settings repos.
 - `~/Projects/agent-scripts` is 59 commits behind `origin/main` and has no local commits. It has one untracked file that is not yours (`Enable-OpenSSHServer.ps1`).
 - The three settings repos still have the history from before the privacy rewrite, and uncommitted changes. `handoff-windows-privacy-rewrite.md` covers them.
-- The privacy guard is off on this PC (step 5 of `handoff-windows-privacy-rewrite.md`). No hook checks your commits.
+- The privacy guard is off on this PC (step 6 of `handoff-windows-privacy-rewrite.md`). No hook checks your commits.
 - Tools: Git Bash, `jq`, `rg`, Python 3.12, PowerShell 7.4. No `rsync`.
 
 ## Rules
