@@ -45,9 +45,9 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 - `global/AGENTS.md`: the global rules. `~/.claude/CLAUDE.md` points to it.
 - `global/rules/`: the topic rules. `~/.claude/agent-rules` points to this folder (not `~/.claude/rules`, which Claude Code loads in full at startup).
-- `global/AGENTS.codex.md`: `AGENTS.md` with every rule inlined. It is tracked and generated. `~/.codex/AGENTS.md` and `~/.pi/agent/AGENTS.md` point to it, because neither CLI expands the `@` imports (ADR-0010, ADR-0012). After you edit `AGENTS.md` or `rules/`, run `global/bin/build-codex-instructions.sh`. A stale artifact fails `global/tests/` and `agent-tooling/verify.sh`.
+- `global/AGENTS.codex.md`: `AGENTS.md` with every rule inlined, except `rules/handoff.md`: only the Claude Code context-handoff hook reads that file, and Codex and Pi have no such hook. It is tracked and generated. `~/.codex/AGENTS.md` and `~/.pi/agent/AGENTS.md` point to it, because neither CLI expands the `@` imports (ADR-0010, ADR-0012). After you edit `AGENTS.md` or `rules/`, run `global/bin/build-codex-instructions.sh`. A stale artifact fails `global/tests/` and `agent-tooling/verify.sh`.
 - `global/skills/`: the own skills (`anvil-advanced-ops`, `architect`, `herdr-coordinator`). They are not the root `skills/` (the upstream mirror). The matrix, `validate-skills`, and the generators do not read them. `global/bin/install-skills.sh` copies them as plain directories into `~/.claude/skills` and `~/.agents/skills`.
-- `global/bin/setup-agent-instructions.sh` (`.ps1` on Windows) creates the four pointers on a new machine. The links are relative and the script keeps a foreign link.
+- `global/bin/setup-agent-instructions.sh` creates the four pointers on a new Mac or Linux machine, with relative links where `realpath --relative-to` works. `global/bin/setup-agent-instructions.ps1` does the same on Windows, with absolute links. Both keep a foreign link. On a machine whose `~/.claude`, `~/.codex`, and `~/.pi` are the settings repos, the four links are tracked there and a pull changes them (ADR-0013).
 - `global/bin/check-anvil-names` checks the Anvil MCP tool names in the rules and skills against `global/bin/anvil-tools.txt`.
 
 ## Helpers

@@ -22,7 +22,7 @@ if (-not (Test-Path -LiteralPath $agentsMd)) {
     throw "shared instruction file missing: $agentsMd"
 }
 if (-not (Test-Path -LiteralPath $codexMd)) {
-    throw "generated Codex file missing: $codexMd`nhint: run bin/build-codex-instructions.sh"
+    throw "generated Codex file missing: $codexMd`nhint: run global/bin/build-codex-instructions.sh"
 }
 
 function ConvertTo-FullPath([string]$Base, [string]$Target) {

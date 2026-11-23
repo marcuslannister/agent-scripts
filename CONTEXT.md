@@ -21,7 +21,7 @@ _Avoid_: automatic mirror, default copy
 ### Instruction pointers
 
 **Global rules**:
-`global/AGENTS.md` and the topic files in `global/rules/`. Every agent session on every PC reads them through four relative pointers. `global/AGENTS.codex.md` is the tracked artifact with every rule inlined, for Codex and Pi (ADR-0010, ADR-0012). The folder `global/` also holds the pointer setup scripts and their tests (ADR-0013).
+`global/AGENTS.md` and the topic files in `global/rules/`. Every agent session on every PC reads them through four pointers (relative links from the Bash setup, absolute links from the PowerShell setup). `global/AGENTS.codex.md` is the tracked artifact with every rule inlined except `rules/handoff.md`, which only the Claude Code context-handoff hook reads, for Codex and Pi (ADR-0010, ADR-0012). The folder `global/` also holds the pointer setup scripts and their tests (ADR-0013).
 _Avoid_: home rules, shared rules
 
 **Own skills**:

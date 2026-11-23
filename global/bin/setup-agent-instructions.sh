@@ -15,7 +15,7 @@ if [ ! -f "$AGENTS_MD" ]; then
   exit 1
 fi
 if [ ! -f "$CODEX_MD" ]; then
-  printf 'error: generated Codex file missing: %s\nhint: run bin/build-codex-instructions.sh\n' "$CODEX_MD" >&2
+  printf 'error: generated Codex file missing: %s\nhint: run global/bin/build-codex-instructions.sh\n' "$CODEX_MD" >&2
   exit 1
 fi
 
