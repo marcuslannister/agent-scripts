@@ -3,7 +3,7 @@
 Shared agent instructions, skills, and small portable helpers for Peter's local workspaces.
 
 This repo is the canonical place for:
-- shared agent rules: moved to the `home` repo at `~/Projects/home`
+- `global/`: the global agent rules, the generated Codex file, the pointer setup scripts and their tests, and the own skills (ADR-0013)
 - `agent-tooling/`: code-agent and skill update machinery — matrix generator, staging acquire, surface distribute, verify/validate gates, `skill-authors.json`, `sources.json` (the one tracked list of skill-bearing sources), `skills-matrix.md`
 - repository root: upstream-complete overlay of `steipete/agent-scripts:main`; every recorded upstream path remains present while local additions and modifications coexist
 - `skills/`: exact tracked mirror of `steipete/agent-scripts:main`
@@ -41,7 +41,14 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 ## Agent Instructions
 
-The shared rules, `rules/`, the generated Codex file, and the pointer setup scripts live in the `home` repo at `~/Projects/home`. This repo keeps only its own `CLAUDE.md`.
+`global/` holds the global rules for every agent session on every PC (ADR-0013). This repo's own project rules stay in `CLAUDE.md`.
+
+- `global/AGENTS.md`: the global rules. `~/.claude/CLAUDE.md` points to it.
+- `global/rules/`: the topic rules. `~/.claude/agent-rules` points to this folder (not `~/.claude/rules`, which Claude Code loads in full at startup).
+- `global/AGENTS.codex.md`: `AGENTS.md` with every rule inlined. It is tracked and generated. `~/.codex/AGENTS.md` and `~/.pi/agent/AGENTS.md` point to it, because neither CLI expands the `@` imports (ADR-0010, ADR-0012). After you edit `AGENTS.md` or `rules/`, run `global/bin/build-codex-instructions.sh`. A stale artifact fails `global/tests/` and `agent-tooling/verify.sh`.
+- `global/skills/`: the own skills (`anvil-advanced-ops`, `architect`, `herdr-coordinator`). They are not the root `skills/` (the upstream mirror). The matrix, `validate-skills`, and the generators do not read them. `global/bin/install-skills.sh` copies them as plain directories into `~/.claude/skills` and `~/.agents/skills`.
+- `global/bin/setup-agent-instructions.sh` (`.ps1` on Windows) creates the four pointers on a new machine. The links are relative and the script keeps a foreign link.
+- `global/bin/check-anvil-names` checks the Anvil MCP tool names in the rules and skills against `global/bin/anvil-tools.txt`.
 
 ## Helpers
 
@@ -64,7 +71,7 @@ The shared rules, `rules/`, the generated Codex file, and the pointer setup scri
 - It never installs a plugin and never repairs a registry. First-time installs are native commands you run once; a desynced Codex registry is `agent-tooling/repair-codex-registry.sh`.
 
 `agent-tooling/verify.sh`
-- Single local/CI verifier: upstream-overlay completeness, skill validation, Bash syntax, topology cutover policy, updater/copy regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
+- Single local/CI verifier: upstream-overlay completeness, skill validation, Bash syntax, topology cutover policy, updater/copy regressions, the `global/tests/` regressions, Bash maintainer policy, browser helper tests/runtime smoke, and video-downloader smoke checks; the maintainer policy path does not require Ruby.
 - Missing tools or installed dependencies fail early with setup guidance.
 
 `agent-tooling/update-skill-topology.sh` / `agent-tooling/sync-skill-surfaces.sh`
@@ -119,7 +126,7 @@ Topology authoring:
 
 ## Syncing
 
-Treat this repo as canonical for portable helper scripts. The shared agent rules live in the `home` repo.
+Treat this repo as canonical for portable helper scripts. The shared agent rules live in `global/`.
 
 When syncing downstream repos:
 - Pull latest here first.

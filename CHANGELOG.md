@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Moved the global rules and the own skills from the private `home` repo to `global/` (ADR-0013): `AGENTS.md`, `AGENTS.codex.md`, `rules/`, `skills/` (`anvil-advanced-ops`, `architect`, `herdr-coordinator`), `bin/`, and `tests/`. A Windows PC no longer needs to clone `home`. This reverses the 2026-11-15 move. The files are a plain copy with no Git history. The scripts needed no path change, because each one finds its root from its own folder; only the `install-skills.sh` comment changed. `agent-tooling/verify.sh` runs `global/tests/` in a new section. The Mac pointers target `global/` now. ADR-0010 and ADR-0012 name the new paths, and ADR-0008's example sentence is updated.
+
 - `update-plugins.sh` stops `codex plugin list` after 60 s (one run hung for 9 minutes) and the inventory warning says `❌ timed out after 60s`. A timeout only skips the Codex plugin refresh, and the run still exits 0. Hosts without `timeout` run the command as before. `codex plugin marketplace upgrade` and `codex plugin add` have no limit.
 
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 163301d, danyuchn 65c8ab6, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt abeeaf9, nicobailon 9d5f880, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.

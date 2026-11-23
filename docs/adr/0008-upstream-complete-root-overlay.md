@@ -4,4 +4,4 @@ The repository root keeps every path from `steipete/agent-scripts:main` at its u
 
 ## Amendment: excluded paths
 
-A path in the `excluded` list of `agent-tooling/upstream-overlay.json` is not required and is not restored. Use this list only when a file moved to another repo on purpose, so a copy here would compete with the new owner. Example: `AGENTS.MD` moved to the `home` repo; an upstream copy here would give Codex and Pi this repo's project rules from steipete's file. Every other upstream path stays required.
+A path in the `excluded` list of `agent-tooling/upstream-overlay.json` is not required and is not restored. Use this list only when a file moved to another repo on purpose, so a copy here would compete with the new owner. Example: `AGENTS.MD` moved out of the root (to the `home` repo, then to `global/AGENTS.md`, ADR-0013); an upstream copy at the root would give Codex and Pi this repo's project rules from steipete's file. Every other upstream path stays required.

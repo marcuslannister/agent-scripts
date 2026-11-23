@@ -74,6 +74,11 @@ for test_file in tests/*-test.sh; do
   bash "$test_file"
 done
 
+section "Global rules and own skills"
+for test_file in global/tests/*-test.sh; do
+  bash "$test_file"
+done
+
 section "Browser helper"
 node --test scripts/browser-tools-profile.test.ts
 node scripts/browser-tools.ts --help >/dev/null

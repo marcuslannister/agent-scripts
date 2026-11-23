@@ -20,7 +20,13 @@ _Avoid_: automatic mirror, default copy
 
 ### Instruction pointers
 
-Moved to the `home` repo at `~/Projects/home`: the global rules, `rules/`, the generated Codex file, and the pointer setup scripts.
+**Global rules**:
+`global/AGENTS.md` and the topic files in `global/rules/`. Every agent session on every PC reads them through four relative pointers. `global/AGENTS.codex.md` is the tracked artifact with every rule inlined, for Codex and Pi (ADR-0010, ADR-0012). The folder `global/` also holds the pointer setup scripts and their tests (ADR-0013).
+_Avoid_: home rules, shared rules
+
+**Own skills**:
+The user's own skills in `global/skills/`. `global/bin/install-skills.sh` copies them as plain directories into both surfaces. They are not repo-owned source in the matrix sense: the matrix and the generators do not read `global/skills/`.
+_Avoid_: upstream skills, repo-owned source
 
 **Pointer migration**:
 Replacing an installer-owned predecessor at an instruction pointer: a symlink only when its resolved target proves setup wrote it, a regular file only when the operator explicitly requests it. Foreign symlinks, including dangling ones, are always preserved.

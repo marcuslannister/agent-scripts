@@ -1,6 +1,8 @@
 # agent-scripts — project rules
 
-Project-scoped file. The shared global rules moved to the `home` repo (`~/Projects/home/AGENTS.md`); repo-specific config goes in this file.
+Project-scoped file. The shared global rules and the own skills live in `global/` (README, "Agent Instructions"; ADR-0013); repo-specific config goes in this file.
+
+After you edit `global/AGENTS.md` or `global/rules/`, run `global/bin/build-codex-instructions.sh`. Codex and Pi read the generated `global/AGENTS.codex.md`, and `agent-tooling/verify.sh` fails when it is stale.
 
 ## Agent skills
 

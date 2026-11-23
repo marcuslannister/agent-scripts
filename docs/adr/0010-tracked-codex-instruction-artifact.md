@@ -23,3 +23,7 @@ Keeping one file for both CLIs was the status quo and remains available at the c
 ## Consequences
 
 Editing `AGENTS.MD` or any `rules/` file is live for Claude Code immediately and requires `build-codex-instructions.sh` for Codex. That rebuild is the one step to remember; `--check` and the test suite catch a forgotten one before it lands. The tracked artifact duplicates its sources in the repository, so the two can disagree in a working tree, which is exactly what the drift check exists to detect. Machines that ran an earlier setup need one explicit run to migrate the Codex pointer; machines whose pointer is a regular file need the operator to delete it first, prompted by a warning that names the file and the fix.
+
+## Amendment: paths
+
+The artifact, the rules, and the build and setup scripts now live in `global/` (ADR-0013): `global/AGENTS.md` (the root file named `AGENTS.MD` above), `global/rules/`, `global/AGENTS.codex.md`, `global/bin/build-codex-instructions.sh`, and `global/bin/setup-agent-instructions.sh`. The decision does not change.

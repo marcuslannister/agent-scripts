@@ -10,7 +10,7 @@ Pi 1.5.2 does not expand the `@` imports in `AGENTS.md`. A `pi -p` run from `/tm
 
 Pi now points at `AGENTS.codex.md`, the artifact that Codex already reads: `AGENTS.md` with every `rules/` file inlined. Pi then has every rule in its prompt and follows no link. Setup replaces a Pi symlink that resolves to `AGENTS.md` in the same step that creates the new link, by the ADR-0010 rule for Codex: the resolved target proves setup wrote it. A later setup failure cannot leave Pi without a pointer. A regular file or a foreign symlink at the Pi path is preserved and reported, as before. The same step now also protects the Codex pointer.
 
-The build and setup scripts that ADR-0010 names under `agent-tooling/` now live in the `home` repo at `~/Projects/home`, with `AGENTS.md`, `rules/`, and `AGENTS.codex.md`: `bin/build-codex-instructions.sh` and `bin/setup-agent-instructions.sh`. The artifact keeps the name `AGENTS.codex.md`. A rename would change the tracked path that both pointers use, for no change in behavior.
+The build and setup scripts that ADR-0010 names under `agent-tooling/` now live in `global/` of this repo (ADR-0013), with `AGENTS.md`, `rules/`, and `AGENTS.codex.md`: `global/bin/build-codex-instructions.sh` and `global/bin/setup-agent-instructions.sh`. The artifact keeps the name `AGENTS.codex.md`. A rename would change the tracked path that both pointers use, for no change in behavior.
 
 ## Considered options
 
