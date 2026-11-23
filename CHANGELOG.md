@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Handoff names: `global/rules/handoff.md` step 3 names the new tab and agent after the goal of the new session, not of the old one: label = a short goal (for example `fix-ps1-links`), name = the same text in lowercase with `-`, at most 32 characters. A coordinator keeps the prefix: label `[coord] <goal>`, name `coord-<goal>`. The `herdr-coordinator` skill says the same in the naming paragraph of step 5 and in the hand-over of step 8 (which said `<work>-coord<N>`).
+
 - `global/rules/handoff.md` step 3 starts the new agent with the kind of the agent that hands off (`claude`, `codex`, or `pi`), not always `claude`. It also says that a new Codex tab can first show the folder-trust dialog or the "Hooks need review" screen, which Herdr can show as `idle`; read the screen and show it to the user. `AGENTS.codex.md` is unchanged (the build leaves out `handoff.md`). agent-scripts#94.
 
 - Coordinator names: the `herdr-coordinator` skill and `global/rules/handoff.md` give a coordinator that another agent starts the tab label `[coord] <work>` and the agent name `coord-<work>`. Workers keep `<work>-<task>`.

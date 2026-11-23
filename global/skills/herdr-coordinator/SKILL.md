@@ -127,7 +127,7 @@ For each task that can start:
 6. Give the task with `herdr agent prompt <agent name> "<prompt>"`. The prompt has only some sentences: which task, which sections of `brief.md` and `tasks/<agent name>.md` to read, continue until the done criteria are met without a wait for confirmation, and reply as the deliverable says at the end. Add the changes since you wrote the record (for example "Task D is done in <commit>, and all tests pass again"). Do not add `--wait`.
 7. After `agent start` succeeds, start the monitor and update `status.md`.
 
-Name each agent `<work>-<task>` (for example `refactor-p3-http`), so that `herdr agent list` keeps it apart from the agents of other projects. A coordinator that you start, for example at a context handoff, gets the tab label `[coord] <work>` and the agent name `coord-<work>` (for example `coord-refactor-p3`), so that the user finds it at once. Herdr agent names allow only lowercase letters, digits, `-`, and `_`.
+Name each agent `<work>-<task>` (for example `refactor-p3-http`), so that `herdr agent list` keeps it apart from the agents of other projects. A coordinator that you start, for example at a context handoff, gets the tab label `[coord] <goal>` and the agent name `coord-<goal>` (for example `coord-refactor-p3`), so that the user finds it at once. `<goal>` is the short goal of the new session, as in step 3 of `handoff.md`. Herdr agent names allow only lowercase letters, digits, `-`, and `_`.
 
 ## 6. Wait
 
@@ -191,7 +191,7 @@ Context only grows. A record on disk does not remove old history from it. Thus, 
 
 1. Update `status.md`. Write `handover.md`, 20 lines at most: what you wait for, the next step, and the judgments and spoken user decisions that are not yet in the record.
 2. Kill the monitors that this session started (`pkill -f "wait-settled.sh <agent name>"`). If they stay, they wake this session when they end, and two coordinators act.
-3. Open a new tab in the current workspace, and start an agent of your own kind. A Claude Code coordinator always starts the new one on Opus: `--model opus --effort high`. This avoids a Fable failure in the middle of the work. Name it `<work>-coord<N>`. The prompt invokes this skill explicitly (`/herdr-coordinator` in Claude Code, `$herdr-coordinator` in Codex), followed by: "Take over the coordination in tmp/<date>-<work>/: recover as in step 8, then continue."
+3. Open a new tab in the current workspace, and start an agent of your own kind. A Claude Code coordinator always starts the new one on Opus: `--model opus --effort high`. This avoids a Fable failure in the middle of the work. Give the tab the label `[coord] <goal>` and the agent the name `coord-<goal>`, as in [step 5](#5-dispatch). The prompt invokes this skill explicitly (`/herdr-coordinator` in Claude Code, `$herdr-coordinator` in Codex), followed by: "Take over the coordination in tmp/<date>-<work>/: recover as in step 8, then continue."
 4. Tell the user which tab took over. This session then stops: it does not dispatch, and it does not reply to agents.
 
 If the user wants a `/compact` in place, do it. After the compaction, also start with the recovery steps above.
