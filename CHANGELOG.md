@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Coordinator names: the `herdr-coordinator` skill and `global/rules/handoff.md` give a coordinator that another agent starts the tab label `[coord] <work>` and the agent name `coord-<work>`. Workers keep `<work>-<task>`.
+
 - `global/rules/handoff.md` step 3 starts the new agent with no prompt and then sends the prompt with `herdr agent prompt`. A prompt in `agent start` kept the agent busy, so `agent start` timed out and did not keep the agent name. The `herdr-coordinator` skill now says that Claude Code, like Codex, shows a trust dialog on its first start in a folder.
 
 - `handoff-windows-privacy-rewrite.md` step 7.5: bring the Codex context settings to the local `~/.codex/config.toml` (auto-compact 650000, `multi_agent_v2`, no global codegraph MCP), because a pull does not change that file. `nuc` had the old values and got them on 2026-11-23.

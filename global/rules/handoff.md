@@ -12,6 +12,8 @@ A hook tells you when context fill reaches the handoff threshold. Then hand off 
    herdr agent prompt <name> "Read <handoff-file> and continue the work."
    ```
 
+   If you are a coordinator (`herdr-coordinator` skill), use the label `"[coord] <work>"` and the name `coord-<work>`. Herdr agent names allow only lowercase letters, digits, `-`, and `_`.
+
    Do not put the prompt into `agent start`. It succeeds only when the agent is ready for input within its timeout. An agent that works on a start prompt is never ready, so `agent start` returns `timeout` and does not keep the name. If `agent start` does not return `agent_started`, run `herdr agent get <name>`. If the state is `blocked`, read the screen with `herdr pane read "$pane" --source visible` and show it to the user.
 
 4. Tell the user which tab continues the work, then stop. Do not close your own tab.

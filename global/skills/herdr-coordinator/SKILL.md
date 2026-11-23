@@ -127,7 +127,7 @@ For each task that can start:
 6. Give the task with `herdr agent prompt <agent name> "<prompt>"`. The prompt has only some sentences: which task, which sections of `brief.md` and `tasks/<agent name>.md` to read, continue until the done criteria are met without a wait for confirmation, and reply as the deliverable says at the end. Add the changes since you wrote the record (for example "Task D is done in <commit>, and all tests pass again"). Do not add `--wait`.
 7. After `agent start` succeeds, start the monitor and update `status.md`.
 
-Name each agent `<work>-<task>` (for example `refactor-p3-http`), so that `herdr agent list` keeps it apart from the agents of other projects.
+Name each agent `<work>-<task>` (for example `refactor-p3-http`), so that `herdr agent list` keeps it apart from the agents of other projects. A coordinator that you start, for example at a context handoff, gets the tab label `[coord] <work>` and the agent name `coord-<work>` (for example `coord-refactor-p3`), so that the user finds it at once. Herdr agent names allow only lowercase letters, digits, `-`, and `_`.
 
 ## 6. Wait
 
