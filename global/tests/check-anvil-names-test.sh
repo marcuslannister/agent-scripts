@@ -44,4 +44,10 @@ printf -- '- `cron-list`\n' > "$SKILL"
 expect pass "a present bare-tool skill"
 rm "$SKILL"
 expect fail "a missing BARE_FILES path"
+# The failure must name the missing file, so a crash for another reason does not pass.
+err="$(ANVIL_NAMES_ROOT="$TMP_ROOT" "$REPO_ROOT/bin/check-anvil-names" 2>&1 >/dev/null || true)"
+case "$err" in
+  *"skills/anvil-advanced-ops/SKILL.md: no file matches"*) ;;
+  *) echo "FAIL check-anvil-names: the missing BARE_FILES error does not name the file: $err" >&2; exit 1 ;;
+esac
 echo "ok check-anvil-names"

@@ -47,7 +47,7 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 - `global/rules/`: the topic rules. `~/.claude/agent-rules` points to this folder (not `~/.claude/rules`, which Claude Code loads in full at startup).
 - `global/AGENTS.codex.md`: `AGENTS.md` with every rule inlined, except `rules/handoff.md`: only the Claude Code context-handoff hook reads that file, and Codex and Pi have no such hook. It is tracked and generated. `~/.codex/AGENTS.md` and `~/.pi/agent/AGENTS.md` point to it, because neither CLI expands the `@` imports (ADR-0010, ADR-0012). After you edit `AGENTS.md` or `rules/`, run `global/bin/build-codex-instructions.sh`. A stale artifact fails `global/tests/` and `agent-tooling/verify.sh`.
 - `global/skills/`: the own skills (`anvil-advanced-ops`, `architect`, `herdr-coordinator`). They are not the root `skills/` (the upstream mirror). The matrix, `validate-skills`, and the generators do not read them. `global/bin/install-skills.sh` copies them as plain directories into `~/.claude/skills` and `~/.agents/skills` (with `rsync`, or a plain copy where `rsync` is missing, as in Git Bash).
-- `global/bin/setup-agent-instructions.sh` creates the four pointers on a new Mac or Linux machine, with relative links where `realpath --relative-to` works. `global/bin/setup-agent-instructions.ps1` does the same on Windows, with the same relative targets. It needs PowerShell 7, because Windows PowerShell 5.1 makes every target absolute, and an absolute target puts the Windows user name into the link. Both keep a foreign link. On a machine whose `~/.claude`, `~/.codex`, and `~/.pi` are the settings repos, the four links are tracked there and a pull changes them (ADR-0013).
+- `global/bin/setup-agent-instructions.sh` creates the four pointers on a new Mac or Linux machine, with relative links where `realpath --relative-to` works. `global/bin/setup-agent-instructions.ps1` does the same on Windows, with the same relative targets. It needs PowerShell 7.1 or newer, because Windows PowerShell 5.1 makes every target absolute (an absolute target puts the Windows user name into the link) and 7.0 cannot make a relative link to a folder. It stops before any change when a pointer has no relative target (another drive). Both keep a foreign link. On a machine whose `~/.claude`, `~/.codex`, and `~/.pi` are the settings repos, the four links are tracked there and a pull changes them (ADR-0013).
 - `global/bin/check-anvil-names` checks the Anvil MCP tool names in the rules and skills against `global/bin/anvil-tools.txt`.
 
 ## Helpers
@@ -58,13 +58,13 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 `agent-tooling/update-all.sh` — the one command on the main machine
 - Five ordered steps: `update-agents.sh`, `update-plugins.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute). A last best-effort step runs `global/bin/install-skills.sh` for the own skills; a failure is one warning.
-- No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
+- No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any ordered step failed (the best-effort steps are the exception).
 - Ships by default: requires a clean worktree, pulls first, validates the update, adds an Unreleased changelog entry, commits the refresh, pushes, pulls with fast-forward only, and verifies the final worktree state. `--no-ship` runs the update steps only.
 
 `agent-tooling/update-local.sh` — the one command on every other machine
 - Fast-forward pulls the repo, then three ordered steps: `update-agents.sh`, `update-plugins.sh`, then `sync-skill-surfaces.sh` (distribute). No staging acquire and no matrix refresh; this machine distributes already-committed staging. A last best-effort step runs `global/bin/install-skills.sh` for the own skills, which are copies; a failure is one warning.
 - Runs on macOS and on Windows under Git Bash. Windows needs `jq` and `rg` on PATH once.
-- No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any step failed.
+- No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any ordered step failed (the best-effort steps are the exception).
 
 `agent-tooling/update-plugins.sh`
 - Best-effort native plugin refresh on every machine: runs the native `claude`/`codex` update commands for each plugin source in `sources.json`, skips marketplaces marked `"codexUpgrade": "manual"` (ADR-0007), reports each failure in one line, and never fails the run.

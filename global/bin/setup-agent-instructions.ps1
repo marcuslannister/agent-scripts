@@ -1,12 +1,14 @@
-#Requires -Version 7
+#Requires -Version 7.1
 # Windows counterpart of setup-agent-instructions.sh.
 # Relative native symlinks, the same targets that the Bash setup makes, so a link
-# made here equals the link that a settings repo tracks. PowerShell 7 keeps a
-# relative target as written; Windows PowerShell 5.1 makes every target absolute,
-# and an absolute target puts the Windows user name into the link (ADR-0013).
-# The target starts at the physical directory of the link, because ~/.claude and
-# ~/.pi are themselves links into the settings repos. Sets core.symlinks true
-# globally so Git stops writing tracked symlinks as text files.
+# made here equals the link that a settings repo tracks. PowerShell 7.1 or newer
+# keeps a relative target as written (and links a relative directory target);
+# Windows PowerShell 5.1 makes every target absolute, and an absolute target puts
+# the Windows user name into the link (ADR-0013). The target starts at the
+# physical directory of the link, because ~/.claude and ~/.pi are themselves links
+# into the settings repos. A pointer with no relative target (another drive) stops
+# the setup before any change. Sets core.symlinks true globally so Git stops
+# writing tracked symlinks as text files.
 [CmdletBinding()]
 param(
     [switch]$Force
@@ -38,18 +40,37 @@ function ConvertTo-FullPath([string]$Base, [string]$Target) {
 }
 
 # Resolve every link on the way, not only the last one: ~/.pi is a link into
-# pi-settings, so ~/.pi/agent is physically inside that repo.
+# pi-settings, so ~/.pi/agent is physically inside that repo. A link target can
+# hold links too, so each substitution restarts from the first part of the new path.
 function Get-PhysicalPath([string]$Path) {
-    $full = [IO.Path]::GetFullPath($Path)
-    $root = [IO.Path]::GetPathRoot($full)
-    $cur = $root
-    foreach ($part in $full.Substring($root.Length).Split('\', [StringSplitOptions]::RemoveEmptyEntries)) {
-        $cur = Join-Path $cur $part
-        for ($hops = 0; $hops -lt 32 -and (Test-Path -LiteralPath $cur) -and (Get-Item -LiteralPath $cur -Force).LinkType; $hops++) {
-            $cur = ConvertTo-FullPath (Split-Path $cur) (@((Get-Item -LiteralPath $cur -Force).Target)[0])
+    $walk = [IO.Path]::GetFullPath($Path)
+    for ($hops = 0; $hops -lt 40; $hops++) {
+        $root = [IO.Path]::GetPathRoot($walk)
+        $parts = @($walk.Substring($root.Length).Split('\', [StringSplitOptions]::RemoveEmptyEntries))
+        $cur = $root
+        $next = $null
+        for ($i = 0; $i -lt $parts.Count -and $null -eq $next; $i++) {
+            $cur = Join-Path $cur $parts[$i]
+            if (-not (Test-Path -LiteralPath $cur)) { continue }
+            $item = Get-Item -LiteralPath $cur -Force
+            if (-not $item.LinkType) { continue }
+            $next = ConvertTo-FullPath (Split-Path $cur) (@($item.Target)[0])
+            if ($i + 1 -lt $parts.Count) {
+                $next = Join-Path $next ($parts[($i + 1)..($parts.Count - 1)] -join '\')
+            }
         }
+        if ($null -eq $next) { return $walk.TrimEnd('\') }
+        $walk = [IO.Path]::GetFullPath($next)
     }
-    return $cur.TrimEnd('\')
+    throw "too many links while resolving $Path"
+}
+
+# The relative target of a pointer, from the physical directory of the link, or
+# $null where there is none (another drive).
+function Get-RelativeTarget([string]$Pointer, [string]$Want) {
+    $rel = [IO.Path]::GetRelativePath((Get-PhysicalPath (Split-Path $Pointer)), (Get-PhysicalPath $Want))
+    if ([IO.Path]::IsPathRooted($rel)) { return $null }
+    return $rel
 }
 
 function Test-SamePath([string]$A, [string]$B) {
@@ -65,10 +86,8 @@ function Set-Pointer([string]$Pointer, [string]$Want, [string]$Legacy = '') {
         New-Item -ItemType Directory -Path $dir | Out-Null
     }
     $wantFull = (Get-Item -LiteralPath $Want).FullName.TrimEnd('\')
-    $wantRel = [IO.Path]::GetRelativePath((Get-PhysicalPath $dir), (Get-PhysicalPath $wantFull))
-    if ([IO.Path]::IsPathRooted($wantRel)) {
-        Write-Warning "no relative path from $dir to $wantFull (another drive); using the absolute path"
-    }
+    $wantRel = Get-RelativeTarget $Pointer $Want
+    if (-not $wantRel) { throw "no relative target from $dir to $wantFull" }
 
     if (Test-Path -LiteralPath $Pointer) {
         $item = Get-Item -LiteralPath $Pointer -Force
@@ -109,6 +128,19 @@ function Set-Pointer([string]$Pointer, [string]$Want, [string]$Legacy = '') {
     $script:changed++
 }
 
+# A pointer needs a relative target: an absolute one puts the Windows user name into
+# a link that a settings repo tracks. Check all four before any change, so a refusal
+# leaves every pointer as it was.
+$claudePointer = Join-Path $HOME '.claude\CLAUDE.md'
+$claudeRulesPointer = Join-Path $HOME '.claude\agent-rules'
+$noRelative = @()
+foreach ($pair in @(@($claudePointer, $agentsMd), @($claudeRulesPointer, $rulesDir), @($codexPointer, $codexMd), @($piPointer, $codexMd))) {
+    if (-not (Get-RelativeTarget $pair[0] $pair[1])) { $noRelative += "$($pair[0]) -> $($pair[1])" }
+}
+if ($noRelative.Count) {
+    throw "no relative target for: $($noRelative -join '; '). Keep your home folder and agent-scripts on one drive. No pointer was changed."
+}
+
 git config --global core.symlinks true
 
 # A regular file is never ours to judge, so it is reported and left alone.
@@ -118,9 +150,9 @@ if ((Test-Path -LiteralPath $codexPointer) -and -not (Get-Item -LiteralPath $cod
 }
 
 # Claude Code
-Set-Pointer (Join-Path $HOME '.claude\CLAUDE.md') $agentsMd
+Set-Pointer $claudePointer $agentsMd
 # Not ~/.claude/rules: Claude Code loads every file there at startup.
-Set-Pointer (Join-Path $HOME '.claude\agent-rules') $rulesDir
+Set-Pointer $claudeRulesPointer $rulesDir
 $oldRules = Join-Path $HOME '.claude\rules'
 if (Test-Path -LiteralPath $oldRules) {
     $oldItem = Get-Item -LiteralPath $oldRules -Force

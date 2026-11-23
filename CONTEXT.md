@@ -21,7 +21,7 @@ _Avoid_: automatic mirror, default copy
 ### Instruction pointers
 
 **Global rules**:
-`global/AGENTS.md` and the topic files in `global/rules/`. Every agent session on every PC reads them through four pointers (relative links, the same targets from the Bash and the PowerShell 7 setup). `global/AGENTS.codex.md` is the tracked artifact with every rule inlined except `rules/handoff.md`, which only the Claude Code context-handoff hook reads, for Codex and Pi (ADR-0010, ADR-0012). The folder `global/` also holds the pointer setup scripts and their tests (ADR-0013).
+`global/AGENTS.md` and the topic files in `global/rules/`. Every agent session on every PC reads them through four pointers (relative links, the same targets from the Bash and the PowerShell 7.1 setup). `global/AGENTS.codex.md` is the tracked artifact with every rule inlined except `rules/handoff.md`, which only the Claude Code context-handoff hook reads, for Codex and Pi (ADR-0010, ADR-0012). The folder `global/` also holds the pointer setup scripts and their tests (ADR-0013).
 _Avoid_: home rules, shared rules
 
 **Own skills**:
@@ -107,7 +107,7 @@ _Avoid_: missing marketplace, broken plugin, native-state repair
 _Avoid_: staging, snapshot, local marketplace
 
 **Routine updater**:
-`update-all.sh`. Six ordered steps: fast-forward pull, agent CLI updates, plugin refresh, acquire, selection-preserving matrix regeneration, then distribute, and then a best-effort install of the own skills. It ships by default; `--no-ship` selects a review-only run. Only the plugin refresh is non-fatal.
+`update-all.sh`. Seven ordered steps: fast-forward pull, agent CLI updates, plugin refresh, acquire, selection-preserving matrix regeneration, distribute, then the install of the own skills. It ships by default; `--no-ship` selects a review-only run. The plugin refresh and the own-skills install are non-fatal: each reports a failure and never fails the run.
 
 **Ship mode**:
 The routine updater's default closeout: validate and record refreshed tracked skill state, then commit and synchronize it with the remote. It requires a clean starting state and never ships failed updates; `--no-ship` opts out.

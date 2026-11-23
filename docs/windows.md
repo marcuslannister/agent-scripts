@@ -17,7 +17,7 @@ The global rules and the own skills are in `global/` (ADR-0013). A PC needs this
 Prerequisites:
 - Git for Windows with symlinks on: `git config --global core.symlinks true`. Set it before you pull the settings repos. Without it, Git writes each tracked link as a text file.
 - The symlink privilege: Developer Mode on, or an admin account.
-- PowerShell 7 (`pwsh`). Windows PowerShell 5.1 makes absolute link targets, so the setup script refuses it.
+- PowerShell 7.1 or newer (`pwsh`). Windows PowerShell 5.1 makes absolute link targets, and 7.0 cannot make a relative link to a folder, so the setup script refuses both.
 - Git Bash, `jq`, and `rg` on PATH (the updaters run in Git Bash), and Python 3 for the lean patches.
 
 Update:
@@ -25,8 +25,14 @@ Update:
 - The four rule pointers are links that the settings repos track, so a pull of the settings repos sets them. Run `pwsh -File global\bin\setup-agent-instructions.ps1` only where `~/.claude`, `~/.codex`, or `~/.pi` is not the settings repo.
 - The own skills are copies. `agent-tooling/update-local.sh` installs them. To install them alone, run `bash global/bin/install-skills.sh` in Git Bash.
 
-Check that the four pointers resolve:
-- `Get-Item ~\.claude\CLAUDE.md, ~\.claude\agent-rules, ~\.codex\AGENTS.md, ~\.pi\agent\AGENTS.md | Select-Object FullName, LinkType, Target`: each `LinkType` is `SymbolicLink`, and each `Target` ends in `agent-scripts\global\...`.
-- `Get-Content ~\.claude\agent-rules\tooling.md -TotalCount 1` prints a line.
+Check that the four pointers resolve. Run this in `pwsh`, in the `agent-scripts` folder. It reads each pointer through its link and stops on the first error. A pointer that is a text file fails the comparison:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$pairs = @{ '.claude\CLAUDE.md' = 'AGENTS.md'; '.codex\AGENTS.md' = 'AGENTS.codex.md'; '.pi\agent\AGENTS.md' = 'AGENTS.codex.md' }
+foreach ($p in $pairs.Keys) { if ((Get-Content -Raw "$HOME\$p") -ne (Get-Content -Raw "global\$($pairs[$p])")) { throw "$p differs from global\$($pairs[$p])" } }
+if (-not (Get-Content -Raw "$HOME\.claude\agent-rules\tooling.md")) { throw 'agent-rules\tooling.md is empty' }
+'the four pointers resolve'
+```
 
 Never commit a pointer change made on Windows. A text file or an absolute target in a commit breaks the other PCs.

@@ -1,6 +1,6 @@
-#Requires -Version 7
+#Requires -Version 7.1
 # Windows counterpart of setup-agent-instructions-test.sh.
-# Covers the .ps1 public contract only: relative links, placeholders, -Force, PowerShell 7 only.
+# Covers the .ps1 public contract only: relative links, placeholders, -Force, PowerShell 7.1 or newer only.
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Split-Path $PSScriptRoot -Parent
@@ -8,6 +8,7 @@ $tmp = Join-Path ([IO.Path]::GetTempPath()) ('setup-instr-' + [guid]::NewGuid().
 $fixture = Join-Path $tmp 'repo'
 $homeDir = Join-Path $tmp 'home'
 $gitConfig = Join-Path $tmp 'gitconfig'
+$substDrive = $null
 $setupPs1 = Join-Path $fixture 'bin\setup-agent-instructions.ps1'
 # The pwsh that runs this test, by full path: a bare name needs a PATH entry that an SSH session may lack.
 $shell = (Get-Process -Id $PID).Path
@@ -36,8 +37,8 @@ function Test-RelLink([string]$Pointer, [string]$Want, [string]$ExpectedRel) {
 }
 
 function Invoke-Setup {
-    param([switch]$Force, [string]$Home1 = $homeDir, [string]$Exe = $shell)
-    $argList = @('-NoProfile', '-NonInteractive', '-File', $setupPs1)
+    param([switch]$Force, [string]$HomeDirectory = $homeDir, [string]$Exe = $shell, [string]$Script = $setupPs1)
+    $argList = @('-NoProfile', '-NonInteractive', '-File', $Script)
     if ($Force) { $argList += '-Force' }
     $prev = @{
         HOME              = $env:HOME
@@ -45,8 +46,8 @@ function Invoke-Setup {
         GIT_CONFIG_GLOBAL = $env:GIT_CONFIG_GLOBAL
     }
     try {
-        $env:HOME = $Home1
-        $env:USERPROFILE = $Home1
+        $env:HOME = $HomeDirectory
+        $env:USERPROFILE = $HomeDirectory
         $env:GIT_CONFIG_GLOBAL = $gitConfig
         $text = & $Exe @argList 2>&1 | ForEach-Object { "$_" }
         return @{ Code = $LASTEXITCODE; Text = ($text -join "`n") }
@@ -184,7 +185,7 @@ try {
     New-Item -ItemType Directory -Path $home2, $claudeRepo, (Join-Path $piRepo 'agent') | Out-Null
     New-Item -ItemType SymbolicLink -Path (Join-Path $home2 '.claude') -Target '..\settings\claude' | Out-Null
     New-Item -ItemType SymbolicLink -Path (Join-Path $home2 '.pi') -Target '..\settings\pi' | Out-Null
-    $r = Invoke-Setup -Home1 $home2
+    $r = Invoke-Setup -HomeDirectory $home2
     Assert-True ($r.Code -eq 0) "setup through folder links failed: $($r.Text)"
     Test-RelLink (Join-Path $claudeRepo 'CLAUDE.md') $agentsMd '..\..\repo\AGENTS.md'
     Test-RelLink (Join-Path $claudeRepo 'agent-rules') $rulesDir '..\..\repo\rules'
@@ -194,15 +195,55 @@ try {
     Assert-True ((Get-Content -LiteralPath (Join-Path $home2 '.claude\CLAUDE.md') -Raw) -eq (Get-Content -LiteralPath $agentsMd -Raw)) 'CLAUDE.md does not read through the .claude link'
     Assert-True ((Get-Content -LiteralPath (Join-Path $home2 '.pi\agent\AGENTS.md') -Raw) -eq (Get-Content -LiteralPath $codexMd -Raw)) 'AGENTS.md does not read through the .pi link'
     Assert-True ((Test-Path -LiteralPath (Join-Path $home2 '.claude\agent-rules\topic.md'))) 'agent-rules does not list through the .claude link'
-    $r = Invoke-Setup -Home1 $home2
+    $r = Invoke-Setup -HomeDirectory $home2
     Assert-True ($r.Text -match 'instruction pointers up to date') "expected up to date through folder links: $($r.Text)"
 
-    # PowerShell 7 only: Windows PowerShell 5.1 would write absolute targets, so it must stop.
+    # A link target that holds another link: ~/.claude -> ..\alias\claude, and alias is a link to
+    # deep\a\b, so the physical folder is deep\a\b\claude. The target counts its parent steps from there.
+    $home5 = Join-Path $tmp 'home5'
+    New-Item -ItemType Directory -Path (Join-Path $tmp 'deep\a\b\claude'), $home5 | Out-Null
+    New-Item -ItemType SymbolicLink -Path (Join-Path $tmp 'alias') -Target 'deep\a\b' | Out-Null
+    New-Item -ItemType SymbolicLink -Path (Join-Path $home5 '.claude') -Target '..\alias\claude' | Out-Null
+    $r = Invoke-Setup -HomeDirectory $home5
+    Assert-True ($r.Code -eq 0) "setup through a link target with a link failed: $($r.Text)"
+    Test-RelLink (Join-Path $tmp 'deep\a\b\claude\CLAUDE.md') $agentsMd '..\..\..\..\repo\AGENTS.md'
+    Assert-True ((Get-Content -LiteralPath (Join-Path $home5 '.claude\CLAUDE.md') -Raw) -eq (Get-Content -LiteralPath $agentsMd -Raw)) 'CLAUDE.md does not read through the link with a link in its target'
+
+    # A pointer with no relative target (the repo on another drive) stops the setup before any
+    # pointer changes. subst makes a second drive without admin rights.
+    $subst = Join-Path $env:SystemRoot 'System32\subst.exe'
+    $letter = 'Z', 'Y', 'X', 'W', 'V' | Where-Object { -not (Test-Path -LiteralPath "${_}:\") } | Select-Object -First 1
+    if ((Test-Path -LiteralPath $subst) -and $letter) {
+        $driveDir = Join-Path $tmp 'drive'
+        New-Item -ItemType Directory -Path $driveDir | Out-Null
+        & $subst "${letter}:" $driveDir | Out-Null
+        $substDrive = "${letter}:"
+        Assert-True (Test-Path -LiteralPath "${substDrive}\") "subst did not make drive $substDrive"
+        $remote = "${substDrive}\repo"
+        New-Item -ItemType Directory -Path (Join-Path $remote 'bin'), (Join-Path $remote 'rules') | Out-Null
+        Copy-Item $setupPs1 (Join-Path $remote 'bin\setup-agent-instructions.ps1')
+        Set-Content -LiteralPath (Join-Path $remote 'AGENTS.md') "shared rules`n"
+        Set-Content -LiteralPath (Join-Path $remote 'AGENTS.codex.md') "generated`n"
+        $home4 = Join-Path $tmp 'home4'
+        New-Item -ItemType Directory -Path (Join-Path $home4 '.codex') | Out-Null
+        $oldTarget = Join-Path $remote 'AGENTS.codex.md'
+        New-Item -ItemType SymbolicLink -Path (Join-Path $home4 '.codex\AGENTS.md') -Target $oldTarget | Out-Null
+        $r = Invoke-Setup -HomeDirectory $home4 -Script (Join-Path $remote 'bin\setup-agent-instructions.ps1')
+        Assert-True ($r.Code -ne 0) "setup ran with the repo on another drive: $($r.Text)"
+        Assert-True ($r.Text -match 'no relative target') "expected the no-relative-target error: $($r.Text)"
+        Assert-True ((Get-LinkTarget (Join-Path $home4 '.codex\AGENTS.md')) -ieq $oldTarget) 'the existing Codex pointer changed after the refusal'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $home4 '.claude'))) 'a pointer folder was made after the refusal'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $home4 '.pi'))) 'a Pi folder was made after the refusal'
+    } else {
+        Write-Output 'skipped the cross-drive case: subst.exe or a free drive letter is missing'
+    }
+
+    # PowerShell 7.1 or newer only: Windows PowerShell 5.1 would write absolute targets, so it must stop.
     $ps51 = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     if (Test-Path -LiteralPath $ps51) {
         $home3 = Join-Path $tmp 'home3'
         New-Item -ItemType Directory -Path $home3 | Out-Null
-        $r = Invoke-Setup -Home1 $home3 -Exe $ps51
+        $r = Invoke-Setup -HomeDirectory $home3 -Exe $ps51
         Assert-True ($r.Code -ne 0) "Windows PowerShell 5.1 ran the setup: $($r.Text)"
         Assert-True ($r.Text -match '#requires') "expected a #requires refusal: $($r.Text)"
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $home3 '.claude'))) 'Windows PowerShell 5.1 made a pointer'
@@ -215,5 +256,6 @@ try {
 
     Write-Output 'agent instruction setup (Windows) tests passed'
 } finally {
+    if ($substDrive) { & $subst $substDrive /d | Out-Null }
     Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }

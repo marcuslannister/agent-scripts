@@ -49,4 +49,32 @@ done
 grep -q '^  allow_implicit_invocation: false$' "$NO_HOME/.agents/skills/architect/agents/openai.yaml" \
   || fail "no Codex policy for architect without rsync"
 
-echo "ok install-skills ($manual manual-only skills, with and without rsync)"
+# The matrix distribution owns a symlink and a folder with the .agent-scripts-copy marker:
+# both survive with one warning each, and the other skills still install. An unmarked own
+# copy is refreshed (its stale file goes). Both copy modes.
+for mode in rsync no-rsync; do
+  H="$TMP_ROOT/own-$mode"
+  FOREIGN="$TMP_ROOT/foreign-$mode"
+  mkdir -p "$FOREIGN" "$H/.claude/skills/herdr-coordinator" "$H/.agents/skills/architect"
+  printf 'keep\n' > "$FOREIGN/keep.txt"
+  ln -s "$FOREIGN" "$H/.claude/skills/anvil-advanced-ops"
+  printf 'tracked/source\nskill-matrix\n' > "$H/.agents/skills/architect/.agent-scripts-copy"
+  printf 'mine\n' > "$H/.agents/skills/architect/mine.txt"
+  printf 'stale\n' > "$H/.claude/skills/herdr-coordinator/stale.txt"
+  if [ "$mode" = rsync ]; then
+    HOME="$H" "$REPO_ROOT/bin/install-skills.sh" >/dev/null 2>"$TMP_ROOT/$mode.err" || fail "$mode: install failed on owned destinations"
+  else
+    HOME="$H" PATH="$NO_RSYNC" "$BASH" "$REPO_ROOT/bin/install-skills.sh" >/dev/null 2>"$TMP_ROOT/$mode.err" || fail "$mode: install failed on owned destinations"
+  fi
+  [ -L "$H/.claude/skills/anvil-advanced-ops" ] || fail "$mode: the symlink was replaced"
+  [ -f "$FOREIGN/keep.txt" ] && [ ! -e "$FOREIGN/SKILL.md" ] || fail "$mode: the symlink target was written"
+  [ -f "$H/.agents/skills/architect/mine.txt" ] && [ -f "$H/.agents/skills/architect/.agent-scripts-copy" ] \
+    && [ ! -e "$H/.agents/skills/architect/SKILL.md" ] || fail "$mode: the marked folder was changed"
+  [ "$(grep -c 'skipping' "$TMP_ROOT/$mode.err")" -eq 2 ] || fail "$mode: expected one warning for each owned destination"
+  cmp -s "$REPO_ROOT/skills/herdr-coordinator/SKILL.md" "$H/.claude/skills/herdr-coordinator/SKILL.md" || fail "$mode: the unmarked own copy was not refreshed"
+  [ ! -e "$H/.claude/skills/herdr-coordinator/stale.txt" ] || fail "$mode: a stale file survived in the unmarked own copy"
+  cmp -s "$REPO_ROOT/skills/anvil-advanced-ops/SKILL.md" "$H/.agents/skills/anvil-advanced-ops/SKILL.md" || fail "$mode: a skill beside the owned ones was not installed"
+  cmp -s "$REPO_ROOT/skills/architect/SKILL.md" "$H/.claude/skills/architect/SKILL.md" || fail "$mode: the same skill on the other surface was not installed"
+done
+
+echo "ok install-skills ($manual manual-only skills, with and without rsync, owned destinations kept)"
