@@ -176,9 +176,23 @@ This PC does not use the privacy guard. Run `git config --show-origin --get core
 1. If `~/.claude`, `~/.codex`, or `~/.pi` is not a link to its settings repo, see `docs/windows.md`: `pwsh -File global\bin\setup-agent-instructions.ps1`.
 2. Run `bash ~/Projects/agent-scripts/agent-tooling/update-local.sh`. It installs the own skills too. It has not run on Windows before: if a step fails, report the output. To install only the own skills, run `bash ~/Projects/agent-scripts/global/bin/install-skills.sh`.
 3. Run `bash ~/Projects/agent-scripts/global/bin/check-agent-setup.sh`. All four lines must show `✓`.
-4. Start Claude Code once, and accept the `ponytail@ponytail` and `nowledge-mem@nowledge-community` installs.
-5. Restart each agent session on this PC, this one too. A running session keeps the rules that it loaded when it started.
-6. Reply to the user: the output of steps 0, 3, 5, and 7.3, what step 4 restored, merged, or left out, and the path of the saved patches.
+4. Make the plugins match the Mac. `~/.codex/config.toml` is local to each PC, so the reset does not bring the Codex marketplaces. Skip each line for a plugin or marketplace that `claude plugin list` or `codex plugin list` already shows:
+
+   ```bash
+   claude plugin install ponytail@ponytail
+   claude plugin install visual-explainer@visual-explainer-marketplace
+   claude plugin install waza@waza
+   claude plugin install nowledge-mem@nowledge-community
+   codex plugin marketplace add https://github.com/tw93/Waza.git
+   codex plugin marketplace add https://github.com/nowledge-co/community.git
+   codex plugin add waza@waza
+   codex plugin add nowledge-mem@nowledge-community
+   bash ~/Projects/agent-scripts/agent-tooling/update-plugins.sh
+   ```
+
+   `update-plugins.sh` applies the lean patches. Its output must have no line that starts with `!!!`.
+5. Restart each agent session on this PC, this one too. A running session keeps the rules that it loaded when it started. The first Codex start asks to approve the Nowledge hooks once.
+6. Reply to the user: the output of steps 0, 3, 5, and 7.3, what step 4 restored, merged, or left out, the `!!!` lines of step 7.4 if any, and the path of the saved patches.
 
 ## Known risks
 
