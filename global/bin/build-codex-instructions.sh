@@ -20,7 +20,7 @@ build() {
   local rule
   for rule in "$REPO_ROOT"/rules/*.md; do
     [ -f "$rule" ] || continue
-    # only the Claude Code context-handoff hook reads handoff.md; Codex and Pi have no such hook
+    # Codex and Pi do not load handoff.md at startup: their context-handoff hook and extension give its full path when they warn
     [ "${rule##*/}" = handoff.md ] && continue
     printf '\n'
     cat "$rule" || return 1
