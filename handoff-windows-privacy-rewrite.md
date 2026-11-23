@@ -22,15 +22,15 @@ The blocks are for Git Bash. Save each block as a `.sh` file and run it with `ba
 - Do not commit or push in a rewritten repo. Never commit a pointer change made on Windows.
 - Never write the Windows user name, or a path under `C:\Users` or `/c/Users`, in a file or a commit. Write `~`.
 
-## Company PC: continue here
+## Limited PC: continue here
 
-State on 2026-11-22: steps 0 to 5 are done on the company PC. Step 5 showed `hits=0 msg_hits=0` in the 5 repos there (`grok-settings` is not on this PC). `emacs.d` showed `branch=heads/main`, so the old step 3 check skipped it, and the agent reset it by hand. `~/.emacs.d` is a link to `~/Projects/emacs.d`. Do not run steps 0 to 5 again. Do these:
+State on 2026-11-22: steps 0 to 5 are done on the limited PC. Step 5 showed `hits=0 msg_hits=0` in the 5 repos there (`grok-settings` is not on this PC). `emacs.d` showed `branch=heads/main`, so the old step 3 check skipped it, and the agent reset it by hand. `~/.emacs.d` is a link to `~/Projects/emacs.d`. Do not run steps 0 to 5 again. Do these:
 
 1. Check `emacs.d`. `git -C ~/Projects/emacs.d symbolic-ref HEAD` must print `refs/heads/main`, and `git -C ~/Projects/emacs.d rev-parse HEAD origin/main` must print the same hash two times. If not, stop and ask. Then show the output of `git -C ~/Projects/emacs.d for-each-ref --format='%(refname)' | grep -E '(^|/)main$'`, which names the other ref called `main`. Do not delete it.
-2. Line 24 of `pi-settings/agent/settings.json` has a full Windows home path. Replace it as step 4 says. Start pi once, and check that the extension still loads. Do not commit.
+2. Line 24 of `pi-settings/agent/settings.json` has a full Windows home path to `agentmemory`, the memory system of the limited PC. Keep the entry, and replace only the path, as step 4 says. Start pi once, and check that the extension still loads. Do not commit.
 3. Run `git -C ~/Projects/dotfiles diff` and `git -C ~/Projects/pi-settings diff`. Each must show only the local lines, and no path under `C:\Users` or `/c/Users`.
 4. Pull the repos that were not rewritten with `git pull --ff-only`.
-5. Do steps 6 and 7. In place of step 7.6, reply with the output of items 1 and 3 above, step 6, steps 7.2 and 7.3, and the `!!!` lines of step 7.4 if any.
+5. Do steps 6 and 7. This PC uses `agentmemory`, not Nowledge Mem: in step 7.4, skip the 3 lines with `nowledge`, and when Claude Code offers to install `nowledge-mem`, decline. In place of step 7.6, reply with the output of items 1 and 3 above, step 6, steps 7.2 and 7.3, and the `!!!` lines of step 7.4 if any.
 
 ## 0. Check that this session can make links
 
@@ -86,7 +86,7 @@ How to read it:
 - `hits` on `main` are expected, because step 3 replaces `main`. A side branch or a stash with 0 hits can stay as it is. A side branch or a stash with hits must go in step 4, after step 2 saves it.
 - A changed file with `tracked: link` or `here: link` is an old pointer link. Step 4 does not restore it: the new tracked links replace it.
 - `branch=heads/main` in place of `branch=main`: Git adds `heads/` when another ref also has the name `main`. Step 3 compares the full name `refs/heads/main`, so it still resets this clone. If `git -C <repo> symbolic-ref HEAD` prints `refs/heads/heads/main`, step 3 skips the clone: ask the user.
-- A second clone can have another remote. On `nuc`, `~/.emacs.d` is `emacs.d-nn`, which was not rewritten. On the company PC, `~/.emacs.d` is a link to `~/Projects/emacs.d`. Only the six repos above need these steps. If `~/.emacs.d` is a separate clone of `emacs.d.git`, it has the old history too: stop and ask.
+- A second clone can have another remote. On `nuc`, `~/.emacs.d` is `emacs.d-nn`, which was not rewritten. On the limited PC, `~/.emacs.d` is a link to `~/Projects/emacs.d`. Only the six repos above need these steps. If `~/.emacs.d` is a separate clone of `emacs.d.git`, it has the old history too: stop and ask.
 
 ## 2. Save the local work
 
