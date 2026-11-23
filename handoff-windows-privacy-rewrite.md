@@ -22,6 +22,16 @@ The blocks are for Git Bash. Save each block as a `.sh` file and run it with `ba
 - Do not commit or push in a rewritten repo. Never commit a pointer change made on Windows.
 - Never write the Windows user name, or a path under `C:\Users` or `/c/Users`, in a file or a commit. Write `~`.
 
+## Company PC: continue here
+
+State on 2026-11-22: steps 0 to 5 are done on the company PC. Step 5 showed `hits=0 msg_hits=0` in the 5 repos there (`grok-settings` is not on this PC). `emacs.d` showed `branch=heads/main`, so the old step 3 check skipped it, and the agent reset it by hand. `~/.emacs.d` is a link to `~/Projects/emacs.d`. Do not run steps 0 to 5 again. Do these:
+
+1. Check `emacs.d`. `git -C ~/Projects/emacs.d symbolic-ref HEAD` must print `refs/heads/main`, and `git -C ~/Projects/emacs.d rev-parse HEAD origin/main` must print the same hash two times. If not, stop and ask. Then show the output of `git -C ~/Projects/emacs.d for-each-ref --format='%(refname)' | grep -E '(^|/)main$'`, which names the other ref called `main`. Do not delete it.
+2. Line 24 of `pi-settings/agent/settings.json` has a full Windows home path. Replace it as step 4 says. Start pi once, and check that the extension still loads. Do not commit.
+3. Run `git -C ~/Projects/dotfiles diff` and `git -C ~/Projects/pi-settings diff`. Each must show only the local lines, and no path under `C:\Users` or `/c/Users`.
+4. Pull the repos that were not rewritten with `git pull --ff-only`.
+5. Do steps 6 and 7. In place of step 7.6, reply with the output of items 1 and 3 above, step 6, steps 7.2 and 7.3, and the `!!!` lines of step 7.4 if any.
+
 ## 0. Check that this session can make links
 
 The reset in step 3 writes the pointer links. Without the link privilege, Git writes each link as a text file, and the agents start without the global rules.
@@ -75,7 +85,8 @@ How to read it:
 - Both counts are correct only while `origin/main` is still the old history. A `forced-update` line in the `origin/main` reflog shows that a fetch after the rewrite already ran. Then both counts compare with the new history and are much too high (on `nuc`, 3774 in place of 3). Compare with the entry before the `forced-update` line, for example `origin/main@{1}`: `git -C <repo> rev-list --count 'origin/main@{1}..<branch>'` and `git -C <repo> cherry -v 'origin/main@{1}' <branch>`.
 - `hits` on `main` are expected, because step 3 replaces `main`. A side branch or a stash with 0 hits can stay as it is. A side branch or a stash with hits must go in step 4, after step 2 saves it.
 - A changed file with `tracked: link` or `here: link` is an old pointer link. Step 4 does not restore it: the new tracked links replace it.
-- A second clone can have another remote. On `nuc`, `~/.emacs.d` is `emacs.d-nn`, which was not rewritten. Only the six repos above need these steps.
+- `branch=heads/main` in place of `branch=main`: Git adds `heads/` when another ref also has the name `main`. Step 3 compares the full name `refs/heads/main`, so it still resets this clone. If `git -C <repo> symbolic-ref HEAD` prints `refs/heads/heads/main`, step 3 skips the clone: ask the user.
+- A second clone can have another remote. On `nuc`, `~/.emacs.d` is `emacs.d-nn`, which was not rewritten. On the company PC, `~/.emacs.d` is a link to `~/Projects/emacs.d`. Only the six repos above need these steps. If `~/.emacs.d` is a separate clone of `emacs.d.git`, it has the old history too: stop and ask.
 
 ## 2. Save the local work
 
@@ -112,7 +123,7 @@ This deletes the uncommitted changes in these clones. Do it only after step 2 an
 git -C ~/Projects/agent-scripts pull -q --ff-only || { echo "STOP: agent-scripts pull failed"; exit 1; }
 for r in claude-code-settings codex-settings dotfiles emacs.d grok-settings pi-settings; do
   d=~/Projects/$r; [ -e "$d/.git" ] || continue
-  [ "$(git -C "$d" symbolic-ref --short HEAD 2>/dev/null)" = main ] || { echo "SKIP $r: not on main"; continue; }
+  [ "$(git -C "$d" symbolic-ref HEAD 2>/dev/null)" = refs/heads/main ] || { echo "SKIP $r: not on main"; continue; }
   git -C "$d" fetch -q origin --prune --tags --force || { echo "$r FETCH FAILED"; continue; }
   git -C "$d" reset -q --hard origin/main
   echo "$r reset to $(git -C "$d" rev-parse --short HEAD), changed now: $(git -C "$d" status --porcelain -uno | wc -l | tr -d ' ')"
@@ -142,6 +153,7 @@ restore pi-settings agent/settings.json
 - `does not exist in index`: the new history does not track the file. If `git -C <repo> check-ignore -v <file>` shows that it is ignored, copy it back from `~/rewrite-patches/files/<repo>/`. It stays local. On `nuc`, `pi-settings/agent/mcp.json` was such a file.
 - `with conflicts`: merge by hand. Compare the saved copy, the new `HEAD` version, and the upstream change (`git -C <repo> diff <old HEAD> HEAD -- <file>`). Keep only the lines that were local. Then run `git -C <repo> reset -q -- <file>`. On `nuc`, the new history already had 2 of the 3 local edits in `pi-settings/agent/settings.json`, and only `"hideThinkingBlock": true` was local.
 - Keep LF line endings. `jq` on Windows writes CRLF: pipe its output through `tr -d '\r'`. Then `git diff` must show only the lines that you changed.
+- A restored line can have a Windows home path, because the change was made on this PC. If the tool accepts `~` or a relative path, write that. Otherwise keep the line local. Never commit it. In pi `agent/settings.json`, the paths in `packages`, `extensions`, `skills`, `prompts`, and `themes` start from `~/.pi/agent`, and `~` works: write `agentmemory` for `~/.pi/agent/agentmemory`.
 - A file that was deleted on this PC comes back with the reset. Ask the user whether to delete it again. The patch records the deletion.
 - Saved commits: apply them with `git -C <repo> am ~/rewrite-patches/<repo>-<branch>/*.patch`, only if the user still wants them. If `am` fails, run `git -C <repo> am --abort`, and ask.
 - A side branch or a stash with hits in step 1: after step 2 saved it, delete the branch (`git -C <repo> branch -D <branch>`) or drop the stash (`git -C <repo> stash drop stash@{<n>}`). Ask the user first. A side branch with a remote copy: `git -C <repo> branch -f <branch> origin/<branch>`.

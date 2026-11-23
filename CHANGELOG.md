@@ -6,6 +6,7 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `handoff-windows-privacy-rewrite.md` step 3 compares the full ref name `refs/heads/main`. On the company PC, `symbolic-ref --short HEAD` printed `heads/main` for `emacs.d`, and the old check skipped it. Step 4 tells how to replace a Windows home path in a restored line (pi resource paths start from `~/.pi/agent`). A new section lists the steps that are left on the company PC.
 - `handoff-windows-privacy-rewrite.md` step 7.4 now installs the Claude plugins and the Codex marketplaces and plugins that the Mac has (`~/.codex/config.toml` is local to each PC), then runs `update-plugins.sh`, which must print no `!!!` line. This is the same fix as on `nuc`.
 
 - Rewrote `handoff-windows-privacy-rewrite.md` from the `nuc` run, for the next Windows PC: a link preflight with `check-agent-setup.sh` first, then Git Bash blocks in place of the untested PowerShell ones. Step 1 adds `git cherry`, the `forced-update` reflog check, and hits for each side branch and stash. Step 2 saves to patch files and file copies, not `git stash`. The reset skips a repo that is not on `main` and pulls `agent-scripts` first. Step 4 restores one file at a time with `git apply --3way` (an ignored file is copied back, a conflict is merged by hand, `jq` CRLF is stripped). The new step 7 runs `update-local.sh` and the full check. `handoff-windows-agent-setup-check.md` names the new guard step number.
