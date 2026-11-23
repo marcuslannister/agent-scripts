@@ -8,12 +8,14 @@ A hook tells you when context fill reaches the handoff threshold. Then hand off 
 
    ```sh
    pane=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$PWD" --label <short-name> | jq -r .result.root_pane.pane_id)
-   herdr agent start <name> --kind claude --pane "$pane"
+   herdr agent start <name> --kind <own-kind> --pane "$pane"
    herdr agent prompt <name> "Read <handoff-file> and continue the work."
    ```
 
+   Replace `<own-kind>` with your own kind: `claude`, `codex`, or `pi`. These are the values of `herdr agent start --kind`.
+
    If you are a coordinator (`herdr-coordinator` skill), use the label `"[coord] <work>"` and the name `coord-<work>`. Herdr agent names allow only lowercase letters, digits, `-`, and `_`.
 
-   Do not put the prompt into `agent start`. It succeeds only when the agent is ready for input within its timeout. An agent that works on a start prompt is never ready, so `agent start` returns `timeout` and does not keep the name. If `agent start` does not return `agent_started`, run `herdr agent get <name>`. If the state is `blocked`, read the screen with `herdr pane read "$pane" --source visible` and show it to the user.
+   Do not put the prompt into `agent start`. It succeeds only when the agent is ready for input within its timeout. An agent that works on a start prompt is never ready, so `agent start` returns `timeout` and does not keep the name. If `agent start` does not return `agent_started`, run `herdr agent get <name>`. If the state is `blocked`, read the screen with `herdr pane read "$pane" --source visible` and show it to the user. A new Codex tab can first show the folder-trust dialog or the "Hooks need review" screen, and Herdr can show it as `idle`: read the screen and show it to the user in that case too.
 
 4. Tell the user which tab continues the work, then stop. Do not close your own tab.

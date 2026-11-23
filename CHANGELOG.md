@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `global/rules/handoff.md` step 3 starts the new agent with the kind of the agent that hands off (`claude`, `codex`, or `pi`), not always `claude`. It also says that a new Codex tab can first show the folder-trust dialog or the "Hooks need review" screen, which Herdr can show as `idle`; read the screen and show it to the user. `AGENTS.codex.md` is unchanged (the build leaves out `handoff.md`). agent-scripts#94.
+
 - Coordinator names: the `herdr-coordinator` skill and `global/rules/handoff.md` give a coordinator that another agent starts the tab label `[coord] <work>` and the agent name `coord-<work>`. Workers keep `<work>-<task>`.
 
 - `global/rules/handoff.md` step 3 starts the new agent with no prompt and then sends the prompt with `herdr agent prompt`. A prompt in `agent start` kept the agent busy, so `agent start` timed out and did not keep the agent name. The `herdr-coordinator` skill now says that Claude Code, like Codex, shows a trust dialog on its first start in a folder.
