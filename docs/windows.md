@@ -25,14 +25,16 @@ Update:
 - The four rule pointers are links that the settings repos track, so a pull of the settings repos sets them. Run `pwsh -File global\bin\setup-agent-instructions.ps1` only where `~/.claude`, `~/.codex`, or `~/.pi` is not the settings repo.
 - The own skills are copies. `agent-tooling/update-local.sh` installs them. To install them alone, run `bash global/bin/install-skills.sh` in Git Bash.
 
-Check that the four pointers resolve. Run this in `pwsh`, in the `agent-scripts` folder. It reads each pointer through its link and stops on the first error. A pointer that is a text file fails the comparison:
+Check that the four pointers resolve. Run this in `pwsh`, in the `agent-scripts` folder. It checks that each pointer is a link, reads each one through its link, and stops on the first error. A copy of a file fails the link check, and a text file fails the comparison:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$pairs = @{ '.claude\CLAUDE.md' = 'AGENTS.md'; '.codex\AGENTS.md' = 'AGENTS.codex.md'; '.pi\agent\AGENTS.md' = 'AGENTS.codex.md' }
-foreach ($p in $pairs.Keys) { if ((Get-Content -Raw "$HOME\$p") -ne (Get-Content -Raw "global\$($pairs[$p])")) { throw "$p differs from global\$($pairs[$p])" } }
-if (-not (Get-Content -Raw "$HOME\.claude\agent-rules\tooling.md")) { throw 'agent-rules\tooling.md is empty' }
-'the four pointers resolve'
+foreach ($p in '.claude\CLAUDE.md', '.claude\agent-rules', '.codex\AGENTS.md', '.pi\agent\AGENTS.md') {
+    if ((Get-Item "$HOME\$p" -Force).LinkType -ne 'SymbolicLink') { throw "$p is not a symbolic link" }
+}
+$reads = @{ '.claude\CLAUDE.md' = 'AGENTS.md'; '.claude\agent-rules\tooling.md' = 'rules\tooling.md'; '.codex\AGENTS.md' = 'AGENTS.codex.md'; '.pi\agent\AGENTS.md' = 'AGENTS.codex.md' }
+foreach ($p in $reads.Keys) { if ((Get-Content -Raw "$HOME\$p") -ne (Get-Content -Raw "global\$($reads[$p])")) { throw "$p differs from global\$($reads[$p])" } }
+'the four pointers are links and read correctly'
 ```
 
 Never commit a pointer change made on Windows. A text file or an absolute target in a commit breaks the other PCs.

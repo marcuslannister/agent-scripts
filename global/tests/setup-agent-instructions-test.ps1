@@ -217,6 +217,8 @@ try {
         $driveDir = Join-Path $tmp 'drive'
         New-Item -ItemType Directory -Path $driveDir | Out-Null
         & $subst "${letter}:" $driveDir | Out-Null
+        # Own the mapping only after subst made it: the finally block must never remove one that this run did not make.
+        if ($LASTEXITCODE -ne 0) { throw "subst ${letter}: failed (exit $LASTEXITCODE); the drive may belong to someone else, so the test stops" }
         $substDrive = "${letter}:"
         Assert-True (Test-Path -LiteralPath "${substDrive}\") "subst did not make drive $substDrive"
         $remote = "${substDrive}\repo"
