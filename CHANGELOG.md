@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `handoff-windows-privacy-rewrite.md` step 7.5: bring the Codex context settings to the local `~/.codex/config.toml` (auto-compact 650000, `multi_agent_v2`, no global codegraph MCP), because a pull does not change that file. `nuc` had the old values and got them on 2026-11-23.
+
 - `handoff-windows-privacy-rewrite.md`: removed the one-time section "Limited PC: continue here" (that run is done, agent-scripts#92). Its general rule moved to step 7.4: a PC with another memory system skips the `nowledge` lines, and the `!!! nowledge-mem` line is expected there.
 
 - `handoff-windows-privacy-rewrite.md` step 7.4 adds the Codex `ponytail` marketplace and plugin, which the Mac has. On the limited PC, `update-plugins.sh` printed `!!! ponytail: Codex marketplace upgrade failed` without them. The limited PC section says that its `nowledge-mem` `!!!` line is expected.

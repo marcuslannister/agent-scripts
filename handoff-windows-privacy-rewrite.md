@@ -195,8 +195,14 @@ This PC does not use the privacy guard. Run `git config --show-origin --get core
    ```
 
    `update-plugins.sh` applies the lean patches. Its output must have no line that starts with `!!!`. Exception: a PC that uses another memory system (the limited PC uses `agentmemory`) skips the 3 lines with `nowledge` and declines when Claude Code offers to install `nowledge-mem`. There, `!!! nowledge-mem: Codex marketplace upgrade failed` is expected.
-5. Restart each agent session on this PC, this one too. A running session keeps the rules that it loaded when it started. The first Codex start asks to approve the Nowledge hooks once.
-6. Reply to the user: the output of steps 0, 3, 5, and 7.3, what step 4 restored, merged, or left out, the `!!!` lines of step 7.4 if any, and the path of the saved patches.
+5. Bring the Codex context settings to this PC. `~/.codex/config.toml` is local to each PC, so a pull or a reset does not change it. Copy it to `~/rewrite-patches/` first. Then change only these lines, so that they match `~/Projects/codex-settings/config.base.toml`:
+   - `model_auto_compact_token_limit = 650000`.
+   - In `[features]`, `multi_agent_v2 = true` in place of `multi_agent = true` (the old key is deprecated).
+   - Remove the `[mcp_servers.codegraph]` table with its lines. Codegraph runs only in indexed projects, from a project `.codex/config.toml`.
+
+   Then `codex mcp list < /dev/null` must exit 0, must not list `codegraph`, and must print no line with `deprecated`. Do not print the other tables: they can hold credentials.
+6. Restart each agent session on this PC, this one too. A running session keeps the rules that it loaded when it started. The first Codex start asks to approve the Nowledge hooks once.
+7. Reply to the user: the output of steps 0, 3, 5, and 7.3, what step 4 restored, merged, or left out, the `!!!` lines of step 7.4 if any, the result of step 7.5, and the path of the saved patches.
 
 ## Known risks
 
