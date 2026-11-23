@@ -12,6 +12,15 @@ SOURCES_PATH="$SCRIPT_DIR/sources.json"
 
 info() { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[0;31m!!!\033[0m %s\n' "$*" >&2; }
+# `codex plugin list` can hang for minutes. timeout exits 124 (a failed inventory for the caller);
+# the message goes into the captured output so the caller's warning shows the cause.
+with_timeout() {
+  local rc
+  if command -v timeout >/dev/null 2>&1; then timeout 60 "$@"; else "$@"; fi
+  rc=$?
+  [ "$rc" -eq 124 ] && echo "❌ timed out after 60s: $*"
+  return "$rc"
+}
 
 if [ ! -f "$SOURCES_PATH" ] || ! command -v jq >/dev/null 2>&1; then
   warn "cannot refresh plugins: missing sources.json or jq"
@@ -74,7 +83,7 @@ fi
 
 codex_inventory_ok=0
 if command -v codex >/dev/null 2>&1; then
-  if ! codex_inventory="$(codex plugin list --json 2>&1)"; then
+  if ! codex_inventory="$(with_timeout codex plugin list --json 2>&1)"; then
     warn "Codex plugin inventory failed; skipping Codex plugin refresh: ${codex_inventory//$'\n'/ }"
   elif ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$codex_inventory"; then
     warn "Codex plugin inventory returned invalid JSON; skipping Codex plugin refresh"

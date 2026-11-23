@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `update-plugins.sh` stops `codex plugin list` after 60 s (one run hung for 9 minutes) and the inventory warning says `❌ timed out after 60s`. A timeout only skips the Codex plugin refresh, and the run still exits 0. Hosts without `timeout` run the command as before. `codex plugin marketplace upgrade` and `codex plugin add` have no limit.
+
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 163301d, danyuchn 65c8ab6, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt abeeaf9, nicobailon 9d5f880, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
 
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 163301d, danyuchn 65c8ab6, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt abeeaf9, nicobailon 9d5f880, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
