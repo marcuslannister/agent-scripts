@@ -16,25 +16,20 @@ The global rules and the own skills are in `global/` (ADR-0013). A PC needs this
 
 Prerequisites:
 - Git for Windows with symlinks on: `git config --global core.symlinks true`. Set it before you pull the settings repos. Without it, Git writes each tracked link as a text file.
-- The symlink privilege: Developer Mode on, or an admin account.
+- The symlink privilege: Developer Mode on, or an elevated shell (Run as administrator). An admin account in a normal session cannot make links while Developer Mode is off.
 - PowerShell 7.1 or newer (`pwsh`). Windows PowerShell 5.1 makes absolute link targets, and 7.0 cannot make a relative link to a folder, so the setup script refuses both.
 - Git Bash, `jq`, and `rg` on PATH (the updaters run in Git Bash), and Python 3 for the lean patches.
 
 Update:
+- Before the pull, run `bash global/bin/check-agent-setup.sh --preflight` in Git Bash. It checks Git link support and the current session's link privilege. Continue only when both checks pass. If this checkout has no `global/` yet, run the script from a current worktree, as in `handoff-windows-agent-setup-check.md`.
 - Pull in this order: `agent-scripts`, then `claude-code-settings`, `codex-settings`, and `pi-settings`, then `home` if the PC has it. `home` goes last, because it deletes the old link targets. `agent-tooling/update-local.sh` pulls `agent-scripts` only.
 - The four rule pointers are links that the settings repos track, so a pull of the settings repos sets them. Run `pwsh -File global\bin\setup-agent-instructions.ps1` only where `~/.claude`, `~/.codex`, or `~/.pi` is not the settings repo.
 - The own skills are copies. `agent-tooling/update-local.sh` installs them. To install them alone, run `bash global/bin/install-skills.sh` in Git Bash.
 
-Check that the four pointers resolve. Run this in `pwsh`, in the `agent-scripts` folder. It checks that each pointer is a link, reads each one through its link, and stops on the first error. A copy of a file fails the link check, and a text file fails the comparison:
+After the update, run this in Git Bash, in the `agent-scripts` folder. It checks Git link support, the current session's link privilege, the four instruction pointers, and the own skills in both surfaces. Each check prints one result line. Exit code 1 means that a check failed. A text pointer fails even if it holds the correct path:
 
-```powershell
-$ErrorActionPreference = 'Stop'
-foreach ($p in '.claude\CLAUDE.md', '.claude\agent-rules', '.codex\AGENTS.md', '.pi\agent\AGENTS.md') {
-    if ((Get-Item "$HOME\$p" -Force).LinkType -ne 'SymbolicLink') { throw "$p is not a symbolic link" }
-}
-$reads = @{ '.claude\CLAUDE.md' = 'AGENTS.md'; '.claude\agent-rules\tooling.md' = 'rules\tooling.md'; '.codex\AGENTS.md' = 'AGENTS.codex.md'; '.pi\agent\AGENTS.md' = 'AGENTS.codex.md' }
-foreach ($p in $reads.Keys) { if ((Get-Content -Raw "$HOME\$p") -ne (Get-Content -Raw "global\$($reads[$p])")) { throw "$p differs from global\$($reads[$p])" } }
-'the four pointers are links and read correctly'
+```bash
+bash global/bin/check-agent-setup.sh
 ```
 
 Never commit a pointer change made on Windows. A text file or an absolute target in a commit breaks the other PCs.
