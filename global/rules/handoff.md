@@ -8,7 +8,10 @@ A hook tells you when context fill reaches the handoff threshold. Then hand off 
 
    ```sh
    pane=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$PWD" --label <short-name> | jq -r .result.root_pane.pane_id)
-   herdr agent start <name> --kind claude --pane "$pane" -- "Read <handoff-file> and continue the work."
+   herdr agent start <name> --kind claude --pane "$pane"
+   herdr agent prompt <name> "Read <handoff-file> and continue the work."
    ```
+
+   Do not put the prompt into `agent start`. It succeeds only when the agent is ready for input within its timeout. An agent that works on a start prompt is never ready, so `agent start` returns `timeout` and does not keep the name. If `agent start` does not return `agent_started`, run `herdr agent get <name>`. If the state is `blocked`, read the screen with `herdr pane read "$pane" --source visible` and show it to the user.
 
 4. Tell the user which tab continues the work, then stop. Do not close your own tab.

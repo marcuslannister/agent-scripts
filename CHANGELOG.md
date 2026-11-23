@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `global/rules/handoff.md` step 3 starts the new agent with no prompt and then sends the prompt with `herdr agent prompt`. A prompt in `agent start` kept the agent busy, so `agent start` timed out and did not keep the agent name. The `herdr-coordinator` skill now says that Claude Code, like Codex, shows a trust dialog on its first start in a folder.
+
 - `handoff-windows-privacy-rewrite.md` step 7.5: bring the Codex context settings to the local `~/.codex/config.toml` (auto-compact 650000, `multi_agent_v2`, no global codegraph MCP), because a pull does not change that file. `nuc` had the old values and got them on 2026-11-23.
 
 - `handoff-windows-privacy-rewrite.md`: removed the one-time section "Limited PC: continue here" (that run is done, agent-scripts#92). Its general rule moved to step 7.4: a PC with another memory system skips the `nowledge` lines, and the `!!! nowledge-mem` line is expected there.
