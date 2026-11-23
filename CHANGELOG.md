@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `handoff-windows-privacy-rewrite.md`: removed the one-time section "Limited PC: continue here" (that run is done, agent-scripts#92). Its general rule moved to step 7.4: a PC with another memory system skips the `nowledge` lines, and the `!!! nowledge-mem` line is expected there.
+
 - `handoff-windows-privacy-rewrite.md` step 7.4 adds the Codex `ponytail` marketplace and plugin, which the Mac has. On the limited PC, `update-plugins.sh` printed `!!! ponytail: Codex marketplace upgrade failed` without them. The limited PC section says that its `nowledge-mem` `!!!` line is expected.
 - `handoff-windows-privacy-rewrite.md` step 3 compares the full ref name `refs/heads/main`. On the limited PC, `symbolic-ref --short HEAD` printed `heads/main` for `emacs.d`, and the old check skipped it. Step 4 tells how to replace a Windows home path in a restored line (pi resource paths start from `~/.pi/agent`). A new section lists the steps that are left on the limited PC.
 - `handoff-windows-privacy-rewrite.md` step 7.4 now installs the Claude plugins and the Codex marketplaces and plugins that the Mac has (`~/.codex/config.toml` is local to each PC), then runs `update-plugins.sh`, which must print no `!!!` line. This is the same fix as on `nuc`.

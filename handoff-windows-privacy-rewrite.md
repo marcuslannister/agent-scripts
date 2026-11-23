@@ -22,16 +22,6 @@ The blocks are for Git Bash. Save each block as a `.sh` file and run it with `ba
 - Do not commit or push in a rewritten repo. Never commit a pointer change made on Windows.
 - Never write the Windows user name, or a path under `C:\Users` or `/c/Users`, in a file or a commit. Write `~`.
 
-## Limited PC: continue here
-
-State on 2026-11-22: steps 0 to 5 are done on the limited PC. Step 5 showed `hits=0 msg_hits=0` in the 5 repos there (`grok-settings` is not on this PC). `emacs.d` showed `branch=heads/main`, so the old step 3 check skipped it, and the agent reset it by hand. `~/.emacs.d` is a link to `~/Projects/emacs.d`. Do not run steps 0 to 5 again. Do these:
-
-1. Check `emacs.d`. `git -C ~/Projects/emacs.d symbolic-ref HEAD` must print `refs/heads/main`, and `git -C ~/Projects/emacs.d rev-parse HEAD origin/main` must print the same hash two times. If not, stop and ask. Then show the output of `git -C ~/Projects/emacs.d for-each-ref --format='%(refname)' | grep -E '(^|/)main$'`, which names the other ref called `main`. Do not delete it.
-2. Line 24 of `pi-settings/agent/settings.json` has a full Windows home path to `agentmemory`, the memory system of the limited PC. Keep the entry, and replace only the path, as step 4 says. Start pi once, and check that the extension still loads. Do not commit.
-3. Run `git -C ~/Projects/dotfiles diff` and `git -C ~/Projects/pi-settings diff`. Each must show only the local lines, and no path under `C:\Users` or `/c/Users`.
-4. Pull the repos that were not rewritten with `git pull --ff-only`.
-5. Do steps 6 and 7. This PC uses `agentmemory`, not Nowledge Mem: in step 7.4, skip the 3 lines with `nowledge`, and when Claude Code offers to install `nowledge-mem`, decline. `update-plugins.sh` then prints `!!! nowledge-mem: Codex marketplace upgrade failed`. That line is expected here. In place of step 7.6, reply with the output of items 1 and 3 above, step 6, steps 7.2 and 7.3, and the `!!!` lines of step 7.4 if any.
-
 ## 0. Check that this session can make links
 
 The reset in step 3 writes the pointer links. Without the link privilege, Git writes each link as a text file, and the agents start without the global rules.
@@ -204,7 +194,7 @@ This PC does not use the privacy guard. Run `git config --show-origin --get core
    bash ~/Projects/agent-scripts/agent-tooling/update-plugins.sh
    ```
 
-   `update-plugins.sh` applies the lean patches. Its output must have no line that starts with `!!!`.
+   `update-plugins.sh` applies the lean patches. Its output must have no line that starts with `!!!`. Exception: a PC that uses another memory system (the limited PC uses `agentmemory`) skips the 3 lines with `nowledge` and declines when Claude Code offers to install `nowledge-mem`. There, `!!! nowledge-mem: Codex marketplace upgrade failed` is expected.
 5. Restart each agent session on this PC, this one too. A running session keeps the rules that it loaded when it started. The first Codex start asks to approve the Nowledge hooks once.
 6. Reply to the user: the output of steps 0, 3, 5, and 7.3, what step 4 restored, merged, or left out, the `!!!` lines of step 7.4 if any, and the path of the saved patches.
 
