@@ -3,7 +3,8 @@ set -uo pipefail
 
 # Secondary-machine updater (other Macs, Windows under Git Bash): fast-forward
 # pull the repo, update agent CLIs, refresh native plugins best-effort, then
-# distribute matrix-selected skills from tracked content (ADR-0009). No staging
+# distribute matrix-selected skills from tracked content (ADR-0009) and install
+# the own skills of global/ (best-effort). No staging
 # acquire — this machine pulls already-committed staging changes via git.
 # Runs every step (no fail-fast), prints a summary, exits non-zero on failure.
 #
@@ -37,6 +38,7 @@ fi
 agents_status=0
 plugins_status=0
 distribute_status=0
+skills_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -48,11 +50,22 @@ section "Refreshing native plugins"
 section "Distributing skill surfaces"
 "$SCRIPT_DIR/sync-skill-surfaces.sh" || distribute_status=$?
 
+# Best-effort like the plugin refresh: the rules are links that a pull changes,
+# but the own skills are copies, so every PC installs them after the update steps.
+section "Installing own skills"
+if skills_out="$("$REPO_ROOT/global/bin/install-skills.sh" 2>&1)"; then
+  printf '%s\n' "$skills_out"
+else
+  skills_status=1
+  warn "own skills install failed: ${skills_out//$'\n'/ }"
+fi
+
 section "Summary"
 status_line "repository pull" "$pull_status"
 status_line "agent CLIs" "$agents_status"
 status_line "native plugins" "$plugins_status"
 status_line "skill distribute" "$distribute_status"
+status_line "own skills" "$skills_status"
 
 (( pull_status != 0 || agents_status != 0 || distribute_status != 0 )) && exit 1
 exit 0

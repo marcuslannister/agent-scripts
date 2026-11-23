@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-SKILL="$TMP_ROOT/other-skills/marcus/anvil-advanced-ops/SKILL.md"
+SKILL="$TMP_ROOT/skills/anvil-advanced-ops/SKILL.md"
 mkdir -p "$TMP_ROOT/bin" "$TMP_ROOT/rules" "$(dirname "$SKILL")"
 printf '%s\n' mcp__anvil__emacs-eval mcp__anvil__emacs-eval-async \
   mcp__anvil-emacs-eval__cron-list mcp__anvil-emacs-eval__git-status \
@@ -35,3 +35,13 @@ expect fail "an Elisp function named as a bare tool"
 
 printf -- '- `anvil-worker-call`\n' > "$SKILL"
 expect fail "an unregistered bare tool"
+
+# A file in BARE_FILES that does not exist must fail the check, not skip it.
+# A second skill keeps the PREFIXED_FILES pattern matching, so only BARE_FILES is at fault.
+mkdir -p "$TMP_ROOT/skills/other"
+: > "$TMP_ROOT/skills/other/SKILL.md"
+printf -- '- `cron-list`\n' > "$SKILL"
+expect pass "a present bare-tool skill"
+rm "$SKILL"
+expect fail "a missing BARE_FILES path"
+echo "ok check-anvil-names"

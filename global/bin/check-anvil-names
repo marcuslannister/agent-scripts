@@ -26,7 +26,7 @@ SNAPSHOT = ROOT / "bin" / "anvil-tools.txt"
 SERVERS = {"anvil": "anvil", "emacs-eval": "anvil-emacs-eval"}
 
 PREFIXED_FILES = ["AGENTS.md", "rules/*.md", "skills/*/SKILL.md"]
-BARE_FILES = ["other-skills/marcus/anvil-advanced-ops/SKILL.md"]
+BARE_FILES = ["skills/anvil-advanced-ops/SKILL.md"]
 
 # Backticked words in BARE_FILES that are not tool IDs: modules, options,
 # fields, and Elisp names. Add a word here only after you check what it names.
@@ -60,8 +60,14 @@ def refresh():
     print(f"wrote {len(names)} tools to {SNAPSHOT.relative_to(ROOT)}")
 
 
-def files(patterns):
-    return sorted({p for pat in patterns for p in ROOT.glob(pat)})
+def files(patterns, errors):
+    found = set()
+    for pat in patterns:
+        hits = list(ROOT.glob(pat))
+        if not hits:  # a moved or renamed file must not turn the check into a silent no-op
+            errors.append(f"{pat}: no file matches; fix PREFIXED_FILES or BARE_FILES")
+        found.update(hits)
+    return sorted(found)
 
 
 def matches(name, tools):
@@ -75,7 +81,7 @@ def check():
     prefixes = {f"mcp__{s}__" for s in SERVERS.values()}
     bare = {t.split("__", 2)[2] for t in full}
     errors = []
-    for path in files(PREFIXED_FILES):
+    for path in files(PREFIXED_FILES, errors):
         for n, line in enumerate(path.read_text().splitlines(), 1):
             for server, tool in PREFIXED.findall(line):
                 where = f"{path.relative_to(ROOT)}:{n}"
@@ -84,7 +90,7 @@ def check():
                     errors.append(f"{where}: unknown MCP prefix {prefix}")
                 elif tool and not matches(prefix + tool, full):
                     errors.append(f"{where}: {prefix}{tool} is not a registered tool")
-    for path in files(BARE_FILES):
+    for path in files(BARE_FILES, errors):
         for n, line in enumerate(path.read_text().splitlines(), 1):
             for name in BARE.findall(line):
                 if name not in NOT_TOOLS and not matches(name, bare):

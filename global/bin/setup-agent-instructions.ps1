@@ -1,8 +1,12 @@
+#Requires -Version 7
 # Windows counterpart of setup-agent-instructions.sh.
-# Absolute native symlinks: Windows resolves a relative target against the
-# path used to open it, so ~/.claude/agent-rules -> ../rules misses when ~/.claude
-# is itself a symlink. Sets core.symlinks true globally so Git stops writing
-# tracked symlinks as text files.
+# Relative native symlinks, the same targets that the Bash setup makes, so a link
+# made here equals the link that a settings repo tracks. PowerShell 7 keeps a
+# relative target as written; Windows PowerShell 5.1 makes every target absolute,
+# and an absolute target puts the Windows user name into the link (ADR-0013).
+# The target starts at the physical directory of the link, because ~/.claude and
+# ~/.pi are themselves links into the settings repos. Sets core.symlinks true
+# globally so Git stops writing tracked symlinks as text files.
 [CmdletBinding()]
 param(
     [switch]$Force
@@ -33,12 +37,19 @@ function ConvertTo-FullPath([string]$Base, [string]$Target) {
     return [IO.Path]::GetFullPath((Join-Path $Base $Target)).TrimEnd('\')
 }
 
-function Get-PhysicalDir([string]$Dir) {
-    $item = Get-Item -LiteralPath $Dir -Force
-    if ($item.LinkType) {
-        return (ConvertTo-FullPath $item.Parent.FullName (@($item.Target)[0]))
+# Resolve every link on the way, not only the last one: ~/.pi is a link into
+# pi-settings, so ~/.pi/agent is physically inside that repo.
+function Get-PhysicalPath([string]$Path) {
+    $full = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($full)
+    $cur = $root
+    foreach ($part in $full.Substring($root.Length).Split('\', [StringSplitOptions]::RemoveEmptyEntries)) {
+        $cur = Join-Path $cur $part
+        for ($hops = 0; $hops -lt 32 -and (Test-Path -LiteralPath $cur) -and (Get-Item -LiteralPath $cur -Force).LinkType; $hops++) {
+            $cur = ConvertTo-FullPath (Split-Path $cur) (@((Get-Item -LiteralPath $cur -Force).Target)[0])
+        }
     }
-    return $item.FullName.TrimEnd('\')
+    return $cur.TrimEnd('\')
 }
 
 function Test-SamePath([string]$A, [string]$B) {
@@ -54,14 +65,20 @@ function Set-Pointer([string]$Pointer, [string]$Want, [string]$Legacy = '') {
         New-Item -ItemType Directory -Path $dir | Out-Null
     }
     $wantFull = (Get-Item -LiteralPath $Want).FullName.TrimEnd('\')
+    $wantRel = [IO.Path]::GetRelativePath((Get-PhysicalPath $dir), (Get-PhysicalPath $wantFull))
+    if ([IO.Path]::IsPathRooted($wantRel)) {
+        Write-Warning "no relative path from $dir to $wantFull (another drive); using the absolute path"
+    }
 
     if (Test-Path -LiteralPath $Pointer) {
         $item = Get-Item -LiteralPath $Pointer -Force
         if ($item.LinkType) {
-            $resolved = ConvertTo-FullPath (Get-PhysicalDir $dir) (@($item.Target)[0])
+            $raw = @($item.Target)[0]
+            $resolved = ConvertTo-FullPath (Get-PhysicalPath $dir) $raw
             if (Test-SamePath $resolved $wantFull) {
-                $raw = @($item.Target)[0] -replace '/', '\'
-                if ([IO.Path]::IsPathRooted($raw)) { return }
+                if (($raw -replace '/', '\') -ieq $wantRel) { return }
+                # The same place in another spelling, for example an absolute target
+                # from an older setup: replace it with the relative one.
                 $item.Delete()
             } elseif ($Legacy -and (Test-SamePath $resolved $Legacy)) {
                 # An earlier setup linked this pointer to $Legacy, so it is ours.
@@ -77,7 +94,7 @@ function Set-Pointer([string]$Pointer, [string]$Want, [string]$Legacy = '') {
             $content = (Get-Content -LiteralPath $Pointer -Raw -ErrorAction SilentlyContinue)
             $rel = if ($content) { $content.Trim() } else { '' }
             $isGitPlaceholder = $rel -and ($rel.IndexOfAny([char[]]"`r`n") -lt 0) -and $rel.Length -lt 200
-            if ($Force -or ($isGitPlaceholder -and (Test-SamePath (ConvertTo-FullPath (Get-PhysicalDir $dir) $rel) $wantFull))) {
+            if ($Force -or ($isGitPlaceholder -and (Test-SamePath (ConvertTo-FullPath (Get-PhysicalPath $dir) $rel) $wantFull))) {
                 Remove-Item -LiteralPath $Pointer -Force
             } else {
                 Write-Warning "preserving real file: $Pointer"
@@ -86,8 +103,8 @@ function Set-Pointer([string]$Pointer, [string]$Want, [string]$Legacy = '') {
         }
     }
 
-    New-Item -ItemType SymbolicLink -Path $Pointer -Target $wantFull | Out-Null
-    Write-Output "linked $Pointer -> $wantFull"
+    New-Item -ItemType SymbolicLink -Path $Pointer -Target $wantRel | Out-Null
+    Write-Output "linked $Pointer -> $wantRel"
     if ($migrated) { Write-Output "migrated legacy symlink $Pointer" }
     $script:changed++
 }
@@ -107,7 +124,7 @@ Set-Pointer (Join-Path $HOME '.claude\agent-rules') $rulesDir
 $oldRules = Join-Path $HOME '.claude\rules'
 if (Test-Path -LiteralPath $oldRules) {
     $oldItem = Get-Item -LiteralPath $oldRules -Force
-    if ($oldItem.LinkType -and (Test-SamePath (ConvertTo-FullPath (Get-PhysicalDir (Split-Path $oldRules)) (@($oldItem.Target)[0])) $rulesDir)) {
+    if ($oldItem.LinkType -and (Test-SamePath (ConvertTo-FullPath (Get-PhysicalPath (Split-Path $oldRules)) (@($oldItem.Target)[0])) $rulesDir)) {
         $oldItem.Delete()
         Write-Output "removed legacy pointer $oldRules"
         $script:changed++

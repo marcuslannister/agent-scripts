@@ -18,7 +18,10 @@ Layout in `global/`, the same as `home` had: `AGENTS.md`, `AGENTS.codex.md`, `ru
 - `global/AGENTS.codex.md` has every rule except `rules/handoff.md`: only the Claude Code context-handoff hook reads that file, and Codex and Pi have no such hook.
 - Every script finds its root with `..` from its own folder, so none needed a path change.
 - `agent-tooling/verify.sh` runs `global/tests/*-test.sh` in the section "Global rules and own skills", so CI runs them too. The `.ps1` test is not run there.
-- The four pointers on the Mac are relative links into `global/`. The Bash setup makes relative links where `realpath --relative-to` works, and the PowerShell setup makes absolute links. ADR-0010, ADR-0012, and ADR-0002 keep their rules for setup, ownership, and the tracked artifact.
+- The four pointers are relative links into `global/`. The Bash setup makes relative links where `realpath --relative-to` works, and the PowerShell setup makes the same relative targets. ADR-0010, ADR-0012, and ADR-0002 keep their rules for setup, ownership, and the tracked artifact.
+- A Windows PC gets the pointers like the Mac: the settings repos track the links, so a pull sets them. This needs Git `core.symlinks=true` and the symlink privilege (Developer Mode or an admin account). Tested on `nuc`: with `core.symlinks=false`, Git writes each link as a text file. `docs/windows.md` has the steps.
+- The PowerShell setup needs PowerShell 7 (`#Requires -Version 7`). PowerShell 7 keeps a relative target as written. Windows PowerShell 5.1 makes every target absolute, and an absolute target puts the Windows user name into a link.
+- The own skills are copies, so a pull does not update them. `update-local.sh` and `update-all.sh` run `global/bin/install-skills.sh` as a last, best-effort step: a failure is one warning, and the run continues. Without `rsync` (Git Bash), `install-skills.sh` uses `copy_dir_replace` of `agent-tooling/lib-copies.sh`, the fallback copy that `install_skill_copy` also uses.
 
 ## Consequences
 

@@ -103,6 +103,23 @@ copy_is_adoptable() { # source_dir dest_dir
   [ -z "$(find "$dst" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]
 }
 
+# Make dest_dir hold exactly the files of source_dir: rsync --delete, or a fresh
+# copy where rsync is missing (Git Bash on Windows ships none). Callers own any
+# ownership checks and markers; global/bin/install-skills.sh shares this.
+copy_dir_replace() { # source_dir dest_dir
+  local src="$1"
+  local dst="$2"
+
+  mkdir -p "$dst" || return 1
+  if [ "${AGENT_SCRIPTS_DISABLE_RSYNC:-0}" != "1" ] && command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete "${src}/" "${dst}/" || return 1
+  else
+    rm -rf "$dst" || return 1
+    mkdir -p "$dst" || return 1
+    cp -R "${src}/." "${dst}/" || return 1
+  fi
+}
+
 install_skill_copy() { # source_dir dest_dir owner [marker_source]
   local src="$1"
   local dst="$2"
@@ -124,15 +141,7 @@ install_skill_copy() { # source_dir dest_dir owner [marker_source]
     copy_warn "existing directory is not an agent-scripts copy, refusing to overwrite: $dst (delete it if an older updater generated it)"
     return 1
   fi
-  mkdir -p "$dst" || return 1
-  if [ "${AGENT_SCRIPTS_DISABLE_RSYNC:-0}" != "1" ] && command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "${src}/" "${dst}/" || return 1
-  else
-    # Git Bash on Windows ships no rsync; emulate --delete with a fresh copy.
-    rm -rf "$dst" || return 1
-    mkdir -p "$dst" || return 1
-    cp -R "${src}/." "${dst}/" || return 1
-  fi
+  copy_dir_replace "$src" "$dst" || return 1
   # Marker line 3 is the copy's content hash at sync time; it lets an updater
   # later tell "upstream advanced" from "this copy was hand-edited" without a
   # full re-sync. Hashing is best-effort: if no sha256 tool exists we still

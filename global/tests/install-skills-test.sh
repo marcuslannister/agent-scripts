@@ -30,4 +30,23 @@ HOME="$TMP_ROOT" "$REPO_ROOT/bin/install-skills.sh" >/dev/null
 grep -q '^  allow_implicit_invocation: false$' "$TMP_ROOT/.agents/skills/architect/agents/openai.yaml" \
   || fail "second run lost the policy of architect"
 
-echo "ok install-skills ($manual manual-only skills)"
+# Git Bash on Windows has no rsync: the fallback copy must still install every
+# skill, drop a stale file like rsync --delete, and keep the Codex policy.
+NO_RSYNC="$TMP_ROOT/no-rsync-bin"
+NO_HOME="$TMP_ROOT/no-rsync-home"
+mkdir -p "$NO_RSYNC" "$NO_HOME/.claude/skills/architect"
+for tool in dirname basename mkdir grep rm cp; do ln -s "$(command -v "$tool")" "$NO_RSYNC/$tool"; done
+if (PATH="$NO_RSYNC"; command -v rsync >/dev/null 2>&1); then fail "the test PATH still has rsync"; fi
+printf 'stale\n' > "$NO_HOME/.claude/skills/architect/stale.txt"
+HOME="$NO_HOME" PATH="$NO_RSYNC" "$BASH" "$REPO_ROOT/bin/install-skills.sh" >/dev/null || fail "install without rsync failed"
+for skill in "$REPO_ROOT"/skills/*/; do
+  name="$(basename "$skill")"
+  for root in .claude/skills .agents/skills; do
+    cmp -s "$skill/SKILL.md" "$NO_HOME/$root/$name/SKILL.md" || fail "$name in $root was not copied without rsync"
+  done
+done
+[ ! -e "$NO_HOME/.claude/skills/architect/stale.txt" ] || fail "a stale file survived the copy without rsync"
+grep -q '^  allow_implicit_invocation: false$' "$NO_HOME/.agents/skills/architect/agents/openai.yaml" \
+  || fail "no Codex policy for architect without rsync"
+
+echo "ok install-skills ($manual manual-only skills, with and without rsync)"

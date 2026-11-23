@@ -11,7 +11,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 SCRIPTS="$TMPDIR/scripts"
 UPDATE_LOG="$TMPDIR/update.log"
-mkdir -p "$SCRIPTS"
+mkdir -p "$SCRIPTS" "$TMPDIR/global/bin"
 cp "$REPO_ROOT/agent-tooling/update-all.sh" "$SCRIPTS/"
 
 UPDATERS=(update-agents.sh update-plugins.sh update-skill-topology.sh \
@@ -27,8 +27,19 @@ write_updaters() {
     chmod +x "$SCRIPTS/$updater"
   done
 }
+# The own skills step: global/bin/install-skills.sh runs after the five steps.
+write_skills_step() { # exit_code [stderr_text]
+  printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'printf '\''%s\n'\'' "${0##*/}" >> "$UPDATE_LOG"' \
+    "${2:+printf '%s\\n' '$2' >&2}" \
+    "exit ${1:-0}" \
+    > "$TMPDIR/global/bin/install-skills.sh"
+  chmod +x "$TMPDIR/global/bin/install-skills.sh"
+}
 write_updaters
-printf '%s\n' "${UPDATERS[@]}" > "$TMPDIR/expected.log"
+write_skills_step 0
+printf '%s\n' "${UPDATERS[@]}" install-skills.sh > "$TMPDIR/expected.log"
 
 UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --help > "$TMPDIR/help.out"
 rg -F 'Usage: update-all.sh [--no-ship]' "$TMPDIR/help.out" >/dev/null
@@ -45,7 +56,7 @@ test ! -e "$UPDATE_LOG"
 # --no-ship: every step runs, nothing is committed.
 UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/out" 2>&1
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
-for label in 'agent CLIs' 'native plugins' 'skill acquire' 'skills matrix' 'skill distribute'; do
+for label in 'agent CLIs' 'native plugins' 'skill acquire' 'skills matrix' 'skill distribute' 'own skills'; do
   grep -F "$label" "$TMPDIR/out" >/dev/null
 done
 
@@ -61,6 +72,17 @@ UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/plugin-fa
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
 rg '✗.*native plugins' "$TMPDIR/plugin-fail.out" >/dev/null
 write_updaters
+
+# A failed own skills install is one warning with the cause. The run continues
+# and still exits 0.
+write_skills_step 7 'boom: no space left'
+: > "$UPDATE_LOG"
+UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/skills-fail.out" 2>&1
+cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
+test "$(rg -c 'own skills install failed' "$TMPDIR/skills-fail.out")" -eq 1
+rg -F 'own skills install failed: boom: no space left' "$TMPDIR/skills-fail.out" >/dev/null
+rg '✗.*own skills' "$TMPDIR/skills-fail.out" >/dev/null
+write_skills_step 0
 
 # A failed step still lets the others run, and the run exits non-zero.
 printf '%s\n' \
