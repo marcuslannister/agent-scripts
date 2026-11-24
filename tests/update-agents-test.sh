@@ -202,6 +202,51 @@ EOF
   fi
 }
 
+# agent-scripts#93: an SSH login shell on Windows has no ~/.local/bin on PATH.
+# `uname` is a stub, so the case runs on any host. claude.exe is a stub too; the
+# plain `claude` copy lets a non-Windows host find it by name.
+claude_case() { # name kernel with_exe(1|0)
+  local name="$1" kernel="$2" with_exe="$3"
+  local root="$TEST_ROOT/claude-$name" f
+  mkdir -p "$root/bin" "$root/home/.local/bin"
+  printf '#!/usr/bin/env bash\necho %s\n' "$kernel" > "$root/bin/uname"
+  cat > "$root/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CURL_LOG"
+exit 98
+EOF
+  chmod +x "$root/bin/uname" "$root/bin/curl"
+  if [ "$with_exe" = 1 ]; then
+    for f in claude claude.exe; do
+      printf '#!/usr/bin/env bash\nprintf "%%s\\n" "claude $*" >> "$CLAUDE_LOG"\n' \
+        > "$root/home/.local/bin/$f"
+      chmod +x "$root/home/.local/bin/$f"
+    done
+  fi
+  : > "$root/curl.log"
+  : > "$root/claude.log"
+  PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" \
+    CURL_LOG="$root/curl.log" CLAUDE_LOG="$root/claude.log" \
+    bash "$REPO_ROOT/agent-tooling/update-agents.sh" > "$root/output" 2>&1 || true
+}
+
+claude_case ssh-windows MINGW64_NT-10.0 1
+rg -Fx 'claude update' "$TEST_ROOT/claude-ssh-windows/claude.log" >/dev/null
+if rg -F 'claude.ai' "$TEST_ROOT/claude-ssh-windows/curl.log" >/dev/null; then
+  echo "claude install ran although claude.exe is in ~/.local/bin" >&2
+  exit 1
+fi
+
+claude_case no-claude-windows MINGW64_NT-10.0 0
+rg -F 'claude not found; install it from PowerShell' "$TEST_ROOT/claude-no-claude-windows/output" >/dev/null
+if rg -F 'claude.ai' "$TEST_ROOT/claude-no-claude-windows/curl.log" >/dev/null; then
+  echo "install.sh ran on Windows" >&2
+  exit 1
+fi
+
+claude_case no-claude-linux Linux 0
+rg -F -- '-fsSL https://claude.ai/install.sh' "$TEST_ROOT/claude-no-claude-linux/curl.log" >/dev/null
+
 run_case unix
 run_case windows
 

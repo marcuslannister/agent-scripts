@@ -10,8 +10,20 @@ warn()    { printf '\033[0;31m!!!\033[0m %s\n' "$*"; }
 
 fail=0
 
+# An SSH login shell in Git Bash has a minimal PATH without ~/.local/bin, where
+# the native installer puts claude.exe (agent-scripts#93). Append it, so a
+# claude that is already on PATH still wins.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) windows=true ;; *) windows=false ;; esac
+if $windows && ! command -v claude >/dev/null 2>&1 && [ -f "$HOME/.local/bin/claude.exe" ]; then
+  PATH="$PATH:$HOME/.local/bin"
+fi
+
 section "Claude Code CLI"
-if ! command -v claude >/dev/null 2>&1; then
+if $windows && ! command -v claude >/dev/null 2>&1; then
+  # claude.ai/install.sh does not support Windows.
+  warn "claude not found; install it from PowerShell: irm https://claude.ai/install.ps1 | iex"
+  fail=1
+elif ! command -v claude >/dev/null 2>&1; then
   info "claude not found; installing"
   if curl -fsSL https://claude.ai/install.sh | bash && command -v claude >/dev/null 2>&1; then
     info "installed: $(claude --version 2>/dev/null || echo unknown)"

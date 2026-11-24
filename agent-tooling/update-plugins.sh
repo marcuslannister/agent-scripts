@@ -48,6 +48,16 @@ plugin_installed() { # installed_list plugin_id
   [ -n "$1" ] && printf '%s\n' "$1" | rg -Fxq -- "$2"
 }
 
+# An SSH login shell in Git Bash has no ~/.local/bin on PATH, where the native
+# installer puts claude.exe (agent-scripts#93). Same rule as update-agents.sh.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    if ! command -v claude >/dev/null 2>&1 && [ -f "$HOME/.local/bin/claude.exe" ]; then
+      PATH="$PATH:$HOME/.local/bin"
+    fi
+    ;;
+esac
+
 # An unreadable inventory is reported, never treated as "nothing installed":
 # that would silently skip every plugin update behind a "not installed" line.
 claude_inventory_ok=0

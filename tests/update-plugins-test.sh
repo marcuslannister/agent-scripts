@@ -118,6 +118,28 @@ rg -Fx 'claude plugin marketplace update waza' "$PLUGIN_LOG" >/dev/null
 rg -Fx 'claude plugin update waza@waza' "$PLUGIN_LOG" >/dev/null
 rg -Fx 'codex plugin add waza@waza' "$PLUGIN_LOG" >/dev/null
 
+# agent-scripts#93: an SSH login shell on Windows has no ~/.local/bin on PATH, so
+# claude is found there. `uname` is a stub; claude.exe is a stub, and the plain
+# `claude` copy lets a non-Windows host find it by name. The same PATH with a
+# Linux kernel must not look there.
+SSH_BIN="$TMP_ROOT/ssh-bin"
+mkdir -p "$SSH_BIN" "$HOME/.local/bin"
+ln -s "$(command -v jq)" "$SSH_BIN/jq"
+ln -s "$(command -v rg)" "$SSH_BIN/rg"
+cp "$BIN/claude" "$HOME/.local/bin/claude"
+cp "$BIN/claude" "$HOME/.local/bin/claude.exe"
+printf '#!/usr/bin/env bash\necho MINGW64_NT-10.0\n' > "$SSH_BIN/uname"
+chmod +x "$SSH_BIN/uname"
+: > "$PLUGIN_LOG"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="$SSH_BIN:/usr/bin:/bin" "$FIXTURE/update-plugins.sh" >/dev/null 2>&1
+rg -Fx 'claude plugin update waza@waza' "$PLUGIN_LOG" >/dev/null
+printf '#!/usr/bin/env bash\necho Linux\n' > "$SSH_BIN/uname"
+: > "$PLUGIN_LOG"
+PLUGIN_LOG="$PLUGIN_LOG" PATH="$SSH_BIN:/usr/bin:/bin" "$FIXTURE/update-plugins.sh" > "$STATE/linux.out" 2>&1
+rg -F 'claude CLI not found' "$STATE/linux.out" >/dev/null
+[ ! -s "$PLUGIN_LOG" ] || { echo "FAIL: claude ran from ~/.local/bin off Windows" >&2; exit 1; }
+rm -r "$HOME/.local/bin"
+
 # An unreadable inventory is reported, and no plugin is called "not installed".
 cat > "$BIN/claude" <<'BASH'
 #!/usr/bin/env bash

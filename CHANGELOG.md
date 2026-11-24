@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Windows SSH runs: `update-agents.sh` and `update-plugins.sh` add `~/.local/bin` to `PATH` when `claude.exe` is there and `claude` is not found (an SSH login shell in Git Bash has a minimal `PATH`). `update-agents.sh` never runs `claude.ai/install.sh` on Windows: it warns with the PowerShell install command and fails the "agent CLIs" step. Tests use a stub `uname`. agent-scripts#93.
+
 - Handoff names: `global/rules/handoff.md` step 3 names the new tab and agent after the goal of the new session, not of the old one: label = a short goal (for example `fix-ps1-links`), name = the same text in lowercase with `-`, at most 32 characters. A coordinator keeps the prefix: label `[coord] <goal>`, name `coord-<goal>`. The `herdr-coordinator` skill says the same in the naming paragraph of step 5 and in the hand-over of step 8 (which said `<work>-coord<N>`).
 
 - `global/rules/handoff.md` step 3 starts the new agent with the kind of the agent that hands off (`claude`, `codex`, or `pi`), not always `claude`. It also says that a new Codex tab can first show the folder-trust dialog or the "Hooks need review" screen, which Herdr can show as `idle`; read the screen and show it to the user. `AGENTS.codex.md` is unchanged (the build leaves out `handoff.md`). agent-scripts#94.

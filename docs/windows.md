@@ -19,6 +19,7 @@ Prerequisites:
 - The symlink privilege: Developer Mode on, or an elevated shell (Run as administrator). An admin account in a normal session cannot make links while Developer Mode is off.
 - PowerShell 7.1 or newer (`pwsh`). Windows PowerShell 5.1 makes absolute link targets, and 7.0 cannot make a relative link to a folder, so the setup script refuses both.
 - Git Bash, `jq`, and `rg` on PATH (the updaters run in Git Bash), and Python 3 for the lean patches.
+- An SSH login shell (Git Bash over SSH) has a minimal `PATH`. The updaters add `~/.local/bin` when `claude.exe` is there, and never run `install.sh` on Windows. If `claude` is missing, install it from PowerShell: `irm https://claude.ai/install.ps1 | iex`.
 
 Update:
 - Before the pull, run `bash global/bin/check-agent-setup.sh --preflight` in Git Bash. It checks Git link support and the current session's link privilege. Continue only when both checks pass. If this checkout has no `global/` yet, run the script from a current worktree, as in `handoff-windows-agent-setup-check.md`.
