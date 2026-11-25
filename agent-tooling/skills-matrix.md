@@ -21,7 +21,7 @@
 | `browser-use` | steipete/agent-scripts | skill | N | N | ~3948 |
 | `build-iterated-agentic-loop` | humanlayer/skills | skill | N | N | ~3388 |
 | `canvas-design` | anthropics/skills | skill | N | N | ~2984 |
-| `chief-of-staff` | mattpocock/skills | skill | N | N | ~1182 |
+| `chief-of-staff` | mattpocock/skills | skill | N | N | ~1117 |
 | `claude-academy-guide` | anthropics/skills | skill | N | N | ~1978 |
 | `claude-api` | anthropics/skills | skill | N | N | ~26279 |
 | `claude-automation-recommender` | anthropics/claude-plugins-official | plugin | N | N | ~2709 |
@@ -132,7 +132,7 @@
 | `mattpocock-skills:writing-great-skills` | mattpocock/skills | plugin | N | N | ~2332 |
 | `mattpocock-skills:writing-shape` | mattpocock/skills | plugin | N | N | ~1479 |
 | `mcp-builder` | anthropics/skills | skill | N | N | ~2773 |
-| `metrix-bar` | metrixbar | skill | Y | Y | ~7853 |
+| `metrix-bar` | metrixbar | skill | Y | Y | ~8000 |
 | `migrate-to-shoehorn` | mattpocock/skills | skill | N | Y | ~697 |
 | `nano-banana-pro` | steipete/agent-scripts | skill | N | N | ~1411 |
 | `narrow-react-prop-types` | humanlayer/skills | skill | N | N | ~1941 |
@@ -143,7 +143,7 @@
 | `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~806 |
 | `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |
-| `nowledge-mem:search-memory` | nowledge-community | plugin | N | N | ~1058 |
+| `nowledge-mem:search-memory` | nowledge-community | plugin | N | N | ~1298 |
 | `npm` | steipete/agent-scripts | skill | N | N | ~1131 |
 | `obsidian` | steipete/agent-scripts | skill | N | N | ~915 |
 | `one-password` | steipete/agent-scripts | skill | N | N | ~5678 |
