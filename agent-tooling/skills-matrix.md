@@ -246,8 +246,8 @@
 | `tsk-coordinator` | smarzban/tsk | skill | N | N | ~2504 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
-| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2142 |
-| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~2142 |
+| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2181 |
+| `visual-explainer` | nicobailon/visual-explainer | skill | N | Y | ~2181 |
 | `visual-pr` | humanlayer/skills | skill | N | N | ~844 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
