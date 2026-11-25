@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Update the coding-agent CLIs: Claude Code (native), Codex (npm), and Pi.
+# Update the coding-agent CLIs: Claude Code (native), Codex (npm), Pi, and
+# Antigravity (agy).
 # Tries all installed CLIs even if one fails; exits non-zero if any update failed.
 
 info()    { printf '\033[0;32m==>\033[0m %s\n' "$*"; }
@@ -193,6 +194,28 @@ else
       fail=1
     fi
   fi
+fi
+
+section "Antigravity CLI"
+# agy has no update command: it updates itself in the background, and its
+# install.sh exits early when agy exists and does not support Windows.
+if ! command -v agy >/dev/null 2>&1; then
+  if $windows; then
+    warn "agy not found; install it from PowerShell: irm https://antigravity.google/cli/install.ps1 | iex"
+    fail=1
+  else
+    info "agy not found; installing"
+    if curl -fsSL https://antigravity.google/cli/install.sh | bash \
+      && command -v agy >/dev/null 2>&1; then
+      info "installed: $(agy --version 2>/dev/null || echo unknown)"
+    else
+      warn "agy install failed"
+      fail=1
+    fi
+  fi
+else
+  info "current: $(agy --version 2>/dev/null || echo unknown)"
+  info "agy self-updates in the background; nothing to run"
 fi
 
 section "Agent CLIs done"

@@ -36,6 +36,11 @@ case "${1:-}" in
 esac
 EOF
 
+  cat > "$bin/agy" <<'EOF'
+#!/usr/bin/env bash
+echo 'agy 1.5.15'
+EOF
+
   cat > "$bin/pi" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$PI_LOG"
@@ -90,7 +95,7 @@ EOF
 echo 'codex-cli 0.146.1'
 EOF
 
-  chmod +x "$bin/claude" "$bin/npm" "$bin/pi" "$bin/curl" "$codex_package"
+  chmod +x "$bin/claude" "$bin/npm" "$bin/pi" "$bin/curl" "$bin/agy" "$codex_package"
   if [ "$layout" = "unix" ]; then
     rmdir "$codex_bin_dir"
   else
@@ -116,6 +121,7 @@ EOF
   rg -F 'codex already up to date; skipping npm install' "$case_root/output" >/dev/null
   rg -F 'pi update complete' "$case_root/output" >/dev/null
   rg -F 'pi extensions update complete' "$case_root/output" >/dev/null
+  rg -F 'agy self-updates in the background' "$case_root/output" >/dev/null
   test "$(rg -c '^update$' "$pi_log")" -eq 1
   test "$(rg -c '^update --extensions$' "$pi_log")" -eq 1
 
@@ -174,6 +180,10 @@ EOF
   test "$(rg -c '^update --extensions$' "$pi_log")" -eq 2
   rg -F -- '-fsSL https://pi.dev/install.sh' "$curl_log" >/dev/null
   rg -F 'pi installed' "$case_root/install-output" >/dev/null
+  if rg -F 'antigravity' "$curl_log" >/dev/null; then
+    echo "agy install ran although agy is on PATH" >&2
+    return 1
+  fi
 
   if [ "$layout" = "unix" ]; then
     rm "$codex_bin_dir/codex"
@@ -243,9 +253,15 @@ if rg -F 'claude.ai' "$TEST_ROOT/claude-no-claude-windows/curl.log" >/dev/null; 
   echo "install.sh ran on Windows" >&2
   exit 1
 fi
+rg -F 'agy not found; install it from PowerShell' "$TEST_ROOT/claude-no-claude-windows/output" >/dev/null
+if rg -F 'antigravity' "$TEST_ROOT/claude-no-claude-windows/curl.log" >/dev/null; then
+  echo "agy install.sh ran on Windows" >&2
+  exit 1
+fi
 
 claude_case no-claude-linux Linux 0
 rg -F -- '-fsSL https://claude.ai/install.sh' "$TEST_ROOT/claude-no-claude-linux/curl.log" >/dev/null
+rg -F -- '-fsSL https://antigravity.google/cli/install.sh' "$TEST_ROOT/claude-no-claude-linux/curl.log" >/dev/null
 
 run_case unix
 run_case windows

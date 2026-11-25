@@ -85,7 +85,7 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 - Exit `3` from acquire means a skills-lock entry needs an explicit decision; the lock is never mutated. Inspect `--json` decisions, act deliberately, then rerun.
 
 `agent-tooling/update-agents.sh`
-- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update` plus `pi update --extensions`; installs a missing Pi with its native installer.
+- Updates the agent CLIs: `claude update` (native), `npm install -g @openai/codex`, and `pi update` plus `pi update --extensions`; installs a missing Pi with its native installer. Antigravity (`agy`) has no update command and updates itself, so the script installs a missing `agy` with its native installer and otherwise only prints the version.
 - Tries all installed CLIs even if one fails.
 
 Removed public commands: `update-repo-skills.sh`, `update-cc-plugins.sh`, `update-cli-skills.sh`, `update-waza.sh`, `update-claude-mem.sh`, `update-mattpocock-skills.sh`, `update-visual-explainer.sh`, `update-khazix-skills.sh`, `update-anthropic-skills.sh`, and `repair-claude-mem-marker.sh`. No aliases or shims. `scripts/sync-skills` is a retired stub kept only for upstream-path completeness (ADR-0008/0009).

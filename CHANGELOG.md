@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `update-agents.sh` has an "Antigravity CLI" step. `agy` updates itself in the background and has no update command, and its `install.sh` does nothing when `agy` exists. So the step runs `curl -fsSL https://antigravity.google/cli/install.sh | bash` only when `agy` is missing, and otherwise prints the version. On Windows it never runs `install.sh`: it warns with the PowerShell install command and fails the "agent CLIs" step, as for Claude Code.
+
 - Windows SSH runs: `update-agents.sh` and `update-plugins.sh` add `~/.local/bin` to `PATH` when `claude.exe` is there and `claude` is not found (an SSH login shell in Git Bash has a minimal `PATH`). `update-agents.sh` never runs `claude.ai/install.sh` on Windows: it warns with the PowerShell install command and fails the "agent CLIs" step. Tests use a stub `uname`. agent-scripts#93.
 
 - Handoff names: `global/rules/handoff.md` step 3 names the new tab and agent after the goal of the new session, not of the old one: label = a short goal (for example `fix-ps1-links`), name = the same text in lowercase with `-`, at most 32 characters. A coordinator keeps the prefix: label `[coord] <goal>`, name `coord-<goal>`. The `herdr-coordinator` skill says the same in the naming paragraph of step 5 and in the hand-over of step 8 (which said `<work>-coord<N>`).
