@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Add the manual-only `/context-audit` skill in `global/skills/`: steps to measure and cut the startup context of Claude Code, Codex, and Pi (subagents, skills, MCP servers, plugin hooks, always-loaded rules, compaction), with the traps and the 2026-11 results.
+
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 24479d5, danyuchn d714e53, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt d653911, nicobailon 9d5f880, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
 
 - `update-agents.sh` has an "Antigravity CLI" step. `agy` updates itself in the background and has no update command, and its `install.sh` does nothing when `agy` exists. So the step runs `curl -fsSL https://antigravity.google/cli/install.sh | bash` only when `agy` is missing, and otherwise prints the version. On Windows it never runs `install.sh`: it warns with the PowerShell install command and fails the "agent CLIs" step, as for Claude Code.
