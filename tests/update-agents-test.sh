@@ -253,7 +253,7 @@ if rg -F 'claude.ai' "$TEST_ROOT/claude-no-claude-windows/curl.log" >/dev/null; 
   echo "install.sh ran on Windows" >&2
   exit 1
 fi
-rg -F 'agy not found; install it from PowerShell' "$TEST_ROOT/claude-no-claude-windows/output" >/dev/null
+rg -F 'agy skipped on Windows' "$TEST_ROOT/claude-no-claude-windows/output" >/dev/null
 if rg -F 'antigravity' "$TEST_ROOT/claude-no-claude-windows/curl.log" >/dev/null; then
   echo "agy install.sh ran on Windows" >&2
   exit 1

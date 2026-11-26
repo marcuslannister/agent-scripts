@@ -199,19 +199,16 @@ fi
 section "Antigravity CLI"
 # agy has no update command: it updates itself in the background, and its
 # install.sh exits early when agy exists and does not support Windows.
-if ! command -v agy >/dev/null 2>&1; then
-  if $windows; then
-    warn "agy not found; install it from PowerShell: irm https://antigravity.google/cli/install.ps1 | iex"
-    fail=1
+if $windows; then
+  info "agy skipped on Windows"
+elif ! command -v agy >/dev/null 2>&1; then
+  info "agy not found; installing"
+  if curl -fsSL https://antigravity.google/cli/install.sh | bash \
+    && command -v agy >/dev/null 2>&1; then
+    info "installed: $(agy --version 2>/dev/null || echo unknown)"
   else
-    info "agy not found; installing"
-    if curl -fsSL https://antigravity.google/cli/install.sh | bash \
-      && command -v agy >/dev/null 2>&1; then
-      info "installed: $(agy --version 2>/dev/null || echo unknown)"
-    else
-      warn "agy install failed"
-      fail=1
-    fi
+    warn "agy install failed"
+    fail=1
   fi
 else
   info "current: $(agy --version 2>/dev/null || echo unknown)"
