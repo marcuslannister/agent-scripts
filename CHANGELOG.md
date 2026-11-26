@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `global/AGENTS.md`: replies start with the main point and use an indented hierarchy of lists, where each outer level states the result of the text below it. The format applies to replies only, not to files. Removed the rule that limited bullets to lists, checklists, and comparisons.
+
 - Refreshed staged third-party skills (matt 6f7f783, nicobailon 916b212) and regenerated the selection-preserving skills matrix.
 
 - `agent-tooling/lib-staging.sh`: keep a staged `.source.json` when its upstream did not change (same repo and commit, or same origin and digests), so a re-run of `update-all.sh` leaves no `syncedAt`-only diff that fails the next clean-worktree check. The acquire test checks that an old `syncedAt` stays.
