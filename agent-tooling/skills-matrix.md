@@ -139,7 +139,7 @@
 | `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
 | `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1344 |
 | `notcrawl` | steipete/agent-scripts | skill | N | N | ~271 |
-| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~2909 |
+| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~3155 |
 | `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~806 |
 | `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |

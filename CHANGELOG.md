@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Refreshed staged third-party skills (matt 6f7f783, nicobailon 916b212) and regenerated the selection-preserving skills matrix.
+
 - `agent-tooling/lib-staging.sh`: keep a staged `.source.json` when its upstream did not change (same repo and commit, or same origin and digests), so a re-run of `update-all.sh` leaves no `syncedAt`-only diff that fails the next clean-worktree check. The acquire test checks that an old `syncedAt` stays.
 
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 24479d5, danyuchn d714e53, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt d653911, nicobailon e49079f, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
