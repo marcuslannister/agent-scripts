@@ -75,7 +75,7 @@ marketplace_present() { # marketplace
 }
 
 plugin_installed() { # plugin_id
-  codex plugin list --json 2>/dev/null \
+  codex plugin list --json -c features.remote_plugin=false 2>/dev/null \
     | jq -e --arg id "$1" 'any((.installed // [])[]; .pluginId == $id and .installed == true)' >/dev/null
 }
 

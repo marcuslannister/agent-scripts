@@ -62,7 +62,7 @@ case "$*" in
     jq -Rn --rawfile names "$markets" \
       '{marketplaces: ($names | split("\n") | map(select(length > 0) | {name: ., root: "/tmp"}))}'
     ;;
-  'plugin list --json')
+  'plugin list --json -c features.remote_plugin=false')
     jq -Rn --rawfile names "$plugins" \
       '{installed: ($names | split("\n") | map(select(length > 0) | {pluginId: ., installed: true, enabled: true})), available: []}'
     ;;

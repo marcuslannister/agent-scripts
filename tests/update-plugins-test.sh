@@ -71,7 +71,7 @@ cat > "$BIN/codex" <<'BASH'
 #!/usr/bin/env bash
 printf '%s\n' "codex $*" >> "$PLUGIN_LOG"
 case "$*" in
-  'plugin list --json')
+  'plugin list --json -c features.remote_plugin=false')
     printf '{"installed":[{"pluginId":"waza@waza","installed":true}]}\n'
     ;;
   *) exit 0 ;;
@@ -156,7 +156,7 @@ cat > "$BIN/codex" <<'BASH'
 #!/usr/bin/env bash
 printf '%s\n' "codex $*" >> "$PLUGIN_LOG"
 case "$*" in
-  'plugin list --json') printf 'not json at all\n' ;;
+  'plugin list --json -c features.remote_plugin=false') printf 'not json at all\n' ;;
   *) exit 0 ;;
 esac
 BASH

@@ -93,7 +93,8 @@ fi
 
 codex_inventory_ok=0
 if command -v codex >/dev/null 2>&1; then
-  if ! codex_inventory="$(with_timeout codex plugin list --json 2>&1)"; then
+  # The remote marketplace fetch is what hangs; sources.json lists only local marketplaces. Old Codex ignores the key.
+  if ! codex_inventory="$(with_timeout codex plugin list --json -c features.remote_plugin=false 2>&1)"; then
     warn "Codex plugin inventory failed; skipping Codex plugin refresh: ${codex_inventory//$'\n'/ }"
   elif ! jq -e '(.installed // []) | type == "array"' >/dev/null 2>&1 <<< "$codex_inventory"; then
     warn "Codex plugin inventory returned invalid JSON; skipping Codex plugin refresh"
