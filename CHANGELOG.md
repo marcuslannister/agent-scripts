@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `agent-tooling/lib-staging.sh`: keep a staged `.source.json` when its upstream did not change (same repo and commit, or same origin and digests), so a re-run of `update-all.sh` leaves no `syncedAt`-only diff that fails the next clean-worktree check. The acquire test checks that an old `syncedAt` stays.
+
 - Refreshed staged third-party skills (anthropics e4bb5d9, claude-community 24479d5, danyuchn d714e53, herdrdev e8d7d97, humanlayer 4d69d20, khazix 76fc0f8, matt d653911, nicobailon e49079f, smarzban d5b1e7f) and regenerated the selection-preserving skills matrix.
 
 - Add the manual-only `/context-audit` skill in `global/skills/`: steps to measure and cut the startup context of Claude Code, Codex, and Pi (subagents, skills, MCP servers, plugin hooks, always-loaded rules, compaction), with the traps and the 2026-11 results.

@@ -260,9 +260,18 @@ grep -F 'preexisting surface' "$FIXTURE/home/.claude/skills/docx/SKILL.md" >/dev
 [ ! -e "$FIXTURE/other-skills/waza" ]
 
 # Idempotent second acquire.
+# Age every syncedAt, so a rewrite on the second run shows.
+for source_json in "$FIXTURE"/other-skills/*/.source.json; do
+  jq '.syncedAt = "2000-01-01T00:00:00Z"' "$source_json" > "$source_json.tmp"
+  mv "$source_json.tmp" "$source_json"
+done
 run_acquire --json > "$FIXTURE/second.json"
 jq -e '.status == "reconciled" and (.changes | length) == 0 and (.errors | length) == 0' \
   "$FIXTURE/second.json" >/dev/null
+# Unchanged upstream keeps .source.json as it was, so a re-run leaves no diff.
+for source_json in "$FIXTURE"/other-skills/*/.source.json; do
+  jq -e '.syncedAt == "2000-01-01T00:00:00Z"' "$source_json" >/dev/null
+done
 diff -qr "$SURFACE_BEFORE/claude" "$FIXTURE/home/.claude/skills" >/dev/null
 
 # Upstream advancing restages just the changed skill.

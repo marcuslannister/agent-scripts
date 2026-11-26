@@ -105,6 +105,9 @@ write_staging_source_json() { # staging_root repo clone_dir
     printf 'unable to read upstream commit: %s\n' "$clone_dir" >&2
     return 1
   fi
+  # Same repo and commit: keep the file, so a re-run leaves no diff.
+  jq -e --arg repo "$repo" --arg commit "$commit" '.repo == $repo and .commit == $commit' \
+    "$staging_root/.source.json" >/dev/null 2>&1 && return 0
   synced_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   mkdir -p "$staging_root" || return 1
   jq -n --arg repo "$repo" --arg commit "$commit" --arg syncedAt "$synced_at" \
@@ -221,6 +224,10 @@ fetch_well_known_skills() { # origin dest_root
 write_well_known_source_json() { # staging_root origin fetch_root
   local staging_root="$1" origin="$2" fetch_root="$3"
 
+  # Same origin and digests: keep the file, so a re-run leaves no diff.
+  jq -e --arg origin "$origin" --slurpfile index "$fetch_root/.index.json" \
+    '.repo == $origin and .digests == ($index[0].skills | map({(.name): .digest}) | add)' \
+    "$staging_root/.source.json" >/dev/null 2>&1 && return 0
   mkdir -p "$staging_root" || return 1
   jq --arg origin "$origin" --arg syncedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     '{repo:$origin, digests:(.skills | map({(.name): .digest}) | add), syncedAt:$syncedAt}' \
