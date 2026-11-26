@@ -63,7 +63,7 @@ then leaves the startup context, and `/name` still works.
   (`hooks/ponytail-lean.sh`).
 - Codex reads `policy.allow_implicit_invocation: false` in
   `agents/openai.yaml`, not `disable-model-invocation`.
-  `global/bin/install-skills.sh` writes that file for own skills.
+  Each manual-only own skill keeps that file in its source folder.
 - Pi reads `disable-model-invocation` from `~/.agents/skills`.
 
 ### MCP servers

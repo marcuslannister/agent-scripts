@@ -6,6 +6,10 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `update-agents.sh` skips the Antigravity CLI step on Windows, so a PC without `agy` no longer fails the "agent CLIs" step.
+
+- `context-audit`: the note on `agents/openai.yaml` no longer names the deleted `install-skills.sh`.
+
 - Own skills: moved `global/skills/` to `other-skills/marcus/` (ADR-0014). The matrix selects them (Y/Y), and distribute copies them with markers, so the "unmarked" warning is gone. Deleted `global/bin/install-skills.sh`, its test, the "own skills" step of `update-all.sh` and `update-local.sh`, and check 4 of `check-agent-setup.sh`. `architect` and `context-audit` now keep `agents/openai.yaml` in the source.
 
 - `update-plugins.sh` and `repair-codex-registry.sh` run `codex plugin list --json -c features.remote_plugin=false`. With remote plugins on, Codex 0.172.0 hung on the remote marketplace fetch, so the 60 s timeout skipped the Codex plugin refresh on every Mac. `sources.json` lists only local marketplaces, and older Codex ignores the unknown key.
