@@ -12,7 +12,7 @@ read_when:
 
 ## Global rules and skills on a Windows PC (no `home` clone)
 
-The global rules and the own skills are in `global/` (ADR-0013). A PC needs this repo and the three settings repos (`claude-code-settings`, `codex-settings`, `pi-settings`), not `home`.
+The global rules are in `global/` (ADR-0013), and the own skills are in `other-skills/marcus/` (ADR-0014). A PC needs this repo and the three settings repos (`claude-code-settings`, `codex-settings`, `pi-settings`), not `home`.
 
 Prerequisites:
 - Git for Windows with symlinks on: `git config --global core.symlinks true`. Set it before you pull the settings repos. Without it, Git writes each tracked link as a text file.
@@ -25,9 +25,9 @@ Update:
 - Before the pull, run `bash global/bin/check-agent-setup.sh --preflight` in Git Bash. It checks Git link support and the current session's link privilege. Continue only when both checks pass. If this checkout has no `global/` yet, run the script from a current worktree, as in `handoff-windows-agent-setup-check.md`.
 - Pull in this order: `agent-scripts`, then `claude-code-settings`, `codex-settings`, and `pi-settings`, then `home` if the PC has it. `home` goes last, because it deletes the old link targets. `agent-tooling/update-local.sh` pulls `agent-scripts` only.
 - The four rule pointers are links that the settings repos track, so a pull of the settings repos sets them. Run `pwsh -File global\bin\setup-agent-instructions.ps1` only where `~/.claude`, `~/.codex`, or `~/.pi` is not the settings repo.
-- The own skills are copies. `agent-tooling/update-local.sh` installs them. To install them alone, run `bash global/bin/install-skills.sh` in Git Bash.
+- The own skills are matrix-selected copies. `agent-tooling/update-local.sh` distributes them.
 
-After the update, run this in Git Bash, in the `agent-scripts` folder. It checks Git link support, the current session's link privilege, the four instruction pointers, and the own skills in both surfaces. Each check prints one result line. Exit code 1 means that a check failed. A text pointer fails even if it holds the correct path:
+After the update, run this in Git Bash, in the `agent-scripts` folder. It checks Git link support, the current session's link privilege, and the four instruction pointers. Each check prints one result line. Exit code 1 means that a check failed. A text pointer fails even if it holds the correct path:
 
 ```bash
 bash global/bin/check-agent-setup.sh

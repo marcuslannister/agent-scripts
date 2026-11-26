@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; own skills superseded by ADR-0014
 ---
 
 # The global rules and own skills live in `global/`

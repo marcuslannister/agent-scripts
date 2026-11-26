@@ -2,8 +2,7 @@
 set -uo pipefail
 
 # Top-level updater (main machine): agent CLIs, best-effort plugin refresh,
-# staging acquire, matrix refresh, offline distribute, then the best-effort
-# install of the own skills of global/. Runs every step
+# staging acquire, matrix refresh, offline distribute. Runs every step
 # (no fail-fast), prints a summary, and by default validates, commits, pushes,
 # and pulls the resulting tracked changes (ADR-0009). --no-ship reviews only.
 
@@ -178,7 +177,6 @@ plugins_status=0
 acquire_status=0
 matrix_status=0
 distribute_status=0
-skills_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -199,23 +197,12 @@ section "Refreshing skills matrix"
 section "Distributing skill surfaces"
 "$SCRIPT_DIR/sync-skill-surfaces.sh" || distribute_status=$?
 
-# Best-effort like the plugin refresh: the rules are links that a pull changes,
-# but the own skills are copies, so every PC installs them after the update steps.
-section "Installing own skills"
-if skills_out="$("$REPO_ROOT/global/bin/install-skills.sh" 2>&1)"; then
-  printf '%s\n' "$skills_out"
-else
-  skills_status=1
-  warn "own skills install failed: ${skills_out//$'\n'/ }"
-fi
-
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "native plugins" "$plugins_status"
 status_line "skill acquire" "$acquire_status"
 status_line "skills matrix" "$matrix_status"
 status_line "skill distribute" "$distribute_status"
-status_line "own skills" "$skills_status"
 
 (( agents_status != 0 || acquire_status != 0 || matrix_status != 0 || distribute_status != 0 )) && exit 1
 [ "$ship" -eq 0 ] || ship_changes || exit 1

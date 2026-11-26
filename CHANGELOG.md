@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Own skills: moved `global/skills/` to `other-skills/marcus/` (ADR-0014). The matrix selects them (Y/Y), and distribute copies them with markers, so the "unmarked" warning is gone. Deleted `global/bin/install-skills.sh`, its test, the "own skills" step of `update-all.sh` and `update-local.sh`, and check 4 of `check-agent-setup.sh`. `architect` and `context-audit` now keep `agents/openai.yaml` in the source.
+
 - `update-plugins.sh` and `repair-codex-registry.sh` run `codex plugin list --json -c features.remote_plugin=false`. With remote plugins on, Codex 0.172.0 hung on the remote marketplace fetch, so the 60 s timeout skipped the Codex plugin refresh on every Mac. `sources.json` lists only local marketplaces, and older Codex ignores the unknown key.
 
 - `global/AGENTS.md`: replies start with the main point and use an indented hierarchy of lists, where each outer level states the result of the text below it. The format applies to replies only, not to files. Removed the rule that limited bullets to lists, checklists, and comparisons.

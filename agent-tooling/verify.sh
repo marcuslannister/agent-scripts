@@ -74,7 +74,7 @@ for test_file in tests/*-test.sh; do
   bash "$test_file"
 done
 
-section "Global rules and own skills"
+section "Global rules"
 for test_file in global/tests/*-test.sh; do
   bash "$test_file"
 done

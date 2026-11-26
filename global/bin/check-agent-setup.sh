@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check setup without changing the repos, pointers, or installed skills.
+# Check setup without changing the repos or pointers.
 set -euo pipefail
 
 case "$*" in
@@ -96,36 +96,4 @@ else
   report fail "3. The four pointers are missing or differ:$issues check ~/Projects/agent-scripts/global/ and the tracked settings links (docs/windows.md)"
 fi
 
-# 4. The installer adds a policy file for manual-only skills without one.
-issues=
-shopt -s nullglob
-found_skill=false
-for skill in "$SOURCE"/skills/*/; do
-  found_skill=true
-  name="$(basename "$skill")"
-  expected="$TMP_ROOT/skills/$name"
-  mkdir -p "$expected"
-  if ! cp -R "$skill/." "$expected/" 2>/dev/null; then
-    issues+=" cannot read source skill $name;"
-    continue
-  fi
-  if grep -q '^disable-model-invocation: *true' "$skill/SKILL.md" && [ ! -e "$expected/agents/openai.yaml" ]; then
-    mkdir -p "$expected/agents"
-    printf 'policy:\n  allow_implicit_invocation: false\n' > "$expected/agents/openai.yaml"
-  fi
-  for root in .claude/skills .agents/skills; do
-    copy="$HOME/$root/$name"
-    if [ -L "$copy" ] || [ ! -d "$copy" ] || ! diff -r "$expected" "$copy" >/dev/null 2>&1; then
-      issues+=" ~/$root/$name;"
-    fi
-  done
-done
-if ! "$found_skill"; then
-  issues+=' no source skills in ~/Projects/agent-scripts/global/skills/;'
-fi
-if [ -z "$issues" ]; then
-  report pass '4. The own skills match in both surfaces'
-else
-  report fail "4. The own skills are missing or stale:$issues run bash ~/Projects/agent-scripts/global/bin/install-skills.sh"
-fi
 exit "$failed"

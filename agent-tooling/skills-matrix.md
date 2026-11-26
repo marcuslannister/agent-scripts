@@ -2,8 +2,8 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 14 | 46 |
-| Shared | 12 | 12 |
+| Total | 18 | 50 |
+| Shared | 16 | 16 |
 | Agent-only | 2 | 34 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
@@ -12,6 +12,8 @@
 | `agent-transcript` | steipete/agent-scripts | skill | N | N | ~697 |
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~459 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
+| `anvil-advanced-ops` | marcus | skill | Y | Y | ~1428 |
+| `architect` | marcus | skill | Y | Y | ~1066 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4122 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~4269 |
@@ -35,6 +37,7 @@
 | `codex-first` | steipete/agent-scripts | skill | N | N | ~4888 |
 | `codex-huge-context` | steipete/agent-scripts | skill | N | N | ~4015 |
 | `codexbar` | steipete/agent-scripts | skill | N | N | ~700 |
+| `context-audit` | marcus | skill | Y | Y | ~1624 |
 | `crabbox` | steipete/agent-scripts | skill | N | N | ~1750 |
 | `create-cli` | steipete/agent-scripts | skill | N | N | ~834 |
 | `design-control-loop` | humanlayer/skills | skill | N | N | ~3850 |
@@ -69,6 +72,7 @@
 | `grilling` | mattpocock/skills | skill | N | Y | ~516 |
 | `handoff` | mattpocock/skills | skill | N | Y | ~235 |
 | `herdr` | herdrdev/herdr | skill | Y | Y | ~3792 |
+| `herdr-coordinator` | marcus | skill | Y | Y | ~7165 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `html-plan` | anthropics/claude-plugins-community | skill | N | N | ~2944 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~1867 |
@@ -273,7 +277,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2429 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=264 both=12 claude_only=2 codex_only=34 total_claude=14 total_codex=46 -->
+<!-- total=268 both=16 claude_only=2 codex_only=34 total_claude=18 total_codex=50 -->
 
 ## Enable-state
 
@@ -283,8 +287,8 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 |---|---|---|
 | Enabled | 1 | 0 |
 | Disabled | 9 | 8 |
-| Always-on | 4 | 38 |
-| Total | 14 | 46 |
+| Always-on | 8 | 42 |
+| Total | 18 | 50 |
 
 ## Repos
 
@@ -298,6 +302,7 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `danyuchn/asd-ste100-skill` | https://github.com/danyuchn/asd-ste100-skill |
 | `herdrdev/herdr` | https://github.com/herdrdev/herdr |
 | `humanlayer/skills` | https://github.com/humanlayer/skills |
+| `marcus` | ? |
 | `mattpocock/skills` | https://github.com/mattpocock/skills |
 | `metrixbar` | ? |
 | `nicobailon/visual-explainer` | https://github.com/nicobailon/visual-explainer |

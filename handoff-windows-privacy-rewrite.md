@@ -3,7 +3,7 @@
 For a Codex or Claude Code agent on a Windows PC, with the user present. Two changes reach this PC together:
 
 - The history of 6 repos was rewritten and force-pushed. The rewrite removed home paths from files and commit messages. Each rewritten commit has a new hash, and tags moved too.
-- The global rules and the own skills moved to `agent-scripts/global/` (ADR-0013). The three settings repos track the pointer links into `global/`, so the reset in step 3 sets the pointers.
+- The global rules moved to `agent-scripts/global/` (ADR-0013), and the own skills to `other-skills/marcus/` (ADR-0014). The three settings repos track the pointer links into `global/`, so the reset in step 3 sets the pointers.
 
 Rewritten repos: `claude-code-settings` `codex-settings` `dotfiles` `emacs.d` `grok-settings` `pi-settings`. The other repos (for example `agent-scripts`) keep their history: pull them with `git pull --ff-only`.
 
@@ -176,7 +176,7 @@ This PC does not use the privacy guard. Run `git config --show-origin --get core
 ## 7. Finish the agent setup
 
 1. If `~/.claude`, `~/.codex`, or `~/.pi` is not a link to its settings repo, see `docs/windows.md`: `pwsh -File global\bin\setup-agent-instructions.ps1`.
-2. Run `bash ~/Projects/agent-scripts/agent-tooling/update-local.sh`. It installs the own skills too. It has not run on Windows before: if a step fails, report the output. To install only the own skills, run `bash ~/Projects/agent-scripts/global/bin/install-skills.sh`.
+2. Run `bash ~/Projects/agent-scripts/agent-tooling/update-local.sh`. It distributes the own skills too. It has not run on Windows before: if a step fails, report the output.
 3. Run `bash ~/Projects/agent-scripts/global/bin/check-agent-setup.sh`. All four lines must show `✓`.
 4. Make the plugins match the Mac. `~/.codex/config.toml` is local to each PC, so the reset does not bring the Codex marketplaces. Skip each line for a plugin or marketplace that `claude plugin list` or `codex plugin list` already shows:
 

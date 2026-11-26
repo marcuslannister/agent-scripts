@@ -25,7 +25,7 @@ _Avoid_: automatic mirror, default copy
 _Avoid_: home rules, shared rules
 
 **Own skills**:
-The user's own skills in `global/skills/`. `global/bin/install-skills.sh` copies them as plain directories into both surfaces, and `update-all.sh` and `update-local.sh` run it as a best-effort last step. They are not repo-owned source in the matrix sense: the matrix and the generators do not read `global/skills/`.
+The user's own skills in `other-skills/marcus/` (ADR-0014). They stage like a foreign inventory, but no `sources.json` entry acquires them, so acquire never prunes them. The matrix selects them, and distribute copies them with markers.
 _Avoid_: upstream skills, repo-owned source
 
 **Pointer migration**:
@@ -107,7 +107,7 @@ _Avoid_: missing marketplace, broken plugin, native-state repair
 _Avoid_: staging, snapshot, local marketplace
 
 **Routine updater**:
-`update-all.sh`. Seven ordered steps: fast-forward pull, agent CLI updates, plugin refresh, acquire, selection-preserving matrix regeneration, distribute, then the install of the own skills. It ships by default; `--no-ship` selects a review-only run. The plugin refresh and the own-skills install are non-fatal: each reports a failure and never fails the run.
+`update-all.sh`. Six ordered steps: fast-forward pull, agent CLI updates, plugin refresh, acquire, selection-preserving matrix regeneration, then distribute. It ships by default; `--no-ship` selects a review-only run. The plugin refresh is non-fatal: it reports a failure and never fails the run.
 
 **Ship mode**:
 The routine updater's default closeout: validate and record refreshed tracked skill state, then commit and synchronize it with the remote. It requires a clean starting state and never ships failed updates; `--no-ship` opts out.

@@ -105,7 +105,7 @@ copy_is_adoptable() { # source_dir dest_dir
 
 # Make dest_dir hold exactly the files of source_dir: rsync --delete, or a fresh
 # copy where rsync is missing (Git Bash on Windows ships none). Callers own any
-# ownership checks and markers; global/bin/install-skills.sh shares this.
+# ownership checks and markers.
 copy_dir_replace() { # source_dir dest_dir
   local src="$1"
   local dst="$2"
