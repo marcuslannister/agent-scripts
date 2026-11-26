@@ -115,6 +115,16 @@ rg -F 'antigravity-settings is not cloned' "$TMP_ROOT/agy-missing.out" >/dev/nul
 
 mkdir -p "$HOME_FIXTURE/Projects/antigravity-settings"
 
+# A clone without an executable install.sh is a failure mark, not a skip; the exit code stays 0.
+: > "$UPDATE_LOG"
+run_local > "$TMP_ROOT/agy-noinstall.out" 2>&1
+cmp "$TMP_ROOT/expected.log" "$UPDATE_LOG"
+rg '✗.*antigravity settings' "$TMP_ROOT/agy-noinstall.out" >/dev/null
+if rg -F 'not cloned' "$TMP_ROOT/agy-noinstall.out" >/dev/null; then
+  echo "FAIL: a clone without install.sh was reported as not cloned" >&2
+  exit 1
+fi
+
 printf '%s\n' '#!/usr/bin/env bash' 'echo antigravity-install.sh >> "$UPDATE_LOG"' \
   > "$HOME_FIXTURE/Projects/antigravity-settings/install.sh"
 chmod +x "$HOME_FIXTURE/Projects/antigravity-settings/install.sh"

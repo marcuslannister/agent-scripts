@@ -201,13 +201,17 @@ section "Distributing skill surfaces"
 
 # Best-effort like the native plugins: the settings repo is per-machine state
 # (it links ~/.gemini/antigravity-cli and installs agy plugins), so a failure is
-# reported and never fails the run or the ship. A machine without the clone skips it.
+# reported and never fails the run or the ship. A machine without the clone skips
+# it; a clone without an executable install.sh is a failure mark, not a skip.
 section "Applying Antigravity settings"
-antigravity_install="$HOME/Projects/antigravity-settings/install.sh"
-if [ -x "$antigravity_install" ]; then
-  "$antigravity_install" || antigravity_status=$?
-else
+antigravity_dir="$HOME/Projects/antigravity-settings"
+if [ ! -d "$antigravity_dir" ]; then
   printf 'antigravity-settings is not cloned; skipping\n'
+elif [ -x "$antigravity_dir/install.sh" ]; then
+  "$antigravity_dir/install.sh" || antigravity_status=$?
+else
+  warn "$antigravity_dir/install.sh is missing or not executable"
+  antigravity_status=1
 fi
 
 section "Summary"

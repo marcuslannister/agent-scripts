@@ -58,14 +58,14 @@ Tracked `skills/` content mirrors `steipete/agent-scripts:main` exactly, includi
 
 `agent-tooling/update-all.sh` — the one command on the main machine
 - Five ordered steps: `update-agents.sh`, `update-plugins.sh`, `update-skill-topology.sh` (acquire), `generate-skills-matrix.sh`, then `sync-skill-surfaces.sh` (distribute).
-- Ends with the same best-effort Antigravity step as `update-local.sh`: it runs `~/Projects/antigravity-settings/install.sh`, or skips when the clone is missing. A failure shows as `✗ antigravity settings` and does not fail the run or the ship.
+- Ends with the same best-effort Antigravity step as `update-local.sh`: it runs `~/Projects/antigravity-settings/install.sh`, or skips when the clone folder is missing. A failure, or a clone without an executable `install.sh`, shows as `✗ antigravity settings` and does not fail the run or the ship.
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any ordered step failed (the best-effort steps are the exception).
 - Ships by default: requires a clean worktree, pulls first, validates the update, adds an Unreleased changelog entry, commits the refresh, pushes, pulls with fast-forward only, and verifies the final worktree state. `--no-ship` runs the update steps only.
 
 `agent-tooling/update-local.sh` — the one command on every other machine
 - Fast-forward pulls the repo, then three ordered steps: `update-agents.sh`, `update-plugins.sh`, then `sync-skill-surfaces.sh` (distribute). No staging acquire and no matrix refresh; this machine distributes already-committed staging.
 - Runs on macOS and on Windows under Git Bash. Windows needs `jq` and `rg` on PATH once.
-- Ends with a best-effort step that runs `~/Projects/antigravity-settings/install.sh` (links `~/.gemini/antigravity-cli`, registers the hooks plugin and the shared skills root, refreshes the `agy` plugins). A machine without that clone skips it; neither updater clones or pulls `antigravity-settings` (the same as `codex-settings`).
+- Ends with a best-effort step that runs `~/Projects/antigravity-settings/install.sh` (links `~/.gemini/antigravity-cli`, registers the hooks plugin and the shared skills root, refreshes the `agy` plugins). A machine without that clone folder skips it; a clone without an executable `install.sh` shows `✗`. Neither updater clones or pulls `antigravity-settings` (the same as `codex-settings`).
 - No fail-fast; prints a `✓`/`✗` summary and exits non-zero if any ordered step failed (the best-effort steps are the exception).
 
 `agent-tooling/update-plugins.sh`
