@@ -2,9 +2,10 @@
 set -uo pipefail
 
 # Top-level updater (main machine): agent CLIs, best-effort plugin refresh,
-# staging acquire, matrix refresh, offline distribute. Runs every step
-# (no fail-fast), prints a summary, and by default validates, commits, pushes,
-# and pulls the resulting tracked changes (ADR-0009). --no-ship reviews only.
+# staging acquire, matrix refresh, offline distribute, best-effort Antigravity
+# settings. Runs every step (no fail-fast), prints a summary, and by default
+# validates, commits, pushes, and pulls the resulting tracked changes
+# (ADR-0009). --no-ship reviews only.
 
 # Native jq.exe on Windows writes CRLF; strip the \r. pipefail keeps jq's exit status.
 jq() { command jq "$@" | tr -d '\r'; }
@@ -177,6 +178,7 @@ plugins_status=0
 acquire_status=0
 matrix_status=0
 distribute_status=0
+antigravity_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -197,12 +199,24 @@ section "Refreshing skills matrix"
 section "Distributing skill surfaces"
 "$SCRIPT_DIR/sync-skill-surfaces.sh" || distribute_status=$?
 
+# Best-effort like the native plugins: the settings repo is per-machine state
+# (it links ~/.gemini/antigravity-cli and installs agy plugins), so a failure is
+# reported and never fails the run or the ship. A machine without the clone skips it.
+section "Applying Antigravity settings"
+antigravity_install="$HOME/Projects/antigravity-settings/install.sh"
+if [ -x "$antigravity_install" ]; then
+  "$antigravity_install" || antigravity_status=$?
+else
+  printf 'antigravity-settings is not cloned; skipping\n'
+fi
+
 section "Summary"
 status_line "agent CLIs" "$agents_status"
 status_line "native plugins" "$plugins_status"
 status_line "skill acquire" "$acquire_status"
 status_line "skills matrix" "$matrix_status"
 status_line "skill distribute" "$distribute_status"
+status_line "antigravity settings" "$antigravity_status"
 
 (( agents_status != 0 || acquire_status != 0 || matrix_status != 0 || distribute_status != 0 )) && exit 1
 [ "$ship" -eq 0 ] || ship_changes || exit 1

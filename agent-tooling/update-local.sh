@@ -37,6 +37,7 @@ fi
 agents_status=0
 plugins_status=0
 distribute_status=0
+antigravity_status=0
 
 section "Updating agent CLIs"
 "$SCRIPT_DIR/update-agents.sh" || agents_status=$?
@@ -48,11 +49,23 @@ section "Refreshing native plugins"
 section "Distributing skill surfaces"
 "$SCRIPT_DIR/sync-skill-surfaces.sh" || distribute_status=$?
 
+# Best-effort like the native plugins: the settings repo is per-machine state
+# (it links ~/.gemini/antigravity-cli and installs agy plugins), so a failure is
+# reported and never fails the run. A machine without the clone skips the step.
+section "Applying Antigravity settings"
+antigravity_install="$HOME/Projects/antigravity-settings/install.sh"
+if [ -x "$antigravity_install" ]; then
+  "$antigravity_install" || antigravity_status=$?
+else
+  printf 'antigravity-settings is not cloned; skipping\n'
+fi
+
 section "Summary"
 status_line "repository pull" "$pull_status"
 status_line "agent CLIs" "$agents_status"
 status_line "native plugins" "$plugins_status"
 status_line "skill distribute" "$distribute_status"
+status_line "antigravity settings" "$antigravity_status"
 
 (( pull_status != 0 || agents_status != 0 || distribute_status != 0 )) && exit 1
 exit 0

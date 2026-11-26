@@ -4,10 +4,14 @@ set -euo pipefail
 # Black-box contract (ADR-0009): the main-machine updater has five ordered
 # steps, attempts all of them, summarizes all, aggregates failure except the
 # best-effort plugin refresh, and ships by default. --no-ship updates only.
+# The Antigravity settings step is best-effort too (below).
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
+# update-all.sh runs $HOME/Projects/antigravity-settings/install.sh: keep it off the real HOME.
+export HOME="$TMPDIR/home"
+mkdir -p "$HOME/Projects"
 
 SCRIPTS="$TMPDIR/scripts"
 UPDATE_LOG="$TMPDIR/update.log"
@@ -45,9 +49,29 @@ test ! -e "$UPDATE_LOG"
 # --no-ship: every step runs, nothing is committed.
 UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/out" 2>&1
 cmp "$TMPDIR/expected.log" "$UPDATE_LOG"
-for label in 'agent CLIs' 'native plugins' 'skill acquire' 'skills matrix' 'skill distribute'; do
+for label in 'agent CLIs' 'native plugins' 'skill acquire' 'skills matrix' 'skill distribute' 'antigravity settings'; do
   grep -F "$label" "$TMPDIR/out" >/dev/null
 done
+rg -F 'antigravity-settings is not cloned' "$TMPDIR/out" >/dev/null
+
+# antigravity-settings: an installed clone runs after the steps; a failing install
+# is reported but never fails the run (best-effort).
+AGY_DIR="$HOME/Projects/antigravity-settings"
+mkdir -p "$AGY_DIR"
+printf '%s\n' '#!/usr/bin/env bash' 'echo antigravity-install.sh >> "$UPDATE_LOG"' > "$AGY_DIR/install.sh"
+chmod +x "$AGY_DIR/install.sh"
+: > "$UPDATE_LOG"
+UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/agy-ok.out" 2>&1
+printf '%s\n' "${UPDATERS[@]}" antigravity-install.sh > "$TMPDIR/expected-agy.log"
+cmp "$TMPDIR/expected-agy.log" "$UPDATE_LOG"
+rg '✓.*antigravity settings' "$TMPDIR/agy-ok.out" >/dev/null
+
+printf '%s\n' '#!/usr/bin/env bash' 'echo antigravity-install.sh >> "$UPDATE_LOG"' 'exit 5' > "$AGY_DIR/install.sh"
+: > "$UPDATE_LOG"
+UPDATE_LOG="$UPDATE_LOG" "$SCRIPTS/update-all.sh" --no-ship > "$TMPDIR/agy-fail.out" 2>&1
+cmp "$TMPDIR/expected-agy.log" "$UPDATE_LOG"
+rg '✗.*antigravity settings' "$TMPDIR/agy-fail.out" >/dev/null
+rm -rf "$AGY_DIR"
 
 # A failed plugin refresh is reported but never fails the run (ADR-0009).
 printf '%s\n' \

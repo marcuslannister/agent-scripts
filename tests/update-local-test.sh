@@ -8,6 +8,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
+# update-local.sh runs $HOME/Projects/antigravity-settings/install.sh: keep it off the real HOME.
+export HOME="$TMP_ROOT/home"
+mkdir -p "$HOME/Projects"
 
 FIXTURE="$TMP_ROOT/repo"
 SCRIPTS="$FIXTURE/agent-tooling"
@@ -100,5 +103,32 @@ step_fail_code=$?
 set -e
 test "$step_fail_code" -eq 1
 cmp "$TMP_ROOT/expected.log" "$UPDATE_LOG"
+
+# antigravity-settings: a missing clone is skipped, an installed one runs after the
+# steps, and a failing install is reported but never fails the run (best-effort).
+HOME_FIXTURE=$HOME
+write_steps 0
+: > "$UPDATE_LOG"
+run_local > "$TMP_ROOT/agy-missing.out" 2>&1
+cmp "$TMP_ROOT/expected.log" "$UPDATE_LOG"
+rg -F 'antigravity-settings is not cloned' "$TMP_ROOT/agy-missing.out" >/dev/null
+
+mkdir -p "$HOME_FIXTURE/Projects/antigravity-settings"
+
+printf '%s\n' '#!/usr/bin/env bash' 'echo antigravity-install.sh >> "$UPDATE_LOG"' \
+  > "$HOME_FIXTURE/Projects/antigravity-settings/install.sh"
+chmod +x "$HOME_FIXTURE/Projects/antigravity-settings/install.sh"
+: > "$UPDATE_LOG"
+run_local > "$TMP_ROOT/agy-ok.out" 2>&1
+printf '%s\n' "${STEPS[@]}" antigravity-install.sh > "$TMP_ROOT/expected-agy.log"
+cmp "$TMP_ROOT/expected-agy.log" "$UPDATE_LOG"
+rg '✓.*antigravity settings' "$TMP_ROOT/agy-ok.out" >/dev/null
+
+printf '%s\n' '#!/usr/bin/env bash' 'echo antigravity-install.sh >> "$UPDATE_LOG"' 'exit 5' \
+  > "$HOME_FIXTURE/Projects/antigravity-settings/install.sh"
+: > "$UPDATE_LOG"
+run_local > "$TMP_ROOT/agy-fail.out" 2>&1
+cmp "$TMP_ROOT/expected-agy.log" "$UPDATE_LOG"
+rg '✗.*antigravity settings' "$TMP_ROOT/agy-fail.out" >/dev/null
 
 echo "update-local tests passed"

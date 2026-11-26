@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `update-local.sh` and `update-all.sh` run `~/Projects/antigravity-settings/install.sh` as a last best-effort step, so every machine applies the Antigravity CLI settings: the hooks plugin, the shared skills root, and a refresh of the `agy` plugins. A failure is one `✗ antigravity settings` line and does not change the exit code or stop the ship; a machine without the clone skips the step. Neither script clones or pulls the repo, the same as `codex-settings`. `tests/update-local-test.sh` and `tests/update-all-test.sh` cover the missing, passing, and failing cases and keep `HOME` isolated.
+
 - `update-agents.sh` skips the Antigravity CLI step on Windows, so a PC without `agy` no longer fails the "agent CLIs" step.
 
 - `context-audit`: the note on `agents/openai.yaml` no longer names the deleted `install-skills.sh`.
