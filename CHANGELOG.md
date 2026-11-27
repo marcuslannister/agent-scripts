@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- Matrix: the `visual-explainer` skill no longer has a Codex copy (Codex `N`). The `waza` and `visual-explainer` plugins are uninstalled on the Macs; `update-plugins.sh` does not install them again.
+
 - Refreshed tracked skills and regenerated the selection-preserving skills matrix.
 
 - `update-local.sh` and `update-all.sh` run `~/Projects/antigravity-settings/install.sh` as a last best-effort step, so every machine applies the Antigravity CLI settings: the hooks plugin, the shared skills root, and a refresh of the `agy` plugins. A failure is one `✗ antigravity settings` line and does not change the exit code or stop the ship; a machine without the clone folder skips the step, but a clone without an executable `install.sh` gives the `✗` line, not a skip. Neither script clones or pulls the repo, the same as `codex-settings`. `tests/update-local-test.sh` and `tests/update-all-test.sh` cover the missing folder, the missing `install.sh`, the passing, and the failing cases and keep `HOME` isolated.
