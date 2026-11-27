@@ -202,6 +202,7 @@ If the user wants a `/compact` in place, do it. After the compaction, also start
 - Report each task: what it did (commits, summary), what the agent decided, what is not verified or is postponed, and what the user must decide.
 - List the tabs that you opened, and ask the user whether to close them (the user can want to read the records first). Make sure that each agent stopped the services, simulators, and browser sessions that it started.
 - Commit the files that you own and the summaries that the workers left in the working tree, in one commit, as the repository rules allow. Coordinator mode does not authorize commits, pushes, or releases. The record stays in `tmp/<date>-<work>/`.
+- At the end of the report, ask the user whether to run a retrospective. The agent cannot start this skill, so the user types `/mattpocock-skills:retro`.
 
 ## Kanzo
 

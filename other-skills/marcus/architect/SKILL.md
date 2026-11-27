@@ -28,6 +28,7 @@ The team is defined in `~/.claude/agents/`. Background: `~/Projects/home/docs/re
    - Otherwise, also run the `mattpocock-skills:code-review` skill. Use the base revision as the fixed point and the task as the spec.
 6. Accept or reject each finding with evidence. Send accepted findings to the same implementer with `SendMessage`. Review the changed part again.
 7. Run the acceptance checks yourself. A worker's report is not proof. Report what passed, what failed, and what is still open.
+8. At the end of the report, ask the user whether to run a retrospective. The agent cannot start this skill, so the user types `/mattpocock-skills:retro`.
 
 ## Rules
 
