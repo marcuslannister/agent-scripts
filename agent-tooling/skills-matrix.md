@@ -13,7 +13,7 @@
 | `aihot` | KKKKhazix/khazix-skills | skill | N | N | ~459 |
 | `algorithmic-art` | anthropics/skills | skill | N | N | ~4933 |
 | `anvil-advanced-ops` | marcus | skill | Y | Y | ~1428 |
-| `architect` | marcus | skill | Y | Y | ~1066 |
+| `architect` | marcus | skill | Y | Y | ~1105 |
 | `asd-ste100-skill` | danyuchn/asd-ste100-skill | skill | Y | Y | ~4122 |
 | `ask-matt` | mattpocock/skills | skill | N | Y | ~3145 |
 | `autoreview` | steipete/agent-scripts | skill | N | N | ~4269 |
@@ -72,7 +72,7 @@
 | `grilling` | mattpocock/skills | skill | N | Y | ~516 |
 | `handoff` | mattpocock/skills | skill | N | Y | ~235 |
 | `herdr` | herdrdev/herdr | skill | Y | Y | ~3792 |
-| `herdr-coordinator` | marcus | skill | Y | Y | ~7165 |
+| `herdr-coordinator` | marcus | skill | Y | Y | ~7204 |
 | `hopper-debugger` | steipete/agent-scripts | skill | N | N | ~1647 |
 | `html-plan` | anthropics/claude-plugins-community | skill | N | N | ~2944 |
 | `hv-analysis` | KKKKhazix/khazix-skills | skill | N | N | ~1867 |
