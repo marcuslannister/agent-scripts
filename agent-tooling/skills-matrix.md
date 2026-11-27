@@ -2,9 +2,9 @@
 
 | Availability | Claude | Codex |
 |---|---|---|
-| Total | 18 | 50 |
-| Shared | 16 | 16 |
-| Agent-only | 2 | 34 |
+| Total | 9 | 41 |
+| Shared | 8 | 8 |
+| Agent-only | 1 | 33 |
 
 | Skill | Source | Type | Claude | Codex | ~Tokens |
 |---|---|---|---|---|---|
@@ -143,7 +143,7 @@
 | `native-app-performance` | steipete/agent-scripts | skill | N | N | ~486 |
 | `neat-freak` | KKKKhazix/khazix-skills | skill | N | N | ~1344 |
 | `notcrawl` | steipete/agent-scripts | skill | N | N | ~271 |
-| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~3155 |
+| `nowledge-mem:bridge` | nowledge-community | plugin | N | N | ~3780 |
 | `nowledge-mem:distill-memory` | nowledge-community | plugin | N | N | ~806 |
 | `nowledge-mem:read-working-memory` | nowledge-community | plugin | N | N | ~1064 |
 | `nowledge-mem:save-thread` | nowledge-community | plugin | N | N | ~560 |
@@ -250,20 +250,11 @@
 | `tsk-coordinator` | smarzban/tsk | skill | N | N | ~2504 |
 | `twilio-sms` | steipete/agent-scripts | skill | N | N | ~1060 |
 | `video-transcript-downloader` | steipete/agent-scripts | skill | N | N | ~558 |
-| `visual-explainer` | nicobailon/visual-explainer | plugin | Y | N | ~2181 |
 | `visual-explainer` | nicobailon/visual-explainer | skill | N | N | ~2181 |
 | `visual-pr` | humanlayer/skills | skill | N | N | ~844 |
 | `vm-lab` | steipete/agent-scripts | skill | N | N | ~1828 |
 | `wait-what` | mattpocock/skills | skill | N | Y | ~99 |
 | `wayfinder` | mattpocock/skills | skill | N | Y | ~3102 |
-| `waza:check` | tw93/Waza | plugin | Y | Y | ~7002 |
-| `waza:health` | tw93/Waza | plugin | Y | Y | ~5393 |
-| `waza:hunt` | tw93/Waza | plugin | Y | Y | ~4272 |
-| `waza:learn` | tw93/Waza | plugin | Y | Y | ~2212 |
-| `waza:read` | tw93/Waza | plugin | Y | Y | ~1950 |
-| `waza:think` | tw93/Waza | plugin | Y | Y | ~2961 |
-| `waza:ui` | tw93/Waza | plugin | Y | Y | ~3813 |
-| `waza:write` | tw93/Waza | plugin | Y | Y | ~3920 |
 | `web-artifacts-builder` | anthropics/skills | skill | N | N | ~768 |
 | `webapp-testing` | anthropics/skills | skill | N | N | ~965 |
 | `whatsapp` | steipete/agent-scripts | skill | N | N | ~935 |
@@ -277,7 +268,7 @@
 | `xlsx` | anthropics/skills | skill | N | N | ~2429 |
 | `xurl` | steipete/agent-scripts | skill | N | N | ~840 |
 
-<!-- total=268 both=16 claude_only=2 codex_only=34 total_claude=18 total_codex=50 -->
+<!-- total=259 both=8 claude_only=1 codex_only=33 total_claude=9 total_codex=41 -->
 
 ## Enable-state
 
@@ -286,9 +277,9 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | State | Claude | Codex |
 |---|---|---|
 | Enabled | 1 | 0 |
-| Disabled | 9 | 8 |
-| Always-on | 8 | 42 |
-| Total | 18 | 50 |
+| Disabled | 0 | 0 |
+| Always-on | 8 | 41 |
+| Total | 9 | 41 |
 
 ## Repos
 
@@ -309,5 +300,4 @@ Config truth on this machine, point-in-time (mutable — retoggling a plugin cha
 | `nowledge-community` | ? |
 | `smarzban/tsk` | https://github.com/smarzban/tsk |
 | `steipete/agent-scripts` | https://github.com/steipete/agent-scripts |
-| `tw93/Waza` | https://github.com/tw93/Waza |
 | `ykdojo` | ? |

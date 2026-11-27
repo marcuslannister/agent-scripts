@@ -35,6 +35,10 @@ printf '%s\n' '12345678—' > "$FIXTURE/skills/upstream-existing/SKILL.md"
 printf '%s\n' 'fixture plugin' > "$HOME_ROOT/plugin-target/SKILL.md"
 ln -s "$HOME_ROOT/plugin-target/SKILL.md" \
   "$HOME_ROOT/.claude/plugins/cache/example/plugin-existing/1.0.0/SKILL.md"
+# An uninstalled plugin leaves an orphaned cache version: it must not become a row.
+mkdir -p "$HOME_ROOT/.claude/plugins/cache/example/plugin-removed/1.0.0"
+printf '%s\n' 'fixture removed' > "$HOME_ROOT/.claude/plugins/cache/example/plugin-removed/1.0.0/SKILL.md"
+: > "$HOME_ROOT/.claude/plugins/cache/example/plugin-removed/1.0.0/.orphaned_at"
 cat > "$FIXTURE/other-skills/alpha/.source.json" <<'JSON'
 {"repo":"https://github.com/example/alpha-skills.git","commit":"abc","syncedAt":"2026-07-28T00:00:00Z"}
 JSON
@@ -99,6 +103,11 @@ rg '^\| `upstream-repointed` \| example/alpha-skills \| skill \| N \| N \|' \
   "$FIXTURE/generated.md" >/dev/null
 rg '^\| `stale-selected` \| old/stale-source \| skill \| N \| Y \|' \
   "$FIXTURE/generated.md" >/dev/null
+
+if rg -F 'plugin-removed' "$FIXTURE/generated.md" >/dev/null; then
+  echo "FAIL: an orphaned plugin cache became a matrix row" >&2
+  exit 1
+fi
 
 # Derived sections are recomputed from preserved selections.
 rg -F '| Total | 3 | 3 |' "$FIXTURE/generated.md" >/dev/null

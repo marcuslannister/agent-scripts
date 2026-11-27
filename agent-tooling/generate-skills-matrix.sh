@@ -173,6 +173,8 @@ CACHE_ROOT="$HOME_ROOT/.claude/plugins/cache"
 plugin_index=0
 for version_root in "$CACHE_ROOT"/*/*/*; do
   [ -d "$version_root" ] || continue
+  # Claude marks the cache of an uninstalled plugin version; it is not an inventory row.
+  [ -e "$version_root/.orphaned_at" ] && continue
   relative="${version_root#"$CACHE_ROOT"/}"
   marketplace="${relative%%/*}"
   plugin_tail="${relative#*/}"

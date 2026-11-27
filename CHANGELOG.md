@@ -6,6 +6,8 @@ summary: Timeline of guardrail helper changes mirrored from Sweetistics and rela
 
 ## Unreleased
 
+- `generate-skills-matrix.sh` skips a Claude plugin cache version that has `.orphaned_at`, so an uninstalled plugin does not come back as a matrix row. Removed the `visual-explainer` and `waza:*` plugin rows. `tests/generate-skills-matrix-test.sh` covers the orphaned cache.
+
 - Matrix: the `visual-explainer` skill no longer has a Codex copy (Codex `N`). The `waza` and `visual-explainer` plugins are uninstalled on the Macs; `update-plugins.sh` does not install them again.
 
 - Refreshed tracked skills and regenerated the selection-preserving skills matrix.
